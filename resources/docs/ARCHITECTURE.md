@@ -1,8 +1,3 @@
-# 📚 BaseAsfy System Architecture
-
-BaseAsfy là core framework cho các dự án phát triển tại Asfy Tech.
-Hệ thống sử dụng Laravel 12 làm Backend và Vue 3 (InertiaJS) làm Frontend.
-
 ## 1. Cấu trúc Backend (Laravel)
 
 Sử dụng chuẩn kiến trúc MVC kết hợp với Service + Repository Pattern.
