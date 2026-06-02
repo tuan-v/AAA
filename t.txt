@@ -1,0 +1,8 @@
+1: tair composer
+2: tải npm
+3: composer update
+4: npm i
+5: tạo env
+6: cn data
+7: composer run dev
+8: tìm hiểu migrations, seeder, vue, php, laravel .

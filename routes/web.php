@@ -1,8 +1,34 @@
 <?php
 
+use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+Route::get('/index', function () {
+    return Inertia::render('Products/Index');
+});
+
+Route::get('/create', function () {
+
+    return Inertia::render('createProduct');
+
+});
+Route::get('/product-detail/{id}', function ($id) {
+    return Inertia::render('ProductDetail', [
+        'id' => $id
+    ]);
+});
+Route::get('/product-update/{id}', function ($id) {
+    return Inertia::render('EditProduct', [
+        'id' => $id
+    ]);
+});
+Route::get('/user', function () {
+    return Inertia::render('Manage/User');
+});
+
+
 
 // ─── Setup routes (chỉ cho phép ở môi trường local/staging) ──────────────────
 if (app()->isLocal() || app()->environment('staging')) {
@@ -32,6 +58,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('DashBoard');
     })->name('dashboard');
+    Route::get('/products', function () {
+    return Inertia::render('Products/Index');
+})->name('products.index');
+    Route::get('/manage/user',function(){
+        return Inertia::render('Manage/User');
+    })->name('manage.user');
+    
+    Route::get('/users',[UserController::class, 'index']);
 });
 
 require __DIR__ . '/auth.php';

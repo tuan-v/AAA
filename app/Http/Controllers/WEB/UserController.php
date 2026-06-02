@@ -68,10 +68,7 @@ class UserController extends Controller
         $perPage = $request->get('per_page', 15);
         $users = $query->latest()->paginate($perPage);
 
-        $departments = Department::with('positions:id,name,department_id')->where('status', 'active')
-            ->where('company_id', Auth::user()->company_id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $departments =[];
 
         // Lấy danh sách roles
         $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
@@ -89,6 +86,10 @@ class UserController extends Controller
             'roles' => $roles,
             'filters' => $request->only(['search', 'status', 'per_page'])
         ]);
+    }
+
+    public function create(){
+        return Inertia('createPro');
     }
 
     public function store(Request $request)

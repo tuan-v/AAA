@@ -27,13 +27,19 @@ class AppServiceProvider extends ServiceProvider
 
         Inertia::share([
             'auth' => function () {
+
+                $user = auth()->user();
+
                 return [
-                    'user' => auth()->user() ? [
-                        'id' => auth()->user()->id,
-                        'name' => auth()->user()->name,
-                        'email' => auth()->user()->email,
-                        'avatar' => auth()->user()->avatar, // nếu có
-                    ] : null,
+
+                    'user' => $user,
+
+                    'permissions' => $user
+                        ? $user->getAllPermissions()
+                        ->pluck('name')
+                        ->toArray()
+                        : [],
+
                     'menuItems' => $this->getMenuItems(),
                 ];
             },
@@ -61,6 +67,33 @@ class AppServiceProvider extends ServiceProvider
                 'name' => 'Dashboard',
                 'path' => '/dashboard',
             ],
+            [
+                'icon' => 'GridIcon',
+                'name' => 'Product',
+                'path' => '/index',
+            ],
+            [
+                'icon' => 'GridIcon',
+                'name' => 'Quản lí',
+                'subItems' => [
+                    [
+                        'name' => 'Nhân sự',
+                        'path' => '/user',
+                    ],
+                    [
+                        'name' => 'Quyền',
+                        'path' => '/role',
+                    ],
+                    [
+                        'name' => 'Phòng ban',
+                        'path' => '/',
+                    ],
+                    [
+                        'name' => 'Chức vụ',
+                        'path' => '/',
+                    ],
+                ],
+            ]
         ];
 
         return [

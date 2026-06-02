@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -20,6 +21,7 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    protected $table = 'users';
     protected $fillable = [
         'email',
         'username',
@@ -38,7 +40,7 @@ class User extends Authenticatable
         'last_login_at',
         'last_login_ip',
         'name',
-        'is_employee'
+        'is_employee',
     ];
 
     /**
