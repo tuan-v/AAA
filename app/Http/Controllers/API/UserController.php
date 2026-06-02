@@ -11,34 +11,45 @@ use Illuminate\Support\Facades\Hash;
 class UserController extends Controller
 {
     public function index()
-    { {
-            $users =
-                User::with('roles')
-                ->paginate(10);
+    {
+        // {
+        //     $users =
+        //         User::with('roles')
+        //         ->paginate(10);
 
-            $users
-                ->getCollection()
-                ->transform(
-                    function ($user) {
+        //     $users
+        //         ->getCollection()
+        //         ->transform(
+        //             function ($user) {
 
-                        $user->role_name =
-                            $user->roles
-                            ->pluck('name')
-                            ->join(', ');
+        //                 $user->role_name =
+        //                     $user->roles
+        //                     ->pluck('name')
+        //                     ->join(', ');
 
-                        return $user;
-                    }
-                );
+        //                 return $user;
+        //             }
+        //         );
 
-            return response()->json(
-                $users
-            );
-        }
+        //     return response()->json(
+        //         $users
+        //     );
+        // }
+        $users = User::with('roles.permissions')->get();
+
+        return response()->json($users);
     }
     //lấy role
     public function roleList()
     {
         return Role::all();
+    }
+    //lấy 1 user cụ thể
+    public function show($id)
+    {
+        $user = User::with('roles.permissions')->find($id);
+
+        return response()->json($user);
     }
     //thêm user
     public function store(Request $request)

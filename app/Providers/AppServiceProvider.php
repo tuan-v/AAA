@@ -82,11 +82,11 @@ class AppServiceProvider extends ServiceProvider
                     ],
                     [
                         'name' => 'Quyền',
-                        'path' => '/role',
+                        'path' => '/permission',
                     ],
                     [
-                        'name' => 'Phòng ban',
-                        'path' => '/',
+                        'name' => 'Vai trò',
+                        'path' => '/role',
                     ],
                     [
                         'name' => 'Chức vụ',

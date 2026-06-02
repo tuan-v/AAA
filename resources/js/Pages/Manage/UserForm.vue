@@ -118,7 +118,6 @@ const saveUser = async () => {
     await axios.post("/api/users", form);
 
     emit("saved");
-    emit("close");
 };
 
 onMounted(() => {

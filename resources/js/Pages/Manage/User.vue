@@ -51,7 +51,6 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import UserForm from "./UserForm.vue";
-
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 
 import { ref, reactive, onMounted } from "vue";
@@ -104,10 +103,10 @@ const columns = [
         label: "SĐT",
     },
 
-    {
-        key: "role_name",
-        label: "Vai trò",
-    },
+    // {
+    //     key: "role_name",
+    //     label: "Vai trò",
+    // },
 
     {
         key: "status",

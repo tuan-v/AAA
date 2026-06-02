@@ -42,7 +42,10 @@ class User extends Authenticatable
         'name',
         'is_employee',
     ];
-
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'model_has_roles', 'model_id', 'role_id');
+    }
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -58,8 +61,13 @@ class User extends Authenticatable
      *
      * @var array
      */
-    protected $appends = [];
-
+    protected $appends = [
+        'role_name'
+    ];
+    public function getRoleNameAttribute()
+    {
+        return $this->role?->name; // ví dụ quan hệ role
+    }
     /**
      * Get the attributes that should be cast.
      *

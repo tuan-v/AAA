@@ -12,7 +12,6 @@ Route::get('/index', function () {
 Route::get('/create', function () {
 
     return Inertia::render('createProduct');
-
 });
 Route::get('/product-detail/{id}', function ($id) {
     return Inertia::render('ProductDetail', [
@@ -24,6 +23,18 @@ Route::get('/product-update/{id}', function ($id) {
         'id' => $id
     ]);
 });
+
+Route::get('/permission', function () {
+    return Inertia::render(
+        'Manage/Permission'
+    );
+});
+
+Route::get('/role', function () {
+    return Inertia::render('Manage/Role');
+});
+
+
 Route::get('/user', function () {
     return Inertia::render('Manage/User');
 });
@@ -59,13 +70,13 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('DashBoard');
     })->name('dashboard');
     Route::get('/products', function () {
-    return Inertia::render('Products/Index');
-})->name('products.index');
-    Route::get('/manage/user',function(){
+        return Inertia::render('Products/Index');
+    })->name('products.index');
+    Route::get('/manage/user', function () {
         return Inertia::render('Manage/User');
     })->name('manage.user');
-    
-    Route::get('/users',[UserController::class, 'index']);
+
+    Route::get('/users', [UserController::class, 'index']);
 });
 
 require __DIR__ . '/auth.php';

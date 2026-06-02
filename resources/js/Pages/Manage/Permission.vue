@@ -1,34 +1,33 @@
 <template>
     <AdminLayout>
         <div class="flex justify-between mb-5">
-            <h2 class="text-2xl font-bold">Quản lý vai trò</h2>
+            <h2 class="text-2xl font-bold">Quản lý quyền</h2>
 
             <button
-                @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded"
+                @click="openCreate"
             >
-                + Thêm vai trò
+                + Thêm quyền
             </button>
         </div>
 
         <DataTable
             :columns="columns"
-            :data="roles.data"
+            :data="permissions.data"
             :actions="actions"
             :showIndex="true"
         />
         <Pagination
-            :totalItems="roles.total"
-            :itemsPerPage="roles.per_page"
-            :currentPage="roles.current_page"
-            :doingShow="roles.data.length"
+            :totalItems="permissions.total"
+            :itemsPerPage="permissions.per_page"
+            :currentPage="permissions.current_page"
+            :doingShow="permissions.data.length"
             @page-change="handlePageChange"
         />
-
         <Modal v-if="showModal" @close="showModal = false">
             <template #body>
-                <RoleForm
-                    :role="selectedRole"
+                <PermissionForm
+                    :permission="selectedPermission"
                     @saved="reloadData"
                     @close="showModal = false"
                 />
@@ -38,32 +37,35 @@
 </template>
 
 <script setup>
-import axios from "axios";
 import { ref, onMounted } from "vue";
+import axios from "axios";
 
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
-
-import RoleForm from "./RoleForm.vue";
-import { icons } from "lucide-vue-next";
+import PermissionForm from "./PermissionForm.vue";
 
 const handlePageChange = (page) => {
     getData(page);
 };
-const roles = ref({
+
+const permissions = ref({
     data: [],
 });
-const form = ref({});
-const showModal = ref(false);
 
-const selectedRole = ref(null);
+const selectedPermission = ref(null);
+
+const showModal = ref(false);
 
 const columns = [
     {
         key: "name",
-        label: "Tên Role",
+        label: "Permission",
+    },
+    {
+        key: "group",
+        label: "Nhóm",
     },
 ];
 
@@ -71,41 +73,39 @@ const actions = [
     {
         icon: EditButtonIcon,
         onClick: (item) => {
-            selectedRole.value = item;
+            selectedPermission.value = item;
             showModal.value = true;
         },
     },
     {
         label: "Xóa",
         onClick: (item) => {
-            deleteRole(item.id);
+            deletePermission(item.id);
         },
     },
 ];
 
 function openCreate() {
-    selectedRole.value = null;
-
+    selectedPermission.value = null;
     showModal.value = true;
 }
-
 const reloadData = () => {
     getData();
     showModal.value = false;
 };
 const getData = async (page = 1) => {
-    const response = await axios.get(`/api/roles?page=${page}`);
+    const res = await axios.get(`/api/permissions?page=${page}`);
 
-    roles.value = response.data;
+    permissions.value = res.data;
 };
 
-async function deleteRole(id) {
-    await axios.delete(`/api/roles/${id}`);
+async function deletePermission(id) {
+    await axios.delete(`/api/permissions/${id}`);
 
     reloadData();
 }
 
 onMounted(() => {
-    getData();
+    reloadData();
 });
 </script>
