@@ -7,7 +7,7 @@ const store = createStore({
     modules: {
         order,
         reference,
-        orderForm
+        orderForm,
     },
 
     strict: process.env.NODE_ENV !== "production",

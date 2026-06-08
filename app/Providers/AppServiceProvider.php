@@ -61,40 +61,57 @@ class AppServiceProvider extends ServiceProvider
 
     private function webMenuItems()
     {
-        $menuItems = [
-            [
+        $permissions = Auth::user()->getAllPermissions()->pluck('name')->toArray();
+
+        $can = function ($permission) use ($permissions) {
+            return in_array($permission, $permissions);
+        };
+
+        $menuItems = [];
+
+        // DASHBOARD (ai cũng thấy)
+        $menuItems[] = [
+            'icon' => 'GridIcon',
+            'name' => 'Dashboard',
+            'path' => '/dashboard',
+        ];
+
+        // PRODUCT (ai có quyền product.view mới thấy)
+        if ($can('product.view')) {
+            $menuItems[] = [
                 'icon' => 'GridIcon',
-                'name' => 'Dashboard',
-                'path' => '/dashboard',
-            ],
-            [
-                'icon' => 'GridIcon',
-                'name' => 'Product',
-                'path' => '/index',
-            ],
-            [
+                'name' => 'Sản phẩm',
+                'path' => '/products',
+            ];
+        }
+
+        // QUẢN LÝ (chỉ hiện nếu có ít nhất 1 quyền admin system)
+        if (
+            $can('user.view') ||
+            $can('role.view') ||
+            $can('permission.view')
+        ) {
+            $menuItems[] = [
                 'icon' => 'GridIcon',
                 'name' => 'Quản lí',
-                'subItems' => [
-                    [
+                'subItems' => array_values(array_filter([
+                    $can('user.view') ? [
                         'name' => 'Nhân sự',
-                        'path' => '/user',
-                    ],
-                    [
+                        'path' => '/users',
+                    ] : null,
+
+                    $can('permission.view') ? [
                         'name' => 'Quyền',
-                        'path' => '/permission',
-                    ],
-                    [
+                        'path' => '/permissions',
+                    ] : null,
+
+                    $can('role.view') ? [
                         'name' => 'Vai trò',
-                        'path' => '/role',
-                    ],
-                    [
-                        'name' => 'Chức vụ',
-                        'path' => '/',
-                    ],
-                ],
-            ]
-        ];
+                        'path' => '/roles',
+                    ] : null,
+                ])),
+            ];
+        }
 
         return [
             [

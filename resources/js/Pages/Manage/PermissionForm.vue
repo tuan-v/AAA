@@ -1,18 +1,25 @@
 <template>
     <div class="bg-white rounded-xl p-6 w-[600px] z-50">
-        <h2 class="text-xl font-bold mb-5">
-            {{ isEdit ? "Sửa Permission" : "Thêm Permission" }}
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold mb-5">
+                {{ props.permission ? "Sửa quyền" : "Thêm quyền" }}
+            </h2>
+            <button @click="$emit('close')">✕</button>
+        </div>
 
         <form @submit.prevent="save">
             <div class="mb-3">
-                <label class="block mb-1">Tên Permission</label>
+                <label class="block mb-1">Tên quyền</label>
                 <input v-model="form.name" class="border p-2 w-full" />
             </div>
 
             <div class="mb-5">
                 <label class="block mb-1">Nhóm</label>
                 <input v-model="form.group" class="border p-2 w-full" />
+            </div>
+            <div class="mb-5">
+                <label class="block mb-1">Mô tả</label>
+                <input v-model="form.description" class="border p-2 w-full" />
             </div>
 
             <div class="flex justify-end gap-2">
@@ -33,7 +40,7 @@
 </template>
 
 <script setup>
-import { reactive, watch, computed } from "vue";
+import { reactive, watch, computed, onMounted } from "vue";
 import axios from "axios";
 
 const props = defineProps({
@@ -50,15 +57,13 @@ const form = reactive({
     group: "",
 });
 
-const isEdit = computed(() => !!props.permission);
-
 // ✅ QUAN TRỌNG: watch để cập nhật form khi mở modal
 watch(
     () => props.permission,
-    (val) => {
-        if (val) {
-            form.name = val.name ?? "";
-            form.group = val.group ?? "";
+    (permission) => {
+        if (permission) {
+            form.name = permission.name;
+            form.group = permission.group;
         } else {
             form.name = "";
             form.group = "";
@@ -67,18 +72,20 @@ watch(
     { immediate: true },
 );
 
-async function save() {
-    try {
-        if (isEdit.value) {
-            await axios.put(`/api/permissions/${props.permission.id}`, form);
-        } else {
-            await axios.post("/api/permissions", form);
-        }
-
-        emit("saved");
-        emit("close");
-    } catch (error) {
-        console.error(error);
+function save() {
+    if (props.permission?.id) {
+        axios.put(`/api/permissions/${props.permission.id}`, form).then(() => {
+            emit("saved");
+            emit("close");
+        });
+    } else {
+        axios.post("/api/permissions", form).then(() => {
+            emit("saved");
+            emit("close");
+        });
     }
 }
+// onMounted(() => {
+//     get;
+// });
 </script>

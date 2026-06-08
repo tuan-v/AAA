@@ -1,9 +1,15 @@
 <template>
+    <head title="Quản lý vai trò" />
     <AdminLayout>
+        <PageBreadcrumb
+            title="Vai trò"
+            :items="[{ text: 'Vai trò', link: null }]"
+        />
         <div class="flex justify-between mb-5">
-            <h2 class="text-2xl font-bold">Quản lý vai trò</h2>
+            <h2 class="text-2xl font-bold">Danh sách vai trò</h2>
 
             <button
+                v-if="can('role.create')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded"
             >
@@ -40,12 +46,12 @@
 <script setup>
 import axios from "axios";
 import { ref, onMounted } from "vue";
-
+import { Head, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
-
+import Pagination from "@/components/Pagination.vue";
 import RoleForm from "./RoleForm.vue";
 import { icons } from "lucide-vue-next";
 
@@ -54,7 +60,15 @@ const handlePageChange = (page) => {
 };
 const roles = ref({
     data: [],
+    total: 0,
+    per_page: 10,
+    current_page: 1,
+    last_page: 1,
 });
+const permissions = usePage().props.auth.permissions;
+const can = (permission) => {
+    return permissions.includes(permission);
+};
 const form = ref({});
 const showModal = ref(false);
 
@@ -63,7 +77,7 @@ const selectedRole = ref(null);
 const columns = [
     {
         key: "name",
-        label: "Tên Role",
+        label: "Tên vai trò",
     },
 ];
 
@@ -73,12 +87,6 @@ const actions = [
         onClick: (item) => {
             selectedRole.value = item;
             showModal.value = true;
-        },
-    },
-    {
-        label: "Xóa",
-        onClick: (item) => {
-            deleteRole(item.id);
         },
     },
 ];

@@ -1,18 +1,18 @@
 <template>
     <div class="bg-white rounded-xl p-6 w-[600px] z-50">
         <h2 class="font-bold text-xl mb-5">
-            {{ role ? "Sửa Role" : "Thêm Role" }}
+            {{ role ? "Sửa vai trò" : "Thêm vai trò" }}
         </h2>
 
         <form @submit.prevent="save">
             <div class="mb-3">
-                <label>Tên Role</label>
+                <label>Tên vai trò</label>
 
                 <input v-model="form.name" class="border p-2 w-full" />
             </div>
 
             <div class="mb-5">
-                <label>Permission</label>
+                <label>Quyền</label>
 
                 <div
                     v-for="permission in permissions"

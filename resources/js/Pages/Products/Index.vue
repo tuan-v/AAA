@@ -8,6 +8,7 @@
         <div class="flex justify-between items-center mb-5">
             <h2 class="text-2xl font-bold">Danh sách sản phẩm</h2>
             <button
+                v-if="can('product.create')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-red-500"
             >
@@ -33,7 +34,7 @@
     </Modal>
 </template>
 <script setup>
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import {
@@ -51,6 +52,10 @@ import Modal from "../../components/Modal.vue";
 import ProductForm from "./ProductForm.vue";
 import EditButtonIcon from "../../icons/EditButtonIcon.vue";
 const categories = ref([]);
+const permissions = usePage().props.auth.permissions;
+const can = (permission) => {
+    return permissions.includes(permission);
+};
 const selectedProduct = ref(null);
 const showModal = ref(false);
 const form = ref({

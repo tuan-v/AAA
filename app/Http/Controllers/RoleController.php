@@ -13,7 +13,8 @@ class RoleController extends Controller
     public function index()
     {
         return Role::with('permissions')
-            ->paginate(10);
+            ->orderBy('id', 'desc')
+            ->paginate(5);
     }
 
     public function permissions()
@@ -27,6 +28,7 @@ class RoleController extends Controller
             'name' => $request->name,
             'guard_name' => 'web'
         ]);
+
 
         $role->syncPermissions(
             $request->permissions ?? []

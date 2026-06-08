@@ -38,6 +38,11 @@ Route::get('/role', function () {
 Route::get('/user', function () {
     return Inertia::render('Manage/User');
 });
+Route::get('/user/{id}', function ($id) {
+    return Inertia::render('Manage/UserDetail', [
+        'id' => $id
+    ]);
+});
 
 
 
@@ -78,5 +83,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/users', [UserController::class, 'index']);
 });
+Route::get('/users', function () {
+    return Inertia::render('User/Index');
+})->middleware('permission:user.view');
 
 require __DIR__ . '/auth.php';

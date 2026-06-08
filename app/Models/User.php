@@ -21,6 +21,11 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_BLOCKED = 'blocked';
+    const STATUS_PENDING = 'pending';
     protected $table = 'users';
     protected $fillable = [
         'email',
@@ -42,10 +47,10 @@ class User extends Authenticatable
         'name',
         'is_employee',
     ];
-    public function roles()
-    {
-        return $this->belongsToMany(Role::class, 'model_has_roles', 'model_id', 'role_id');
-    }
+    // public function roles()
+    // {
+    //     return $this->belongsToMany(Role::class, 'model_has_roles', 'model_id', 'role_id');
+    // }
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -62,12 +67,12 @@ class User extends Authenticatable
      * @var array
      */
     protected $appends = [
-        'role_name'
+        // 'role_name'
     ];
-    public function getRoleNameAttribute()
-    {
-        return $this->role?->name; // ví dụ quan hệ role
-    }
+    // public function getRoleNameAttribute()
+    // {
+    //     return $this->roles->first()?->name; //quan hệ role
+    // }
     /**
      * Get the attributes that should be cast.
      *

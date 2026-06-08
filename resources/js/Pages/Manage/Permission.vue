@@ -1,9 +1,14 @@
 <template>
+    <head title="Quản lý quyền" />
     <AdminLayout>
+        <PageBreadcrumb
+            title="Quyền"
+            :items="[{ text: 'Nhân sự', link: null }]"
+        />
         <div class="flex justify-between mb-5">
-            <h2 class="text-2xl font-bold">Quản lý quyền</h2>
-
+            <h2 class="text-2xl font-bold">Danh sách quyền</h2>
             <button
+                v-if="can('permission.create')"
                 class="bg-blue-500 text-white px-4 py-2 rounded"
                 @click="openCreate"
             >
@@ -16,6 +21,8 @@
             :data="permissions.data"
             :actions="actions"
             :showIndex="true"
+            :startIndex="(permissions.current_page - 1) * permissions.per_page"
+            emptyMessage="Không có quyền nào"
         />
         <Pagination
             :totalItems="permissions.total"
@@ -39,12 +46,13 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-
+import Pagination from "@/components/Pagination.vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import PermissionForm from "./PermissionForm.vue";
+import { Head, usePage } from "@inertiajs/vue3";
 
 const handlePageChange = (page) => {
     getData(page);
@@ -52,7 +60,15 @@ const handlePageChange = (page) => {
 
 const permissions = ref({
     data: [],
+    total: 0,
+    per_page: 10,
+    current_page: 1,
+    last_page: 1,
 });
+const permissionss = usePage().props.auth.permissions;
+const can = (permission) => {
+    return permissionss.includes(permission);
+};
 
 const selectedPermission = ref(null);
 
@@ -61,7 +77,7 @@ const showModal = ref(false);
 const columns = [
     {
         key: "name",
-        label: "Permission",
+        label: "Tên quyền",
     },
     {
         key: "group",
@@ -90,13 +106,17 @@ function openCreate() {
     showModal.value = true;
 }
 const reloadData = () => {
-    getData();
+    getData(permissions.value.current_page || 1);
     showModal.value = false;
 };
 const getData = async (page = 1) => {
-    const res = await axios.get(`/api/permissions?page=${page}`);
+    try {
+        const res = await axios.get(`/api/permissions?page=${page}`);
 
-    permissions.value = res.data;
+        permissions.value = res.data;
+    } catch (error) {
+        console.error(error);
+    }
 };
 
 async function deletePermission(id) {

@@ -6,109 +6,195 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
     public function index()
     {
-        // {
-        //     $users =
-        //         User::with('roles')
-        //         ->paginate(10);
-
-        //     $users
-        //         ->getCollection()
-        //         ->transform(
-        //             function ($user) {
-
-        //                 $user->role_name =
-        //                     $user->roles
-        //                     ->pluck('name')
-        //                     ->join(', ');
-
-        //                 return $user;
-        //             }
-        //         );
-
-        //     return response()->json(
-        //         $users
-        //     );
-        // }
-        $users = User::with('roles.permissions')->get();
-
-        return response()->json($users);
+        return User::with('roles')
+            ->orderBy('id', 'desc')
+            ->paginate(5);
     }
-    //lấy role
-    public function roleList()
+
+    public function role()
     {
         return Role::all();
     }
-    //lấy 1 user cụ thể
+
     public function show($id)
     {
-        $user = User::with('roles.permissions')->find($id);
+        $user = User::with('roles')->findOrFail($id);
 
         return response()->json($user);
     }
-    //thêm user
+
+    // Thêm user
     public function store(Request $request)
     {
-        $user = User::create([
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255'
+            ],
 
-            'name' => $request->name,
+            'username' => [
+                'required',
+                'string',
+                'max:50',
+                'unique:users,username'
+            ],
 
-            'username' => $request->username,
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email'
+            ],
 
-            'email' => $request->email,
+            'phone' => [
+                'nullable',
+                'number',
+                'max:10',
+                'unique:users,phone'
+            ],
 
-            'phone' => $request->phone,
+            'password' => [
+                'required',
+                'string',
+                'min:6',
+                'confirmed'
+            ],
+            'status' => [
+                'required',
+                Rule::in([
+                    User::STATUS_ACTIVE,
+                    User::STATUS_INACTIVE,
+                    User::STATUS_BLOCKED,
+                    User::STATUS_PENDING,
+                ])
+            ],
 
-            'password' => bcrypt(
-                $request->password
-            ),
+            'role' => [
+                'required',
+                'exists:roles,name'
+            ]
         ]);
 
-        $user->syncRoles(
-            $request->roles
-        );
+        $user = User::create([
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'password' => bcrypt($validated['password']),
+            'status' => User::STATUS_ACTIVE
+        ]);
+
+        $user->syncRoles($validated['role']);
 
         return response()->json([
-            'message' => 'Thành công'
+            'message' => 'Thêm tài khoản thành công',
+            'user' => $user
+        ], 201);
+    }
+
+    // Cập nhật user
+    public function update(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255'
+            ],
+
+            'username' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('users', 'username')->ignore($user->id)
+            ],
+
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($user->id)
+            ],
+
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('users', 'phone')->ignore($user->id)
+            ],
+
+            'password' => [
+                'nullable',
+                'string',
+                'min:6',
+                'confirmed'
+            ],
+
+            'status' => [
+                'required',
+                Rule::in([
+                    User::STATUS_ACTIVE,
+                    User::STATUS_INACTIVE,
+                    User::STATUS_BLOCKED,
+                    User::STATUS_PENDING,
+                ])
+            ],
+
+            'role' => [
+                'required',
+                'exists:roles,name'
+            ]
+        ]);
+
+        $data = [
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'status' => $validated['status']
+        ];
+
+        if (!empty($validated['password'])) {
+            $data['password'] = bcrypt($validated['password']);
+        }
+
+        $user->update($data);
+
+        $user->syncRoles($validated['role']);
+
+        return response()->json([
+            'message' => 'Cập nhật thành công'
         ]);
     }
-    //sửa user
-    public function update(
-        Request $request,
-        User $user
-    ) {
+
+    public function changeStatus(Request $request, User $user)
+    {
+        $request->validate([
+            'status' => [
+                'required',
+                Rule::in([
+                    User::STATUS_ACTIVE,
+                    User::STATUS_INACTIVE,
+                    User::STATUS_BLOCKED,
+                    User::STATUS_PENDING
+                ])
+            ]
+        ]);
+
         $user->update([
-
-            'name' =>
-            $request->name,
-
-            'username' =>
-            $request->username,
-
-            'email' =>
-            $request->email,
-
-            'phone' =>
-            $request->phone,
-
-            'status' =>
-            $request->status
+            'status' => $request->status
         ]);
-        $user->syncRoles([
-            $request->role
-        ]);
-        return response()->json();
-    }
-    public function destroy(
-        User $user
-    ) {
-        $user->delete();
 
-        return response()->json();
+        return response()->json([
+            'message' => 'Cập nhật trạng thái thành công'
+        ]);
     }
 }

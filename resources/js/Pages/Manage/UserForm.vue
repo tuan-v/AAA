@@ -1,45 +1,77 @@
 <template>
-    <div class="relative bg-white rounded-xl shadow-lg w-[700px] p-6 z-50">
-        <h2 class="text-xl font-bold mb-4">
-            {{ user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
-        </h2>
-
+    <div
+        class="relative bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 z-50"
+    >
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">
+                {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
+            </h2>
+            <button @click="$emit('close')">✕</button>
+        </div>
         <form @submit.prevent="saveUser">
-            <div class="mb-3">
-                <label>Họ tên</label>
-                <input v-model="form.name" class="border p-2 w-full rounded" />
-            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label>Họ tên</label>
+                    <input
+                        v-model="form.name"
+                        class="border p-2 w-full rounded"
+                    />
+                </div>
+                <div>
+                    <label>Tên đăng nhập</label>
+                    <input
+                        v-model="form.username"
+                        class="border p-2 w-full rounded"
+                    />
+                </div>
+                <div>
+                    <label>Email</label>
+                    <input
+                        v-model="form.email"
+                        class="border p-2 w-full rounded"
+                    />
+                </div>
+                <div>
+                    <label>Số điện thoại</label>
+                    <input
+                        v-model="form.phone"
+                        class="border p-2 w-full rounded"
+                    />
+                </div>
+                <div>
+                    <label>Mật khẩu</label>
+                    <input
+                        type="text"
+                        v-model="form.password"
+                        class="border p-2 w-full rounded"
+                    />
+                </div>
+                <div>
+                    <label>Trạng thái</label>
 
-            <div class="mb-3">
-                <label>Email</label>
-                <input v-model="form.email" class="border p-2 w-full rounded" />
-            </div>
-
-            <div class="mb-3">
-                <label>Mật khẩu</label>
-                <input
-                    type="password"
-                    v-model="form.password"
-                    class="border p-2 w-full rounded"
-                />
-            </div>
-
-            <div class="mb-3">
-                <label>Vai trò</label>
-
-                <select
-                    multiple
-                    v-model="form.roles"
-                    class="border p-2 w-full rounded"
-                >
-                    <option
-                        v-for="role in roles"
-                        :key="role.id"
-                        :value="role.name"
+                    <select
+                        v-model="form.status"
+                        class="border p-2 w-full rounded"
                     >
-                        {{ role.name }}
-                    </option>
-                </select>
+                        <option value="active">Hoạt động</option>
+                        <option value="inactive">Ngưng hoạt động</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Vai trò</label>
+                    <select
+                        v-model="form.role"
+                        class="border p-2 w-full rounded"
+                    >
+                        <option
+                            v-for="role in roles"
+                            :key="role.id"
+                            :value="role.name"
+                        >
+                            {{ role.name }}
+                        </option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-5">
@@ -65,9 +97,12 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from "vue";
 import axios from "axios";
-
+import pagination from "@/components/Pagination.vue";
 const props = defineProps({
-    user: Object,
+    user: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["saved", "close"]);
@@ -80,7 +115,8 @@ const form = reactive({
     email: "",
     phone: "",
     password: "",
-    role_id: [],
+    status: "active",
+    role: "",
 });
 
 watch(
@@ -92,7 +128,8 @@ watch(
                 username: value.username || "",
                 email: value.email || "",
                 phone: value.phone || "",
-                role_id: value.roles ? value.roles.map((r) => r.name) : [],
+                status: value.status || "",
+                role: value.roles?.[0]?.name || "",
             });
         } else {
             Object.assign(form, {
@@ -101,24 +138,30 @@ watch(
                 email: "",
                 phone: "",
                 password: "",
-                role_id: [],
+                status: "active",
+                roles: "",
             });
         }
     },
     { immediate: true },
 );
-
 const getRoles = async () => {
-    const response = await axios.get("/api/roles");
-
-    roles.value = response.data;
+    const res = await axios.get("/api/roles");
+    roles.value = res.data.data ?? res.data;
 };
-
-const saveUser = async () => {
-    await axios.post("/api/users", form);
-
-    emit("saved");
-};
+function saveUser() {
+    if (props.user?.id) {
+        axios.put(`/api/users/user/${props.user.id}`, form).then(() => {
+            emit("saved");
+            emit("close");
+        });
+    } else {
+        axios.post("/api/users/user", form).then(() => {
+            emit("saved");
+            emit("close");
+        });
+    }
+}
 
 onMounted(() => {
     getRoles();

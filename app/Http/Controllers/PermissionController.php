@@ -4,25 +4,33 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
     public function index()
     {
-        return Permission::paginate(10);
+        return response()->json(
+            Permission::orderBy('id', 'desc')->paginate(5)
+
+        );
     }
 
     public function store(Request $request)
     {
-        Permission::create([
+        $request->validate([
+            'name' => 'required|min:2',
+        ]);
+        $permission = Permission::create([
             'name' => $request->name,
             'group' => $request->group,
             'guard_name' => 'web'
         ]);
 
         return response()->json([
-            'success' => true
+            'message' => "Thêm thành công",
+            'data' => $permission
         ]);
     }
 
@@ -32,7 +40,7 @@ class PermissionController extends Controller
 
         $permission->update([
             'name' => $request->name,
-            'group' => $request->group
+            'group' => $request->group,
         ]);
 
         return response()->json([
