@@ -1,7 +1,7 @@
 <template>
     <Head title=""></Head>
     <AdminLayout>
-        <PageBreadcrumb title="" :items="[{ text: 'Product', link: null }]" />
+        <PageBreadcrumb title="" :items="[{ text: 'Sản phẩm', link: null }]" />
         <div
             class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-4 2xl:gap-7.5"
         ></div>
@@ -12,7 +12,7 @@
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-red-500"
             >
-                + Thêm sản phẩm
+                +
             </button>
         </div>
         <DataTable
@@ -48,9 +48,9 @@ import { ref, onMounted } from "vue";
 // import EyeOn from "../icons/EyeOn.vue";
 // import EyeOff from "../icons/EyeOff.vue";
 import axios from "axios";
-import Modal from "../../components/Modal.vue";
+import Modal from "../../../components/Modal.vue";
 import ProductForm from "./ProductForm.vue";
-import EditButtonIcon from "../../icons/EditButtonIcon.vue";
+import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 const categories = ref([]);
 const permissions = usePage().props.auth.permissions;
 const can = (permission) => {
@@ -63,21 +63,15 @@ const form = ref({
     so_luong: "",
     mau_sac: "",
     gia: "",
-    id_the_loai: "",
+    ten_the_loai: "",
 });
 const products = ref([]);
 const columns = [
-    {
-        label: "ID",
-        key: "id",
-        align: "text-right",
-        width: "80px",
-    },
     { label: "Tên", key: "ten" },
     { label: "Số lượng", key: "so_luong", align: "text-right" },
     { label: "Màu sắc", key: "mau_sac" },
     { label: "Giá", key: "gia" },
-    { label: "Thể loại", key: "id_the_loai" },
+    { label: "Danh mục", key: "ten_the_loai" },
 ];
 const actions = [
     {
@@ -109,7 +103,7 @@ function openEdit(product) {
 }
 function getData() {
     axios
-        .get("/api/index")
+        .get("/api/warehouse/products")
 
         .then((response) => {
             products.value = response.data;
@@ -120,16 +114,12 @@ function getData() {
         });
 }
 
-onMounted(() => {
-    getData();
-});
-
 function deleteProduct(id) {
     if (!confirm("Bạn có chắc muốn xóa?")) {
         return;
     }
 
-    axios.delete(`/api/index/${id}`).then(() => {
+    axios.delete(`/api/products/${id}`).then(() => {
         getData();
     });
 }
@@ -137,4 +127,5 @@ function deleteProduct(id) {
 onMounted(() => {
     getData();
 });
+console.log(categories.value);
 </script>

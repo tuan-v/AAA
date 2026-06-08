@@ -73,6 +73,14 @@
                 >
                     {{ item.name }}
                 </a>
+                <!-- <button
+                    v-for="item in navItems"
+                    :key="item.name"
+                    @click="handleNavClick(item)"
+                    class="px-4 py-2 text-sm font-medium rounded-lg"
+                >
+                    {{ item.name }} -->
+                <!-- </button> -->
             </nav>
 
             <!-- Right Section: Theme Toggle + Notifications + User Menu -->
@@ -131,6 +139,7 @@
             </nav>
         </div>
     </header>
+
     <ConfirmDialog ref="confirmDialog" />
 </template>
 
@@ -146,12 +155,16 @@ import ConfirmDialog from "@/components/ui/Confirm.vue";
 import { usePage } from "@inertiajs/vue3";
 import "vue3-toastify/dist/index.css";
 
+import { router } from "@inertiajs/vue3";
+import { useModule } from "@/composables/useModule.js";
+
+const { currentModule } = useModule();
 const page = usePage();
 const { toggleSidebar, toggleMobileSidebar, isMobileOpen } = useSidebar();
 const confirmDialog = ref(null);
 
 const companies = computed(() => {
-    return page.props.auth?.companies || [];
+    return page.props.auths?.companies || [];
 });
 
 const hasCompanies = computed(() => {
@@ -192,51 +205,66 @@ if (ROOT_DOMAIN == "asfy-cms.test") {
 const navItems = ref([
     {
         name: "TRANG CHỦ",
-        href: `${PROTOCOL}://main.${ROOT_DOMAIN}`,
+        module: "hr",
+        route: "/dashboard",
     },
     {
         name: "MUA HÀNG",
-        href: `${PROTOCOL}://mua-hang.${ROOT_DOMAIN}`,
+        module: "purchase",
+        route: "/purchase",
     },
     {
         name: "BÁN HÀNG",
-        href: `${PROTOCOL}://ban-hang.${ROOT_DOMAIN}`,
+        module: "sale",
+        route: "/sale",
     },
     {
         name: "KHO",
-        href: `${PROTOCOL}://kho.${ROOT_DOMAIN}`,
+        module: "warehouse",
+        route: "/warehouse",
     },
     {
         name: "KẾ TOÁN",
-        href: `${PROTOCOL}://thu-chi.${ROOT_DOMAIN}`,
+        module: "accounting",
+        route: "/accounting",
     },
 ]);
 
 const activeNav = ref("Dashboard");
 
+// const handleNavClick = (item) => {
+//     if (item.name === "Trang chủ") {
+//         return true;
+//     }
+
+//     if (!hasCompanies.value) {
+//         toast.error(
+//             "Bạn chưa có công ty quản lý. Vui lòng tạo công ty trước khi sử dụng tính năng này.",
+//             {
+//                 position: "top-right",
+//                 autoClose: 5000,
+//                 hideProgressBar: false,
+//                 closeOnClick: true,
+//                 pauseOnHover: true,
+//                 draggable: true,
+//                 theme: "light",
+//             },
+//         );
+
+//         event.preventDefault();
+//         return false;
+//     }
+
+//     return true;
+// };
 const handleNavClick = (item) => {
-    if (item.name === "Trang chủ") {
-        return true;
-    }
-
     if (!hasCompanies.value) {
-        toast.error(
-            "Bạn chưa có công ty quản lý. Vui lòng tạo công ty trước khi sử dụng tính năng này.",
-            {
-                position: "top-right",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                theme: "light",
-            },
-        );
-
-        event.preventDefault();
-        return false;
+        toast.error("Bạn chưa có công ty quản lý.");
+        return;
     }
 
-    return true;
+    currentModule.value = item.module;
+
+    router.visit(item.route);
 };
 </script>

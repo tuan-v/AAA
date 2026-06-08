@@ -12,11 +12,13 @@ class UserController extends Controller
 {
     public function index()
     {
-        return User::with('roles')
+        $users = User::with('roles')
+            ->visibleFor(auth()->user())
             ->orderBy('id', 'desc')
             ->paginate(5);
-    }
 
+        return response()->json($users);
+    }
     public function role()
     {
         return Role::all();
@@ -24,7 +26,9 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::with('roles')->findOrFail($id);
+        $user = User::with('roles')
+            ->visibleFor(auth()->user())
+            ->findOrFail($id);
 
         return response()->json($user);
     }
@@ -33,39 +37,11 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255'
-            ],
-
-            'username' => [
-                'required',
-                'string',
-                'max:50',
-                'unique:users,username'
-            ],
-
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                'unique:users,email'
-            ],
-
-            'phone' => [
-                'nullable',
-                'number',
-                'max:10',
-                'unique:users,phone'
-            ],
-
-            'password' => [
-                'required',
-                'string',
-                'min:6',
-                'confirmed'
-            ],
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:50|unique:users,username',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone' => 'nullable|regex:/^(0)[0-9]{9,10}$/',
+            'password' => 'required|string',
             'status' => [
                 'required',
                 Rule::in([
@@ -75,12 +51,19 @@ class UserController extends Controller
                     User::STATUS_PENDING,
                 ])
             ],
-
-            'role' => [
-                'required',
-                'exists:roles,name'
-            ]
+            'role' => 'required|exists:roles,name'
         ]);
+
+        // ❗ CHECK TRÙNG TRONG COMPANY (PHẢI ĐẶT TRƯỚC KHI CREATE)
+        $exists = User::whereHas('companies', function ($q) {
+            $q->where('companies.id', auth()->user()->company_id);
+        })->where('email', $validated['email'])->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'User đã tồn tại trong công ty'
+            ], 422);
+        }
 
         $user = User::create([
             'name' => $validated['name'],
@@ -88,7 +71,13 @@ class UserController extends Controller
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'password' => bcrypt($validated['password']),
-            'status' => User::STATUS_ACTIVE
+            'status' => User::STATUS_ACTIVE,
+            'mode' => 'company',
+            'company_id' => auth()->user()->company_id,
+        ]);
+
+        $user->companies()->syncWithoutDetaching([
+            auth()->user()->company_id
         ]);
 
         $user->syncRoles($validated['role']);
@@ -102,42 +91,25 @@ class UserController extends Controller
     // Cập nhật user
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $user = User::visibleFor(auth()->user())
+            ->findOrFail($id);
 
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255'
-            ],
-
+            'name' => 'required|string|max:255',
             'username' => [
                 'required',
-                'string',
-                'max:50',
                 Rule::unique('users', 'username')->ignore($user->id)
             ],
-
             'email' => [
                 'required',
-                'email',
                 Rule::unique('users', 'email')->ignore($user->id)
             ],
-
             'phone' => [
                 'nullable',
-                'string',
-                'max:20',
+                'regex:/^(0)[0-9]{9,10}$/',
                 Rule::unique('users', 'phone')->ignore($user->id)
             ],
-
-            'password' => [
-                'nullable',
-                'string',
-                'min:6',
-                'confirmed'
-            ],
-
+            'password' => 'nullable|string|min:6|confirmed',
             'status' => [
                 'required',
                 Rule::in([
@@ -147,11 +119,7 @@ class UserController extends Controller
                     User::STATUS_PENDING,
                 ])
             ],
-
-            'role' => [
-                'required',
-                'exists:roles,name'
-            ]
+            'role' => 'required|exists:roles,name'
         ]);
 
         $data = [
@@ -168,15 +136,24 @@ class UserController extends Controller
 
         $user->update($data);
 
+        // 🔥 đảm bảo vẫn thuộc company hiện tại
+        $user->companies()->sync([auth()->user()->company_id]);
+
         $user->syncRoles($validated['role']);
 
         return response()->json([
             'message' => 'Cập nhật thành công'
         ]);
     }
-
-    public function changeStatus(Request $request, User $user)
+    public function toggleStatus(Request $request, User $user)
     {
+        // ❗ chặn user khác công ty
+        abort_unless(
+            auth()->user()->type === User::TYPE_SYSTEM
+                || $user->companies->contains(auth()->user()->company_id),
+            403
+        );
+
         $request->validate([
             'status' => [
                 'required',
@@ -197,4 +174,16 @@ class UserController extends Controller
             'message' => 'Cập nhật trạng thái thành công'
         ]);
     }
-}
+    public function makeSystem($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->update([
+            'type' => User::TYPE_SYSTEM
+        ]);
+
+        return response()->json([
+            'message' => 'Đã chuyển sang system'
+        ]);
+    }
+};

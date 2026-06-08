@@ -29,12 +29,30 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
-            'phone' => ['required', 'string', 'max:15', 'unique:' . User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+
+        $request->validate(
+            [
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+                'phone' => ['required', 'regex:/^(0[0-9]{9,10})$/', 'unique:' . User::class],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ],
+            [
+                'name.required' => 'Họ tên không được để trống.',
+                'name.max' => 'Họ tên tối đa 255 ký tự.',
+
+                'email.required' => 'Email không được để trống.',
+                'email.email' => 'Email không đúng định dạng.',
+                'email.unique' => 'Email đã tồn tại.',
+
+                'phone.required' => 'Số điện thoại không được để trống.',
+                'phone.regex' => 'Số điện thoại không hợp lệ.',
+                'phone.unique' => 'Số điện thoại đã tồn tại.',
+
+                'password.required' => 'Mật khẩu không được để trống.',
+                'password.confirmed' => 'Xác nhận mật khẩu không khớp.',
+            ]
+        );
 
         $user = User::create([
             'name' => $request->name,
@@ -42,6 +60,7 @@ class RegisteredUserController extends Controller
             'username' => $request->email,
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
+            'status' => User::STATUS_PENDING,
         ]);
         // // $user->assignRole('CompanyManager');
         // $user->save();
@@ -49,6 +68,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('company.create');
     }
 }

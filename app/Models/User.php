@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Company;
 
 
 class User extends Authenticatable
@@ -21,7 +22,8 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-
+    const TYPE_SYSTEM = 'system';
+    const TYPE_USER = 'user';
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
     const STATUS_BLOCKED = 'blocked';
@@ -32,6 +34,7 @@ class User extends Authenticatable
         'username',
         'phone',
         'password',
+        'type',
         'google_id',
         'company_id',
         'department_id',
@@ -47,10 +50,25 @@ class User extends Authenticatable
         'name',
         'is_employee',
     ];
-    // public function roles()
+
+    // protected static function booted()
     // {
-    //     return $this->belongsToMany(Role::class, 'model_has_roles', 'model_id', 'role_id');
+    //     static::addGlobalScope(new \App\Scopes\CompanyScope);
     // }
+    public function isSystem(): bool
+    {
+        return $this->type === self::TYPE_SYSTEM;
+    }
+    public function scopeVisibleFor($query, $user)
+    {
+        if ($user->type === self::TYPE_SYSTEM) {
+            return $query;
+        }
+
+        return $query->whereHas('companies', function ($q) use ($user) {
+            $q->where('companies.id', $user->company_id);
+        });
+    }
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -94,11 +112,14 @@ class User extends Authenticatable
      */
     public function companies()
     {
-        return $this->belongsToMany(Company::class, 'user_company')
-            ->withPivot('position_id', 'department_id')
-            ->withTimestamps();
+        return $this->morphToMany(
+            Company::class,
+            'model',
+            'model_has_company',
+            'model_id',
+            'company_id'
+        )->withTimestamps();
     }
-
     /**
      * Get the company that the user owns.
      */

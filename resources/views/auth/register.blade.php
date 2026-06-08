@@ -40,63 +40,114 @@
                             @csrf
                             <div>
                                 <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Tên</label>
-                                <input id="name" name="name" type="text" value="{{ old('name') }}" autocomplete="name"
-                                    required class="block w-full px-4 py-3 border border-gray-300 rounded-lg
-                                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                                      transition-all duration-200 hover:border-gray-400"
+                                <input
+                                    id="name"
+                                    name="name"
+                                    type="text"
+                                    value="{{ old('name') }}"
+                                    autocomplete="name"
+                                    class="block w-full px-4 py-3 border rounded-lg
+    @error('name')
+        border-red-500
+    @else
+        border-gray-300
+    @enderror"
                                     placeholder="Tên của bạn">
 
-                                @if ($errors->has('name'))
-                                <p class="text-red-500 text-sm mt-1">{{ $errors->first('name') }}</p>
-                                @endif
+                                @error('name')
+                                <p class="text-red-500 text-sm mt-1">
+                                    {{ $message }}
+                                </p>
+                                @enderror
                             </div>
                             <div>
-                                <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                                <input id="email" name="email" type="email" value="{{ old('email') }}"
-                                    autocomplete="username" required class="block w-full px-4 py-3 border border-gray-300 rounded-lg
-                                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                                      transition-all duration-200 hover:border-gray-400"
+                                <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Email
+                                </label>
+
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    value="{{ old('email') }}"
+                                    autocomplete="username"
+                                    class="block w-full px-4 py-3 border rounded-lg
+        @error('email')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
                                     placeholder="example@email.com">
 
-                                @if ($errors->has('email'))
-                                <p class="text-red-500 text-sm mt-1">{{ $errors->first('email') }}</p>
-                                @endif
+                                @error('email')
+                                <p class="text-red-500 text-sm mt-1">
+                                    {{ $message }}
+                                </p>
+                                @enderror
                             </div>
                             <div>
-                                <label for="phone" class="block text-sm font-semibold text-gray-700 mb-2">Số điện
-                                    thoại</label>
-                                <input id="phone" name="phone" type="text" value="{{ old('phone') }}" autocomplete="tel"
-                                    required class="block w-full px-4 py-3 border border-gray-300 rounded-lg
-                                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                                      transition-all duration-200 hover:border-gray-400"
+                                <label for="phone" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Số điện thoại
+                                </label>
+
+                                <input
+                                    id="phone"
+                                    name="phone"
+                                    type="text"
+                                    value="{{ old('phone') }}"
+                                    autocomplete="tel"
+                                    class="block w-full px-4 py-3 border rounded-lg
+        @error('phone')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
                                     placeholder="0123456789">
 
-                                @if ($errors->has('phone'))
-                                <p class="text-red-500 text-sm mt-1">{{ $errors->first('phone') }}</p>
-                                @endif
+                                @error('phone')
+                                <p class="text-red-500 text-sm mt-1">
+                                    {{ $message }}
+                                </p>
+                                @enderror
                             </div>
 
                             <div>
-                                <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Mật
-                                    khẩu</label>
-                                <input id="password" name="password" type="password" required
-                                    autocomplete="current-password" class="block w-full px-4 py-3 border border-gray-300 rounded-lg
-                                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                                      transition-all duration-200 hover:border-gray-400"
+                                <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Mật khẩu
+                                </label>
+
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    class="block w-full px-4 py-3 border rounded-lg
+        @error('password')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
                                     placeholder="••••••••">
 
-                                @if ($errors->has('password'))
-                                <p class="text-red-500 text-sm mt-1">{{ $errors->first('password') }}</p>
-                                @endif
+                                @error('password')
+                                <p class="text-red-500 text-sm mt-1">
+                                    {{ $message }}
+                                </p>
+                                @enderror
                             </div>
                             <div>
                                 <label for="password_confirmation"
                                     class="block text-sm font-semibold text-gray-700 mb-2">Xác nhận mật
                                     khẩu</label>
-                                <input id="password_confirmation" name="password_confirmation" type="password" required
-                                    autocomplete="new-password" class="block w-full px-4 py-3 border border-gray-300 rounded-lg
-                                                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                                      transition-all duration-200 hover:border-gray-400"
+                                <input
+                                    id="password_confirmation"
+                                    name="password_confirmation"
+                                    type="password"
+                                    class="block w-full px-4 py-3 border rounded-lg
+    @error('password')
+        border-red-500
+    @else
+        border-gray-300
+    @enderror"
                                     placeholder="••••••••">
 
                                 @if ($errors->has('password_confirmation'))

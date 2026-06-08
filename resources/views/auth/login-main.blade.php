@@ -21,7 +21,7 @@
             <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-100">
                 <form class="space-y-6" method="POST" action="{{ url()->current() }}">
                     @csrf
-                    <div>
+                    <!-- <div>
                         <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
                         <input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="username"
                             required class="block w-full px-4 py-3 border border-gray-300 rounded-lg
@@ -32,9 +32,35 @@
                         @if ($errors->has('email'))
                         <p class="text-red-500 text-sm mt-1">{{ $errors->first('email') }}</p>
                         @endif
+                    </div> -->
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Email
+                        </label>
+
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value="{{ old('email') }}"
+                            autocomplete="username"
+
+                            class="block w-full px-4 py-3 border rounded-lg
+        @error('email')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
+                            placeholder="example@email.com">
+
+                        @error('email')
+                        <p class="text-red-500 text-sm mt-1">
+                            {{ $message }}
+                        </p>
+                        @enderror
                     </div>
 
-                    <div>
+                    <!-- <div>
                         <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Mật
                             khẩu</label>
                         <input id="password" name="password" type="password" required autocomplete="current-password"
@@ -45,6 +71,31 @@
                         @if ($errors->has('password'))
                         <p class="text-red-500 text-sm mt-1">{{ $errors->first('password') }}</p>
                         @endif
+                    </div> -->
+                    <div>
+                        <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Mật khẩu
+                        </label>
+
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+
+                            autocomplete="current-password"
+                            class="block w-full px-4 py-3 border rounded-lg
+        @error('password')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
+                            placeholder="••••••••">
+
+                        @error('password')
+                        <p class="text-red-500 text-sm mt-1">
+                            {{ $message }}
+                        </p>
+                        @enderror
                     </div>
 
                     <div class="flex items-center justify-between">

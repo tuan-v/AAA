@@ -16,6 +16,17 @@ class ProductController extends Controller
             Product::with('theLoai')
                 ->orderBy('id', 'desc')
                 ->get()
+                ->map(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'ten' => $p->ten,
+                        'so_luong' => $p->so_luong,
+                        'mau_sac' => $p->mau_sac,
+                        'gia' => $p->gia,
+                        'id_the_loai' => $p->id_the_loai,
+                        'ten_the_loai' => $p->theLoai?->ten_the_loai,
+                    ];
+                })
         );
     }
 
@@ -40,6 +51,9 @@ class ProductController extends Controller
                 'mau_sac.required' => 'Vui long chon mau sac',
                 'gia.required' => 'Vui long nhap gia',
                 'gia.min' => 'Gia khong duoc la so am',
+                'id_the_loai.required' => 'Vui lòng chọn thể loại',
+                'id_the_loai.exists' => 'Thể loại không hợp lệ',
+
             ]
         );
 

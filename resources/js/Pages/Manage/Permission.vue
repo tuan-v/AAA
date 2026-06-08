@@ -53,6 +53,7 @@ import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import PermissionForm from "./PermissionForm.vue";
 import { Head, usePage } from "@inertiajs/vue3";
+import DeleteIcon from "../../icons/DeleteIcon.vue";
 
 const handlePageChange = (page) => {
     getData(page);
@@ -65,7 +66,7 @@ const permissions = ref({
     current_page: 1,
     last_page: 1,
 });
-const permissionss = usePage().props.auth.permissions;
+const permissionss = usePage().props.auth?.permissions || [];
 const can = (permission) => {
     return permissionss.includes(permission);
 };
@@ -88,13 +89,12 @@ const columns = [
 const actions = [
     {
         icon: EditButtonIcon,
-        onClick: (item) => {
-            selectedPermission.value = item;
-            showModal.value = true;
-        },
+        type: "edit",
+        onClick: (item) => openEdit(item),
     },
     {
-        label: "Xóa",
+        icon: DeleteIcon,
+        class: "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700",
         onClick: (item) => {
             deletePermission(item.id);
         },

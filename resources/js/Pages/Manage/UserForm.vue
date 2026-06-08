@@ -16,6 +16,9 @@
                         v-model="form.name"
                         class="border p-2 w-full rounded"
                     />
+                    <p v-if="errors.name" class="text-red-500 text-xs">
+                        {{ errors.name[0] }}
+                    </p>
                 </div>
                 <div>
                     <label>Tên đăng nhập</label>
@@ -23,6 +26,9 @@
                         v-model="form.username"
                         class="border p-2 w-full rounded"
                     />
+                    <p v-if="errors.username" class="text-red-500 text-xs">
+                        {{ errors.username[0] }}
+                    </p>
                 </div>
                 <div>
                     <label>Email</label>
@@ -30,6 +36,9 @@
                         v-model="form.email"
                         class="border p-2 w-full rounded"
                     />
+                    <p v-if="errors.email" class="text-red-500 text-xs">
+                        {{ errors.email[0] }}
+                    </p>
                 </div>
                 <div>
                     <label>Số điện thoại</label>
@@ -37,6 +46,9 @@
                         v-model="form.phone"
                         class="border p-2 w-full rounded"
                     />
+                    <p v-if="errors.phone" class="text-red-500 text-xs">
+                        {{ errors.phone[0] }}
+                    </p>
                 </div>
                 <div>
                     <label>Mật khẩu</label>
@@ -45,6 +57,9 @@
                         v-model="form.password"
                         class="border p-2 w-full rounded"
                     />
+                    <p v-if="errors.password" class="text-red-500 text-xs">
+                        {{ errors.password[0] }}
+                    </p>
                 </div>
                 <div>
                     <label>Trạng thái</label>
@@ -54,7 +69,7 @@
                         class="border p-2 w-full rounded"
                     >
                         <option value="active">Hoạt động</option>
-                        <option value="inactive">Ngưng hoạt động</option>
+                        <option value="blocked">Ngưng hoạt động</option>
                     </select>
                 </div>
                 <div>
@@ -71,6 +86,17 @@
                             {{ role.name }}
                         </option>
                     </select>
+                </div>
+                <div>
+                    <label>Công ty</label>
+
+                    <input
+                        :value="company?.name || ''"
+                        disabled
+                        class="border p-2 w-full rounded bg-gray-100"
+                    />
+
+                    <input type="hidden" v-model="form.company_id" />
                 </div>
             </div>
 
@@ -97,11 +123,17 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from "vue";
 import axios from "axios";
-import pagination from "@/components/Pagination.vue";
+import { usePage } from "@inertiajs/vue3";
+const page = usePage();
+const company = page.props.auths?.user?.company;
+const errors = ref({});
 const props = defineProps({
     user: {
         type: Object,
         default: null,
+    },
+    company: {
+        type: Object,
     },
 });
 
@@ -117,8 +149,18 @@ const form = reactive({
     password: "",
     status: "active",
     role: "",
+    company_id: "",
 });
 
+watch(
+    () => props.company,
+    (value) => {
+        if (value) {
+            form.company_id = value.id;
+        }
+    },
+    { immediate: true },
+);
 watch(
     () => props.user,
     (value) => {
@@ -139,7 +181,7 @@ watch(
                 phone: "",
                 password: "",
                 status: "active",
-                roles: "",
+                role: "",
             });
         }
     },
@@ -149,20 +191,29 @@ const getRoles = async () => {
     const res = await axios.get("/api/roles");
     roles.value = res.data.data ?? res.data;
 };
-function saveUser() {
-    if (props.user?.id) {
-        axios.put(`/api/users/user/${props.user.id}`, form).then(() => {
-            emit("saved");
-            emit("close");
-        });
-    } else {
-        axios.post("/api/users/user", form).then(() => {
-            emit("saved");
-            emit("close");
-        });
+async function saveUser() {
+    errors.value = {};
+
+    try {
+        if (props.user?.id) {
+            await axios.put(`/api/users/user/${props.user.id}`, form);
+        } else {
+            await axios.post("/api/users/user", form);
+        }
+
+        emit("saved");
+        emit("close");
+    } catch (error) {
+        console.log(error.response?.data);
+
+        if (error.response?.status === 422) {
+            errors.value = error.response.data.errors || {};
+        } else {
+            alert("Có lỗi xảy ra");
+        }
     }
 }
-
+console.log(page.props);
 onMounted(() => {
     getRoles();
 });

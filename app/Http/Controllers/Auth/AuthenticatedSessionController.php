@@ -35,7 +35,7 @@ class AuthenticatedSessionController extends Controller
         // Đảm bảo session được lưu trước khi redirect
         $request->session()->save();
         // Redirect the user to a subdomain-aware URL if provided by the LoginRequest
-        return redirect()->intended($request->getRedirectUrl());
+        return redirect()->intended($request->getLoginRedirectUrl());
     }
 
     /**

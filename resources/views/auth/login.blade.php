@@ -14,18 +14,33 @@
             <form class="space-y-6" method="POST" action="{{ url()->current() }}">
                 @csrf
                 <input type="hidden" name="remember" value="true">
-                <div class="mb-4">
-                    <label for="email" class="block text-sm font-medium">Email</label>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="username"
-                        required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                  transition duration-200" placeholder="Nhập email">
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Email
+                    </label>
 
-                    @if ($errors->has('email'))
-                    <p class="text-red-500 text-sm mt-1">{{ $errors->first('email') }}</p>
-                    @endif
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value="{{ old('email') }}"
+                        autocomplete="username"
+
+                        class="block w-full px-4 py-3 border rounded-lg
+        @error('email')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
+                        placeholder="example@email.com">
+
+                    @error('email')
+                    <p class="text-red-500 text-sm mt-1">
+                        {{ $message }}
+                    </p>
+                    @enderror
                 </div>
-                <div class="mb-4">
+                <!-- <div class="mb-4">
                     <label for="password" class="block text-sm font-medium">Mật khẩu</label>
                     <input id="password" name="password" type="password" required autocomplete="current-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
                                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
@@ -34,6 +49,31 @@
                     @if ($errors->has('password'))
                     <p class="text-red-500 text-sm mt-1">{{ $errors->first('password') }}</p>
                     @endif
+                </div> -->
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Mật khẩu
+                    </label>
+
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+
+                        autocomplete="current-password"
+                        class="block w-full px-4 py-3 border rounded-lg
+        @error('password')
+            border-red-500
+        @else
+            border-gray-300
+        @enderror"
+                        placeholder="••••••••">
+
+                    @error('password')
+                    <p class="text-red-500 text-sm mt-1">
+                        {{ $message }}
+                    </p>
+                    @enderror
                 </div>
 
                 <div>
@@ -52,7 +92,7 @@
                 <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-center text-sm">
-                <span class="bg-white px-2 text-gray-500">Hoặc kết nối với:</span>
+                <span class="bg-white px-2 text-gray-500">Hoặc kết nối với: </span>
             </div>
         </div>
         <div class="flex justify-center mb-4">

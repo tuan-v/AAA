@@ -24,6 +24,7 @@
             :data="users.data"
             :showIndex="true"
             :actions="actions"
+            @toggle-status="toggleStatus"
             :startIndex="(permissions.current_page - 1) * permissions.per_page"
             emptyMessage="Không có nhân sự"
         />
@@ -39,6 +40,7 @@
         <template #body>
             <UserForm
                 :user="selectedUser"
+                :company="company"
                 @saved="reloadData"
                 @close="showModal = false"
             />
@@ -98,6 +100,10 @@ const columns = [
         key: "phone",
         label: "SĐT",
     },
+    {
+        key: "roles",
+        label: "Vai trò",
+    },
 
     {
         key: "status",
@@ -108,17 +114,13 @@ const columns = [
 const actions = [
     {
         icon: EditButtonIcon,
-        onClick: (item) => {
-            console.log("Edit", item);
-            openEdit(item);
-        },
+        type: "edit",
+        onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Unlock : Lock),
-        onClick: (item) => {
-            const newStatus = item.status === "active" ? "blocked" : "active";
-            changeStatus(item.id, newStatus);
-        },
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        type: "status",
+        onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
@@ -147,21 +149,29 @@ const getData = async (page = 1) => {
     users.value = response.data;
 };
 
-async function changeStatus(id, status) {
-    if (status === "blocked") {
-        if (!confirm("Khóa tài khoản này?")) return;
-    } else {
-        if (!confirm("Mở khóa tài khoản này?")) return;
-    }
+async function toggleStatus(user) {
+    const id = user.id || user.user_id;
+    const newStatus = user.status === "active" ? "blocked" : "active";
+
+    const confirmMsg =
+        newStatus === "blocked"
+            ? "Bạn muốn khóa tài khoản này?"
+            : "Bạn muốn mở khóa tài khoản này?";
+
+    if (!confirm(confirmMsg)) return;
 
     try {
         await axios.patch(`/api/users/${id}/status`, {
-            status: status,
+            status: newStatus,
         });
 
-        alert("Cập nhật trạng thái thành công");
+        // update UI ngay không reload
+        const index = users.value.data.findIndex((u) => u.id === id);
+        if (index !== -1) {
+            users.value.data[index].status = newStatus;
+        }
     } catch (error) {
-        console.error(error);
+        console.log(error.response?.data || error);
         alert("Cập nhật thất bại");
     }
 }

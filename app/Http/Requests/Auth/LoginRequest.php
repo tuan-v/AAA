@@ -17,6 +17,7 @@ class LoginRequest extends FormRequest
      */
     public function authorize(): bool
     {
+
         return true;
     }
 
@@ -32,6 +33,14 @@ class LoginRequest extends FormRequest
             'password' => ['required', 'string'],
         ];
     }
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'Email không được để trống',
+            'email.email' => 'Email không hợp lệ',
+            'password.required' => 'Mật khẩu không được để trống',
+        ];
+    }
 
     /**
      * Attempt to authenticate the request's credentials.
@@ -42,17 +51,33 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (!Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (!Auth::attempt(
+            $this->only('email', 'password'),
+            $this->boolean('remember')
+        )) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => 'Email hoặc mật khẩu không chính xác.',
             ]);
         }
 
+        $user = Auth::user();
+
+        // Chỉ cho phép tài khoản active đăng nhập
+        if ($user->status !== User::STATUS_ACTIVE) {
+
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Tài khoản đã bị khóa hoặc chưa được kích hoạt.',
+            ]);
+        }
+
+
+
         RateLimiter::clear($this->throttleKey());
     }
-
     /**
      * Ensure the login request is not rate limited.
      *
@@ -87,19 +112,17 @@ class LoginRequest extends FormRequest
     /**
      * Xác định URL redirect dựa trên subdomain
      */
-    public function getRedirectUrl(): string
+    public function getLoginRedirectUrl(): string
     {
         $host = $this->getHost();
         $mainDomain = env('APP_DOMAIN');
-        // Nếu là domain chính
+
         if ($host === $mainDomain) {
             return '/dashboard';
         }
 
-        // Lấy subdomain
         $subdomain = str_replace('.' . $mainDomain, '', $host);
 
-        // Định nghĩa redirect URL cho từng subdomain
         $subdomainRoutes = [
             'ban-hang' => '/',
             'mua-hang' => '/',
@@ -107,6 +130,6 @@ class LoginRequest extends FormRequest
             'thu-chi' => '/',
         ];
 
-        return $subdomainRoutes[$subdomain] ?? '/document';
+        return $subdomainRoutes[$subdomain] ?? '/';
     }
 }

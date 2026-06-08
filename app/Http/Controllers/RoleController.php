@@ -24,8 +24,20 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:roles,name'
+            ],
+
+        ], [
+            'name.required' => 'Vui lòng nhập tên vai trò',
+            'name.unique' => 'Tên vai trò đã tồn tại',
+        ]);
         $role = Role::create([
-            'name' => $request->name,
+            'name' => $validated['name'],
             'guard_name' => 'web'
         ]);
 

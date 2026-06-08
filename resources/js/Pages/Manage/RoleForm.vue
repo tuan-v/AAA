@@ -8,7 +8,10 @@
             <div class="mb-3">
                 <label>Tên vai trò</label>
 
-                <input v-model="form.name" class="border p-2 w-full" />
+                <input v-model="form.name" class="border p-2 w-full rounded" />
+                <p v-if="errors.name" class="text-red-500 text-xs">
+                    {{ errors.name[0] }}
+                </p>
             </div>
 
             <div class="mb-5">
@@ -42,6 +45,7 @@
 import axios from "axios";
 import { reactive, ref, onMounted } from "vue";
 
+const errors = ref({});
 const props = defineProps({
     role: Object,
 });
@@ -68,14 +72,23 @@ onMounted(async () => {
 });
 
 async function save() {
-    if (props.role) {
-        await axios.put(`/api/roles/${props.role.id}`, form);
-    } else {
-        await axios.post("/api/roles", form);
+    errors.value = {};
+    try {
+        if (props.role?.id) {
+            await axios.put(`/api/roles/${props.role.id}`, form);
+        } else {
+            await axios.post("/api/roles", form);
+        }
+
+        emit("saved");
+
+        emit("close");
+    } catch (error) {
+        if (error.response && error.response.data.errors) {
+            errors.value = error.response.data.errors;
+        } else {
+            console.error(error);
+        }
     }
-
-    emit("saved");
-
-    emit("close");
 }
 </script>

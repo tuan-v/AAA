@@ -4,9 +4,12 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Illuminate\Support\Facades\Auth;
+
 
 class HandleInertiaRequests extends Middleware
 {
+
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -35,17 +38,97 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user()?->loadMissing(['company']);
+
         return array_merge(parent::share($request), [
-            'flash' => [
-                'success' => fn() => $request->session()->get('success'),
-                'error' => fn() => $request->session()->get('error'),
-                'warning' => fn() => $request->session()->get('warning'),
-                'info' => fn() => $request->session()->get('info'),
-                'order' => fn() => $request->session()->get('order'),
+            'auths' => [
+                'user' => $user,
+
+                'companies' => $user && $user->company
+                    ? [$user->company]
+                    : [],
+
+                'permissions' => $user
+                    ? $user->getAllPermissions()->pluck('name')->toArray()
+                    : [],
+
             ],
-            'errors' => fn() => $request->session()->get('errors')
-                ? $request->session()->get('errors')->getBag('default')->getMessages()
-                : (object) [],
         ]);
     }
+    // protected function webMenuItems(): array
+    // {
+    //     return [
+    //         [
+    //             'title' => 'Menu',
+    //             'items' => [
+    //                 ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/dashboard'],
+    //             ],
+    //         ],
+    //     ];
+    // }
+
+    // protected function warehouseMenuItems(): array
+    // {
+    //     return [
+    //         [
+    //             'title' => 'QUẢN LÝ KHO',
+    //             'items' => [
+    //                 ['icon' => 'BoxIcon', 'name' => 'Kho hàng', 'path' => '/warehouse'],
+    //             ],
+    //         ],
+    //     ];
+    // }
+
+    // protected function salesMenuItems(): array
+    // {
+    //     return [
+    //         [
+    //             'title' => 'BÁN HÀNG',
+    //             'items' => [
+    //                 ['icon' => 'ShoppingCartIcon', 'name' => 'Đơn hàng', 'path' => '/orders'],
+    //             ],
+    //         ],
+    //     ];
+    // }
+
+    // protected function purchaseMenuItems(): array
+    // {
+    //     return [
+    //         [
+    //             'title' => 'MUA HÀNG',
+    //             'items' => [
+    //                 ['icon' => 'TruckIcon', 'name' => 'Nhà cung cấp', 'path' => '/suppliers'],
+    //             ],
+    //         ],
+    //     ];
+    // }
+
+    // protected function accountingMenuItems(): array
+    // {
+    //     return [
+    //         [
+    //             'title' => 'KẾ TOÁN',
+    //             'items' => [
+    //                 ['icon' => 'WalletIcon', 'name' => 'Thu chi', 'path' => '/cash-flow'],
+    //             ],
+    //         ],
+    //     ];
+    // }
+    // protected function getMenuItems(Request $request): array
+    // {
+    //     $path = $request->path();
+
+    //     return match (true) {
+
+    //         str_starts_with($path, 'warehouse') => $this->warehouseMenuItems(),
+
+    //         str_starts_with($path, 'purchase') => $this->purchaseMenuItems(),
+
+    //         str_starts_with($path, 'sale') => $this->salesMenuItems(),
+
+    //         str_starts_with($path, 'accounting') => $this->accountingMenuItems(),
+
+    //         default => $this->webMenuItems(),
+    //     };
+    // }
 }

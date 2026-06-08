@@ -1,28 +1,49 @@
 <?php
 
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Symfony\Component\Console\Attribute\Interact;
 
-Route::get('/index', function () {
-    return Inertia::render('Products/Index');
+Route::prefix('/warehouse')->group(function () {
+    Route::get('/', function () {
+        return Inertia::render('Warehouse/Index');
+    });
+    Route::get('/products', function () {
+        return Inertia::render('Warehouse/Product/Index');
+    });
+    Route::get('/categories', fn() => Inertia::render('Warehouse/Category/Index'));
+    Route::get('/units', fn() => Inertia::render('Warehouse/Unit/Index'));
+
+    Route::get('/orders', fn() => Inertia::render('Warehouse/Order/Index'));
+
+    Route::get('/imports', fn() => Inertia::render('Warehouse/Import/Index'));
+
+    Route::get('/exports', fn() => Inertia::render('Warehouse/Export/Index'));
 });
 
-Route::get('/create', function () {
+// Route::get('/create', function () {
 
-    return Inertia::render('createProduct');
-});
-Route::get('/product-detail/{id}', function ($id) {
-    return Inertia::render('ProductDetail', [
-        'id' => $id
-    ]);
-});
-Route::get('/product-update/{id}', function ($id) {
-    return Inertia::render('EditProduct', [
-        'id' => $id
-    ]);
-});
+//     return Inertia::render('createProduct');
+// });
+// Route::get('/product-detail/{id}', function ($id) {
+//     return Inertia::render('ProductDetail', [
+//         'id' => $id
+//     ]);
+// });
+// Route::get('/product-update/{id}', function ($id) {
+//     return Inertia::render('EditProduct', [
+//         'id' => $id
+//     ]);
+// });
+
+
+
+
 
 Route::get('/permission', function () {
     return Inertia::render(
@@ -68,21 +89,51 @@ if (app()->isLocal() || app()->environment('staging')) {
 
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/', function () {
-        return Inertia::render('DashBoard');
-    });
-    Route::get('/dashboard', function () {
-        return Inertia::render('DashBoard');
-    })->name('dashboard');
-    Route::get('/products', function () {
-        return Inertia::render('Products/Index');
-    })->name('products.index');
-    Route::get('/manage/user', function () {
-        return Inertia::render('Manage/User');
-    })->name('manage.user');
 
-    Route::get('/users', [UserController::class, 'index']);
+    Route::get(
+        '/company/create',
+        [CompanyController::class, 'create']
+    )->name('company.create');
+
+    Route::post(
+        '/company',
+        [CompanyController::class, 'store']
+    );
+
+    Route::middleware([
+        'auth',
+        'company.created'
+    ])->group(function () {
+        Route::get('/', function () {
+            return Inertia::render('DashBoard');
+        });
+        Route::get('/dashboard', function () {
+            return Inertia::render('DashBoard');
+        })->name('dashboard');
+        Route::get('/products', function () {
+            return Inertia::render('Products/Index');
+        })->name('products.index');
+        Route::get('/manage/user', function () {
+            return Inertia::render('Manage/User');
+        })->name('manage.user');
+
+        Route::get('/users', [UserController::class, 'index']);
+    });
 });
+
+
+Route::get('/purchase', function () {
+    return Inertia::render('Purchase/Index');
+});
+
+Route::get('/sale', function () {
+    return Inertia::render('Sale/Index');
+});
+
+Route::get('/accounting', function () {
+    return Inertia::render('Accounting/Index');
+});
+
 Route::get('/users', function () {
     return Inertia::render('User/Index');
 })->middleware('permission:user.view');

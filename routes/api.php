@@ -1,56 +1,58 @@
 <?php
 
+use App\Http\Controllers\AddressController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\TheLoaiController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProvinceController;
+use App\Http\Controllers\UnitController;
+use App\Http\Controllers\WarehouseController;
 
-Route::middleware('permission:product.view')->group(function () {
-    Route::get('/index',  [ProductController::class, 'index']);
-});
-Route::middleware('permission:product.create')->group(function () {
-    Route::post('/index', [ProductController::class, 'store']);
-});
-Route::middleware('permission:product.update')->group(function () {
-    Route::put('/index/{id}', [ProductController::class, 'update']);
-});
-Route::middleware('permission:product.delete')->group(function () {
-    Route::delete('/index/{id}', [ProductController::class, 'destroy']);
-});
-Route::middleware('permission:product.view')->group(function () {
-    Route::get('/index/{id}', [ProductController::class, 'show']);
-});
+// Route::middleware('permission:product.view')->group(function () {
+//     Route::get('/index',  [ProductController::class, 'index']);
+// });
+// Route::middleware('permission:product.create')->group(function () {
+//     Route::post('/index', [ProductController::class, 'store']);
+// });
+// Route::middleware('permission:product.update')->group(function () {
+//     Route::put('/index/{id}', [ProductController::class, 'update']);
+// });
+// Route::middleware('permission:product.delete')->group(function () {
+//     Route::delete('/index/{id}', [ProductController::class, 'destroy']);
+// });
+// Route::middleware('permission:product.view')->group(function () {
+//     Route::get('/index/{id}', [ProductController::class, 'show']);
+// });
+Route::apiResource(
+    'warehouses',
+    WarehouseController::class
+);
+Route::prefix('warehouse')->group(function () {
 
+    Route::apiResource('products', ProductController::class);
+    Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('units', UnitController::class);
+    Route::apiResource('orders', OrderController::class);
+    Route::apiResource('imports', ImportController::class);
+    Route::apiResource('exports', ExportController::class);
+});
 
 Route::get('/theloai', [TheLoaiController::class, 'index']);
 
 
-
-// Route::get(
-//     '/permissions',
-//     [PermissionController::class, 'index']
-// );
-
-// Route::post(
-//     '/permissions',
-//     [PermissionController::class, 'store']
-// );
-
-// Route::put(
-//     '/permissions/{id}',
-//     [PermissionController::class, 'update']
-// );
-
-// Route::delete(
-//     '/permissions/{id}',
-//     [PermissionController::class, 'destroy']
-// );
-
-
+Route::get('/currencies', [CurrencyController::class, 'index']);
+//
 
 Route::middleware('permission:role.view')->group(function () {
     Route::get('/roles', [RoleController::class, 'index']);
@@ -99,9 +101,26 @@ Route::middleware('permission:permission.update')->group(function () {
 });
 Route::patch(
     '/users/{user}/status',
-    [UserController::class, 'changeStatus']
+    [UserController::class, 'toggleStatus']
 );
 
+Route::get(
+    '/company/create',
+    [CompanyController::class, 'create']
+);
+
+//update tt kho
+Route::patch('/warehouses/{id}/status', [WarehouseController::class, 'toggleStatus']);
+//API lấy tỉnh
+Route::get(
+    '/provinces',
+    [AddressController::class, 'provinces']
+);
+
+Route::get(
+    '/provinces/{province}/wards',
+    [AddressController::class, 'wards']
+);
 
 Route::get(
     '/notifications',
