@@ -114,25 +114,25 @@ class AppServiceProvider extends ServiceProvider
                     case "warehouse":
                         $menuItems = [
                             [
-                                'icon' => 'BoxIcon',
+                                'icon' => 'WarehouseIcon',
                                 'name' => 'Kho hàng',
                                 'path' => '/warehouse'
                             ],
                             [
-                                'icon' => 'GridIcon',
+                                'icon' => 'BoxIcon',
                                 'name' => 'Sản phẩm',
                                 'path' => 'warehouse/products'
                             ],
-                            [
-                                'icon' => 'GridIcon',
-                                'name' => 'Danh mục',
-                                'path' => '/warehouse/categories'
-                            ],
-                            [
-                                'icon' => 'GridIcon',
-                                'name' => 'Đơn vị',
-                                'path' => 'warehouse/units'
-                            ],
+                            // [
+                            //     'icon' => 'GridIcon',
+                            //     'name' => 'Danh mục',
+                            //     'path' => '/warehouse/categories'
+                            // ],
+                            // [
+                            //     'icon' => 'GridIcon',
+                            //     'name' => 'Đơn vị',
+                            //     'path' => 'warehouse/units'
+                            // ],
                             [
                                 'icon' => 'GridIcon',
                                 'name' => 'Đơn hàng',

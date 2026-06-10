@@ -16,9 +16,8 @@ class WarehouseController extends Controller
             'address.ward'
         ])
             ->orderByDesc('id')
-            ->get()
-            ->map(function ($warehouse) {
-
+            ->paginate(5)
+            ->through(function ($warehouse) {
                 return [
                     'id' => $warehouse->id,
                     'name' => $warehouse->name,
@@ -31,13 +30,9 @@ class WarehouseController extends Controller
                         $warehouse->address->ward->name . ', ' .
                         $warehouse->address->province->name,
 
-                    'total_inventory_value' =>
-                    $warehouse->total_inventory_value,
+                    'total_inventory_value' => $warehouse->total_inventory_value,
 
                     'status' => $warehouse->status,
-                    'status_text' => $warehouse->status
-                        ? 'Đang hoạt động'
-                        : 'Đã khóa',
                 ];
             });
     }
@@ -118,13 +113,15 @@ class WarehouseController extends Controller
     {
         $warehouse = Warehouse::findOrFail($id);
 
-        $warehouse->status = !$warehouse->status;
+        $warehouse->status =
+            $warehouse->status === 'active'
+            ? 'inactive'
+            : 'active';
+
         $warehouse->save();
 
         return response()->json([
-            'message' => $warehouse->status
-                ? 'Mở kho thành công'
-                : 'Khóa kho thành công',
+            'message' => 'Cập nhật thành công',
             'status' => $warehouse->status,
         ]);
     }

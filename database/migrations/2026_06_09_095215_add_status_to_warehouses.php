@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('warehouses', function (Blueprint $table) {
-            $table->boolean('status')
-                ->default(true)
+            $table->enum('status', ['active', 'inactive'])->default('active')
+                ->comment("active: Đang hoạt động, inactive: Không hoạt động")
                 ->after('total_inventory_value');
         });
     }

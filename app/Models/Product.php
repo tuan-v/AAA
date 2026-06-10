@@ -6,17 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $table = 'sanpham';
+    protected $table = 'products';
 
     protected $fillable = [
-        'ten',
-        'so_luong',
-        'mau_sac',
-        'gia',
-        'id_the_loai'
+        'name',
+        'sku',
+        'barcode',
+        'category_id',
+        'unit_id',
+        'type',
+        'purchase_price',
+        'sell_price',
+        'quantity',
+        'image',
+        'description',
+        'status'
     ];
-    public function theloai(){
-        return $this->belongsTo(theloai::class, 'id_the_loai');
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public $timestamps = false;

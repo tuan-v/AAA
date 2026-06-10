@@ -48,7 +48,8 @@ Route::prefix('warehouse')->group(function () {
     Route::apiResource('exports', ExportController::class);
 });
 
-Route::get('/theloai', [TheLoaiController::class, 'index']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/units', [UnitController::class, 'index']);
 
 
 Route::get('/currencies', [CurrencyController::class, 'index']);
@@ -102,6 +103,18 @@ Route::middleware('permission:permission.update')->group(function () {
 Route::patch(
     '/users/{user}/status',
     [UserController::class, 'toggleStatus']
+);
+Route::patch(
+    '/warehouse/categories/{id}/status',
+    [CategoryController::class, 'toggleStatus']
+);
+Route::patch(
+    'units/{id}/status',
+    [UnitController::class, 'toggleStatus']
+);
+Route::patch(
+    '/warehouse/products/{id}/status',
+    [ProductController::class, 'toggleStatus']
 );
 
 Route::get(

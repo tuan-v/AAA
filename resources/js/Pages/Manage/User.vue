@@ -59,7 +59,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, h } from "vue";
 import axios from "axios";
 
 const handlePageChange = (page) => {
@@ -108,6 +108,18 @@ const columns = [
     {
         key: "status",
         label: "Trạng thái",
+        type: "status",
+        render: (row) =>
+            h(
+                "span",
+                {
+                    class:
+                        row.status === "active"
+                            ? "bg-green-100 text-green-700 px-2 py-1 rounded"
+                            : "bg-red-100 text-red-700 px-2 py-1 rounded",
+                },
+                row.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động",
+            ),
     },
 ];
 

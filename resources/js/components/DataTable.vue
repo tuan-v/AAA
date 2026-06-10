@@ -149,7 +149,7 @@
                             </template>
 
                             <!-- STATUS BADGE -->
-                            <template v-else-if="col.key === 'status'">
+                            <!-- <template v-else-if="col.key === 'status'">
                                 <span
                                     @click.stop="$emit('toggle-status', item)"
                                     class="px-2 py-1 text-xs rounded-full cursor-pointer transition hover:scale-105"
@@ -162,13 +162,14 @@
                                     {{
                                         item.status === "active"
                                             ? "Hoạt động"
-                                            : "Khóa"
+                                            : "Ngưng hoạt động"
                                     }}
                                 </span>
-                            </template>
+                            </template> -->
 
-                            <!-- DEFAULT -->
-                            <template v-else>
+                            <!-- <!-- DEFAULT -->
+
+                            <!-- <template v-else>
                                 <slot :name="`cell-${col.key}`" :item="item">
                                     {{
                                         getCellValue(
@@ -178,6 +179,29 @@
                                         )
                                     }}
                                 </slot>
+                            </template> -->
+
+                            <!-- RENDER PRIORITY: render > slot > default -->
+                            <template v-else>
+                                <component
+                                    v-if="col.render"
+                                    :is="col.render(item)"
+                                />
+
+                                <template v-else>
+                                    <slot
+                                        :name="`cell-${col.key}`"
+                                        :item="item"
+                                    >
+                                        {{
+                                            getCellValue(
+                                                item,
+                                                col.key,
+                                                col.defaultValue,
+                                            )
+                                        }}
+                                    </slot>
+                                </template>
                             </template>
                         </td>
 
