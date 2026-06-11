@@ -6,11 +6,25 @@ export const vat = 10;
 /**Hàm có tác dụng nhận vào chuỗi số và trả về giá trị được format
  * Ví dụ: 1000000 => 1,000,000
  */
-export function formatMoney(value, decimal = 2) {
+export function formatMoney(value, currency = null) {
     if (value === null || value === undefined || value === "") return "";
 
     let str = value.toString().trim();
+    const num = Number(value);
+    if (isNaN(num)) return "";
 
+    const formatted = new Intl.NumberFormat("vi-VN").format(num);
+
+    if (!currency) return formatted;
+
+    const symbol = currency.symbol || currency.code || "";
+
+    // VND thì symbol để sau, ngoại tệ để trước
+    if (currency.code === "VND") {
+        return `${formatted} ${symbol}`.trim();
+    } else {
+        return `${symbol} ${formatted}`.trim();
+    }
     // Nếu có nhiều dấu . → coi là phân cách hàng nghìn (VD: 4.500.000)
     const dotCount = (str.match(/\./g) || []).length;
     if (dotCount > 1) {
@@ -159,8 +173,8 @@ export function mapToOptionsSelect(data = [], label, value) {
             typeof label === "function"
                 ? label(item)
                 : Array.isArray(label)
-                    ? label.map((key) => item[key]).join(" ")
-                    : item[label],
+                  ? label.map((key) => item[key]).join(" ")
+                  : item[label],
         value: item[value],
     }));
 }
@@ -172,16 +186,16 @@ export function getParamsURL() {
     return paramsObject;
 }
 export function removeParamFromURL(key) {
-    const url = new URL(window.location.href)
-    const params = new URLSearchParams(url.search)
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
 
-    params.delete(key)
+    params.delete(key);
 
     const newUrl = params.toString()
         ? `${url.pathname}?${params.toString()}`
-        : url.pathname
+        : url.pathname;
 
-    window.history.pushState({}, '', newUrl)
+    window.history.pushState({}, "", newUrl);
 }
 export const isEmptyObject = (obj) =>
     obj && typeof obj === "object" && Object.keys(obj).length === 0;
@@ -254,7 +268,18 @@ export function numberToMoneyText(value) {
     if (numValue < 0) return "Số tiền không hợp lệ";
     if (numValue >= 1000000000000) return "Số quá lớn";
 
-    const ones = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+    const ones = [
+        "",
+        "một",
+        "hai",
+        "ba",
+        "bốn",
+        "năm",
+        "sáu",
+        "bảy",
+        "tám",
+        "chín",
+    ];
     function readBlock(num, hasHigherBlock = false) {
         if (num === 0) return "";
 
@@ -343,7 +368,10 @@ export function numberToMoneyText(value) {
     }
 
     if (remainder > 0) {
-        const remainderText = readBlock(remainder, billion > 0 || million > 0 || thousand > 0);
+        const remainderText = readBlock(
+            remainder,
+            billion > 0 || million > 0 || thousand > 0,
+        );
         words += (words ? " " : "") + remainderText;
     }
 

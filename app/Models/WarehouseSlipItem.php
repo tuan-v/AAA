@@ -4,17 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class OrderItem extends Model
+class WarehouseSlipItem extends Model
 {
     protected $fillable = [
-        'order_id',
+        'slip_id',
         'product_id',
-        'quantity'
+        'quantity',
+        'price'
     ];
-    public function order()
+
+    public function slip()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(
+            WarehouseSlip::class,
+            'slip_id'
+        );
     }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

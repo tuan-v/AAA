@@ -1,65 +1,88 @@
 <template>
     <div class="rounded-xl p-1 asfy_searchpage">
-        <form @submit.prevent="submit" class="flex flex-wrap items-end gap-4 md:gap-6">
-
+        <form @submit.prevent class="flex flex-wrap items-end gap-4 md:gap-6">
             <!-- LOOP FILTER ITEMS -->
-            <div v-for="item in filters" :key="item.name" class="flex flex-col w-full md:w-auto md:min-w-[220px]">
+            <div
+                v-for="item in filters"
+                :key="item.name"
+                class="flex flex-col w-full md:w-auto md:min-w-[220px]"
+            >
                 <!-- TEXT INPUT -->
-                <input v-if="item.type === 'text'" v-model="values[item.name]" type="text"
-                    :placeholder="item.placeholder || 'Nhập...'" class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 
-                 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
-                 focus:outline-none focus:ring-2 focus:ring-blue-500
-                 transition-all duration-200 placeholder:text-gray-500 w-full" />
+                <input
+                    v-if="item.type === 'text'"
+                    v-model="values[item.name]"
+                    type="text"
+                    :placeholder="item.placeholder || 'Nhập...'"
+                    class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-gray-500 w-full"
+                />
 
                 <!-- ASYNC SELECT -->
-                <AsyncSelect v-if="item.type === 'async-select'" v-model="values[item.name]" :apiUrl="item.apiUrl"
+                <!-- <AsyncSelect v-if="item.type === 'async-select'" v-model="values[item.name]" :apiUrl="item.apiUrl"
                     :placeholder="item.placeholder || 'Tìm kiếm...'" :minChars="item.minChars || 0"
                     :delay="item.delay || 300" :initialOption="item.initialOption" :canClear="item.canClear !== false"
-                    :canDeselect="item.canDeselect !== false" />
+                    :canDeselect="item.canDeselect !== false" /> -->
 
                 <!-- SELECT với Multiselect -->
-                <Multiselect v-if="item.type === 'select'" v-model="values[item.name]"
-                    :options="formatOptions(item.options)" :searchable="true" :closeOnSelect="true"
-                    :placeholder="item.placeholder || 'Chọn...'" :canClear="true" :canDeselect="true" mode="single"
-                    valueProp="value" label="label" trackBy="label"
-                    class="multiselect-custom w-full multiselect-custom dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+                <Multiselect
+                    v-if="item.type === 'select'"
+                    v-model="values[item.name]"
+                    :options="formatOptions(item.options)"
+                    :searchable="true"
+                    :closeOnSelect="true"
+                    :placeholder="item.placeholder || 'Chọn...'"
+                    :canClear="true"
+                    :canDeselect="true"
+                    mode="single"
+                    valueProp="value"
+                    label="label"
+                    trackBy="label"
+                    class="multiselect-custom w-full multiselect-custom dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                />
 
                 <!-- DATE SINGLE -->
-                <InputDate v-if="item.type === 'date'" class="custom_input" v-model="values[item.name]"
-                    :placeholder="item.placeholder" />
+                <InputDate
+                    v-if="item.type === 'date'"
+                    class="custom_input"
+                    v-model="values[item.name]"
+                    :placeholder="item.placeholder"
+                />
 
                 <!-- DATE RANGE -->
-                <DateRangePicker v-if="item.type === 'date_range'" v-model="values[item.name]"
-                    :placeholder="item.placeholder || 'Chọn khoảng thời gian'" :clearable="true"
-                    :use-preset-ranges="true" :default-range="item.defaultRange || 'thisMonth'"
-                    :auto-set-default-range="false" />
-
+                <DateRangePicker
+                    v-if="item.type === 'date_range'"
+                    v-model="values[item.name]"
+                    :placeholder="item.placeholder || 'Chọn khoảng thời gian'"
+                    :clearable="true"
+                    :use-preset-ranges="true"
+                    :default-range="item.defaultRange || 'thisMonth'"
+                    :auto-set-default-range="false"
+                />
             </div>
 
             <!-- BUTTONS -->
             <div class="flex items-center gap-3 w-full md:w-auto md:ml-auto">
                 <!-- Filter Button -->
-                <Tooltip text="Lọc kết quả">
-                    <button type="submit"
-                        class="bg-brand-500 text-white rounded-sm hover:bg-brand-600 disabled:opacity-70 flex items-center justify-center gap-2 px-6 h-10">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="w-5 h-5"
-                            fill="currentColor">
-                            <path
-                                d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z" />
-                        </svg>
-                    </button>
-                </Tooltip>
 
                 <!-- Reset Button -->
                 <Tooltip text="Xóa bộ lọc">
-                    <button @click="reset" type="button" class="flex items-center justify-center px-6 h-10
-                   rounded-sm border border-gray-300 dark:border-gray-600
-                   bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200
-                   hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95
-                   transition-all duration-200 shadow-sm w-full md:w-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                            stroke="currentColor" class="w-5 h-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    <button
+                        @click="reset"
+                        type="button"
+                        class="flex items-center justify-center px-6 h-10 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all duration-200 shadow-sm w-full md:w-auto"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                            class="w-5 h-5"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 </Tooltip>
@@ -70,22 +93,22 @@
 
 <script setup>
 import { reactive, onMounted, onBeforeUnmount, watch } from "vue";
-import Multiselect from '@vueform/multiselect'
-import '@vueform/multiselect/themes/default.css'
+import Multiselect from "@vueform/multiselect";
+import "@vueform/multiselect/themes/default.css";
 import Tooltip from "./Tooltip.vue";
-import InputDate from '@/components/InputDate.vue'
-import DateRangePicker from '@/components/Datepicker.vue'
-import AsyncSelect from '@/components/AsyncSelect.vue'
+import InputDate from "@/components/InputDate.vue";
+import DateRangePicker from "@/components/Datepicker.vue";
+// import AsyncSelect from '@/components/AsyncSelect.vue'
 
 const props = defineProps({
     filters: {
         type: Array,
-        default: () => []
+        default: () => [],
     },
     defaultParams: {
         type: Object,
-        default: () => ({})
-    }
+        default: () => ({}),
+    },
 });
 
 const emit = defineEmits(["filter"]);
@@ -99,27 +122,31 @@ let skipFirstAutoEmit = true;
 const formatOptions = (options) => {
     if (!options || !Array.isArray(options)) return [];
 
-    if (options.length > 0 && typeof options[0] === 'object' && 'value' in options[0]) {
+    if (
+        options.length > 0 &&
+        typeof options[0] === "object" &&
+        "value" in options[0]
+    ) {
         return options;
     }
 
-    if (options.length > 0 && typeof options[0] === 'object') {
-        return options.map(opt => ({
+    if (options.length > 0 && typeof options[0] === "object") {
+        return options.map((opt) => ({
             value: opt.id || opt.value,
-            label: opt.name || opt.label || opt.title
+            label: opt.name || opt.label || opt.title,
         }));
     }
 
-    return options.map(opt => ({
+    return options.map((opt) => ({
         value: opt,
-        label: opt
+        label: opt,
     }));
 };
 
 // Helper function để parse date range từ URL
 const parseDateRangeFromUrl = (dateRangeString) => {
-    if (!dateRangeString || typeof dateRangeString !== 'string') return null;
-    const dates = dateRangeString.split(',');
+    if (!dateRangeString || typeof dateRangeString !== "string") return null;
+    const dates = dateRangeString.split(",");
     if (dates.length !== 2) return null;
     return dates;
 };
@@ -139,12 +166,12 @@ const updateUrlParams = (params) => {
             keysToDelete.push(key);
         }
     }
-    keysToDelete.forEach(key => searchParams.delete(key));
+    keysToDelete.forEach((key) => searchParams.delete(key));
 
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
         const value = params[key];
 
-        if (value !== '' && value !== null && value !== undefined) {
+        if (value !== "" && value !== null && value !== undefined) {
             searchParams.set(key, value);
         } else if (!(key in props.defaultParams)) {
             searchParams.delete(key);
@@ -152,7 +179,7 @@ const updateUrlParams = (params) => {
     });
 
     const newUrl = `${url.pathname}?${searchParams.toString()}`;
-    window.history.pushState({}, '', newUrl);
+    window.history.pushState({}, "", newUrl);
 };
 
 const readUrlParams = () => {
@@ -171,22 +198,21 @@ const readUrlParams = () => {
     return result;
 };
 
-
 const defaultDateRange = () => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     // Format theo yyyy-MM-dd
     const formatDate = (date) => {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
     };
 
     return [formatDate(start), formatDate(end)];
-}
+};
 
 const initializeValues = () => {
     const urlParams = readUrlParams();
@@ -202,7 +228,10 @@ const initializeValues = () => {
                 if (toDate > today) {
                     values[item.name] = null; // Reset nếu ngày tương lai
                 } else {
-                    values[item.name] = [urlParams.from_date, urlParams.to_date];
+                    values[item.name] = [
+                        urlParams.from_date,
+                        urlParams.to_date,
+                    ];
                 }
             } else if (urlParams[item.name]) {
                 values[item.name] = parseDateRangeFromUrl(urlParams[item.name]);
@@ -217,29 +246,36 @@ const initializeValues = () => {
             }
         } else if (item.type === "date") {
             // Kiểm tra date đơn
-            const dateValue = urlParams[item.name] ?? props.defaultParams[item.name] ?? item.value ?? '';
+            const dateValue =
+                urlParams[item.name] ??
+                props.defaultParams[item.name] ??
+                item.value ??
+                "";
             if (dateValue) {
                 const date = new Date(dateValue);
                 if (date > today) {
-                    values[item.name] = ''; // Reset nếu ngày tương lai
+                    values[item.name] = ""; // Reset nếu ngày tương lai
                 } else {
                     values[item.name] = dateValue;
                 }
             } else {
-                values[item.name] = '';
+                values[item.name] = "";
             }
         } else {
-            values[item.name] = urlParams[item.name] ?? props.defaultParams[item.name] ?? item.value ?? '';
+            values[item.name] =
+                urlParams[item.name] ??
+                props.defaultParams[item.name] ??
+                item.value ??
+                "";
         }
     });
 
-    Object.keys(props.defaultParams).forEach(key => {
+    Object.keys(props.defaultParams).forEach((key) => {
         if (!(key in values)) {
             values[key] = props.defaultParams[key];
         }
     });
 };
-
 
 onMounted(() => {
     initializeValues();
@@ -249,22 +285,25 @@ onMounted(() => {
 const submit = () => {
     const filterValues = { ...props.defaultParams, ...values };
 
-    const cleanedValues = Object.entries(filterValues).reduce((acc, [key, value]) => {
-        // Xử lý date range - tách thành from_date và to_date
-        if (Array.isArray(value) && value.length === 2) {
-            // Nếu field name là date_range, tách thành from_date và to_date
-            if (key === 'date_range') {
-                acc['from_date'] = value[0];
-                acc['to_date'] = value[1];
-            } else {
-                // Nếu có custom name khác, giữ nguyên array
+    const cleanedValues = Object.entries(filterValues).reduce(
+        (acc, [key, value]) => {
+            // Xử lý date range - tách thành from_date và to_date
+            if (Array.isArray(value) && value.length === 2) {
+                // Nếu field name là date_range, tách thành from_date và to_date
+                if (key === "date_range") {
+                    acc["from_date"] = value[0];
+                    acc["to_date"] = value[1];
+                } else {
+                    // Nếu có custom name khác, giữ nguyên array
+                    acc[key] = value;
+                }
+            } else if (value !== "" && value !== null && value !== undefined) {
                 acc[key] = value;
             }
-        } else if (value !== '' && value !== null && value !== undefined) {
-            acc[key] = value;
-        }
-        return acc;
-    }, {});
+            return acc;
+        },
+        {},
+    );
 
     updateUrlParams(cleanedValues);
     emit("filter", cleanedValues);
@@ -273,45 +312,44 @@ const submit = () => {
 const emitDebouncedFilter = () => {
     const filterValues = { ...props.defaultParams, ...values };
 
-    const cleanedValues = Object.entries(filterValues).reduce((acc, [key, value]) => {
-        if (Array.isArray(value) && value.length === 2) {
-            if (key === 'date_range') {
-                acc['from_date'] = value[0];
-                acc['to_date'] = value[1];
-            } else {
+    const cleanedValues = Object.entries(filterValues).reduce(
+        (acc, [key, value]) => {
+            if (Array.isArray(value) && value.length === 2) {
+                if (key === "date_range") {
+                    acc["from_date"] = value[0];
+                    acc["to_date"] = value[1];
+                } else {
+                    acc[key] = value;
+                }
+            } else if (value !== "" && value !== null && value !== undefined) {
                 acc[key] = value;
             }
-        } else if (value !== '' && value !== null && value !== undefined) {
-            acc[key] = value;
-        }
-        return acc;
-    }, {});
+            return acc;
+        },
+        {},
+    );
 
     updateUrlParams(cleanedValues);
     emit("filter", cleanedValues);
 };
+watch(
+    values,
+    () => {
+        if (isInitializing) return;
 
-// watch(
-//     values,
-//     () => {
-//         if (values.date || values.date_range) return;
-//         if (isInitializing) return;
-//         if (skipFirstAutoEmit) {
-//             skipFirstAutoEmit = false;
-//             return;
-//         }
-//         if (debounceTimer) clearTimeout(debounceTimer);
-//         debounceTimer = setTimeout(() => {
-//             emitDebouncedFilter();
-//         }, 1200);
-//     },
-//     { deep: true }
-// );
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
 
+        debounceTimer = setTimeout(() => {
+            emitDebouncedFilter();
+        }, 500);
+    },
+    { deep: true },
+);
 onBeforeUnmount(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
 });
-
 
 const reset = () => {
     for (let key in values) {
@@ -319,8 +357,8 @@ const reset = () => {
             values[key] = props.defaultParams[key];
         } else {
             // Check nếu là date_range thì set về default
-            const filter = props.filters.find(f => f.name === key);
-            if (filter && filter.type === 'date_range') {
+            const filter = props.filters.find((f) => f.name === key);
+            if (filter && filter.type === "date_range") {
                 values[key] = defaultDateRange();
             } else {
                 values[key] = "";
@@ -333,13 +371,15 @@ const reset = () => {
 };
 
 onMounted(() => {
-    let listOptions = document.querySelectorAll('.multiselect-custom .multiselect-options');
+    let listOptions = document.querySelectorAll(
+        ".multiselect-custom .multiselect-options",
+    );
     if (listOptions.length > 0) {
-        listOptions.forEach(option => {
-            option.classList.add('dark:bg-gray-950');
+        listOptions.forEach((option) => {
+            option.classList.add("dark:bg-gray-950");
         });
     }
-})
+});
 </script>
 
 <style>

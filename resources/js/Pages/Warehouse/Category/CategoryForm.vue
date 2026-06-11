@@ -39,29 +39,6 @@
                 </p>
             </div>
 
-            <!-- Mã danh mục -->
-            <div>
-                <label class="block text-sm font-medium mb-2">
-                    Mã danh mục
-                </label>
-
-                <input
-                    v-model="form.code"
-                    type="text"
-                    placeholder="VD: DM001"
-                    :class="[
-                        'w-full rounded-lg border px-4 py-2.5 outline-none transition',
-                        form.errors.code
-                            ? 'border-red-500'
-                            : 'border-gray-300 focus:border-blue-500',
-                    ]"
-                />
-
-                <p v-if="form.errors.code" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.code }}
-                </p>
-            </div>
-
             <!-- Mô tả -->
             <div>
                 <label class="block text-sm font-medium mb-2"> Mô tả </label>

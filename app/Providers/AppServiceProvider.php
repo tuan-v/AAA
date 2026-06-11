@@ -35,22 +35,6 @@ class AppServiceProvider extends ServiceProvider
         $host = request()->getHost();
         $path = request()->path();
 
-        if (str_starts_with($host, 'warehouse')) {
-            return $this->warehouseMenuItems();
-        }
-
-        if (str_starts_with($path, 'sale')) {
-            return $this->salesMenuItems();
-        }
-
-        if (str_starts_with($path, 'purchase')) {
-            return $this->purchaseMenuItems();
-        }
-
-        if (str_starts_with($path, 'accounting')) {
-            return $this->accountingMenuItems();
-        }
-
         return $this->webMenuItems();
     }
 
@@ -69,13 +53,6 @@ class AppServiceProvider extends ServiceProvider
     private function webMenuItems(): array
     {
         $menuItems = [];
-
-        // $menuItems[] = [
-        //     'icon' => 'GridIcon',
-        //     'name' => 'Dashboard',
-        //     'path' => '/dashboard',
-        // ];
-
         if (
             $this->can('user.view') ||
             $this->can('role.view') ||
@@ -121,30 +98,20 @@ class AppServiceProvider extends ServiceProvider
                             [
                                 'icon' => 'BoxIcon',
                                 'name' => 'Sản phẩm',
-                                'path' => 'warehouse/products'
+                                'path' => '/warehouse/products'
                             ],
-                            // [
-                            //     'icon' => 'GridIcon',
-                            //     'name' => 'Danh mục',
-                            //     'path' => '/warehouse/categories'
-                            // ],
-                            // [
-                            //     'icon' => 'GridIcon',
-                            //     'name' => 'Đơn vị',
-                            //     'path' => 'warehouse/units'
-                            // ],
                             [
-                                'icon' => 'GridIcon',
+                                'icon' => 'AddOder',
                                 'name' => 'Đơn hàng',
-                                'path' => 'warehouse/orders'
+                                'path' => '/warehouse/orders'
                             ],
                             [
-                                'icon' => 'ArrowDownIcon',
+                                'icon' => 'MovetoinboxIcon',
                                 'name' => 'Phiếu nhập',
                                 'path' => '/warehouse/imports'
                             ],
                             [
-                                'icon' => 'ArrowUpIcon',
+                                'icon' => 'OutboxIcon',
                                 'name' => 'Phiếu xuất',
                                 'path' => '/warehouse/exports'
                             ]
@@ -153,6 +120,21 @@ class AppServiceProvider extends ServiceProvider
 
                     case "sale":
                         $menuItems = $this->salesMenuItems();
+                        break;
+                    case "purchase":
+                        $menuItems = [
+                            [],
+                            [
+                                'icon' => 'TruckIcon',
+                                'name' => 'Nhà cung cấp',
+                                'path' => '/purchase/suppliers'
+                            ],
+                            [
+                                'icon' => 'FileIcon',
+                                'name' => 'Đơn mua',
+                                'path' => '/purchase/orders'
+                            ],
+                        ];
                         break;
                 }
             }
@@ -164,6 +146,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
             ];
         }
+        return [];
     }
 
     // private function warehouseMenuItems(): array
@@ -202,7 +185,7 @@ class AppServiceProvider extends ServiceProvider
     //             'title' => 'MUA HÀNG',
     //             'items' => [
     //                 ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/dashboard'],
-    //                 ['icon' => 'TruckIcon', 'name' => 'Nhà cung cấp', 'path' => '/suppliers'],
+    //                 ['icon' => 'TruckIcon', 'name' => 'Nhà cung cấp', 'path' => 'puchase/suppliers'],
     //                 ['icon' => 'FileIcon', 'name' => 'Đơn mua', 'path' => '/purchase-orders'],
     //             ],
     //         ],

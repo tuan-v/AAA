@@ -5,7 +5,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\TheLoaiController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CompanyController;
@@ -16,8 +15,11 @@ use App\Http\Controllers\ExportController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProvinceController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WarehouseSlipController;
 
 // Route::middleware('permission:product.view')->group(function () {
 //     Route::get('/index',  [ProductController::class, 'index']);
@@ -44,9 +46,23 @@ Route::prefix('warehouse')->group(function () {
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('units', UnitController::class);
     Route::apiResource('orders', OrderController::class);
-    Route::apiResource('imports', ImportController::class);
-    Route::apiResource('exports', ExportController::class);
+    Route::apiResource('slips', WarehouseSlipController::class);
+    Route::post(
+        'slips/{id}/approve',
+        [WarehouseSlipController::class, 'approve']
+    );
 });
+Route::prefix('purchase')->group(function () {
+    Route::get('/suppliers/all', [SupplierController::class, 'all']);
+    Route::apiResource('suppliers', SupplierController::class);
+
+    Route::apiResource('orders', PurchaseOrderController::class);
+});
+Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
+Route::get(
+    '/purchase/orders/{id}/stock-in',
+    [PurchaseOrderController::class, 'stockInData']
+);
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/units', [UnitController::class, 'index']);

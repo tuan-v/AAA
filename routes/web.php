@@ -25,25 +25,27 @@ Route::prefix('/warehouse')->group(function () {
 
     Route::get('/exports', fn() => Inertia::render('Warehouse/Export/Index'));
 });
+Route::get(
+    '/warehouse/slips/create',
+    function () {
+        return Inertia::render(
+            'Warehouse/Slip/Create'
+        );
+    }
+);
+Route::prefix('purchase')->group(function () {
 
-// Route::get('/create', function () {
+    Route::get('/', function () {
+        return Inertia::render('Purchase/Order/Index');
+    });
+    Route::get('/suppliers', function () {
+        return Inertia::render('Purchase/Supplier/Index');
+    });
 
-//     return Inertia::render('createProduct');
-// });
-// Route::get('/product-detail/{id}', function ($id) {
-//     return Inertia::render('ProductDetail', [
-//         'id' => $id
-//     ]);
-// });
-// Route::get('/product-update/{id}', function ($id) {
-//     return Inertia::render('EditProduct', [
-//         'id' => $id
-//     ]);
-// });
-
-
-
-
+    Route::get('/orders', function () {
+        return Inertia::render('Purchase/Order/Index');
+    });
+});
 
 Route::get('/permission', function () {
     return Inertia::render(
@@ -122,9 +124,6 @@ Route::middleware(['auth'])->group(function () {
 });
 
 
-Route::get('/purchase', function () {
-    return Inertia::render('Purchase/Index');
-});
 
 Route::get('/sale', function () {
     return Inertia::render('Sale/Index');

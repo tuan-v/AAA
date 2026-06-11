@@ -25,7 +25,6 @@ class CategoryController extends Controller
         $validated = $request->validate(
             [
                 'name' => 'required|min:2|max:255|unique:categories,name',
-                'code' => 'nullable|max:50|unique:categories,code',
                 'description' => 'nullable|max:1000',
                 'status' => 'required|in:active,inactive',
             ],
@@ -35,16 +34,30 @@ class CategoryController extends Controller
                 'name.max' => 'Tên danh mục không được vượt quá 255 ký tự',
                 'name.unique' => 'Tên danh mục đã tồn tại',
 
-                'code.max' => 'Mã danh mục không được vượt quá 50 ký tự',
-                'code.unique' => 'Mã danh mục đã tồn tại',
-
                 'description.max' => 'Mô tả không được vượt quá 1000 ký tự',
             ]
         );
 
+        $lastCategory = Category::latest('id')->first();
+
+        $nextNumber = $lastCategory
+            ? $lastCategory->id + 1
+            : 1;
+
+        $validated['code'] =
+            'DM' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        $lastCode = Category::max('code');
+
+        if (!$lastCode) {
+            $validated['code'] = 'DM0001';
+        } else {
+            $number = (int) str_replace('DM', '', $lastCode);
+
+            $validated['code'] =
+                'DM' . str_pad($number + 1, 4, '0', STR_PAD_LEFT);
+        }
         return Category::create($validated);
     }
-
     public function show($id)
     {
         return Category::findOrFail($id);
@@ -57,7 +70,6 @@ class CategoryController extends Controller
         $validated = $request->validate(
             [
                 'name' => 'required|min:2|max:255|unique:categories,name,' . $id,
-                'code' => 'nullable|max:50|unique:categories,code,' . $id,
                 'description' => 'nullable|max:1000',
                 'status' => 'required|in:active,inactive',
             ],
@@ -66,9 +78,6 @@ class CategoryController extends Controller
                 'name.min' => 'Tên danh mục phải từ 2 ký tự trở lên',
                 'name.max' => 'Tên danh mục không được vượt quá 255 ký tự',
                 'name.unique' => 'Tên danh mục đã tồn tại',
-
-                'code.max' => 'Mã danh mục không được vượt quá 50 ký tự',
-                'code.unique' => 'Mã danh mục đã tồn tại',
 
                 'description.max' => 'Mô tả không được vượt quá 1000 ký tự',
 

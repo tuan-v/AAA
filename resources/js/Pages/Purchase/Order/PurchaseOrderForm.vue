@@ -1,0 +1,394 @@
+<template>
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl p-6 z-50">
+        <!-- HEADER -->
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <div>
+                <h2 class="text-2xl font-bold">
+                    {{ form.id ? "Cập nhật đơn mua" : "Tạo đơn mua hàng" }}
+                </h2>
+                <p class="text-sm text-gray-500">Quản lý đơn mua hàng</p>
+            </div>
+            <button
+                @click="$emit('close')"
+                class="text-gray-500 hover:text-red-500"
+            >
+                ✕
+            </button>
+        </div>
+
+        <!-- THÔNG TIN -->
+        <div class="bg-gray-50 rounded-xl p-5 mb-6">
+            <h3 class="font-semibold text-lg mb-4">Thông tin đơn mua</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <!-- NHÀ CUNG CẤP -->
+                <div>
+                    <FormSelect
+                        v-model="form.supplier_id"
+                        :options="supplierOptions"
+                        label="Nhà cung cấp"
+                        placeholder="Tìm hoặc chọn nhà cung cấp..."
+                        searchable
+                        allow-create
+                        add-new-text="Thêm nhà cung cấp mới"
+                        :required="true"
+                        @add-new="openSupplierModal"
+                    />
+                </div>
+
+                <!-- TIỀN TỆ -->
+                <div>
+                    <label class="block text-sm mb-1"
+                        >Tiền tệ<span class="text-red">*</span></label
+                    >
+                    <select
+                        v-model="form.currency_id"
+                        class="w-full border rounded-lg px-3 py-2"
+                    >
+                        <option value="">Chọn tiền tệ</option>
+                        <option
+                            v-for="c in currencies"
+                            :key="c.id"
+                            :value="c.id"
+                        >
+                            {{ c.code }}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- NGÀY NHẬN -->
+                <div>
+                    <label class="block text-sm mb-1"
+                        >Dự kiến nhận<span class="text-red">*</span></label
+                    >
+                    <input
+                        type="date"
+                        v-model="form.expected_received_date"
+                        class="w-full border rounded-lg px-3 py-2"
+                    />
+                </div>
+
+                <!-- STATUS -->
+                <div>
+                    <label class="block text-sm mb-1">Trạng thái</label>
+                    <input
+                        disabled
+                        value="Chờ xử lý"
+                        class="w-full bg-gray-100 border rounded-lg px-3 py-2"
+                    />
+                </div>
+
+                <!-- GHI CHÚ -->
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">Ghi chú</label>
+                    <textarea
+                        rows="3"
+                        v-model="form.note"
+                        class="w-full border rounded-lg px-3 py-2"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <!-- SẢN PHẨM -->
+        <div class="bg-white border rounded-xl p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-semibold text-lg">Danh sách sản phẩm</h3>
+                <button
+                    @click="addItem"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                >
+                    +Sản phẩm
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full border">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 border">Sản phẩm</th>
+                            <th class="p-3 border w-32">SL</th>
+                            <th class="p-3 border w-44">Đơn giá</th>
+                            <th class="p-3 border w-44">Thành tiền</th>
+                            <th class="p-3 border w-20"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, index) in form.items" :key="index">
+                            <td class="border p-2">
+                                <select
+                                    v-model="item.product_id"
+                                    @change="onSelectProduct(item)"
+                                    class="w-full border rounded px-2 py-2"
+                                >
+                                    <option value="">Chọn sản phẩm</option>
+                                    <option
+                                        v-for="p in products"
+                                        :key="p.id"
+                                        :value="p.id"
+                                    >
+                                        {{ p.name }}
+                                    </option>
+                                </select>
+                            </td>
+                            <td class="border p-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    v-model="item.quantity"
+                                    class="w-full border rounded px-2 py-2"
+                                />
+                            </td>
+                            <td class="border p-2">
+                                <input
+                                    :value="
+                                        formatMoney(item.price, currentCurrency)
+                                    "
+                                    @input="
+                                        item.price = removeMoneyFormat(
+                                            $event.target.value,
+                                        )
+                                    "
+                                    class="w-full border rounded px-2 py-2 text-right"
+                                />
+                            </td>
+                            <td class="border p-2 text-right font-semibold">
+                                {{
+                                    formatMoney(
+                                        getItemTotal(item),
+                                        currentCurrency,
+                                    )
+                                }}
+                            </td>
+
+                            <td class="p-2 border text-center">
+                                <button @click="removeItem(index)">🗑️</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end mt-5">
+                <div class="bg-blue-50 px-5 py-3 rounded-lg">
+                    <span class="text-gray-500">Tổng tiền:</span>
+                    <span class="font-bold text-xl text-blue-600 ml-2">
+                        {{ formatMoney(totalAmount, currentCurrency) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION -->
+        <div class="flex justify-end gap-3 mt-6">
+            <button @click="$emit('close')" class="px-5 py-2 border rounded-lg">
+                Hủy
+            </button>
+            <button
+                @click="submit"
+                :disabled="loading"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            >
+                {{ loading ? "Đang lưu..." : "Lưu đơn hàng" }}
+            </button>
+        </div>
+    </div>
+    <Modal v-if="showSupplierModal" @close="showSupplierModal = false">
+        <template #body>
+            <SupplierForm
+                @saved="onSupplierCreated"
+                @close="showSupplierModal = false"
+            />
+        </template>
+    </Modal>
+</template>
+
+<script setup>
+import axios from "axios";
+import { reactive, computed, watch, ref } from "vue";
+import { formatMoney, removeMoneyFormat } from "@/config/helpers";
+import FormSelect from "@/components/FormSelect.vue";
+import SupplierForm from "@/Pages/Purchase/Supplier/SupplierForm.vue";
+import Modal from "@/components/Modal.vue";
+const props = defineProps({
+    order: { type: Object, default: null },
+    suppliers: { type: Array, default: () => [] },
+    currencies: { type: Array, default: () => [] },
+    products: { type: Array, default: () => [] },
+});
+const showSupplierModal = ref(false);
+
+const emit = defineEmits(["saved", "close", "supplier-created"]);
+
+const loading = ref(false);
+
+const form = reactive({
+    id: null,
+    supplier_id: "",
+    currency_id: "",
+    expected_received_date: "",
+    note: "",
+    items: [{ product_id: "", quantity: 1, price: 0 }],
+});
+
+// ==================== COMPUTED ====================
+const supplierOptions = computed(() => {
+    return props.suppliers.map((s) => ({
+        value: s.id,
+        label: s.name,
+    }));
+});
+const openSupplierModal = () => {
+    showSupplierModal.value = true;
+};
+
+const onSupplierCreated = (newSupplier) => {
+    console.log("Supplier created:", newSupplier);
+
+    showSupplierModal.value = false;
+
+    if (!newSupplier) return;
+
+    const exists = props.suppliers.some((s) => s.id == newSupplier.id);
+
+    if (!exists) {
+        props.suppliers.push(newSupplier);
+    }
+
+    form.supplier_id = newSupplier.id;
+};
+const productMap = computed(() => {
+    const map = {};
+    props.products.forEach((p) => {
+        map[p.id] = p;
+    });
+    return map;
+});
+const currentCurrency = computed(() => {
+    const found = props.currencies.find((c) => c.id === form.currency_id);
+    // console.log("🔍 Current Currency:", found); // có thể comment lại sau khi test
+    return found || {};
+});
+
+const totalAmount = computed(() => {
+    return form.items.reduce(
+        (total, item) =>
+            total + Number(item.quantity || 0) * Number(item.price || 0),
+        0,
+    );
+});
+
+// ==================== METHODS ====================
+const handleAddNewSupplier = () => {
+    emit("add-new-supplier");
+};
+
+const getItemTotal = (item) => {
+    return (item.quantity || 0) * (item.price || 0);
+};
+
+function resetForm() {
+    form.id = null;
+    form.supplier_id = "";
+    form.currency_id = "";
+    form.expected_received_date = "";
+    form.note = "";
+    form.items = [{ product_id: "", quantity: 1, price: 0 }];
+}
+
+function addItem() {
+    form.items.push({ product_id: "", quantity: 1, price: 0 });
+}
+
+function removeItem(index) {
+    if (form.items.length === 1) return;
+    form.items.splice(index, 1);
+}
+
+function onSelectProduct(item) {
+    // Logic đã xử lý trong watcher
+}
+// ==================== WATCHERS ====================
+watch(
+    () => props.order,
+    (order) => {
+        if (!order) {
+            resetForm();
+            return;
+        }
+        form.id = order.id;
+        form.supplier_id = order.supplier_id;
+        form.currency_id = order.currency_id;
+        form.expected_received_date = order.expected_received_date;
+        form.note = order.note || "";
+        form.items = order.items?.length
+            ? order.items.map((item) => ({
+                  product_id: item.product_id,
+                  quantity: item.quantity,
+                  price: item.price,
+                  product: item.product,
+              }))
+            : [{ product_id: "", quantity: 1, price: 0 }];
+    },
+    { immediate: true },
+);
+
+watch(
+    () => form.supplier_id,
+    (supplierId) => {
+        const supplier = props.suppliers.find((x) => x.id == supplierId);
+        if (supplier) form.currency_id = supplier.currency_id;
+    },
+);
+
+watch(
+    () => form.items,
+    (items) => {
+        items.forEach((item) => {
+            if (item.product_id) {
+                const product = productMap.value[item.product_id];
+                if (product) {
+                    item.price = product.purchase_price ?? product.price ?? 0;
+                }
+            }
+        });
+    },
+    { deep: true },
+);
+
+// ==================== SUBMIT ====================
+async function submit() {
+    try {
+        if (!form.supplier_id) return alert("Vui lòng chọn nhà cung cấp");
+        if (!form.currency_id) return alert("Vui lòng chọn tiền tệ");
+        if (form.items.length === 0) return alert("Vui lòng thêm sản phẩm");
+
+        for (const item of form.items) {
+            if (!item.product_id) return alert("Vui lòng chọn sản phẩm");
+            if (Number(item.quantity) <= 0)
+                return alert("Số lượng phải lớn hơn 0");
+        }
+
+        loading.value = true;
+
+        const payload = {
+            supplier_id: form.supplier_id,
+            currency_id: form.currency_id,
+            expected_received_date: form.expected_received_date,
+            note: form.note,
+            items: form.items,
+        };
+
+        if (form.id) {
+            await axios.put(`/api/purchase/orders/${form.id}`, payload);
+        } else {
+            await axios.post("/api/purchase/orders", payload);
+        }
+
+        emit("saved");
+    } catch (error) {
+        console.error(error);
+        alert(error.response?.data?.message || "Có lỗi xảy ra");
+    } finally {
+        loading.value = false;
+    }
+}
+</script>

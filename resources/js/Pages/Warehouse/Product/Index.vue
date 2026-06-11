@@ -48,7 +48,7 @@
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
-                <span class="text-lg">+</span>
+                <span class="text-lg">+ Sản phẩm</span>
             </button>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5">

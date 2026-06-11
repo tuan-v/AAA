@@ -47,7 +47,7 @@
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-                +
+                + Đơn vị
             </button>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5">

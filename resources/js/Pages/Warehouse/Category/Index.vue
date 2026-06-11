@@ -47,7 +47,7 @@
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-                +
+                + Danh mục
             </button>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
@@ -92,7 +92,7 @@
 
 <script setup>
 import { Head } from "@inertiajs/vue3";
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, h } from "vue";
 import axios from "axios";
 import { Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -129,6 +129,17 @@ const columns = [
     {
         label: "Trạng thái",
         key: "status",
+        render: (row) =>
+            h(
+                "span",
+                {
+                    class:
+                        row.status === "active"
+                            ? "bg-green-100 text-green-700 px-2 py-1 rounded"
+                            : "bg-red-100 text-red-700 px-2 py-1 rounded",
+                },
+                row.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động",
+            ),
     },
 ];
 
