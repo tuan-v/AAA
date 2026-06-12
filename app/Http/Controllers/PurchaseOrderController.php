@@ -18,8 +18,10 @@ class PurchaseOrderController extends Controller
             'supplier',
             'currency',
             'items',
-            'order'
-        ]);
+            'order',
+            'items.product'
+        ])
+            ->where('status', 'pending');
 
         if ($request->filled('status')) {
 
@@ -47,6 +49,7 @@ class PurchaseOrderController extends Controller
                 'status' => $item->status,
                 'supplier' => $item->supplier,
                 'currency' => $item->currency,
+                'items' => $item->items,
                 'total_amount' => $item->total_amount,
                 'expected_received_date' => $item->expected_received_date,
 
@@ -57,7 +60,15 @@ class PurchaseOrderController extends Controller
 
         return response()->json($orders);
     }
+    public function warehouseIndex(Request $request)
+    {
+        $query = PurchaseOrder::with(['supplier', 'currency', 'items', 'order', 'items.product'])
+            ->where('status', 'approved'); // đã duyệt → sang kho
 
+        $orders = $query->latest()->paginate(5);
+
+        return response()->json($orders);
+    }
     public function store(Request $request)
     {
         DB::transaction(function () use ($request) {
@@ -74,6 +85,7 @@ class PurchaseOrderController extends Controller
                 'currency_id' => $request->currency_id,
                 'expected_received_date' => $request->expected_received_date,
                 'note' => $request->note,
+
                 'status' => 'pending',
                 'amount' => $request->amount, // tạm thời
             ]);
@@ -182,12 +194,14 @@ class PurchaseOrderController extends Controller
             'message' => 'Duyệt thành công'
         ]);
     }
-    public function stockInData($id)
-    {
-        return PurchaseOrder::with([
-            'supplier',
-            'currency',
-            'items.product'
-        ])->findOrFail($id);
-    }
+
+    // public function stockInData($id)
+    // {
+    //     return PurchaseOrder::with([
+    //         'supplier',
+    //         'currency',
+    //         'items.product.unit'
+
+    //     ])->findOrFail($id);
+    // }
 }

@@ -132,8 +132,8 @@ const columns = [
     },
     {
         label: "Kho nhập",
-        key: "warehouse_name",
         align: "text-center",
+        render: (row) => h("span", {}, row.warehouse?.name ?? "-"),
     },
     {
         label: "Số mặt hàng",
@@ -167,7 +167,7 @@ function debounce(fn, delay = 300) {
 }
 
 const fetchData = async (page = 1) => {
-    const res = await axios.get("/api/warehouse/imports", {
+    const res = await axios.get(`/api/warehouse/slips?status=approved`, {
         params: {
             page,
             search: search.value,

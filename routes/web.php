@@ -21,9 +21,7 @@ Route::prefix('/warehouse')->group(function () {
 
     Route::get('/orders', fn() => Inertia::render('Warehouse/Order/Index'));
 
-    Route::get('/imports', fn() => Inertia::render('Warehouse/Import/Index'));
-
-    Route::get('/exports', fn() => Inertia::render('Warehouse/Export/Index'));
+    Route::get('/slips', fn() => Inertia::render('Warehouse/Slip/Index'));
 });
 Route::get(
     '/warehouse/slips/create',
@@ -41,7 +39,8 @@ Route::prefix('purchase')->group(function () {
     Route::get('/suppliers', function () {
         return Inertia::render('Purchase/Supplier/Index');
     });
-
+    Route::get('/categories', fn() => Inertia::render('Warehouse/Category/Index'));
+    Route::get('/units', fn() => Inertia::render('Warehouse/Unit/Index'));
     Route::get('/orders', function () {
         return Inertia::render('Purchase/Order/Index');
     });

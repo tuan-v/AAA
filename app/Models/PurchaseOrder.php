@@ -40,4 +40,8 @@ class PurchaseOrder extends Model
     {
         return $this->hasOne(Order::class, 'purchase_order_id');
     }
+    public function warehouseSlips()
+    {
+        return $this->hasMany(WarehouseSlip::class);
+    }
 }

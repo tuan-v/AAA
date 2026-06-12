@@ -11,18 +11,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('warehouse_slip_items', function (Blueprint $table) {
+        Schema::create('purchase_order_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('slip_id')
-                ->constrained('warehouse_slips')
+
+            $table->foreignId('purchase_order_id')
+                ->constrained()
                 ->cascadeOnDelete();
 
             $table->foreignId('product_id')
                 ->constrained()
                 ->cascadeOnDelete();
 
-            $table->integer('quantity');
-            $table->decimal('price', 15, 2);
+            $table->decimal('quantity', 18, 2);
+
+            $table->decimal('price', 18, 2)
+                ->default(0);
+
+            $table->decimal('amount', 18, 2)
+                ->default(0);
+
             $table->timestamps();
         });
     }
@@ -32,6 +39,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('warehouse_slip_item');
+        Schema::dropIfExists('purchase_order_items');
     }
 };

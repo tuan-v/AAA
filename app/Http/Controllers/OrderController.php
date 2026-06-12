@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;
+use App\Models\WarehouseSlip;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
@@ -14,158 +16,86 @@ class OrderController extends Controller
     // =====================
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with([
-            'supplier',
-            'currency',
-            'items.product' // 👈 nên load product luôn
+        $query = Order::with([
+            'purchaseOrder.supplier',
+            'purchaseOrder.currency',
+            'items.product',
         ]);
 
-        // ✅ TYPE FILTER (purchase / sale / all)
-        if ($request->filled('type') && $request->type !== 'all') {
-            $query->where('type', $request->type);
-        }
-
-        // STATUS FILTER
         if ($request->filled('status')) {
-
-            $query->where(
-                'status',
-                $request->status
-            );
+            $query->where('status', $request->status);
         }
-        // SEARCH
+
         if ($request->filled('search')) {
             $query->where('code', 'like', "%{$request->search}%");
         }
-
+        if ($request->filled('order_id')) {
+            $query->where('order_id', $request->order_id);
+        }
         return $query
             ->latest()
             ->paginate(5)
             ->through(function ($o) {
 
                 return [
-                    'id' => $o->id,
+                    'id' => $o->id, // <-- ID của ORDER
                     'code' => $o->code,
 
-                    'type' => $o->type, // purchase / sale
                     'status' => $o->status,
 
-                    'supplier_name' => $o->supplier?->name ?? '—',
-                    'currency_code' => $o->currency?->code ?? '—',
+                    'supplier' => $o->purchaseOrder?->supplier,
 
-                    'expected_received_date' => $o->expected_received_date ?? '—',
+                    'currency' => $o->purchaseOrder?->currency,
 
-                    // ⚠️ fix null amount
-                    'total_amount' => $o->total_amount ?? 0,
+                    'expected_received_date'
+                    => $o->purchaseOrder?->expected_received_date,
 
-                    'note' => $o->note,
+                    'total_amount'
+                    => $o->purchaseOrder?->total_amount ?? 0,
 
-                    'created_at' => optional($o->created_at)->format('Y-m-d'),
+                    'purchase_order_id'
+                    => $o->purchase_order_id,
 
-                    'items' => $o->items->map(fn($i) => [
-                        'product_name' => $i->product?->name ?? '—',
-                        'quantity' => $i->quantity,
-                        'price' => $i->price,
-                        'amount' => $i->amount,
-                    ]),
+                    'items' => $o->items->map(function ($item) {
+                        return [
+                            'product_id' => $item->product_id,
+                            'product_name' => $item->product?->name,
+                            'quantity' => $item->quantity,
+                        ];
+                    }),
                 ];
             });
     }
+    public function stockInData($id)
+    {
+        $order = Order::with([
+            'purchaseOrder.supplier',
+            'purchaseOrder.currency',
+            'items.product.unit',
+            'warehouseSlips.items'
+        ])->findOrFail($id);
+        if ($order->status === 'completed') {
+            return response()->json([
+                'message' => 'Đơn hàng đã nhập đầy đủ'
+            ], 422);
+        }
+        foreach ($order->items as $item) {
 
-    // =====================
-    // STORE
-    // =====================
-    // public function store(Request $request)
-    // {
-    //     DB::transaction(function () use ($request) {
+            $received = 0;
 
-    //         $total = 0;
+            foreach ($order->warehouseSlips as $slip) {
 
-    //         $last = PurchaseOrder::latest('id')->first();
+                foreach ($slip->items as $slipItem) {
 
-    //         $order = PurchaseOrder::create([
-    //             'code' =>
-    //             'PO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
+                    if ($slipItem->product_id == $item->product_id) {
+                        $received += $slipItem->quantity;
+                    }
+                }
+            }
 
-    //             'type' => $request->type, // 👈 QUAN TRỌNG (purchase / sale)
+            $item->received_quantity = $received;
+        }
 
-    //             'supplier_id' => $request->supplier_id,
-    //             'currency_id' => $request->currency_id,
-    //             'expected_received_date' => $request->expected_received_date,
-    //             'note' => $request->note,
-
-    //             'status' => 'pending',
-
-    //             'total_amount' => 0,
-    //         ]);
-
-    //         foreach ($request->items as $item) {
-
-    //             $amount = $item['quantity'] * $item['price'];
-
-    //             $order->items()->create([
-    //                 'product_id' => $item['product_id'],
-    //                 'quantity' => $item['quantity'],
-    //                 'price' => $item['price'],
-    //                 'amount' => $amount,
-    //             ]);
-
-    //             $total += $amount;
-    //         }
-
-    //         $order->update([
-    //             'total_amount' => $total,
-    //         ]);
-    //     });
-
-    //     return response()->json([
-    //         'message' => 'Tạo đơn thành công'
-    //     ]);
-    // }
-
-    // =====================
-    // UPDATE
-    // =====================
-    // public function update(Request $request, $id)
-    // {
-    //     DB::transaction(function () use ($request, $id) {
-
-    //         $order = PurchaseOrder::with('items')->findOrFail($id);
-
-    //         $total = 0;
-
-    //         $order->update([
-    //             'type' => $request->type, // 👈 giữ đồng bộ
-    //             'supplier_id' => $request->supplier_id,
-    //             'currency_id' => $request->currency_id,
-    //             'expected_received_date' => $request->expected_received_date,
-    //             'note' => $request->note,
-    //         ]);
-
-    //         // xoá items cũ
-    //         $order->items()->delete();
-
-    //         foreach ($request->items as $item) {
-
-    //             $amount = $item['quantity'] * $item['price'];
-
-    //             $order->items()->create([
-    //                 'product_id' => $item['product_id'],
-    //                 'quantity' => $item['quantity'],
-    //                 'price' => $item['price'],
-    //                 'amount' => $amount,
-    //             ]);
-
-    //             $total += $amount;
-    //         }
-
-    //         $order->update([
-    //             'total_amount' => $total,
-    //         ]);
-    //     });
-
-    //     return response()->json([
-    //         'message' => 'Cập nhật đơn thành công'
-    //     ]);
-    // }
+        return $order;
+    }
 }

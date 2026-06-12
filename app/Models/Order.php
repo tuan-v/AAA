@@ -22,7 +22,7 @@ class Order extends Model
     {
         return $this->belongsTo(Warehouse::class);
     }
-    public function slips()
+    public function warehouseSlips()
     {
         return $this->hasMany(WarehouseSlip::class);
     }

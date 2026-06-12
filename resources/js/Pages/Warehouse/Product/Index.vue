@@ -53,31 +53,14 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
             <!-- Filter -->
-            <select
-                v-model="stockFilter"
-                @change="getData(1)"
-                class="border border-gray-300 px-3 py-2 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            <div
+                class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
             >
-                <option value="all">Tất cả</option>
-                <option value="in_stock">Còn hàng</option>
-                <option value="out_stock">Hết hàng</option>
-            </select>
-
-            <!-- Search -->
-            <div class="flex items-center gap-2">
-                <input
-                    v-model="search"
-                    type="text"
-                    placeholder="Tìm sản phẩm / danh mục..."
-                    class="border border-gray-300 px-3 py-2 rounded-lg w-80 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                <SearchPage
+                    :filters="filters"
+                    @filter="handleFilter"
+                    :defaultParams="{ stock: 'all' }"
                 />
-
-                <!-- <button
-                    @click="getData(1)"
-                    class="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg transition"
-                >
-                    Tìm
-                </button> -->
             </div>
         </div>
         <DataTable
@@ -87,7 +70,11 @@
             :actions="actions"
             :indexOffset="(products.current_page - 1) * products.per_page"
             emptyMessage="Không có sản phẩm"
-        />
+        >
+            <template #cell-quantity="{ item }">
+                {{ item.quantity || "0" }} {{ item.unit_name || " " }}
+            </template>
+        </DataTable>
 
         <Pagination
             :totalItems="products.total"
@@ -124,9 +111,24 @@ import Unlock from "@/icons/Unlock.vue";
 import ProductForm from "./ProductForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { formatMoney } from "@/config/helpers";
-
-const search = ref("");
-const stockFilter = ref("all");
+import SearchPage from "@/components/SearchPage.vue";
+const filters = [
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm sản phẩm / danh mục...",
+    },
+    {
+        name: "stock",
+        type: "select",
+        placeholder: "Trạng thái kho",
+        options: [
+            { value: "all", label: "Tất cả" },
+            { value: "in_stock", label: "Còn hàng" },
+            { value: "out_stock", label: "Hết hàng" },
+        ],
+    },
+];
 const permissions = usePage().props.auth.permissions || [];
 
 const can = (permission) => {
@@ -158,28 +160,18 @@ const columns = [
     {
         label: "Tên",
         key: "name",
-        align: "text-center",
+        align: "text-start",
     },
     {
         label: "Tồn kho",
         key: "quantity",
-        align: "text-center",
-        render: (row) =>
-            h(
-                "span",
-                {
-                    class:
-                        row.quantity > 0
-                            ? "px-2 py-1 rounded bg-green-100 text-green-700"
-                            : "px-2 py-1 rounded bg-red-100 text-red-700",
-                },
-                row.quantity > 0 ? "Còn hàng" : "Hết hàng",
-            ),
+        align: "text-right",
     },
+
     {
         label: "Giá nhập",
         key: "purchase_price",
-        align: "text-center",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
@@ -190,7 +182,7 @@ const columns = [
     {
         label: "Giá bán",
         key: "sell_price",
-        align: "text-center",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
@@ -198,20 +190,16 @@ const columns = [
                 `${formatMoney(row.sell_price)} ₫`,
             ),
     },
-    {
-        label: "Đơn vị",
-        key: "unit_name",
-        align: "text-center",
-    },
+
     {
         label: "Danh mục",
         key: "category_name",
-        align: "text-center",
+        align: "text-start",
     },
     {
         label: "Trạng thái",
         key: "status",
-        align: "text-center",
+        align: "text-start",
         render: (row) =>
             h(
                 "span",
@@ -245,13 +233,13 @@ function debounce(fn, delay = 300) {
         timeout = setTimeout(() => fn(...args), delay);
     };
 }
-const fetchData = async (page = 1) => {
+const fetchData = async (page = 1, params = {}) => {
     try {
         const response = await axios.get(`/api/warehouse/products`, {
             params: {
                 page,
-                stock: stockFilter.value,
-                search: search.value,
+                search: params.search || "",
+                stock: params.stock || "all",
             },
         });
 
@@ -260,21 +248,17 @@ const fetchData = async (page = 1) => {
         console.error(error);
     }
 };
-const getData = debounce((page = 1) => {
-    fetchData(page);
-}, 300);
+const getData = (page = 1, params = {}) => {
+    fetchData(page, params);
+};
 
 function openCreate() {
     selectedProduct.value = null;
     showModal.value = true;
 }
-
-watch(search, () => {
-    getData(1);
-});
-watch(stockFilter, () => {
-    getData(1);
-});
+function handleFilter(params) {
+    fetchData(1, params);
+}
 function openEdit(product) {
     selectedProduct.value = { ...product };
     showModal.value = true;

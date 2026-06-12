@@ -107,14 +107,9 @@ class AppServiceProvider extends ServiceProvider
                             ],
                             [
                                 'icon' => 'MovetoinboxIcon',
-                                'name' => 'Phiếu nhập',
-                                'path' => '/warehouse/imports'
+                                'name' => 'Phiếu nhập/xuất',
+                                'path' => '/warehouse/slips'
                             ],
-                            [
-                                'icon' => 'OutboxIcon',
-                                'name' => 'Phiếu xuất',
-                                'path' => '/warehouse/exports'
-                            ]
                         ];
                         break;
 
@@ -134,6 +129,16 @@ class AppServiceProvider extends ServiceProvider
                                 'name' => 'Đơn mua',
                                 'path' => '/purchase/orders'
                             ],
+                            [
+                                'icon' => '',
+                                'name' => 'Danh mục',
+                                'path' => '/purchase/categories'
+                            ],
+                            [
+                                'icon' => '',
+                                'name' => 'Đơn vị',
+                                'path' => '/purchase/units'
+                            ]
                         ];
                         break;
                 }

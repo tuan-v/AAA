@@ -77,19 +77,22 @@ const columns = [
     {
         label: "Tên",
         key: "name",
+        align: "text-start",
     },
     {
         label: "Địa chỉ",
         key: "address",
+        align: "text-start",
     },
     {
         label: "Giá trị tồn",
         key: "total_inventory_value",
+        align: "text-right",
     },
     {
         key: "status",
         label: "Trạng thái",
-        align: "text-center",
+        align: "text-start",
         render: (row) =>
             h(
                 "span",

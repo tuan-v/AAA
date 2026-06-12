@@ -84,6 +84,9 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import WarehouseIcon from "../../../icons/WarehouseIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
+import ImportIcon from "../../../icons/ImportIcon.vue";
 const filters = [
     {
         name: "search",
@@ -163,10 +166,12 @@ const columns = [
     {
         key: "code",
         label: "Mã đơn",
+        align: "text-start",
     },
 
     {
         label: "Nhà cung cấp",
+        align: "text-start",
         render: (row) => {
             return h(
                 "span",
@@ -175,21 +180,10 @@ const columns = [
             );
         },
     },
-
-    {
-        label: "Tiền tệ",
-        render: (row) => {
-            return h(
-                "span",
-                { class: "text-gray-700" },
-                row.currency?.code ?? "—",
-            );
-        },
-    },
-
     {
         key: "expected_received_date",
         label: "Dự kiến nhận",
+        align: "text-right",
         render: (row) => {
             return h(
                 "span",
@@ -201,6 +195,7 @@ const columns = [
 
     {
         label: "Tổng tiền",
+        align: "text-right",
         render: (row) => {
             const value = new Intl.NumberFormat("vi-VN").format(
                 row.total_amount ?? 0,
@@ -218,7 +213,7 @@ const columns = [
 
     {
         label: "Trạng thái",
-
+        align: "text-start",
         render: (row) => {
             const status = statusConfig[row.status] ?? statusConfig.approved;
 
@@ -235,14 +230,30 @@ const columns = [
 
 const actions = [
     {
-        icon: WarehouseIcon, // icon nhập kho (bạn có thể thay)
-        visible: (row) => row.status === "approved",
-        onClick: (item) => openStockIn(item),
+        icon: ImportIcon,
         title: "Nhập kho",
+
+        visible: (row) => {
+            return row.status === "approved" || row.status === "partial";
+        },
+
+        onClick: (item) => {
+            if (item.status === "completed") {
+                toast.warning("Đơn hàng đã được nhập kho đầy đủ", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+
+                return;
+            }
+
+            openStockIn(item);
+        },
     },
 ];
 function openStockIn(item) {
-    window.location.href = `/warehouse/slips/create?order_id=${item.purchase_order_id}`;
+    window.location.href = `/warehouse/slips/create?order_id=${item.id}`;
 }
 async function getData(page = 1) {
     const res = await axios.get("/api/purchase/orders", {
@@ -259,11 +270,10 @@ async function getData(page = 1) {
 }
 
 async function fetchSuppliers() {
-    const res = await axios.get("/api/purchase/suppliers");
+    // const res = await axios.get(`/api/purchase/suppliers/${item.id}`);
 
     suppliers.value = res.data.data ?? res.data;
 }
-
 async function fetchProducts() {
     const res = await axios.get("/api/warehouse/products");
 
@@ -293,7 +303,6 @@ function changeTab(tab) {
 
 onMounted(() => {
     getData();
-    fetchSuppliers();
     fetchProducts();
     fetchCurrencies();
 });

@@ -60,10 +60,12 @@
                     <label class="block text-sm mb-1"
                         >Dự kiến nhận<span class="text-red">*</span></label
                     >
-                    <input
-                        type="date"
+                    <InputDate
                         v-model="form.expected_received_date"
-                        class="w-full border rounded-lg px-3 py-2"
+                        label=""
+                        placeholder="Chọn ngày"
+                        :clearable="true"
+                        :required="true"
                     />
                 </div>
 
@@ -160,7 +162,13 @@
                             </td>
 
                             <td class="p-2 border text-center">
-                                <button @click="removeItem(index)">🗑️</button>
+                                <button
+                                    @click="removeItem(index)"
+                                    class="text-red-500 hover:text-red-700"
+                                    title="Xóa sản phẩm"
+                                >
+                                    <DeleteIcon class="w-5 h-5" />
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -208,6 +216,8 @@ import { formatMoney, removeMoneyFormat } from "@/config/helpers";
 import FormSelect from "@/components/FormSelect.vue";
 import SupplierForm from "@/Pages/Purchase/Supplier/SupplierForm.vue";
 import Modal from "@/components/Modal.vue";
+import DeleteIcon from "../../../icons/DeleteIcon.vue";
+import InputDate from "@/components/InputDate.vue";
 const props = defineProps({
     order: { type: Object, default: null },
     suppliers: { type: Array, default: () => [] },
@@ -315,13 +325,13 @@ watch(
             return;
         }
         form.id = order.id;
-        form.supplier_id = order.supplier_id;
-        form.currency_id = order.currency_id;
+        form.supplier_id = order.supplier_id || order.supplier?.id;
+        form.currency_id = order.currency_id || order.currency?.id;
         form.expected_received_date = order.expected_received_date;
         form.note = order.note || "";
         form.items = order.items?.length
             ? order.items.map((item) => ({
-                  product_id: item.product_id,
+                  product_id: item.product_id || item.product?.id,
                   quantity: item.quantity,
                   price: item.price,
                   product: item.product,
@@ -330,7 +340,6 @@ watch(
     },
     { immediate: true },
 );
-
 watch(
     () => form.supplier_id,
     (supplierId) => {

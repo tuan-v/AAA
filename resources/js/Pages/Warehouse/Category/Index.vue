@@ -121,14 +121,17 @@ const columns = [
     {
         label: "Tên",
         key: "name",
+        align: "text-start",
     },
     {
         label: "Mã",
         key: "code",
+        align: "text-start",
     },
     {
         label: "Trạng thái",
         key: "status",
+
         render: (row) =>
             h(
                 "span",

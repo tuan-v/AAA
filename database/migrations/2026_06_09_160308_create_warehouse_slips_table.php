@@ -41,12 +41,14 @@ return new class extends Migration
             $table->timestamp('approved_at')->nullable();
 
             // trạng thái
-            $table->enum('status', [
-                'draft',        // nháp
-                'pending',      // chờ duyệt
-                'approved',     // đã duyệt
-                'rejected'      // từ chối
-            ])->default('draft');
+            $table->enum(
+                'status',
+                [
+                    'pending',      // chờ duyệt
+                    'approved',     // đã duyệt
+                    'rejected'      // từ chối
+                ]
+            )->default('draft');
 
             $table->text('note')->nullable();
 

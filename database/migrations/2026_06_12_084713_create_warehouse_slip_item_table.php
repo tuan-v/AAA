@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('warehouse_slip_items', function (Blueprint $table) {
+        Schema::create('warehouse_slip_item', function (Blueprint $table) {
             $table->id();
             $table->foreignId('slip_id')
                 ->constrained('warehouse_slips')
@@ -20,8 +20,12 @@ return new class extends Migration
             $table->foreignId('product_id')
                 ->constrained()
                 ->cascadeOnDelete();
-
+            $table->foreignId('purchase_order_item_id')
+                ->nullable()
+                ->constrained('purchase_order_items')
+                ->nullOnDelete();
             $table->integer('quantity');
+            $table->decimal('price', 15, 2);
             $table->timestamps();
         });
     }
@@ -31,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('warehouse_slip_items');
+        Schema::dropIfExists('warehouse_slip_item');
     }
 };

@@ -115,6 +115,8 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const filters = [
     {
         name: "search",
@@ -221,18 +223,6 @@ const columns = [
             );
         },
     },
-
-    {
-        label: "Tiền tệ",
-        render: (row) => {
-            return h(
-                "span",
-                { class: "text-gray-700" },
-                row.currency?.code ?? "—",
-            );
-        },
-    },
-
     {
         key: "expected_received_date",
         label: "Dự kiến nhận",
@@ -257,7 +247,7 @@ const columns = [
             return h(
                 "span",
                 {
-                    class: "font-semibold text-blue-600",
+                    class: "font-semibold ",
                 },
                 `${value} ${symbol}`,
             );
@@ -285,14 +275,25 @@ const actions = [
     {
         icon: EditButtonIcon,
         type: "edit",
-        visible: (row) => row.status === "pending",
-        onClick: (item) => openEdit(item),
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        onClick: (item) => {
+            if (item.status === "approved") return;
+            openEdit(item);
+        },
     },
     {
         icon: CheckIcon,
         type: "approve",
-        visible: (row) => row.status === "pending",
-        onClick: (item) => approveOrder(item),
+        visible: (row) => row.status !== "cancelled",
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        onClick: (item) => {
+            if (item.status === "approved") return;
+            approveOrder(item);
+        },
     },
 
     {
@@ -303,6 +304,13 @@ const actions = [
 ];
 
 async function approveOrder(item) {
+    if (item.status === "approved") {
+        toast.warning("Đơn này đã được duyệt rồi", {
+            position: "top-right",
+            timeout: 3000,
+        });
+        return;
+    }
     if (!confirm("Bạn có chắc muốn duyệt đơn này?")) return;
 
     await axios.post(`/api/purchase/orders/${item.id}/approve`);
@@ -344,7 +352,14 @@ function openCreate() {
 }
 
 function openEdit(item) {
-    axios.get("/api/purchase/suppliers/{id}");
+    if (item.status === "approved") {
+        toast.warning("Đơn này đã được duyệt rồi, không thể sửa được.", {
+            position: "top-right",
+            timeout: 3000,
+        });
+        return;
+    }
+    axios.get(`/api/purchase/suppliers/${item.id}`);
     selectedOrder.value = item;
     showModal.value = true;
 }

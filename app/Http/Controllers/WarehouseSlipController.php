@@ -29,6 +29,12 @@ class WarehouseSlipController extends Controller
         if ($request->filled('search')) {
             $query->where('code', 'like', "%{$request->search}%");
         }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('order_id')) {
+            $query->where('order_id', $request->order_id);
+        }
 
         $slips = $query->latest()->paginate(10);
 
@@ -37,10 +43,13 @@ class WarehouseSlipController extends Controller
                 'id' => $item->id,
                 'code' => $item->code,
                 'type' => $item->type,
+                'status' => $item->status,
                 'order_id' => $item->order_id,
                 'order_code' => $item->order?->code,
-                'warehouse_id' => $item->warehouse_id,
-                'warehouse_name' => $item->warehouse?->name,
+                'warehouse' => [
+                    'id' => $item->warehouse_id,
+                    'name' => $item->warehouse?->name,
+                ],
                 'note' => $item->note,
                 'total_items' => $item->items->count(),
                 'created_at' => $item->created_at->format('d/m/Y'),
@@ -172,7 +181,10 @@ class WarehouseSlipController extends Controller
     // =========================
     private function updateOrderStatus(Order $order)
     {
-        $order->load('items');
+        $order->load([
+            'items',
+            'purchaseOrder'
+        ]);
 
         $importedMap = WarehouseSlipItem::query()
             ->selectRaw('product_id, SUM(quantity) as total')
@@ -204,6 +216,11 @@ class WarehouseSlipController extends Controller
             : ($hasImported ? 'partial' : 'approved');
 
         $order->save();
+        if ($order->purchaseOrder) {
+            $order->purchaseOrder->update([
+                'status' => $order->status
+            ]);
+        }
     }
 
     // =========================
@@ -225,5 +242,38 @@ class WarehouseSlipController extends Controller
             ->whereIn('status', ['approved', 'partial'])
             ->select('id', 'code')
             ->get();
+    }
+    public function approve($id)
+    {
+        $slip = WarehouseSlip::findOrFail($id);
+
+        if ($slip->status !== 'pending') {
+            return response()->json([
+                'message' => 'Phiếu đã được xử lý, không thể duyệt lại'
+            ], 422);
+        }
+
+        $slip->status = 'approved';
+        $slip->save();
+
+        return response()->json([
+            'message' => 'Duyệt phiếu thành công'
+        ]);
+    }
+
+    public function reject($id)
+    {
+        $slip = WarehouseSlip::findOrFail($id);
+        if ($slip->status !== 'pending') {
+            return response()->json([
+                'message' => 'Phiếu đã được xử lý'
+            ], 422);
+        }
+        $slip->status = 'rejected';
+        $slip->save();
+
+        return response()->json([
+            'message' => 'Từ chối phiếu thành công'
+        ]);
     }
 }

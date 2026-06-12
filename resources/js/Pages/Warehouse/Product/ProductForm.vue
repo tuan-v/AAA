@@ -140,6 +140,7 @@
                     <input
                         :value="purchasePriceDisplay"
                         @input="handlePurchasePrice"
+                        @blur="formatPurchaseBlur"
                         type="text"
                         class="w-full border rounded-lg px-3 py-2"
                     />
@@ -161,6 +162,7 @@
                     <input
                         :value="sellPriceDisplay"
                         @input="handleSellPrice"
+                        @blur="formatSellBlur"
                         type="text"
                         class="w-full border rounded-lg px-3 py-2"
                     />
@@ -294,6 +296,9 @@ watch(
                 description: "",
                 image: null,
             };
+
+            purchasePriceDisplay.value = "";
+            sellPriceDisplay.value = "";
             previewImage.value = null;
             return;
         }
@@ -301,41 +306,34 @@ watch(
         form.value = {
             ...form.value,
             ...p,
-            image: null, // QUAN TRỌNG: không giữ URL làm file
+            image: null,
         };
+
+        purchasePriceDisplay.value = formatMoney(p.purchase_price || 0);
+        sellPriceDisplay.value = formatMoney(p.sell_price || 0);
 
         previewImage.value = p.image || null;
     },
     { immediate: true },
 );
 
-watch(
-    () => form.value.purchase_price,
-    (value) => {
-        purchasePriceDisplay.value = formatMoney(value);
-    },
-    { immediate: true },
-);
-
-watch(
-    () => form.value.sell_price,
-    (value) => {
-        sellPriceDisplay.value = formatMoney(value);
-    },
-    { immediate: true },
-);
 function handlePurchasePrice(e) {
     const raw = removeMoneyFormat(e.target.value);
 
-    form.value.purchase_price = raw;
-    purchasePriceDisplay.value = formatMoney(raw);
+    form.value.purchase_price = Number(raw || 0);
 }
 
 function handleSellPrice(e) {
     const raw = removeMoneyFormat(e.target.value);
 
-    form.value.sell_price = raw;
-    sellPriceDisplay.value = formatMoney(raw);
+    form.value.sell_price = Number(raw || 0);
+}
+function formatPurchaseBlur() {
+    purchasePriceDisplay.value = formatMoney(form.value.purchase_price || 0);
+}
+
+function formatSellBlur() {
+    sellPriceDisplay.value = formatMoney(form.value.sell_price || 0);
 }
 function handleImage(e) {
     const file = e.target.files[0];

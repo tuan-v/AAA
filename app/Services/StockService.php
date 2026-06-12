@@ -3,30 +3,44 @@
 namespace App\Services;
 
 use App\Models\WarehouseProductStock;
+use Illuminate\Support\Facades\DB;
 
 class StockService
 {
-    public function change($warehouseId, $productId, $qty, $type)
+    public function applySlip($slip)
     {
-        $stock = WarehouseProductStock::firstOrCreate([
-            'warehouse_id' => $warehouseId,
-            'product_id' => $productId,
-        ]);
+        DB::transaction(function () use ($slip) {
 
-        if ($type === 'import') {
-            $stock->quantity += $qty;
-        }
+            foreach ($slip->items as $item) {
 
-        if ($type === 'export') {
-            if ($stock->quantity < $qty) {
-                throw new \Exception("Không đủ tồn kho");
+                // 1. tạo ledger
+                WarehouseStockMovement::create([
+                    'warehouse_id' => $slip->warehouse_id,
+                    'product_id' => $item->product_id,
+                    'type' => $slip->type === 'import' ? 'import' : 'export',
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->price,
+                    'slip_id' => $slip->id,
+                    'slip_item_id' => $item->id,
+                ]);
+
+                // 2. update stock
+                $stock = WarehouseProductStock::firstOrCreate([
+                    'warehouse_id' => $slip->warehouse_id,
+                    'product_id' => $item->product_id,
+                ]);
+
+                if ($slip->type === 'import') {
+                    $stock->quantity += $item->quantity;
+                } else {
+                    if ($stock->quantity < $item->quantity) {
+                        throw new \Exception("Không đủ tồn kho");
+                    }
+                    $stock->quantity -= $item->quantity;
+                }
+
+                $stock->save();
             }
-
-            $stock->quantity -= $qty;
-        }
-
-        $stock->save();
-
-        return $stock;
+        });
     }
 }

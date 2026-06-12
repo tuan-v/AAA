@@ -11,8 +11,6 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\CurrencyController;
-use App\Http\Controllers\ExportController;
-use App\Http\Controllers\ImportController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -20,6 +18,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
+use App\Http\Controllers\WarehouseInventoryController;
 
 // Route::middleware('permission:product.view')->group(function () {
 //     Route::get('/index',  [ProductController::class, 'index']);
@@ -47,6 +46,7 @@ Route::prefix('warehouse')->group(function () {
     Route::apiResource('units', UnitController::class);
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('slips', WarehouseSlipController::class);
+    Route::get('/inventory', [WarehouseInventoryController::class, 'index']);
     Route::post(
         'slips/{id}/approve',
         [WarehouseSlipController::class, 'approve']
@@ -55,14 +55,17 @@ Route::prefix('warehouse')->group(function () {
 Route::prefix('purchase')->group(function () {
     Route::get('/suppliers/all', [SupplierController::class, 'all']);
     Route::apiResource('suppliers', SupplierController::class);
-
+    Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('units', UnitController::class);
     Route::apiResource('orders', PurchaseOrderController::class);
 });
 Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
 Route::get(
-    '/purchase/orders/{id}/stock-in',
-    [PurchaseOrderController::class, 'stockInData']
+    '/warehouse/orders/{id}/stock-in',
+    [OrderController::class, 'stockInData']
 );
+Route::post('/warehouse/slips/{id}/approve', [WarehouseSlipController::class, 'approve']);
+Route::post('/warehouse/slips/{id}/reject', [WarehouseSlipController::class, 'reject']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/units', [UnitController::class, 'index']);
