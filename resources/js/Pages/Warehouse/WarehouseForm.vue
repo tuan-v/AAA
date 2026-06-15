@@ -51,10 +51,10 @@
                             {{ province.name }}
                         </option>
                         <p
-                            v-if="form.errors.name"
+                            v-if="form.errors.province_id"
                             class="text-red-500 text-sm mt-1"
                         >
-                            {{ form.errors.name }}
+                            {{ form.errors.province_id }}
                         </p>
                     </select>
                 </div>
@@ -77,6 +77,12 @@
                         >
                             {{ ward.name }}
                         </option>
+                        <p
+                            v-if="form.errors.ward_id"
+                            class="text-red-500 text-sm mt-1"
+                        >
+                            {{ form.errors.ward_id }}
+                        </p>
                     </select>
                 </div>
             </div>
@@ -93,6 +99,12 @@
                     placeholder="Số nhà, đường, thôn..."
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
+                <p
+                    v-if="form.errors.address_detail"
+                    class="text-red-500 text-sm mt-1"
+                >
+                    {{ form.errors.address_detail }}
+                </p>
             </div>
 
             <!-- Giá trị tồn -->

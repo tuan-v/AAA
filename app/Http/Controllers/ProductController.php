@@ -66,29 +66,76 @@ class ProductController extends Controller
 
         return response()->json($products);
     }
+    // API trả về tất cả sản phẩm cho dropdown (không phân trang)
+    public function forSelect()
+    {
+        $products = Product::query()
+            ->select('id', 'name', 'sku') // chỉ lấy những field cần
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json($products);
+    }
 
     // Thêm sản phẩm
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|max:255',
-            'sku' => 'nullable|max:255|unique:products,sku',
+        $validated = $request->validate(
+            [
+                'name' => 'required|max:255',
+                'sku' => 'nullable|max:255|unique:products,sku',
 
-            'category_id' => 'required|exists:categories,id',
-            'unit_id' => 'required|exists:units,id',
+                'category_id' => 'required|exists:categories,id',
+                'unit_id' => 'required|exists:units,id',
 
-            'type' => 'required|in:hang_hoa,vat_tu,dich_vu',
+                'type' => 'required|in:hang_hoa,vat_tu,dich_vu',
 
-            'purchase_price' => 'required|numeric|min:0',
-            'sell_price' => 'required|numeric|min:0',
+                'purchase_price' => 'numeric|min:0',
+                'sell_price' => 'numeric|min:0',
 
-            'quantity' => 'required|integer|min:0',
+                'quantity' => 'required|integer|min:0',
 
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+                'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'description' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
-        ]);
+                'description' => 'nullable|string',
+                'status' => 'required|in:active,inactive',
+            ],
+            [
+                'name.required' => 'Tên sản phẩm không được để trống.',
+                'name.max' => 'Tên sản phẩm tối đa 255 ký tự.',
+
+                'sku.unique' => 'Mã SKU đã tồn tại.',
+                'sku.max' => 'SKU tối đa 255 ký tự.',
+
+                'category_id.required' => 'Vui lòng chọn danh mục.',
+                'category_id.exists' => 'Danh mục không tồn tại.',
+
+                'unit_id.required' => 'Vui lòng chọn đơn vị tính.',
+                'unit_id.exists' => 'Đơn vị tính không tồn tại.',
+
+                'type.required' => 'Vui lòng chọn loại sản phẩm.',
+                'type.in' => 'Loại sản phẩm không hợp lệ.',
+
+                'purchase_price.numeric' => 'Giá nhập phải là số.',
+                'purchase_price.min' => 'Giá nhập không được nhỏ hơn 0.',
+
+                'sell_price.numeric' => 'Giá bán phải là số.',
+                'sell_price.min' => 'Giá bán không được nhỏ hơn 0.',
+
+                'quantity.required' => 'Vui lòng nhập số lượng tồn.',
+                'quantity.integer' => 'Số lượng phải là số nguyên.',
+                'quantity.min' => 'Số lượng tồn không được nhỏ hơn 0.',
+
+                'image.image' => 'File tải lên phải là hình ảnh.',
+                'image.mimes' => 'Ảnh chỉ được phép có định dạng jpg, jpeg, png hoặc webp.',
+                'image.max' => 'Dung lượng ảnh tối đa 2MB.',
+
+                'description.string' => 'Mô tả không hợp lệ.',
+
+                'status.required' => 'Vui lòng chọn trạng thái.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]
+        );
 
         // upload ảnh
         if ($request->hasFile('image')) {
@@ -99,10 +146,12 @@ class ProductController extends Controller
 
         $product = Product::create($validated);
 
-        return response()->json([
-            'message' => 'Thêm sản phẩm thành công',
-            'data' => $product
-        ]);
+        return response()->json(
+            [
+                'message' => 'Thêm sản phẩm thành công',
+                'data' => $product
+            ]
+        );
     }
 
     // Chi tiết
@@ -121,26 +170,65 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'required|max:255',
+        $validated = $request->validate(
+            [
+                'name' => 'required|max:255',
 
-            'sku' => 'nullable|max:255|unique:products,sku,' . $id,
+                'sku' => 'nullable|max:255|unique:products,sku,' . $id,
 
-            'category_id' => 'required|exists:categories,id',
-            'unit_id' => 'required|exists:units,id',
+                'category_id' => 'required|exists:categories,id',
+                'unit_id' => 'required|exists:units,id',
 
-            'type' => 'required|in:hang_hoa,vat_tu,dich_vu',
+                'type' => 'required|in:hang_hoa,vat_tu,dich_vu',
 
-            'purchase_price' => 'required|numeric|min:0',
-            'sell_price' => 'required|numeric|min:0',
+                'purchase_price' => 'required|numeric|min:0',
+                'sell_price' => 'required|numeric|min:0',
 
-            'quantity' => 'required|integer|min:0',
+                'quantity' => 'required|integer|min:0',
 
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+                'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
 
-            'description' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
-        ]);
+                'description' => 'nullable|string',
+                'status' => 'required|in:active,inactive',
+            ],
+            [
+                'name.required' => 'Tên sản phẩm không được để trống.',
+                'name.max' => 'Tên sản phẩm tối đa 255 ký tự.',
+
+                'sku.unique' => 'Mã SKU đã tồn tại.',
+                'sku.max' => 'SKU tối đa 255 ký tự.',
+
+                'category_id.required' => 'Vui lòng chọn danh mục.',
+                'category_id.exists' => 'Danh mục không tồn tại.',
+
+                'unit_id.required' => 'Vui lòng chọn đơn vị tính.',
+                'unit_id.exists' => 'Đơn vị tính không tồn tại.',
+
+                'type.required' => 'Vui lòng chọn loại sản phẩm.',
+                'type.in' => 'Loại sản phẩm không hợp lệ.',
+
+                'purchase_price.required' => 'Vui lòng nhập giá nhập.',
+                'purchase_price.numeric' => 'Giá nhập phải là số.',
+                'purchase_price.min' => 'Giá nhập không được nhỏ hơn 0.',
+
+                'sell_price.required' => 'Vui lòng nhập giá bán.',
+                'sell_price.numeric' => 'Giá bán phải là số.',
+                'sell_price.min' => 'Giá bán không được nhỏ hơn 0.',
+
+                'quantity.required' => 'Vui lòng nhập số lượng tồn.',
+                'quantity.integer' => 'Số lượng phải là số nguyên.',
+                'quantity.min' => 'Số lượng tồn không được nhỏ hơn 1.',
+
+                'image.image' => 'File tải lên phải là hình ảnh.',
+                'image.mimes' => 'Ảnh chỉ được phép có định dạng jpg, jpeg, png hoặc webp.',
+                'image.max' => 'Dung lượng ảnh tối đa 2MB.',
+
+                'description.string' => 'Mô tả không hợp lệ.',
+
+                'status.required' => 'Vui lòng chọn trạng thái.',
+                'status.in' => 'Trạng thái không hợp lệ.',
+            ]
+        );
 
         if ($request->hasFile('image')) {
 

@@ -40,18 +40,37 @@
                     placeholder="Nhập tên nhà cung cấp"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <p v-if="errors.name" class="text-red-500 text-sm mt-1">
+                    {{ errors.name[0] }}
+                </p>
             </div>
 
             <!-- MÃ -->
             <div>
-                <label class="block text-sm font-medium mb-1"> Mã </label>
+                <label class="block text-sm font-medium mb-1">
+                    Mã nhà cung cấp
+                </label>
 
-                <input
-                    v-model="form.code"
-                    type="text"
-                    placeholder="NCC001"
-                    class="w-full h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
+                <div class="flex gap-2">
+                    <input
+                        v-model="form.code"
+                        type="text"
+                        placeholder="NCC0001"
+                        class="flex-1 h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+
+                    <button
+                        type="button"
+                        @click="generateCode"
+                        class="px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                        Roll
+                    </button>
+                </div>
+
+                <p v-if="errors.code" class="text-red-500 text-sm mt-1">
+                    {{ errors.code[0] }}
+                </p>
             </div>
 
             <!-- TIỀN TỆ -->
@@ -70,6 +89,9 @@
                         {{ c.code }}
                     </option>
                 </select>
+                <p v-if="errors.currency_id" class="text-red-500 text-sm mt-1">
+                    {{ errors.currency_id[0] }}
+                </p>
             </div>
 
             <!-- PHONE -->
@@ -80,10 +102,13 @@
 
                 <input
                     v-model="form.phone"
-                    type="text"
+                    type="number"
                     placeholder="090xxxxxxx"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <p v-if="errors.phone" class="text-red-500 text-sm mt-1">
+                    {{ errors.phone[0] }}
+                </p>
             </div>
 
             <!-- EMAIL -->
@@ -98,6 +123,9 @@
                     placeholder="example@gmail.com"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <p v-if="errors.email" class="text-red-500 text-sm mt-1">
+                    {{ errors.email[0] }}
+                </p>
             </div>
 
             <div></div>
@@ -115,6 +143,9 @@
                     searchable
                     @change="onProvinceChange"
                 />
+                <p v-if="errors.province_id" class="text-red-500 text-sm mt-1">
+                    {{ errors.province_id[0] }}
+                </p>
             </div>
 
             <!-- PHƯỜNG -->
@@ -129,6 +160,9 @@
                     placeholder="Chọn phường..."
                     searchable
                 />
+                <p v-if="errors.ward_id" class="text-red-500 text-sm mt-1">
+                    {{ errors.ward_id[0] }}
+                </p>
             </div>
 
             <div></div>
@@ -145,6 +179,12 @@
                     placeholder="Số nhà, tên đường..."
                     class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <p
+                    v-if="errors.address_detail"
+                    class="text-red-500 text-sm mt-1"
+                >
+                    {{ errors.address_detail[0] }}
+                </p>
             </div>
 
             <!-- CÔNG NỢ -->
@@ -158,6 +198,9 @@
                     @input="handleMoney($event, 'total_debts')"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg text-right font-medium focus:ring-2 focus:ring-blue-500"
                 />
+                <p v-if="errors.total_debts" class="text-red-500 text-sm mt-1">
+                    {{ errors.total_debts[0] }}
+                </p>
             </div>
 
             <!-- TẠM ỨNG -->
@@ -171,6 +214,12 @@
                     @input="handleMoney($event, 'total_advance')"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg text-right font-medium focus:ring-2 focus:ring-blue-500"
                 />
+                <p
+                    v-if="errors.total_advance"
+                    class="text-red-500 text-sm mt-1"
+                >
+                    {{ errors.total_advance[0] }}
+                </p>
             </div>
         </div>
 
@@ -202,13 +251,13 @@ import FormSelect from "@/components/FormSelect.vue";
 const props = defineProps({
     supplier: Object,
     currencies: {
-        Array,
+        type: Array,
         default: () => [],
     },
 });
 
 const emit = defineEmits(["saved", "close"]);
-
+const errors = ref({});
 const provinces = ref([]);
 const wards = ref([]);
 const currencies = ref([]);
@@ -282,8 +331,15 @@ const onProvinceChange = (value) => {
 function handleMoney(event, field) {
     form[field] = removeMoneyFormat(event.target.value);
 }
+function generateCode() {
+    const random = Math.floor(Math.random() * 9999)
+        .toString()
+        .padStart(4, "0");
 
+    form.code = `NCC${random}`;
+}
 async function submit() {
+    errors.value = {};
     try {
         const province =
             provinces.value.find((x) => x.code == selectedProvince.value)
@@ -313,9 +369,15 @@ async function submit() {
 
         emit("saved", supplier);
     } catch (error) {
+        if (error.response?.status === 422) {
+            errors.value = error.response.data.errors;
+            return;
+        }
+
         console.error(error);
     }
 }
+
 onMounted(async () => {
     const res = await axios.get("/api/currencies");
     currencies.value = res.data || [];

@@ -44,8 +44,11 @@
                 <p class="text-blue-600 text-sm">Đã duyệt</p>
                 <p class="text-2xl font-bold">
                     {{
-                        orders.data.filter((x) => x.status === "approved")
-                            .length
+                        orders.data.filter((x) =>
+                            ["approved", "partial", "completed"].includes(
+                                x.status,
+                            ),
+                        ).length
                     }}
                 </p>
             </div>
@@ -98,6 +101,53 @@
             />
         </template>
     </Modal>
+    <div
+        v-if="showConfirm"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    >
+        <div class="bg-white w-[420px] rounded-xl shadow-xl p-6 animate-fadeIn">
+            <!-- ICON -->
+            <div class="flex items-center gap-3 mb-4">
+                <div
+                    class="bg-yellow-100 text-yellow-600 p-3 rounded-full text-xl"
+                >
+                    ⚠️
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold">Xác nhận duyệt đơn</h3>
+                    <p class="text-sm text-gray-500">
+                        Hành động này không thể hoàn tác
+                    </p>
+                </div>
+            </div>
+
+            <!-- CONTENT -->
+            <div class="bg-gray-50 p-3 rounded-lg text-sm mb-5">
+                Bạn có chắc muốn duyệt đơn:
+                <span class="font-semibold">
+                    {{ pendingApproveItem?.code }}
+                </span>
+                không?
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="flex justify-end gap-3">
+                <button
+                    @click="showConfirm = false"
+                    class="px-4 py-2 rounded-lg border hover:bg-gray-100"
+                >
+                    Hủy
+                </button>
+
+                <button
+                    @click="confirmApprove"
+                    class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                >
+                    ✔ Duyệt đơn
+                </button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -117,6 +167,7 @@ import CheckIcon from "@/icons/CheckIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import DeleteIcon from "../../../icons/DeleteIcon.vue";
 const filters = [
     {
         name: "search",
@@ -139,11 +190,11 @@ const filters = [
             },
             {
                 value: "partial",
-                label: "Nhập một phần",
+                label: "Đã duyệt",
             },
             {
                 value: "completed",
-                label: "Hoàn thành",
+                label: "Đã duyệt",
             },
             {
                 value: "cancelled",
@@ -164,13 +215,13 @@ const statusConfig = {
     },
 
     partial: {
-        text: "Nhập một phần",
-        class: "bg-orange-100 text-orange-700",
+        text: "Đã duyệt",
+        class: "bg-blue-100 text-blue-700",
     },
 
     completed: {
-        text: "Hoàn thành",
-        class: "bg-green-100 text-green-700",
+        text: "Đã duyệt",
+        class: "bg-blue-100 text-blue-700",
     },
 
     cancelled: {
@@ -184,6 +235,7 @@ function handleFilter(params) {
 
     getData();
 }
+
 const orders = ref({
     data: [],
 });
@@ -275,9 +327,9 @@ const actions = [
     {
         icon: EditButtonIcon,
         type: "edit",
-        disabled: (row) => row.status === "approved",
-        class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        title: "Chỉnh sửa",
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => {
             if (item.status === "approved") return;
             openEdit(item);
@@ -286,35 +338,54 @@ const actions = [
     {
         icon: CheckIcon,
         type: "approve",
+        title: "Duyệt đơn",
         visible: (row) => row.status !== "cancelled",
-        disabled: (row) => row.status === "approved",
-        class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => {
             if (item.status === "approved") return;
-            approveOrder(item);
+            openApproveConfirm(item);
         },
     },
 
     {
-        icon: DetailButtonIcon,
-
+        icon: DeleteIcon,
+        title: "Hủy đơn",
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => showDetail(item),
     },
 ];
+const showConfirm = ref(false);
+const pendingApproveItem = ref(null);
+function openApproveConfirm(item) {
+    pendingApproveItem.value = item;
+    showConfirm.value = true;
+}
+async function confirmApprove() {
+    if (!pendingApproveItem.value) return;
 
-async function approveOrder(item) {
-    if (item.status === "approved") {
-        toast.warning("Đơn này đã được duyệt rồi", {
+    const item = pendingApproveItem.value;
+
+    try {
+        await axios.post(`/api/purchase/orders/${item.id}/approve`);
+
+        item.status = "approved";
+
+        toast.success("Duyệt đơn thành công", {
             position: "top-right",
-            timeout: 3000,
+            autoClose: 3000,
+            theme: "colored",
         });
-        return;
-    }
-    if (!confirm("Bạn có chắc muốn duyệt đơn này?")) return;
 
-    await axios.post(`/api/purchase/orders/${item.id}/approve`);
-    item.status = "approved";
+        showConfirm.value = false;
+        pendingApproveItem.value = null;
+
+        getData(); // reload lại danh sách
+    } catch (err) {
+        toast.error("Duyệt đơn thất bại");
+        console.error(err);
+    }
 }
 async function getData(page = 1) {
     const res = await axios.get("/api/purchase/orders", {
@@ -327,7 +398,11 @@ async function getData(page = 1) {
 
     orders.value = res.data;
 }
+const LOCKED_STATUSES = ["approved", "partial", "completed"];
 
+function isLocked(row) {
+    return LOCKED_STATUSES.includes(row.status);
+}
 async function fetchSuppliers() {
     const res = await axios.get("/api/purchase/suppliers/all");
 
@@ -359,7 +434,6 @@ function openEdit(item) {
         });
         return;
     }
-    axios.get(`/api/purchase/suppliers/${item.id}`);
     selectedOrder.value = item;
     showModal.value = true;
 }

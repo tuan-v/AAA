@@ -44,6 +44,9 @@ Route::prefix('purchase')->group(function () {
     Route::get('/orders', function () {
         return Inertia::render('Purchase/Order/Index');
     });
+    Route::get('/products', function () {
+        return Inertia::render('Warehouse/Product/Index');
+    });
 });
 
 Route::get('/permission', function () {

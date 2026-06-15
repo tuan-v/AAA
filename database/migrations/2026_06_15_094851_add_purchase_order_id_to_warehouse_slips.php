@@ -11,8 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            //
+        Schema::table('warehouse_slips', function (Blueprint $table) {
+            $table->unsignedBigInteger('purchase_order_id')->nullable();
+
+            $table->foreign('purchase_order_id')
+                ->references('id')
+                ->on('purchase_orders')
+                ->cascadeOnDelete();
         });
     }
 
@@ -21,7 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
+        Schema::table('warehouse_slips', function (Blueprint $table) {
             //
         });
     }

@@ -1,96 +1,73 @@
 <template>
-    <Head title="Đơn mua hàng" />
+    <Head title="Đơn hàng" />
 
     <AdminLayout>
-        <PageBreadcrumb
-            title=""
-            :items="[
-                {
-                    text: 'Đơn mua hàng',
-                    link: null,
-                },
-            ]"
-        />
+        <PageBreadcrumb title="" :items="[{ text: 'Đơn hàng', link: null }]" />
 
         <!-- HEADER -->
-        <div class="flex justify-between items-center mb-5">
-            <h2 class="text-2xl font-bold">Danh sách đơn mua hàng</h2>
+
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">Quản lý đơn hàng</h2>
         </div>
-        <div class="grid grid-cols-4 gap-4 mb-5">
-            <div class="bg-white p-4 rounded-xl border shadow-sm">
-                <p class="text-gray-500 text-sm">Tổng đơn</p>
-                <p class="text-2xl font-bold">
-                    {{ orders.total }}
-                </p>
-            </div>
-
-            <div class="bg-yellow-50 p-4 rounded-xl border">
-                <p class="text-yellow-600 text-sm">Nhập một phần</p>
-                <p class="text-2xl font-bold">
-                    {{
-                        orders.data.filter((x) => x.status === "partial").length
-                    }}
-                </p>
-            </div>
-
-            <div class="bg-blue-50 p-4 rounded-xl border">
-                <p class="text-blue-600 text-sm">Chờ nhập kho</p>
-                <p class="text-2xl font-bold">
-                    {{
-                        orders.data.filter((x) => x.status === "approved")
-                            .length
-                    }}
-                </p>
-            </div>
-
-            <div class="bg-green-50 p-4 rounded-xl border">
-                <p class="text-green-600 text-sm">Nhập đầy đủ</p>
-                <p class="text-2xl font-bold">
-                    {{
-                        orders.data.filter((x) => x.status === "completed")
-                            .length
-                    }}
-                </p>
-            </div>
-        </div>
-        <!-- FILTER -->
         <div
-            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
+            class="flex flex-wrap items-center justify-between gap-3 mb-5 bg-white p-3 rounded-xl shadow-sm"
         >
-            <SearchPage :filters="filters" @filter="handleFilter" />
+            <!-- SEARCH -->
+            <div
+                class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
+            >
+                <SearchPage :filters="filters" @filter="handleFilter" />
+            </div>
         </div>
-        <DataTable
-            :columns="columns"
-            :data="orders.data"
-            :showIndex="true"
-            :actions="actions"
-            :indexOffset="(orders.current_page - 1) * orders.per_page"
-            emptyMessage="Không có đơn mua hàng"
-        />
+        <!-- TABS -->
+        <div class="flex border-b mb-4">
+            <button
+                @click="changeTab('purchase')"
+                class="px-5 py-3 font-medium border-b-2 transition"
+                :class="
+                    activeTab === 'purchase'
+                        ? 'border-green-600 text-green-600'
+                        : 'border-transparent text-gray-500'
+                "
+            >
+                Đơn mua
+            </button>
 
+            <button
+                @click="changeTab('sale')"
+                class="px-5 py-3 font-medium border-b-2 transition"
+                :class="
+                    activeTab === 'sale'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500'
+                "
+            >
+                Đơn bán
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="bg-white rounded-xl shadow-sm">
+            <DataTable
+                :columns="columns"
+                :data="orders.data"
+                :showIndex="true"
+                :actions="actions"
+                :indexOffset="(orders.current_page - 1) * orders.per_page"
+                emptyMessage="Không có đơn hàng"
+            />
+        </div>
+
+        <!-- PAGINATION -->
         <Pagination
             :totalItems="orders.total"
             :itemsPerPage="orders.per_page"
             :currentPage="orders.current_page"
             :doingShow="orders.data.length"
             @page-change="handlePageChange"
+            class="mt-4"
         />
     </AdminLayout>
-
-    <Modal v-if="showModal" @close="showModal = false">
-        <template #body>
-            <PurchaseOrderForm
-                :key="supplierKey"
-                :order="selectedOrder"
-                :suppliers="suppliers"
-                :currencies="currencies"
-                :products="products"
-                @saved="reloadData"
-                @close="showModal = false"
-                @supplier-created="onSupplierCreated"
-            />
-        </template>
-    </Modal>
 </template>
 
 <script setup>
@@ -105,7 +82,7 @@ import Modal from "@/components/Modal.vue";
 import { formatMoney, removeMoneyFormat } from "@/config/helpers";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
-import CheckIcon from "@/icons/CheckIcon.vue";
+import WarehouseIcon from "../../../icons/WarehouseIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
@@ -132,7 +109,7 @@ const filters = [
             },
             {
                 value: "completed",
-                label: "Nhập đầy đủ",
+                label: "Hoàn thành",
             },
             {
                 value: "cancelled",
@@ -168,25 +145,19 @@ function handleFilter(params) {
 
     getData();
 }
+const activeTab = ref("purchase");
+
 const orders = ref({
     data: [],
 });
-const supplierKey = ref(0);
-const onSupplierCreated = async (newSupplier) => {
-    await fetchSuppliers(); // Reload danh sách NCC
-    // Modal PurchaseOrderForm vẫn đang mở, không cần làm gì thêm
-    // Buộc cập nhật lại form (quan trọng)
-    selectedOrder.value = { ...selectedOrder.value }; // trigger reactivity
 
-    console.log("✅ Đã reload suppliers:", suppliers.value.length);
-};
 const suppliers = ref([]);
 const products = ref([]);
 const currencies = ref([]);
 
 const search = ref("");
 const statusFilter = ref("");
-const activeTab = ref("purchase");
+
 const showModal = ref(false);
 
 const selectedOrder = ref(null);
@@ -234,9 +205,7 @@ const columns = [
 
             return h(
                 "span",
-                {
-                    class: "font-semibold ",
-                },
+                { class: "font-medium text-gray-900" },
                 `${value} ${symbol}`,
             );
         },
@@ -263,12 +232,10 @@ const actions = [
     {
         icon: ImportIcon,
         title: "Nhập kho",
+
         visible: (row) => {
             return row.status === "approved" || row.status === "partial";
         },
-        disabled: (row) => row.status === "completed",
-        class: (row) =>
-            row.status === "completed" ? "opacity-40 cursor-not-allowed" : "",
 
         onClick: (item) => {
             if (item.status === "completed") {
@@ -286,27 +253,14 @@ const actions = [
     },
 ];
 function openStockIn(item) {
-    console.log(item);
     window.location.href = `/warehouse/slips/create?order_id=${item.id}`;
 }
-async function approveOrder(item) {
-    if (item.status === "approved") {
-        toast.warning("Đơn này đã được duyệt rồi", {
-            position: "top-right",
-            timeout: 3000,
-        });
-        return;
-    }
-    if (!confirm("Bạn có chắc muốn duyệt đơn này?")) return;
-
-    await axios.post(`/api/warehouse/orders/${item.id}/approve`);
-    item.status = "approved";
-}
 async function getData(page = 1) {
-    const res = await axios.get("/api/warehouse/orders", {
+    const res = await axios.get("/api/purchase/orders", {
         params: {
             page,
             search: search.value,
+            type: activeTab.value,
             // status: statusFilter.value,
             status: "approved",
         },
@@ -316,11 +270,10 @@ async function getData(page = 1) {
 }
 
 async function fetchSuppliers() {
-    const res = await axios.get("/api/purchase/suppliers/all");
+    // const res = await axios.get(`/api/purchase/suppliers/${item.id}`);
 
     suppliers.value = res.data.data ?? res.data;
 }
-
 async function fetchProducts() {
     const res = await axios.get("/api/warehouse/products");
 
@@ -333,10 +286,6 @@ async function fetchCurrencies() {
     currencies.value = res.data.data ?? res.data;
 }
 
-function changeTab(tab) {
-    activeTab.value = tab;
-    getData(1);
-}
 function reloadData() {
     showModal.value = false;
     getData();
@@ -345,10 +294,15 @@ function reloadData() {
 function handlePageChange(page) {
     getData(page);
 }
+function changeTab(tab) {
+    activeTab.value = tab;
+    getData(1);
+}
+
+/* ================= WATCH ================= */
 
 onMounted(() => {
     getData();
-    fetchSuppliers();
     fetchProducts();
     fetchCurrencies();
 });

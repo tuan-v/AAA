@@ -29,7 +29,7 @@
                     />
 
                     <p v-if="errors.name" class="text-red-500 text-sm">
-                        {{ errors.name }}
+                        {{ errors.name[0] }}
                     </p>
                 </div>
 
@@ -44,6 +44,9 @@
                         type="text"
                         class="w-full border rounded-lg px-3 py-2"
                     />
+                    <p v-if="errors.sku" class="text-red-500 text-sm">
+                        {{ errors.sku[0] }}
+                    </p>
                 </div>
 
                 <!-- Danh mục -->
@@ -68,7 +71,7 @@
                     </select>
 
                     <p v-if="errors.category_id" class="text-red-500 text-sm">
-                        {{ errors.category_id }}
+                        {{ errors.category_id[0] }}
                     </p>
                 </div>
 
@@ -94,7 +97,7 @@
                     </select>
 
                     <p v-if="errors.unit_id" class="text-red-500 text-sm">
-                        {{ errors.unit_id }}
+                        {{ errors.unit_id[0] }}
                     </p>
                 </div>
 
@@ -127,7 +130,7 @@
                     />
 
                     <p v-if="errors.quantity" class="text-red-500 text-sm">
-                        {{ errors.quantity }}
+                        {{ errors.quantity[0] }}
                     </p>
                 </div>
 
@@ -149,7 +152,7 @@
                         v-if="errors.purchase_price"
                         class="text-red-500 text-sm"
                     >
-                        {{ errors.purchase_price }}
+                        {{ errors.purchase_price[0] }}
                     </p>
                 </div>
 
@@ -168,7 +171,7 @@
                     />
 
                     <p v-if="errors.sell_price" class="text-red-500 text-sm">
-                        {{ errors.sell_price }}
+                        {{ errors.sell_price[0] }}
                     </p>
                 </div>
 
@@ -246,11 +249,14 @@
 import axios from "axios";
 import { ref, watch, onMounted } from "vue";
 import { formatMoney, removeMoneyFormat } from "@/config/helpers";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 
 const purchasePriceDisplay = ref("");
 const sellPriceDisplay = ref("");
+
 const props = defineProps({
-    product: Object,
+    product: { type: Object, default: null },
 });
 
 const emit = defineEmits(["saved", "close"]);
@@ -258,7 +264,6 @@ const emit = defineEmits(["saved", "close"]);
 const categories = ref([]);
 const units = ref([]);
 const previewImage = ref(null);
-
 const errors = ref({});
 
 const form = ref({
@@ -276,12 +281,14 @@ const form = ref({
     image: null,
 });
 
+// ==================== WATCH ====================
 watch(
     () => props.product,
     (p) => {
         errors.value = {};
 
         if (!p) {
+            // Reset form
             form.value = {
                 id: null,
                 name: "",
@@ -296,38 +303,49 @@ watch(
                 description: "",
                 image: null,
             };
-
             purchasePriceDisplay.value = "";
             sellPriceDisplay.value = "";
             previewImage.value = null;
             return;
         }
 
-        form.value = {
-            ...form.value,
-            ...p,
-            image: null,
-        };
+        // Gán dữ liệu an toàn
+        form.value.id = p.id;
+        form.value.name = p.name || "";
+        form.value.sku = p.sku || "";
+        form.value.category_id = p.category_id || "";
+        form.value.unit_id = p.unit_id || "";
+        form.value.type = p.type || "hang_hoa";
+        form.value.purchase_price = Number(p.purchase_price || 0);
+        form.value.sell_price = Number(p.sell_price || 0);
+        form.value.quantity = Number(p.quantity || 0);
+        form.value.status = p.status || "active";
+        form.value.description = p.description || "";
+        form.value.image = null;
 
-        purchasePriceDisplay.value = formatMoney(p.purchase_price || 0);
-        sellPriceDisplay.value = formatMoney(p.sell_price || 0);
+        // Format hiển thị giá
+        purchasePriceDisplay.value = formatMoney(form.value.purchase_price);
+        sellPriceDisplay.value = formatMoney(form.value.sell_price);
 
-        previewImage.value = p.image || null;
+        // Preview ảnh (nếu có URL)
+        previewImage.value = p.image ? p.image : null;
     },
-    { immediate: true },
+    { immediate: true, deep: true },
 );
 
+// ==================== HANDLERS ====================
 function handlePurchasePrice(e) {
     const raw = removeMoneyFormat(e.target.value);
-
     form.value.purchase_price = Number(raw || 0);
+    purchasePriceDisplay.value = e.target.value;
 }
 
 function handleSellPrice(e) {
     const raw = removeMoneyFormat(e.target.value);
-
     form.value.sell_price = Number(raw || 0);
+    sellPriceDisplay.value = e.target.value;
 }
+
 function formatPurchaseBlur() {
     purchasePriceDisplay.value = formatMoney(form.value.purchase_price || 0);
 }
@@ -335,22 +353,21 @@ function formatPurchaseBlur() {
 function formatSellBlur() {
     sellPriceDisplay.value = formatMoney(form.value.sell_price || 0);
 }
+
 function handleImage(e) {
     const file = e.target.files[0];
-
     if (!file) return;
-
     form.value.image = file;
     previewImage.value = URL.createObjectURL(file);
 }
 
+// ==================== SAVE ====================
 async function saveProduct() {
     errors.value = {};
 
     const data = new FormData();
-
     Object.keys(form.value).forEach((key) => {
-        if (form.value[key] !== null) {
+        if (form.value[key] !== null && form.value[key] !== undefined) {
             data.append(key, form.value[key]);
         }
     });
@@ -358,29 +375,39 @@ async function saveProduct() {
     try {
         if (form.value.id) {
             data.append("_method", "PUT");
-
             await axios.post(`/api/warehouse/products/${form.value.id}`, data);
         } else {
             await axios.post("/api/warehouse/products", data);
         }
 
+        toast.success(
+            form.value.id
+                ? "Cập nhật sản phẩm thành công"
+                : "Thêm sản phẩm thành công",
+        );
         emit("saved");
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
-            errors.value = error.response.data.errors;
+            errors.value = error.response.data.errors || {};
+        } else {
+            toast.error("Có lỗi xảy ra khi lưu sản phẩm");
         }
     }
 }
 
+// ==================== LOAD DATA ====================
 async function loadData() {
-    const [categoryRes, unitRes] = await Promise.all([
-        axios.get("/api/categories"),
-        axios.get("/api/units"),
-    ]);
-
-    categories.value = categoryRes.data.data;
-    units.value = unitRes.data.data;
+    try {
+        const [categoryRes, unitRes] = await Promise.all([
+            axios.get("/api/categories"),
+            axios.get("/api/units"),
+        ]);
+        categories.value = categoryRes.data.data || categoryRes.data;
+        units.value = unitRes.data.data || unitRes.data;
+    } catch (e) {
+        console.error("Lỗi tải danh mục/đơn vị", e);
+    }
 }
 
 onMounted(loadData);

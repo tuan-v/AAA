@@ -31,31 +31,31 @@
             />
         </div>
         <div class="flex items-center border-b mb-5 gap-2">
-            <!-- PHIẾU NHẬP -->
-            <Link
-                href="/warehouse/import"
+            <!-- IMPORT TAB -->
+            <button
+                @click="activeTab = 'import'"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/warehouse/import')
+                    activeTab === 'import'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
             >
                 Phiếu nhập
-            </Link>
+            </button>
 
-            <!-- PHIẾU XUẤT -->
-            <Link
-                href="/warehouse/export"
+            <!-- EXPORT TAB -->
+            <button
+                @click="activeTab = 'export'"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/warehouse/export')
+                    activeTab === 'export'
                         ? 'border-red-500 text-red-600'
                         : 'border-transparent text-gray-500 hover:text-red-500'
                 "
             >
                 Phiếu xuất
-            </Link>
+            </button>
         </div>
 
         <!-- TABLE -->
@@ -66,7 +66,8 @@
             :actions="actions"
             :indexOffset="(slips.current_page - 1) * slips.per_page"
             emptyMessage="Không có phiếu nhập"
-        />
+        >
+        </DataTable>
 
         <!-- PAGINATION -->
         <Pagination
@@ -104,7 +105,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 
 const warehouseFilter = ref("all");
 const search = ref("");
-
+const activeTab = ref("import");
 const can = (permission) => permissions.includes(permission);
 
 const showModal = ref(false);
@@ -123,31 +124,45 @@ const columns = [
     {
         label: "Mã phiếu",
         key: "code",
-        align: "text-center",
+        align: "text-start",
     },
     {
         label: "Mã đơn",
-        key: "order_code",
-        align: "text-center",
+        key: "purchase_order_code",
+        align: "text-start",
     },
     {
-        label: "Kho nhập",
-        align: "text-center",
+        label: "Người tạo",
+        render: (row) => h("span", {}, row.created_by?.name ?? "-"),
+    },
+    {
+        label: "Người duyệt",
+        render: (row) => h("span", {}, row.approved_by?.name ?? "-"),
+    },
+    {
+        label: "Kho nhập/xuất",
+        align: "text-start",
         render: (row) => h("span", {}, row.warehouse?.name ?? "-"),
     },
     {
         label: "Số mặt hàng",
         key: "total_items",
-        align: "text-center",
+        align: "text-right",
     },
     {
         label: "Ghi chú",
         key: "note",
+        align: "text-start",
     },
     {
         label: "Ngày tạo",
         key: "created_at",
-        align: "text-center",
+        align: "text-right",
+    },
+    {
+        label: "Ngày duyệt",
+        align: "text-right",
+        render: (row) => h("span", {}, row.approved_at ?? "-"),
     },
 ];
 const actions = [
@@ -167,7 +182,12 @@ function debounce(fn, delay = 300) {
 }
 
 const fetchData = async (page = 1) => {
-    const res = await axios.get(`/api/warehouse/slips?status=approved`, {
+    const url =
+        activeTab.value === "import"
+            ? "/api/warehouse/slips?type=import"
+            : "/api/warehouse/slips?type=export";
+
+    const res = await axios.get(url, {
         params: {
             page,
             search: search.value,
@@ -177,7 +197,11 @@ const fetchData = async (page = 1) => {
 
     slips.value = res.data;
 };
-
+watch(activeTab, () => {
+    getData(1);
+});
+watch(search, () => getData(1));
+watch(warehouseFilter, () => getData(1));
 function goToExport() {
     window.location.href = "/warehouse/export";
 }

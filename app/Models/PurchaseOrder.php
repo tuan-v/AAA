@@ -36,12 +36,12 @@ class PurchaseOrder extends Model
             PurchaseOrderItem::class
         );
     }
-    public function order()
-    {
-        return $this->hasOne(Order::class, 'purchase_order_id');
-    }
+
     public function warehouseSlips()
     {
-        return $this->hasMany(WarehouseSlip::class);
+        return $this->hasMany(
+            WarehouseSlip::class,
+            'purchase_order_id'
+        );
     }
 }

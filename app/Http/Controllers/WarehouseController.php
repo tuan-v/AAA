@@ -46,10 +46,10 @@ class WarehouseController extends Controller
             'address_detail' => 'required',
             'total_inventory_value' => 'nullable|numeric',
         ], [
-            'name.required' => 'Vui long nhap ten kho',
-            'province_id.required' => 'Vui long chon tinh',
-            'ward_id.required' => 'Vui long chon xa',
-            'address_detail.required' => 'Vui long nhap dia chi cu the'
+            'name.required' => 'Vui lòng nhập tên kho',
+            'province_id.required' => 'Vui lòng chọn tỉnh',
+            'ward_id.required' => 'Vui lòng chọn xã',
+            'address_detail.required' => 'Vui lòng nhập địa chỉ cụ thể'
         ]);
 
         $address = Address::create([

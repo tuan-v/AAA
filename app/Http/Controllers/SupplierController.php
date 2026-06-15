@@ -80,24 +80,60 @@ class SupplierController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|max:255',
-            'phone' => 'nullable|max:20',
-            'email' => 'nullable|email',
+            'phone' => [
+                'required',
+
+                'regex:/^(0|\+84)[0-9]{9,10}$/'
+            ],
+            'email' => 'required|email|unique:suppliers,email',
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_code' => 'nullable|string|max:50',
-            'province_name' => 'nullable|string|max:255',
+            'province_id' => 'required',
+            // 'province_name' => 'required|string|max:255',
 
-            'ward_code' => 'nullable|string|max:50',
-            'ward_name' => 'nullable|string|max:255',
+            'ward_id' => 'required',
+            // 'ward_name' => 'required|string|max:255',
 
-            'address_detail' => 'nullable|string|max:500',
+            'address_detail' => 'required|string|max:500',
 
             'total_debts' => 'nullable|numeric|min:0',
             'total_advance' => 'nullable|numeric|min:0',
 
             'status' => 'required|in:active,inactive',
+        ], [
+            'name.required' => 'Tên nhà cung cấp không được để trống.',
+            'name.max' => 'Tên nhà cung cấp tối đa 255 ký tự.',
+
+            'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.required' => 'Số điện thoại không được bỏ trống',
+
+            'email.required' => "Email không được bỏ trống",
+            'email.email' => 'Email không đúng định dạng.',
+            'email.unique' => 'Email đã bị trùng',
+
+            'currency_id.required' => 'Vui lòng chọn tiền tệ.',
+            'currency_id.exists' => 'Tiền tệ không tồn tại.',
+
+            // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
+            // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
+            'province_id.required' => 'Vui lòng chọn tỉnh',
+            'ward_id.required' => 'Vui lòng chọn xã/phường.',
+            // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
+
+            'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
+            'address_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
+
+            'total_debts.numeric' => 'Công nợ phải là số.',
+            'total_debts.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
+
+            'total_advance.numeric' => 'Tiền ứng trước phải là số.',
+            'total_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
+
+            'status.required' => 'Vui lòng chọn trạng thái.',
+            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
+
 
         $last = Supplier::latest('id')->first();
 
@@ -124,23 +160,57 @@ class SupplierController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|max:255',
-            'phone' => 'nullable|max:20',
-            'email' => 'nullable|email',
+            'phone' => [
+                'required',
+                'regex:/^(0|\+84)[0-9]{9,10}$/'
+            ],
+            'email' => 'required|email|unique:suppliers,email',
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_code' => 'nullable|string|max:50',
-            'province_name' => 'nullable|string|max:255',
+            'province_id' => 'required',
+            // 'province_name' => 'required|string|max:255',
 
-            'ward_code' => 'nullable|string|max:50',
-            'ward_name' => 'nullable|string|max:255',
+            'ward_id' => 'required',
+            // 'ward_name' => 'required|string|max:255',
 
-            'address_detail' => 'nullable|string|max:500',
+            'address_detail' => 'required|string|max:500',
 
             'total_debts' => 'nullable|numeric|min:0',
             'total_advance' => 'nullable|numeric|min:0',
 
             'status' => 'required|in:active,inactive',
+        ], [
+            'name.required' => 'Tên nhà cung cấp không được để trống.',
+            'name.max' => 'Tên nhà cung cấp tối đa 255 ký tự.',
+
+            'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.required' => 'Số điện thoại không được bỏ trống',
+
+            'email.required' => "Email không được bỏ trống",
+            'email.email' => 'Email không đúng định dạng.',
+            'email.unique' => 'Email đã bị trùng',
+
+            'currency_id.required' => 'Vui lòng chọn tiền tệ.',
+            'currency_id.exists' => 'Tiền tệ không tồn tại.',
+
+            // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
+            // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
+            'province_id.required' => 'Vui lòng chọn tỉnh',
+            'ward_id.required' => 'Vui lòng chọn xã/phường.',
+            // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
+
+            'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
+            'adress_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
+
+            'total_debts.numeric' => 'Công nợ phải là số.',
+            'total_debts.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
+
+            'total_advance.numeric' => 'Tiền ứng trước phải là số.',
+            'total_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
+
+            'status.required' => 'Vui lòng chọn trạng thái.',
+            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
 
         $supplier->update($validated);

@@ -2,47 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\OrderItem;
-use Illuminate\Http\Request;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
-use App\Models\Supplier;
+use App\Models\WarehouseProductStock;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderController extends Controller
 {
+    // =========================
+    // INDEX
+    // =========================
     public function index(Request $request)
     {
         $query = PurchaseOrder::with([
             'supplier',
             'currency',
             'items',
-            'order',
             'items.product'
-        ])
-            ->where('status', 'pending');
+        ])->whereIn('status', [
+            'pending',
+            'approved',
+            'partial',
+            'completed'
+        ]);
 
         if ($request->filled('status')) {
-
-            $query->where(
-                'status',
-                $request->status
-            );
+            $query->where('status', $request->status);
         }
 
         if ($request->filled('search')) {
-
-            $query->where(
-                'code',
-                'like',
-                "%{$request->search}%"
-            );
+            $query->where('code', 'like', "%{$request->search}%");
         }
 
         $orders = $query->latest()->paginate(5);
 
         $orders->getCollection()->transform(function ($item) {
+
+            $total = $item->items->sum(function ($i) {
+                return $i->quantity * $i->price;
+            });
+
             return [
                 'id' => $item->id,
                 'code' => $item->code,
@@ -50,11 +50,8 @@ class PurchaseOrderController extends Controller
                 'supplier' => $item->supplier,
                 'currency' => $item->currency,
                 'items' => $item->items,
-                'total_amount' => $item->total_amount,
+                'total_amount' => $total,
                 'expected_received_date' => $item->expected_received_date,
-
-                // ⭐ QUAN TRỌNG NHẤT
-                'warehouse_order_id' => $item->order?->id,
             ];
         });
 
@@ -62,32 +59,72 @@ class PurchaseOrderController extends Controller
     }
     public function warehouseIndex(Request $request)
     {
-        $query = PurchaseOrder::with(['supplier', 'currency', 'items', 'order', 'items.product'])
-            ->where('status', 'approved'); // đã duyệt → sang kho
+        $query = PurchaseOrder::with([
+            'supplier',
+            'currency',
+            'items',
+            'items.product'
+        ]);
+
+        $query->whereIn('status', [
+            'approved',
+            'partial',
+            'completed'
+        ]);
+
+        if ($request->filled('search')) {
+            $query->where('code', 'like', "%{$request->search}%");
+        }
 
         $orders = $query->latest()->paginate(5);
 
+        $orders->getCollection()->transform(function ($item) {
+
+            return [
+                'id' => $item->id,
+                'code' => $item->code,
+                'status' => $item->status,
+                'supplier' => $item->supplier,
+                'currency' => $item->currency,
+                'items' => $item->items,
+                'total_amount' => $item->items->sum(fn($i) => $i->quantity * $i->price),
+                'expected_received_date' => $item->expected_received_date,
+            ];
+        });
+
         return response()->json($orders);
     }
+
+    // =========================
+    // STORE (FIXED)
+    // =========================
     public function store(Request $request)
     {
-        DB::transaction(function () use ($request) {
+        $request->validate([
+            'supplier_id' => 'required',
+            'currency_id' => 'required',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+        ]);
+
+        try {
+
+            DB::beginTransaction();
 
             $total = 0;
 
             $last = PurchaseOrder::latest('id')->first();
 
             $order = PurchaseOrder::create([
-                'code' =>
-                'PO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
-
+                'code' => 'PO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
                 'supplier_id' => $request->supplier_id,
                 'currency_id' => $request->currency_id,
                 'expected_received_date' => $request->expected_received_date,
                 'note' => $request->note,
-
                 'status' => 'pending',
-                'amount' => $request->amount, // tạm thời
+                'total_amount' => 0,
             ]);
 
             foreach ($request->items as $item) {
@@ -107,21 +144,38 @@ class PurchaseOrderController extends Controller
             $order->update([
                 'total_amount' => $total
             ]);
-        });
 
-        return response()->json([
-            'message' => 'Tạo đơn thành công'
-        ]);
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Tạo đơn thành công',
+                'id' => $order->id
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
+
+    // =========================
+    // UPDATE
+    // =========================
     public function update(Request $request, $id)
     {
+        $request->validate([
+            'items' => 'required|array|min:1',
+        ]);
+
         DB::transaction(function () use ($request, $id) {
 
             $order = PurchaseOrder::with('items')->findOrFail($id);
 
             $total = 0;
 
-            // 1. update header
             $order->update([
                 'supplier_id' => $request->supplier_id,
                 'currency_id' => $request->currency_id,
@@ -129,10 +183,8 @@ class PurchaseOrderController extends Controller
                 'note' => $request->note,
             ]);
 
-            // 2. xoá items cũ
             $order->items()->delete();
 
-            // 3. tạo lại items mới
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
@@ -147,10 +199,9 @@ class PurchaseOrderController extends Controller
                 $total += $amount;
             }
 
-            // 4. update total
             $order->update([
                 'total_amount' => $total,
-                'status' => 'pending', // optional reset trạng thái nếu muốn
+                'status' => 'pending'
             ]);
         });
 
@@ -158,50 +209,58 @@ class PurchaseOrderController extends Controller
             'message' => 'Cập nhật đơn thành công'
         ]);
     }
+
+    // =========================
+    // APPROVE (WAREHOUSE UPDATE)
+    // =========================
     public function approve($id)
     {
-        DB::transaction(function () use ($id) {
+        $order = PurchaseOrder::findOrFail($id);
 
-            $purchaseOrder = PurchaseOrder::with('items')
-                ->findOrFail($id);
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Đơn đã xử lý'
+            ], 422);
+        }
 
-            if ($purchaseOrder->status !== 'pending') {
-                throw new \Exception('Đơn không thể duyệt');
-            }
-
-            $purchaseOrder->update([
-                'status' => 'approved'
-            ]);
-
-            $order = Order::create([
-                'purchase_order_id' => $purchaseOrder->id,
-                'code' => 'ORD-' . now()->format('YmdHis'),
-                'type' => 'purchase',
-                'status' => 'approved',
-            ]);
-
-            foreach ($purchaseOrder->items as $item) {
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
-                ]);
-            }
-        });
+        $order->update([
+            'status' => 'approved',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
 
         return response()->json([
-            'message' => 'Duyệt thành công'
+            'message' => 'Duyệt đơn thành công'
         ]);
     }
 
-    // public function stockInData($id)
-    // {
-    //     return PurchaseOrder::with([
-    //         'supplier',
-    //         'currency',
-    //         'items.product.unit'
+    // =========================
+    // STOCK IN DATA
+    // =========================
+    public function stockInData($id)
+    {
+        $order = PurchaseOrder::with([
+            'supplier',
+            'currency',
+            'items.product.unit',
+            'warehouseSlips.items'
+        ])->findOrFail($id);
 
-    //     ])->findOrFail($id);
-    // }
+        foreach ($order->items as $item) {
+
+            $received = 0;
+
+            foreach ($order->warehouseSlips as $slip) {
+                foreach ($slip->items as $slipItem) {
+                    if ($slipItem->product_id == $item->product_id) {
+                        $received += $slipItem->quantity;
+                    }
+                }
+            }
+
+            $item->received_quantity = $received;
+        }
+
+        return response()->json($order);
+    }
 }

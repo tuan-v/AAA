@@ -118,14 +118,18 @@ class AppServiceProvider extends ServiceProvider
                         break;
                     case "purchase":
                         $menuItems = [
-                            [],
                             [
-                                'icon' => 'TruckIcon',
+                                'icon' => 'handpakageIcon',
                                 'name' => 'Nhà cung cấp',
                                 'path' => '/purchase/suppliers'
                             ],
                             [
-                                'icon' => 'FileIcon',
+                                'icon' => 'BoxIcon',
+                                'name' => 'Sản phẩm',
+                                'path' => '/purchase/products'
+                            ],
+                            [
+                                'icon' => 'AddOder',
                                 'name' => 'Đơn mua',
                                 'path' => '/purchase/orders'
                             ],
@@ -139,6 +143,7 @@ class AppServiceProvider extends ServiceProvider
                                 'name' => 'Đơn vị',
                                 'path' => '/purchase/units'
                             ]
+
                         ];
                         break;
                 }

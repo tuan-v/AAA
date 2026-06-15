@@ -96,6 +96,7 @@
                                     (item.received_quantity || 0)
                                 "
                                 v-model="item.import_quantity"
+                                @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                             />
                         </td>
@@ -212,6 +213,9 @@ const slipActions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         visible: (row) => row.status === "pending",
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -239,6 +243,9 @@ const slipActions = [
         title: "Từ chối",
         icon: DeleteIcon,
         visible: (row) => row.status === "pending",
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -262,6 +269,17 @@ const slipActions = [
         },
     },
 ];
+function onInputQuantity(item) {
+    const max = item.quantity - (item.received_quantity || 0);
+
+    if (item.import_quantity > max) {
+        item.import_quantity = max;
+    }
+
+    if (item.import_quantity < 0 || !item.import_quantity) {
+        item.import_quantity = 0;
+    }
+}
 const warehouseOptions = computed(() => {
     return warehouses.value.map((w) => ({
         value: w.id,
@@ -315,7 +333,7 @@ async function loadOrder() {
 
         console.log("API DATA", res.data);
 
-        purchaseOrder.value = res.data.purchase_order;
+        purchaseOrder.value = res.data;
 
         items.value = (res.data.items || []).map((i) => ({
             ...i,
@@ -333,10 +351,12 @@ async function loadOrder() {
     }
 }
 async function loadSlips() {
-    const res = await axios.get(`/api/warehouse/slips?order_id=${orderId}`);
+    const res = await axios.get(
+        `/api/warehouse/slips?purchase_order_id=${orderId}`,
+    );
+
     slips.value = res.data.data ?? res.data;
 }
-
 // =====================
 // LOAD WAREHOUSE
 // =====================
@@ -368,31 +388,34 @@ function fakePreviewCode() {
 // =====================
 async function submit() {
     if (!warehouseId.value) {
-        return alert("Vui lòng chọn kho nhập");
+        return toast.warning("Vui lòng chọn kho nhập");
     }
 
     const validItems = items.value.filter((i) => Number(i.import_quantity) > 0);
 
     if (validItems.length === 0) {
-        return alert("Vui lòng nhập ít nhất một sản phẩm");
+        return toast.warning("Vui lòng nhập ít nhất một sản phẩm");
     }
 
     loading.value = true;
 
     try {
         await axios.post("/api/warehouse/slips", {
-            order_id: orderId,
+            purchase_order_id: orderId,
             warehouse_id: warehouseId.value,
             items: validItems.map((i) => ({
                 product_id: i.product_id,
                 import_quantity: Number(i.import_quantity),
             })),
         });
+
+        await loadOrder();
         await loadSlips();
-        alert("Tạo phiếu nhập kho thành công!");
+
+        toast.success("Tạo phiếu nhập kho thành công");
     } catch (error) {
         console.error(error);
-        alert(error.response?.data?.message || "Có lỗi xảy ra");
+        toast.error(error.response?.data?.message || "Có lỗi xảy ra");
     } finally {
         loading.value = false;
     }

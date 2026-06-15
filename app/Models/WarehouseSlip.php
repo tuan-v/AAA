@@ -10,16 +10,19 @@ class WarehouseSlip extends Model
 {
     protected $fillable = [
         'code',
-        'order_id',
         'warehouse_id',
+        'purchase_order_id',
         'type',
         'note',
+        'created_by',
+        'approved_by',
+        'approved_at',
+        'status',
     ];
-
-    public function order()
-    {
-        return $this->belongsTo(Order::class);
-    }
+    protected $casts = [
+        'approved_at' => 'datetime',
+        'created_at' => 'datetime',
+    ];
 
     public function warehouse()
     {
@@ -32,5 +35,21 @@ class WarehouseSlip extends Model
             WarehouseSlipItem::class,
             'slip_id'
         );
+    }
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(
+            PurchaseOrder::class,
+            'purchase_order_id'
+        );
+    }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

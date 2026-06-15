@@ -44,7 +44,6 @@ Route::prefix('warehouse')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('units', UnitController::class);
-    Route::apiResource('orders', OrderController::class);
     Route::apiResource('slips', WarehouseSlipController::class);
     Route::get('/inventory', [WarehouseInventoryController::class, 'index']);
     Route::post(
@@ -58,15 +57,21 @@ Route::prefix('purchase')->group(function () {
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('units', UnitController::class);
     Route::apiResource('orders', PurchaseOrderController::class);
+    Route::apiResource('products', ProductController::class);
 });
 Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
 Route::get(
     '/warehouse/orders/{id}/stock-in',
-    [OrderController::class, 'stockInData']
+    [PurchaseOrderController::class, 'stockInData']
+);
+Route::get(
+    '/warehouse/orders',
+    [PurchaseOrderController::class, 'warehouseIndex']
 );
 Route::post('/warehouse/slips/{id}/approve', [WarehouseSlipController::class, 'approve']);
 Route::post('/warehouse/slips/{id}/reject', [WarehouseSlipController::class, 'reject']);
 
+Route::get('/products/for-select', [ProductController::class, 'forSelect']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/units', [UnitController::class, 'index']);
 

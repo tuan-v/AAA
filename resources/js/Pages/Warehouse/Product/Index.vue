@@ -112,6 +112,8 @@ import ProductForm from "./ProductForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { formatMoney } from "@/config/helpers";
 import SearchPage from "@/components/SearchPage.vue";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const filters = [
     {
         name: "search",
@@ -260,7 +262,21 @@ function handleFilter(params) {
     fetchData(1, params);
 }
 function openEdit(product) {
-    selectedProduct.value = { ...product };
+    selectedProduct.value = {
+        id: product.id,
+        name: product.name || "",
+        sku: product.sku || "",
+        category_id: product.category_id || "",
+        unit_id: product.unit_id || "",
+        type: product.type || "hang_hoa",
+        purchase_price: Number(product.purchase_price || 0),
+        sell_price: Number(product.sell_price || 0),
+        quantity: Number(product.quantity || 0),
+        status: product.status || "active",
+        description: product.description || "",
+        image: product.image || null,
+        // Thêm các field khác nếu có
+    };
     showModal.value = true;
 }
 
