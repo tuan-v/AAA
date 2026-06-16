@@ -178,7 +178,7 @@ const columns = [
             h(
                 "span",
                 { class: "font-medium" },
-                `${formatMoney(row.purchase_price)} ₫`,
+                `${formatMoney(row.purchase_price)} ${row.currency_symbol || ""}`,
             ),
     },
     {
@@ -188,8 +188,8 @@ const columns = [
         render: (row) =>
             h(
                 "span",
-                { class: "font-medium " },
-                `${formatMoney(row.sell_price)} ₫`,
+                { class: "font-medium" },
+                `${formatMoney(row.sell_price)} ${row.currency_symbol || ""}`,
             ),
     },
 

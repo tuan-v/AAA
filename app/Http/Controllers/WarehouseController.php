@@ -11,13 +11,42 @@ class WarehouseController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+
+        $company = $user->companies()->first();
+
+        if (!$company) {
+            return response()->json([
+                'message' => 'User chưa thuộc công ty'
+            ], 422);
+        }
+
+        $companyCurrency = $company->currencies()
+            ->wherePivot('is_default', true)
+            ->first();
+
+        $rate = $companyCurrency?->exchange_rate ?? 1;
+
+        $currency = [
+            'code'          => $companyCurrency?->code ?? 'VND',
+            'symbol'        => $companyCurrency?->symbol ?? '₫',
+            'exchange_rate' => $rate,
+        ];
         return Warehouse::with([
             'address.province',
-            'address.ward'
+            'address.ward',
+            'stocks.product'
         ])
             ->orderByDesc('id')
             ->paginate(5)
-            ->through(function ($warehouse) {
+            ->through(function ($warehouse) use ($rate, $currency) {
+                $totalValue = 0;
+                foreach ($warehouse->stocks as $stock) {
+                    $price = $stock->product?->purchase_price ?? 0;
+                    // quy đổi theo công ty 
+                    $converted = $rate > 0 ? $price / $rate : 0;
+                    $totalValue += $stock->quantity * $converted;
+                }
                 return [
                     'id' => $warehouse->id,
                     'name' => $warehouse->name,
@@ -30,8 +59,8 @@ class WarehouseController extends Controller
                         $warehouse->address->ward->name . ', ' .
                         $warehouse->address->province->name,
 
-                    'total_inventory_value' => $warehouse->total_inventory_value,
-
+                    'total_inventory_value' => round($totalValue, 2),
+                    'currency_symbol' => $currency?->symbol ?? '₫',
                     'status' => $warehouse->status,
                 ];
             });
@@ -61,8 +90,7 @@ class WarehouseController extends Controller
         $warehouse = Warehouse::create([
             'name' => $validated['name'],
             'address_id' => $address->id,
-            'total_inventory_value' =>
-            $validated['total_inventory_value'] ?? 0,
+
         ]);
 
         return $warehouse->load([
@@ -89,13 +117,10 @@ class WarehouseController extends Controller
             'province_id' => 'required|exists:provinces,id',
             'ward_id' => 'required|exists:wards,id',
             'address_detail' => 'required',
-            'total_inventory_value' => 'nullable|numeric',
         ]);
 
         $warehouse->update([
             'name' => $validated['name'],
-            'total_inventory_value' =>
-            $validated['total_inventory_value'] ?? 0,
         ]);
 
         $warehouse->address->update([

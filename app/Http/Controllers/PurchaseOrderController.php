@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Currency;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\WarehouseProductStock;
@@ -52,6 +53,7 @@ class PurchaseOrderController extends Controller
                 'items' => $item->items,
                 'total_amount' => $total,
                 'expected_received_date' => $item->expected_received_date,
+                'exchange_rate' => $item->exchange_rate,
             ];
         });
 
@@ -89,6 +91,7 @@ class PurchaseOrderController extends Controller
                 'items' => $item->items,
                 'total_amount' => $item->items->sum(fn($i) => $i->quantity * $i->price),
                 'expected_received_date' => $item->expected_received_date,
+
             ];
         });
 
@@ -116,7 +119,30 @@ class PurchaseOrderController extends Controller
             $total = 0;
 
             $last = PurchaseOrder::latest('id')->first();
+            $orderCurrency = Currency::findOrFail(
+                $request->currency_id
+            );
 
+            $company = auth()
+                ->user()
+                ->companies()
+                ->first();
+
+            if (!$company) {
+                throw new \Exception('Người dùng chưa thuộc công ty nào');
+            }
+
+            $companyCurrency = $company
+                ->currencies()
+                ->wherePivot('is_default', true)
+                ->first();
+
+            if (!$companyCurrency) {
+                throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
+            }
+
+            $validated['exchange_rate']
+                = $orderCurrency->exchange_rate;
             $order = PurchaseOrder::create([
                 'code' => 'PO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
                 'supplier_id' => $request->supplier_id,
@@ -125,17 +151,22 @@ class PurchaseOrderController extends Controller
                 'note' => $request->note,
                 'status' => 'pending',
                 'total_amount' => 0,
+                'exchange_rate' => $orderCurrency->exchange_rate,
             ]);
-
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
 
+                $companyPrice =
+                    $item['price']
+                    * $orderCurrency->exchange_rate
+                    / $companyCurrency->exchange_rate;
                 $order->items()->create([
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'amount' => $amount,
+                    'product_id'   => $item['product_id'],
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'], // giá NCC
+                    'company_price' => round($companyPrice, 2),  // giá quy đổi
+                    'amount'       => $amount,
                 ]);
 
                 $total += $amount;
@@ -175,12 +206,33 @@ class PurchaseOrderController extends Controller
             $order = PurchaseOrder::with('items')->findOrFail($id);
 
             $total = 0;
+            $orderCurrency = Currency::findOrFail(
+                $request->currency_id
+            );
 
+            $company = auth()
+                ->user()
+                ->companies()
+                ->first();
+
+            if (!$company) {
+                throw new \Exception('Người dùng chưa thuộc công ty nào');
+            }
+
+            $companyCurrency = $company
+                ->currencies()
+                ->wherePivot('is_default', true)
+                ->first();
+
+            if (!$companyCurrency) {
+                throw new \Exception('Công ty chưa cấu hình tiền tệ');
+            }
             $order->update([
                 'supplier_id' => $request->supplier_id,
                 'currency_id' => $request->currency_id,
                 'expected_received_date' => $request->expected_received_date,
                 'note' => $request->note,
+                'exchange_rate' => $orderCurrency->exchange_rate,
             ]);
 
             $order->items()->delete();
@@ -189,11 +241,17 @@ class PurchaseOrderController extends Controller
 
                 $amount = $item['quantity'] * $item['price'];
 
+                $companyPrice =
+                    $item['price']
+                    * $orderCurrency->exchange_rate
+                    / $companyCurrency->exchange_rate;
+
                 $order->items()->create([
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'amount' => $amount,
+                    'product_id'    => $item['product_id'],
+                    'quantity'      => $item['quantity'],
+                    'price'         => $item['price'],
+                    'company_price' =>  round($companyPrice, 2),
+                    'amount'        => $amount,
                 ]);
 
                 $total += $amount;

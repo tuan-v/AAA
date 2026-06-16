@@ -10,7 +10,8 @@ class WarehouseSlipItem extends Model
         'slip_id',
         'product_id',
         'quantity',
-        'price'
+        'price',
+        'company_price'
     ];
 
     public function slip()

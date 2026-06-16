@@ -42,7 +42,7 @@ class HandleInertiaRequests extends Middleware
 
         return array_merge(parent::share($request), [
             'auths' => [
-                'user' => $user,
+                'user' => $request->user() ? $request->user()->load('company') : null,
 
                 'companies' => $user && $user->company
                     ? [$user->company]

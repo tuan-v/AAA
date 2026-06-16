@@ -12,7 +12,8 @@ class PurchaseOrder extends Model
         'currency_id',
         'expected_received_date',
         'note',
-        'status'
+        'status',
+        'exchange_rate',
     ];
     protected $appends = ['total_amount'];
     public function getTotalAmountAttribute()

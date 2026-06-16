@@ -102,7 +102,8 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
-
+import CheckIcon from "../../../icons/CheckIcon.vue";
+import DeleteIcon from "../../../icons/DeleteIcon.vue";
 const warehouseFilter = ref("all");
 const search = ref("");
 const activeTab = ref("import");
@@ -164,12 +165,97 @@ const columns = [
         align: "text-right",
         render: (row) => h("span", {}, row.approved_at ?? "-"),
     },
+    {
+        label: "Trạng thái",
+        render: (row) => {
+            const config = {
+                pending: {
+                    text: "Chờ duyệt",
+                    class: "bg-yellow-100 text-yellow-700",
+                },
+                approved: {
+                    text: "Đã duyệt",
+                    class: "bg-green-100 text-green-700",
+                },
+                rejected: {
+                    text: "Từ chối",
+                    class: "bg-red-100 text-red-700",
+                },
+            };
+
+            const status = config[row.status];
+
+            return h(
+                "span",
+                {
+                    class:
+                        status.class +
+                        " px-3 py-1 rounded-full text-xs font-medium",
+                },
+                status.text,
+            );
+        },
+    },
 ];
 const actions = [
     {
-        type: "edit",
-        icon: EditButtonIcon,
-        onClick: (item) => openEdit(item),
+        title: "Duyệt phiếu",
+        icon: CheckIcon,
+        visible: (row) => row.status === "pending",
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        onClick: async (row) => {
+            try {
+                await axios.post(`/api/warehouse/slips/${row.id}/approve`);
+
+                toast.success("Duyệt phiếu thành công", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+
+                await loadSlips();
+            } catch (e) {
+                console.error(e);
+
+                toast.error("Không thể duyệt phiếu", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+            }
+        },
+    },
+
+    {
+        title: "Từ chối",
+        icon: DeleteIcon,
+        visible: (row) => row.status === "pending",
+        disabled: (row) => row.status === "approved",
+        class: (row) =>
+            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        onClick: async (row) => {
+            try {
+                await axios.post(`/api/warehouse/slips/${row.id}/reject`);
+
+                toast.success("Từ chối phiếu thành công", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+
+                await loadSlips();
+            } catch (e) {
+                console.error(e);
+
+                toast.error("Không thể từ chối phiếu", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+            }
+        },
     },
 ];
 
@@ -192,6 +278,7 @@ const fetchData = async (page = 1) => {
             page,
             search: search.value,
             warehouse_id: warehouseFilter.value,
+            context: "approved_only",
         },
     });
 

@@ -117,64 +117,6 @@
                     </select>
                 </div>
 
-                <!-- Số lượng -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Tồn kho <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        v-model="form.quantity"
-                        type="number"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-
-                    <p v-if="errors.quantity" class="text-red-500 text-sm">
-                        {{ errors.quantity[0] }}
-                    </p>
-                </div>
-
-                <!-- Giá nhập -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Giá nhập <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        :value="purchasePriceDisplay"
-                        @input="handlePurchasePrice"
-                        @blur="formatPurchaseBlur"
-                        type="text"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-
-                    <p
-                        v-if="errors.purchase_price"
-                        class="text-red-500 text-sm"
-                    >
-                        {{ errors.purchase_price[0] }}
-                    </p>
-                </div>
-
-                <!-- Giá bán -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Giá bán <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        :value="sellPriceDisplay"
-                        @input="handleSellPrice"
-                        @blur="formatSellBlur"
-                        type="text"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-
-                    <p v-if="errors.sell_price" class="text-red-500 text-sm">
-                        {{ errors.sell_price[0] }}
-                    </p>
-                </div>
-
                 <!-- Trạng thái -->
                 <div>
                     <label class="block text-sm font-medium mb-1">

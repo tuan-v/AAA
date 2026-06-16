@@ -11,9 +11,18 @@ class ProductController extends Controller
     // Danh sách
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'unit']);
+        $companyCurrency = auth()
+            ->user()
+            ->company
+            ->currencies()
+            ->first();
 
-        // FILTER TỒN KHO
+        $query = Product::with([
+            'category',
+            'unit',
+            'stocks'
+        ]);
+
         if ($request->stock === 'in_stock') {
             $query->where('quantity', '>', 0);
         }
@@ -22,13 +31,12 @@ class ProductController extends Controller
             $query->where('quantity', '=', 0);
         }
 
-        // =========================
-        // SEARCH (TÊN + DANH MỤC)
-        // =========================
         if ($request->filled('search')) {
+
             $search = $request->search;
 
             $query->where(function ($q) use ($search) {
+
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhereHas('category', function ($q2) use ($search) {
                         $q2->where('name', 'like', "%{$search}%");
@@ -39,7 +47,8 @@ class ProductController extends Controller
         $products = $query
             ->orderByDesc('id')
             ->paginate(5)
-            ->through(function ($p) {
+            ->through(function ($p) use ($companyCurrency) {
+
                 return [
                     'id' => $p->id,
                     'name' => $p->name,
@@ -51,9 +60,12 @@ class ProductController extends Controller
                     'unit_id' => $p->unit_id,
                     'unit_name' => $p->unit?->name,
 
-                    'quantity' => $p->quantity,
+                    'quantity' => $p->stocks->sum('quantity'),
+
                     'purchase_price' => $p->purchase_price,
                     'sell_price' => $p->sell_price,
+
+                    'currency_symbol' => $companyCurrency?->symbol,
 
                     'image' => $p->image
                         ? asset('storage/' . $p->image)

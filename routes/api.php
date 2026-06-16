@@ -20,45 +20,31 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
 
-// Route::middleware('permission:product.view')->group(function () {
-//     Route::get('/index',  [ProductController::class, 'index']);
-// });
-// Route::middleware('permission:product.create')->group(function () {
-//     Route::post('/index', [ProductController::class, 'store']);
-// });
-// Route::middleware('permission:product.update')->group(function () {
-//     Route::put('/index/{id}', [ProductController::class, 'update']);
-// });
-// Route::middleware('permission:product.delete')->group(function () {
-//     Route::delete('/index/{id}', [ProductController::class, 'destroy']);
-// });
-// Route::middleware('permission:product.view')->group(function () {
-//     Route::get('/index/{id}', [ProductController::class, 'show']);
-// });
 Route::apiResource(
     'warehouses',
     WarehouseController::class
 );
 Route::prefix('warehouse')->group(function () {
+    Route::apiResource('products', ProductController::class)->names('warehouse.products.index');
+    Route::apiResource('categories', CategoryController::class)->names('warehouse.categories');
+    Route::apiResource('units', UnitController::class)->names('warehouse.units');
+    Route::apiResource('slips', WarehouseSlipController::class)->names('warehouse.slips');
 
-    Route::apiResource('products', ProductController::class);
-    Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('units', UnitController::class);
-    Route::apiResource('slips', WarehouseSlipController::class);
-    Route::get('/inventory', [WarehouseInventoryController::class, 'index']);
-    Route::post(
-        'slips/{id}/approve',
-        [WarehouseSlipController::class, 'approve']
-    );
+    Route::get('/inventory', [WarehouseInventoryController::class, 'index'])
+        ->name('warehouse.inventory');
+
+    Route::post('/slips/{id}/approve', [WarehouseSlipController::class, 'approve'])
+        ->name('warehouse.slips.approve');
 });
 Route::prefix('purchase')->group(function () {
     Route::get('/suppliers/all', [SupplierController::class, 'all']);
-    Route::apiResource('suppliers', SupplierController::class);
-    Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('units', UnitController::class);
-    Route::apiResource('orders', PurchaseOrderController::class);
-    Route::apiResource('products', ProductController::class);
+    Route::apiResource('suppliers', SupplierController::class)->names('purchase.suppliers');
+    Route::apiResource('categories', CategoryController::class)->names('purchase.categories');
+    Route::apiResource('units', UnitController::class)->names('purchase.units');
+    Route::apiResource('orders', PurchaseOrderController::class)->names('purchase.orders');
+    Route::apiResource('products', ProductController::class)->names('purchase.products');
 });
+
 Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
 Route::get(
     '/warehouse/orders/{id}/stock-in',
@@ -68,7 +54,6 @@ Route::get(
     '/warehouse/orders',
     [PurchaseOrderController::class, 'warehouseIndex']
 );
-Route::post('/warehouse/slips/{id}/approve', [WarehouseSlipController::class, 'approve']);
 Route::post('/warehouse/slips/{id}/reject', [WarehouseSlipController::class, 'reject']);
 
 Route::get('/products/for-select', [ProductController::class, 'forSelect']);

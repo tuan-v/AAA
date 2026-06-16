@@ -20,7 +20,7 @@ class Product extends Model
         'quantity',
         'image',
         'description',
-        'status'
+        'status',
     ];
     public function category()
     {
@@ -30,6 +30,13 @@ class Product extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+    public function stocks()
+    {
+        return $this->hasMany(
+            WarehouseProductStock::class,
+            'product_id'
+        );
     }
 
     public $timestamps = false;

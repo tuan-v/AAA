@@ -21,27 +21,52 @@
                     : 'justify-start',
             ]"
         >
-            <Link href="/dashboard" class="d-inline">
-                <img
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    class="dark:hidden h-9"
-                    src="/resource/asfy-images/asfy-logo.png"
-                    alt="Logo"
-                />
-                <img
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    class="hidden dark:block h-9"
-                    src="/resource/asfy-images/asfy-logo.png"
-                    alt="Logo"
-                />
-                <img
-                    v-else
-                    src="/resource/asfy-images/asfy-logo.png"
-                    alt="Logo"
-                    width="32"
-                    height="32"
-                />
+            <Link href="/dashboard" class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
+                    <!-- LOGO -->
+                    <img
+                        v-if="
+                            user?.company?.logo &&
+                            (isExpanded || isHovered || isMobileOpen)
+                        "
+                        :src="user.company.logo"
+                        class="h-9 w-9 rounded-md object-cover border"
+                    />
+
+                    <!-- fallback logo -->
+                    <img
+                        v-else-if="isExpanded || isHovered || isMobileOpen"
+                        src="/resource/asfy-images/asfy-logo.png"
+                        class="h-9"
+                    />
+
+                    <!-- mini mode -->
+                    <img
+                        v-else
+                        src="/resource/asfy-images/asfy-logo.png"
+                        width="32"
+                        height="32"
+                    />
+
+                    <!-- COMPANY NAME -->
+                    <span
+                        v-if="isExpanded || isHovered || isMobileOpen"
+                        class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate max-w-[180px]"
+                    >
+                        {{ user?.company?.name }}
+                    </span>
+                </div>
             </Link>
+        </div>
+        <div
+            v-if="isExpanded || isHovered || isMobileOpen"
+            class="text-xs text-gray-400 mt-1 flex items-center gap-1"
+        >
+            <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+
+            <div class="text-bolder text-gray-400 mt-1">
+                {{ moduleName }}
+            </div>
         </div>
         <div
             class="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar"
@@ -351,6 +376,19 @@ import { useModule } from "@/composables/useModule";
 const { currentModule } = useModule();
 const { isExpanded, isMobileOpen, isHovered, openSubmenu } = useSidebar();
 const page = usePage();
+const routeName = computed(() => page.props.routeName);
+
+const moduleName = computed(() => {
+    const url = page.url;
+
+    if (url.includes("/warehouse")) return "Kho hàng";
+    if (url.includes("/purchase")) return "Mua hàng";
+    if (url.includes("/address")) return "Địa chỉ";
+    if (url.includes("/users")) return "Người dùng";
+    if (url.includes("/roles")) return "Phân quyền";
+
+    return "Hệ thống";
+});
 const user = computed(() => page.props.auth?.user);
 const menus = computed(() => {
     return page.props.auth?.menuItems || [];

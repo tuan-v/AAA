@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Route;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Inertia::share([
+            'routeName' => fn() => Route::currentRouteName(),
             'auth' => function () {
 
                 $user = auth()->user();
@@ -114,7 +116,18 @@ class AppServiceProvider extends ServiceProvider
                         break;
 
                     case "sale":
-                        $menuItems = $this->salesMenuItems();
+                        $menuItems = [
+                            [
+                                'icon' => 'ShoppingCartIcon',
+                                'name' => 'Đơn hàng',
+                                'path' => '/orders'
+                            ],
+                            [
+                                'icon' => 'UserIcon',
+                                'name' => 'Khách hàng',
+                                'path' => '/customers'
+                            ],
+                        ];
                         break;
                     case "purchase":
                         $menuItems = [

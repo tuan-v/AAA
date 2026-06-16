@@ -12,6 +12,7 @@ class Company extends Model
         'email',
         'phone',
         'tax_code',
+        'logo',
         'owner_id',
     ];
 
@@ -32,6 +33,17 @@ class Company extends Model
     }
     public function currencies()
     {
-        return $this->belongsToMany(Currency::class, 'companies_has_currencies', 'company_id', 'currency_id');
+        return $this->belongsToMany(Currency::class, 'companies_has_currencies', 'company_id', 'currency_id')->withPivot('is_default')
+            ->withTimestamps();;
+    }
+    public function getDefaultCurrencyAttribute()
+    {
+        return $this->currencies()
+            ->wherePivot('is_default', 1)
+            ->first();
+    }
+    public function getLogoAttribute($value)
+    {
+        return $value ? asset('storage/' . $value) : null;
     }
 }

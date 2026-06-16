@@ -352,7 +352,7 @@ async function loadOrder() {
 }
 async function loadSlips() {
     const res = await axios.get(
-        `/api/warehouse/slips?purchase_order_id=${orderId}`,
+        `/api/warehouse/slips?purchase_order_id=${orderId}&context=manage`,
     );
 
     slips.value = res.data.data ?? res.data;
@@ -406,6 +406,7 @@ async function submit() {
             items: validItems.map((i) => ({
                 product_id: i.product_id,
                 import_quantity: Number(i.import_quantity),
+                price: i.price,
             })),
         });
 

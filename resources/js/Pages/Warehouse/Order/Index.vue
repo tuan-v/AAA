@@ -289,19 +289,6 @@ function openStockIn(item) {
     console.log(item);
     window.location.href = `/warehouse/slips/create?order_id=${item.id}`;
 }
-async function approveOrder(item) {
-    if (item.status === "approved") {
-        toast.warning("Đơn này đã được duyệt rồi", {
-            position: "top-right",
-            timeout: 3000,
-        });
-        return;
-    }
-    if (!confirm("Bạn có chắc muốn duyệt đơn này?")) return;
-
-    await axios.post(`/api/warehouse/orders/${item.id}/approve`);
-    item.status = "approved";
-}
 async function getData(page = 1) {
     const res = await axios.get("/api/warehouse/orders", {
         params: {

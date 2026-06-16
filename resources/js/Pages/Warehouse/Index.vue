@@ -57,6 +57,7 @@ import Unlock from "@/icons/Unlock.vue";
 import WarehouseForm from "./WarehouseForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { get } from "lodash";
+import { formatMoney } from "@/config/helpers";
 
 const handlePageChange = (page) => {
     getData(page);
@@ -88,6 +89,12 @@ const columns = [
         label: "Giá trị tồn",
         key: "total_inventory_value",
         align: "text-right",
+        render: (row) =>
+            h(
+                "span",
+                { class: "font-medium" },
+                `${formatMoney(row.total_inventory_value)} ${row.currency_symbol || ""}`,
+            ),
     },
     {
         key: "status",

@@ -102,7 +102,7 @@
 
                 <input
                     v-model="form.phone"
-                    type="number"
+                    type="text"
                     placeholder="090xxxxxxx"
                     class="w-full h-11 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -347,8 +347,8 @@ async function submit() {
 
         const payload = {
             ...form,
-            province_code: selectedProvince.value,
-            ward_code: selectedWard.value,
+            province_id: selectedProvince.value,
+            ward_id: selectedWard.value,
             address_detail: addressDetail.value,
         };
 
