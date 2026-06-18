@@ -331,28 +331,21 @@ async function loadOrder() {
             `/api/warehouse/orders/${orderId}/stock-in`,
         );
 
-        console.log("API DATA", res.data);
-
         purchaseOrder.value = res.data;
 
         items.value = (res.data.items || []).map((i) => ({
             ...i,
-            import_quantity: 0,
+            import_quantity: 0, // Reset số lượng nhập lần này
             received_quantity: i.received_quantity || 0,
         }));
     } catch (error) {
-        console.error(error.response?.data);
-
-        toast.error(error.response?.data?.message || "Lỗi tải dữ liệu", {
-            position: "top-right",
-            autoClose: 3000,
-            theme: "colored",
-        });
+        console.error(error);
+        toast.error("Không thể tải lại dữ liệu đơn hàng");
     }
 }
 async function loadSlips() {
     const res = await axios.get(
-        `/api/warehouse/slips?purchase_order_id=${orderId}&context=manage`,
+        `/api/warehouse/slips?purchase_order_id=${orderId}`,
     );
 
     slips.value = res.data.data ?? res.data;
@@ -361,7 +354,7 @@ async function loadSlips() {
 // LOAD WAREHOUSE
 // =====================
 async function loadWarehouses() {
-    const res = await axios.get("/api/warehouses");
+    const res = await axios.get("/api/warehouses/all");
     warehouses.value = res.data.data ?? res.data;
 }
 
@@ -400,23 +393,49 @@ async function submit() {
     loading.value = true;
 
     try {
-        await axios.post("/api/warehouse/slips", {
-            purchase_order_id: orderId,
+        const payload = {
+            type: "import",
+            purchase_order_id: orderId, // Đảm bảo có giá trị
             warehouse_id: warehouseId.value,
             items: validItems.map((i) => ({
                 product_id: i.product_id,
-                import_quantity: Number(i.import_quantity),
-                price: i.price,
+                quantity: Number(i.import_quantity),
+                price: i.price || i.unit_price || 0,
             })),
+            note: "", // thêm tạm nếu cần
+        };
+
+        console.log("Payload gửi lên:", payload); // ← Quan trọng để debug
+
+        const res = await axios.post("/api/warehouse/slips", payload);
+
+        toast.success("Tạo phiếu nhập kho thành công!");
+
+        // Cập nhật local
+        validItems.forEach((submitted) => {
+            const item = items.value.find(
+                (i) => i.product_id === submitted.product_id,
+            );
+            if (item) {
+                item.received_quantity =
+                    (item.received_quantity || 0) +
+                    Number(submitted.import_quantity);
+                item.import_quantity = 0;
+            }
         });
 
-        await loadOrder();
         await loadSlips();
-
-        toast.success("Tạo phiếu nhập kho thành công");
     } catch (error) {
-        console.error(error);
-        toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+        console.error("Lỗi tạo phiếu:", error.response?.data);
+
+        if (error.response?.data?.errors) {
+            console.table(error.response.data.errors);
+            toast.error(
+                Object.values(error.response.data.errors).flat().join(", "),
+            );
+        } else {
+            toast.error(error.response?.data?.message || "Lỗi không xác định");
+        }
     } finally {
         loading.value = false;
     }

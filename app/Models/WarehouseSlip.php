@@ -12,6 +12,7 @@ class WarehouseSlip extends Model
         'code',
         'warehouse_id',
         'purchase_order_id',
+        'sales_order_id',
         'type',
         'note',
         'created_by',
@@ -41,6 +42,13 @@ class WarehouseSlip extends Model
         return $this->belongsTo(
             PurchaseOrder::class,
             'purchase_order_id'
+        );
+    }
+    public function saleOrder()
+    {
+        return $this->belongsTo(
+            SalesOrder::class,
+            'sales_order_id'
         );
     }
     public function createdBy()

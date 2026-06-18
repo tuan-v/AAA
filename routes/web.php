@@ -1,13 +1,11 @@
 <?php
 
 use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Symfony\Component\Console\Attribute\Interact;
 
 Route::prefix('/warehouse')->group(function () {
     Route::get('/', function () {
@@ -24,10 +22,18 @@ Route::prefix('/warehouse')->group(function () {
     Route::get('/slips', fn() => Inertia::render('Warehouse/Slip/Index'));
 });
 Route::get(
-    '/warehouse/slips/create',
+    '/warehouse/slips/purchasecreate',
     function () {
         return Inertia::render(
-            'Warehouse/Slip/Create'
+            'Warehouse/Slip/Purchasecreate'
+        );
+    }
+);
+Route::get(
+    '/warehouse/slips/salecreate',
+    function () {
+        return Inertia::render(
+            'Warehouse/Slip/Salecreate'
         );
     }
 );
@@ -39,16 +45,26 @@ Route::prefix('purchase')->group(function () {
     Route::get('/suppliers', function () {
         return Inertia::render('Purchase/Supplier/Index');
     });
-    Route::get('/categories', fn() => Inertia::render('Warehouse/Category/Index'));
-    Route::get('/units', fn() => Inertia::render('Warehouse/Unit/Index'));
+    Route::get('/categories', fn() => Inertia::render('Purchase/Category/Index'));
+    Route::get('/units', fn() => Inertia::render('Purchase/Unit/Index'));
     Route::get('/orders', function () {
         return Inertia::render('Purchase/Order/Index');
     });
     Route::get('/products', function () {
-        return Inertia::render('Warehouse/Product/Index');
+        return Inertia::render('Purchase/Product/Index');
     });
 });
-
+Route::prefix('/sale')->group(function () {
+    Route::get('/', function () {
+        return Inertia::render('Sale/Customer/Index');
+    });
+    Route::get('/customers', function () {
+        return Inertia::render('Sale/Customer/Index');
+    });
+    Route::get('/orders', function () {
+        return Inertia::render('Sale/Order/Index');
+    });
+});
 Route::get('/permission', function () {
     return Inertia::render(
         'Manage/Permission'
@@ -124,13 +140,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/users', [UserController::class, 'index']);
     });
 });
-
-
-
-Route::get('/sale', function () {
-    return Inertia::render('Sale/Index');
-});
-
 Route::get('/accounting', function () {
     return Inertia::render('Accounting/Index');
 });

@@ -88,7 +88,7 @@
                             <template
                                 v-if="isExpanded || isHovered || isMobileOpen"
                             >
-                                {{ menuGroup.title }}
+                                <!-- {{ menuGroup.title }} -->
                             </template>
                             <HorizontalDots v-else />
                         </h2>
@@ -383,6 +383,7 @@ const moduleName = computed(() => {
 
     if (url.includes("/warehouse")) return "Kho hàng";
     if (url.includes("/purchase")) return "Mua hàng";
+    if (url.includes("/sale")) return "Bán hàng";
     if (url.includes("/address")) return "Địa chỉ";
     if (url.includes("/users")) return "Người dùng";
     if (url.includes("/roles")) return "Phân quyền";

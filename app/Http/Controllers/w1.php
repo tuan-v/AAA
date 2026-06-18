@@ -9,44 +9,22 @@ use Inertia\Inertia;
 
 class WarehouseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = auth()->user();
-
-        $company = $user->companies()->first();
-
-        if (!$company) {
-            return response()->json([
-                'message' => 'User chưa thuộc công ty'
-            ], 422);
-        }
-
-        $companyCurrency = $company->currencies()
-            ->wherePivot('is_default', true)
-            ->first();
-
-        $rate = $companyCurrency?->exchange_rate ?? 1;
-
-        $currency = [
-            'code'          => $companyCurrency?->code ?? 'VND',
-            'symbol'        => $companyCurrency?->symbol ?? '₫',
-            'exchange_rate' => $rate,
-        ];
-        return Warehouse::with([
+        $warehouses = Warehouse::with([
             'province',
             'ward',
             'stocks.product'
         ])
             ->orderByDesc('id')
             ->paginate(5)
-            ->through(function ($warehouse) use ($rate, $currency) {
+            ->through(function ($warehouse) {
+
                 $totalValue = 0;
 
                 foreach ($warehouse->stocks as $stock) {
                     $price = $stock->product?->purchase_price ?? 0;
-                    // quy đổi theo công ty 
-                    $converted = $rate > 0 ? $price / $rate : 0;
-                    $totalValue += $stock->quantity * $converted;
+                    $totalValue += $stock->quantity * $price;
                 }
 
                 return [
@@ -62,11 +40,12 @@ class WarehouseController extends Controller
                     'ward_code' => $warehouse->ward_code,
 
 
-                    'total_inventory_value' => round($totalValue, 2),
-                    'currency_symbol' => $currency?->symbol ?? '₫',
+                    'total_inventory_value' => $totalValue,
                     'status' => $warehouse->status,
                 ];
             });
+
+        return response()->json($warehouses);
     }
 
     public function store(Request $request)
@@ -139,20 +118,5 @@ class WarehouseController extends Controller
             'message' => 'Cập nhật trạng thái thành công',
             'status' => $warehouse->status,
         ]);
-    }
-
-    public function products()
-    {
-        return Inertia::render('Warehouse/Product/Index');
-    }
-
-    public function import()
-    {
-        return Inertia::render('Warehouse/Import/Index');
-    }
-
-    public function export()
-    {
-        return Inertia::render('Warehouse/Export/Index');
     }
 }

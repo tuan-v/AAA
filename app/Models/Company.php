@@ -46,4 +46,13 @@ class Company extends Model
     {
         return $value ? asset('storage/' . $value) : null;
     }
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
+
+    public function salesOrders()
+    {
+        return $this->hasMany(SalesOrder::class);
+    }
 }

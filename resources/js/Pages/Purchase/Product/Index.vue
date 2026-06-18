@@ -5,10 +5,10 @@
         <PageBreadcrumb title="" :items="[{ text: 'Sản phẩm', link: null }]" />
         <div class="flex items-center border-b mb-5 gap-2">
             <Link
-                href="/warehouse/products"
+                href="/purchase/products"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/warehouse/products')
+                    $page.url.startsWith('/purchase/products')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
@@ -17,10 +17,10 @@
             </Link>
 
             <Link
-                href="/warehouse/categories"
+                href="/purchase/categories"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/warehouse/categories')
+                    $page.url.startsWith('/purchase/categories')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
@@ -29,10 +29,10 @@
             </Link>
 
             <Link
-                href="/warehouse/units"
+                href="/purchase/units"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/warehouse/units')
+                    $page.url.startsWith('/purchase/units')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "

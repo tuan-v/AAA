@@ -143,8 +143,11 @@
                     searchable
                     @change="onProvinceChange"
                 />
-                <p v-if="errors.province_id" class="text-red-500 text-sm mt-1">
-                    {{ errors.province_id[0] }}
+                <p
+                    v-if="errors.province_code"
+                    class="text-red-500 text-sm mt-1"
+                >
+                    {{ errors.province_code[0] }}
                 </p>
             </div>
 
@@ -160,8 +163,8 @@
                     placeholder="Chọn phường..."
                     searchable
                 />
-                <p v-if="errors.ward_id" class="text-red-500 text-sm mt-1">
-                    {{ errors.ward_id[0] }}
+                <p v-if="errors.ward_code" class="text-red-500 text-sm mt-1">
+                    {{ errors.ward_code[0] }}
                 </p>
             </div>
 
@@ -347,8 +350,8 @@ async function submit() {
 
         const payload = {
             ...form,
-            province_id: selectedProvince.value,
-            ward_id: selectedWard.value,
+            province_code: selectedProvince.value,
+            ward_code: selectedWard.value,
             address_detail: addressDetail.value,
         };
 

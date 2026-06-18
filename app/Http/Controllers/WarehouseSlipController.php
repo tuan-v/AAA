@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\SalesOrder;
 use App\Models\WarehouseSlip;
 use App\Models\WarehouseSlipItem;
 use App\Models\WarehouseProductStock;
@@ -18,20 +19,22 @@ class WarehouseSlipController extends Controller
     // =========================
     public function index(Request $request)
     {
-        $query = WarehouseSlip::with(['warehouse', 'items', 'createdBy', 'approvedBy', 'purchaseOrder']);
+        $query = WarehouseSlip::with(['warehouse', 'items', 'createdBy', 'approvedBy', 'purchaseOrder', 'saleOrder']);
 
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-        if ($request->type === 'import') {
-            $query->where('type', 'import');
-        }
+        // if ($request->type === 'import') {
+        //     $query->where('type', 'import');
+        // }
 
-        if ($request->type === 'export') {
-            $query->where('type', 'export');
+        // if ($request->type === 'export') {
+        //     $query->where('type', 'export');
+        // }
+        if ($request->filled('sales_order_id')) {
+            $query->where('sales_order_id', $request->order_id);
         }
-
         if ($request->filled('warehouse_id') && $request->warehouse_id !== 'all') {
             $query->where('warehouse_id', $request->warehouse_id);
         }
@@ -39,23 +42,6 @@ class WarehouseSlipController extends Controller
         if ($request->filled('search')) {
             $query->where('code', 'like', "%{$request->search}%");
         }
-        // if ($request->filled('status')) {
-        //     $query->where('status', $request->status);
-        // }
-        // if ($request->filled('context')) {
-
-        //     if ($request->context === 'approved_only') {
-        //         $query->where('status', 'approved');
-        //     }
-
-        //     if ($request->context === 'manage') {
-        //         // trang tạo phiếu → xem tất cả
-        //         // không filter status
-        //     }
-        // } else {
-        //     // default (an toàn)
-        //     $query->where('status', 'approved');
-        // }
         if ($request->filled('purchase_order_id')) {
             $query->where(
                 'purchase_order_id',
@@ -71,6 +57,7 @@ class WarehouseSlipController extends Controller
                 'type' => $item->type,
                 'status' => $item->status,
                 'purchase_order_code' => $item->purchaseOrder?->code,
+                'sales_order_code' => $item->saleOrder?->code,
                 'warehouse' => [
                     'id' => $item->warehouse_id,
                     'name' => $item->warehouse?->name,
@@ -109,57 +96,94 @@ class WarehouseSlipController extends Controller
     // =========================
     public function store(Request $request)
     {
-        $request->validate([
-            'warehouse_id' => 'required|integer',
+        $validated = $request->validate([
+            'type' => 'required|in:import,export',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'purchase_order_id' => 'required_if:type,import|exists:purchase_orders,id',
+            'sales_order_id' => 'required_if:type,export|exists:sales_orders,id',
+            'note' => 'nullable|string',
             'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        DB::transaction(function () use ($request) {
+        DB::beginTransaction();
 
-            /** @var PurchaseOrder $order */
-            $order = PurchaseOrder::with('items')
-                ->findOrFail($request->purchase_order_id);
-            // dd($order->items->toArray());
-            // CREATE SLIP
-            $slip = WarehouseSlip::create([
-                'code' => $this->generateCode('import'),
-                'type' => 'import',
+        try {
+            $slip = null;
+            $order = null;
 
-                'purchase_order_id' => $order->id,
+            if ($validated['type'] === 'import') {
+                $order = PurchaseOrder::with('items')->findOrFail($validated['purchase_order_id']);
 
-                'warehouse_id' => $request->warehouse_id,
-                'note' => $request->note,
-                'status' => 'pending',
-                'created_by' => auth()->id(),
+                $slip = WarehouseSlip::create([
+                    'code' => $this->generateCode('import'),
+                    'type' => 'import',
+                    'purchase_order_id' => $order->id,
+                    'warehouse_id' => $validated['warehouse_id'],
+                    'note' => $validated['note'],
+                    'status' => 'pending',
+                    'created_by' => auth()->id(),
+                ]);
+            } else { // EXPORT
+                $order = SalesOrder::with('items')->findOrFail($validated['sales_order_id']);
 
-            ]);
-
-            foreach ($request->items as $item) {
-
-                $qty = (int) ($item['import_quantity'] ?? $item['quantity']);
-
-                if ($qty <= 0) continue;
-
-                $poItem = $order->items
-                    ->firstWhere('product_id', $item['product_id']);
-
-                WarehouseSlipItem::create([
-                    'slip_id'       => $slip->id,
-                    'product_id'    => $item['product_id'],
-                    'quantity'      => $qty,
-
-                    'price'         => $poItem?->price ?? 0,
-                    'company_price' => $poItem->company_price ?? 0,
+                $slip = WarehouseSlip::create([
+                    'code' => $this->generateCode('export'),
+                    'type' => 'export',
+                    'sales_order_id' => $order->id,
+                    'warehouse_id' => $validated['warehouse_id'],
+                    'note' => $validated['note'],
+                    'status' => 'pending',
+                    'created_by' => auth()->id(),
                 ]);
             }
 
-            $this->updateOrderStatus($order->id);
-        });
+            foreach ($validated['items'] as $itemData) {
+                $qty = (int)$itemData['quantity'];
+                if ($qty <= 0) continue;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Nhập kho thành công'
-        ]);
+                if ($validated['type'] === 'import') {
+                    $this->increaseStock($validated['warehouse_id'], $itemData['product_id'], $qty);
+                } else {
+                    $this->decreaseStock($validated['warehouse_id'], $itemData['product_id'], $qty);
+                }
+
+                $orderItem = $order->items->firstWhere('product_id', $itemData['product_id']);
+
+                WarehouseSlipItem::create([
+                    'slip_id' => $slip->id,
+                    'product_id' => $itemData['product_id'],
+                    'quantity' => $qty,
+                    'price' => $itemData['price'] ?? ($orderItem?->unit_price ?? 0),
+                ]);
+
+                // Cập nhật exported_quantity cho Sales Order
+                if ($validated['type'] === 'export' && $orderItem) {
+                    $orderItem->exported_quantity = ($orderItem->exported_quantity ?? 0) + $qty;
+                    $orderItem->save();
+                }
+            }
+
+            if ($validated['type'] === 'import') {
+                $this->updateOrderStatus($order->id);
+            } else {
+                $this->updateSalesOrderStatus($order->id);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tạo phiếu kho thành công',
+                'slip' => $slip
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     // =========================
@@ -185,12 +209,18 @@ class WarehouseSlipController extends Controller
     {
         $prefix = $type === 'import' ? 'PN' : 'PX';
 
-        $lastId = WarehouseSlip::max('id') ?? 0;
-        $nextId = $lastId + 1;
+        $lastSlip = WarehouseSlip::where('type', $type)
+            ->orderByDesc('id')
+            ->first();
 
-        return $prefix . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        $number = 1;
+
+        if ($lastSlip) {
+            $number = (int) substr($lastSlip->code, 2) + 1;
+        }
+
+        return $prefix . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
-
     // =========================
     // STOCK UPDATE
     // =========================
@@ -261,6 +291,48 @@ class WarehouseSlipController extends Controller
 
         $order->save();
     }
+    private function updateSalesOrderStatus($orderId)
+    {
+        $order = SalesOrder::with('items')->findOrFail($orderId);
+
+        $exportedMap = WarehouseSlipItem::query()
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->whereIn('slip_id', function ($q) use ($orderId) {
+                $q->select('id')
+                    ->from('warehouse_slips')
+                    ->where('sales_order_id', $orderId)
+                    ->where('type', 'export')
+                    ->where('status', 'approved');
+            })
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $completed = true;
+        $hasAny = false;
+
+        foreach ($order->items as $item) {
+
+            $exportedQty = $exportedMap[$item->product_id] ?? 0;
+
+            if ($exportedQty > 0) {
+                $hasAny = true;
+            }
+
+            if ($exportedQty < $item->quantity) {
+                $completed = false;
+            }
+        }
+
+        if (!$hasAny) {
+            $order->status = 'approved';
+        } elseif ($completed) {
+            $order->status = 'completed';
+        } else {
+            $order->status = 'partial';
+        }
+
+        $order->save();
+    }
 
     // =========================
     // DROPDOWNS
@@ -276,7 +348,7 @@ class WarehouseSlipController extends Controller
 
     public function ordersForExport()
     {
-        return PurchaseOrder::query()
+        return SalesOrder::query()
             ->where('type', 'sell')
             ->whereIn('status', ['approved', 'partial'])
             ->select('id', 'code')
@@ -309,47 +381,64 @@ class WarehouseSlipController extends Controller
             'purchase_price' => $companyPrice,
         ]);
     }
+    private function increaseStock($warehouseId, $productId, $qty)
+    {
+        $stock = WarehouseProductStock::firstOrCreate([
+            'warehouse_id' => $warehouseId,
+            'product_id' => $productId,
+        ]);
+
+        $stock->quantity += $qty;
+        $stock->save();
+    }
+
+    private function decreaseStock($warehouseId, $productId, $qty)
+    {
+        $stock = WarehouseProductStock::firstOrCreate([
+            'warehouse_id' => $warehouseId,
+            'product_id' => $productId,
+        ]);
+
+        $stock->quantity = max(0, $stock->quantity - $qty);
+        $stock->save();
+    }
     public function approve($id)
     {
-        $slip = WarehouseSlip::with([
-            'items',
-            'purchaseOrder'
-        ])->findOrFail($id);
+        $slip = WarehouseSlip::with(['items'])->findOrFail($id);
 
         if ($slip->status !== 'pending') {
-            return response()->json([
-                'message' => 'Phiếu đã được xử lý'
-            ], 422);
+            return response()->json(['message' => 'Phiếu đã xử lý'], 422);
         }
 
         DB::transaction(function () use ($slip) {
 
             foreach ($slip->items as $item) {
 
-                $this->updateStockFromPO(
-                    $slip->warehouse_id,
-                    $item->product_id,
-                    $item->quantity
-                );
+                if ($slip->type === 'import') {
+                    $this->increaseStock(
+                        $slip->warehouse_id,
+                        $item->product_id,
+                        $item->quantity
+                    );
+                }
 
-                $this->updateProductPriceFromPO(
-                    $item->product_id,
-                    $item->company_price
-                );
+                if ($slip->type === 'export') {
+                    $this->decreaseStock(
+                        $slip->warehouse_id,
+                        $item->product_id,
+                        $item->quantity
+                    );
+                }
             }
 
             $slip->update([
-                'status'      => 'approved',
+                'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
         });
 
-        $this->updateOrderStatus($slip->purchase_order_id);
-
-        return response()->json([
-            'message' => 'Duyệt phiếu thành công'
-        ]);
+        return response()->json(['message' => 'Duyệt thành công']);
     }
     public function reject($id)
     {

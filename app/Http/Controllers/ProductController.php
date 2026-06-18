@@ -20,16 +20,35 @@ class ProductController extends Controller
         $query = Product::with([
             'category',
             'unit',
-            'stocks'
+            'stocks',
+            'stocks.warehouse'
         ]);
-
+        $query = Product::query()
+            ->select('products.*')
+            ->leftJoin('warehouse_product_stocks as wps', 'products.id', '=', 'wps.product_id')
+            ->selectRaw('COALESCE(SUM(wps.quantity), 0) as total_quantity')
+            ->groupBy('products.id');
         if ($request->stock === 'in_stock') {
-            $query->where('quantity', '>', 0);
+            // còn hàng (> 10)
+            $query->havingRaw('COALESCE(SUM(wps.quantity),0) > 10');
+        }
+
+        if ($request->stock === 'low_stock') {
+            // sắp hết (1 - 10)
+            $query->havingRaw('COALESCE(SUM(wps.quantity),0) BETWEEN 1 AND 10');
         }
 
         if ($request->stock === 'out_stock') {
-            $query->where('quantity', '=', 0);
+            // hết hàng (= 0)
+            $query->havingRaw('COALESCE(SUM(wps.quantity),0) = 0');
         }
+        // if ($request->stock === 'in_stock') {
+        //     $query->where('quantity', '>', 0);
+        // }
+
+        // if ($request->stock === 'out_stock') {
+        //     $query->where('quantity', '=', 0);
+        // }
 
         if ($request->filled('search')) {
 
@@ -41,6 +60,11 @@ class ProductController extends Controller
                     ->orWhereHas('category', function ($q2) use ($search) {
                         $q2->where('name', 'like', "%{$search}%");
                     });
+            });
+        }
+        if ($request->filled('warehouse_id')) {
+            $query->whereHas('stocks', function ($q) use ($request) {
+                $q->where('warehouse_id', $request->warehouse_id);
             });
         }
 
@@ -61,7 +85,12 @@ class ProductController extends Controller
                     'unit_name' => $p->unit?->name,
 
                     'quantity' => $p->stocks->sum('quantity'),
-
+                    'warehouse' => $p->stocks->map(function ($s) {
+                        return [
+                            'warehouse_name' => $s->warehouse?->name,
+                            'quantity' => $s->quantity,
+                        ];
+                    }),
                     'purchase_price' => $p->purchase_price,
                     'sell_price' => $p->sell_price,
 
@@ -81,10 +110,17 @@ class ProductController extends Controller
     // API trả về tất cả sản phẩm cho dropdown (không phân trang)
     public function forSelect()
     {
-        $products = Product::query()
-            ->select('id', 'name', 'sku') // chỉ lấy những field cần
-            ->orderByDesc('id')
-            ->get();
+        $products = Product::with('stocks')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'sku' => $p->sku,
+                    'sale_price' => $p->sell_price,
+                    'stock_quantity' => $p->stocks->sum('quantity'),
+                ];
+            });
 
         return response()->json($products);
     }

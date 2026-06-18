@@ -11,28 +11,25 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\CurrencyController;
-use App\Http\Controllers\OrderController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
 
-Route::apiResource(
-    'warehouses',
-    WarehouseController::class
-);
+Route::get('/warehouses/all', [WarehouseController::class, 'all']);
+Route::apiResource('warehouses', WarehouseController::class);
 Route::prefix('warehouse')->group(function () {
     Route::apiResource('products', ProductController::class)->names('warehouse.products.index');
     Route::apiResource('categories', CategoryController::class)->names('warehouse.categories');
     Route::apiResource('units', UnitController::class)->names('warehouse.units');
     Route::apiResource('slips', WarehouseSlipController::class)->names('warehouse.slips');
-
     Route::get('/inventory', [WarehouseInventoryController::class, 'index'])
         ->name('warehouse.inventory');
-
     Route::post('/slips/{id}/approve', [WarehouseSlipController::class, 'approve'])
         ->name('warehouse.slips.approve');
 });
@@ -44,16 +41,37 @@ Route::prefix('purchase')->group(function () {
     Route::apiResource('orders', PurchaseOrderController::class)->names('purchase.orders');
     Route::apiResource('products', ProductController::class)->names('purchase.products');
 });
+Route::get('/sale/customers/next-code', [CustomerController::class, 'nextCode']);
+Route::prefix('sale')->group(function () {
+    Route::get('/customers/all',  [CustomerController::class, 'all']);
+    Route::apiResource('customers', CustomerController::class)->names('sale.customers');
+    Route::apiResource('orders', SalesOrderController::class)->names('sale.orders');
+});
 
 Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
+
 Route::get(
     '/warehouse/orders/{id}/stock-in',
     [PurchaseOrderController::class, 'stockInData']
 );
 Route::get(
+    '/warehouse/orders/{id}/stock-out',
+    [SalesOrderController::class, 'stockOutData']
+);
+Route::get(
+    '/available-for-export',
+    [SalesOrderController::class, 'availableForExport']
+);
+Route::get(
+    '/saleorders/warehouse',
+    [SalesOrderController::class, 'warehouseIndex']
+);
+Route::get(
     '/warehouse/orders',
     [PurchaseOrderController::class, 'warehouseIndex']
 );
+
+Route::post('/sale/orders/{id}/approve', [SalesOrderController::class, 'approve']);
 Route::post('/warehouse/slips/{id}/reject', [WarehouseSlipController::class, 'reject']);
 
 Route::get('/products/for-select', [ProductController::class, 'forSelect']);
@@ -67,7 +85,6 @@ Route::get('/currencies', [CurrencyController::class, 'index']);
 Route::middleware('permission:role.view')->group(function () {
     Route::get('/roles', [RoleController::class, 'index']);
 });
-
 Route::get('/permissions/all', [RoleController::class, 'permissions']);
 
 Route::middleware('permission:role.create')->group(function () {
@@ -132,7 +149,7 @@ Route::get(
 );
 
 //update tt kho
-Route::patch('/warehouses/{id}/status', [WarehouseController::class, 'toggleStatus']);
+Route::patch('/warehouse/{id}/status', [WarehouseController::class, 'toggleStatus']);
 //API lấy tỉnh
 Route::get(
     '/provinces',

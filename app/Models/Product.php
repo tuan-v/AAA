@@ -36,8 +36,17 @@ class Product extends Model
         return $this->hasMany(
             WarehouseProductStock::class,
             'product_id'
-        );
+        )->with('warehouse');
     }
+    public function salesOrderItems()
+    {
+        return $this->hasMany(SalesOrderItem::class);
+    }
+    protected $appends = ['stock_quantity'];
 
+    public function getStockQuantityAttribute()
+    {
+        return $this->stocks()->sum('quantity');
+    }
     public $timestamps = false;
 }

@@ -104,6 +104,8 @@ import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const warehouseFilter = ref("all");
 const search = ref("");
 const activeTab = ref("import");
@@ -129,8 +131,13 @@ const columns = [
     },
     {
         label: "Mã đơn",
-        key: "purchase_order_code",
         align: "text-start",
+        render: (row) =>
+            h(
+                "span",
+                {},
+                row.purchase_order_code || row.sales_order_code || "-",
+            ),
     },
     {
         label: "Người tạo",
@@ -214,8 +221,8 @@ const actions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-
-                await loadSlips();
+                await getData(slips.value.current_page);
+                // await loadSlips();
             } catch (e) {
                 console.error(e);
 

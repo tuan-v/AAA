@@ -11,7 +11,7 @@
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-                +
+                + Kho
             </button>
         </div>
 
@@ -82,7 +82,7 @@ const columns = [
     },
     {
         label: "Địa chỉ",
-        key: "address",
+        key: "full_address",
         align: "text-start",
     },
     {
@@ -132,10 +132,14 @@ function openCreate() {
 }
 
 function openEdit(warehouse) {
-    selectedWarehouse.value = { ...warehouse }; // 🔥 clone
+    console.log(warehouse.id); // debug đúng
+
+    selectedWarehouse.value = { ...warehouse };
+
+    form.id = warehouse.id; // 🔥 BẮT BUỘC PHẢI CÓ
+
     showModal.value = true;
 }
-
 const getData = async (page = 1) => {
     const response = await axios.get(`/api/warehouses?page=${page}`);
     warehouses.value = response.data;

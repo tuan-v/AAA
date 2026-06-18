@@ -306,15 +306,12 @@ class PurchaseOrderController extends Controller
 
         foreach ($order->items as $item) {
 
-            $received = 0;
-
-            foreach ($order->warehouseSlips as $slip) {
-                foreach ($slip->items as $slipItem) {
-                    if ($slipItem->product_id == $item->product_id) {
-                        $received += $slipItem->quantity;
-                    }
-                }
-            }
+            $received = $order->warehouseSlips
+                ->where('status', 'approved')
+                ->where('type', 'import')
+                ->flatMap->items
+                ->where('product_id', $item->product_id)
+                ->sum('quantity');
 
             $item->received_quantity = $received;
         }

@@ -118,15 +118,16 @@ class AppServiceProvider extends ServiceProvider
                     case "sale":
                         $menuItems = [
                             [
-                                'icon' => 'ShoppingCartIcon',
-                                'name' => 'Đơn hàng',
-                                'path' => '/orders'
-                            ],
-                            [
                                 'icon' => 'UserIcon',
                                 'name' => 'Khách hàng',
-                                'path' => '/customers'
+                                'path' => '/sale/customers'
                             ],
+                            [
+                                'icon' => 'ShoppingCartIcon',
+                                'name' => 'Đơn hàng',
+                                'path' => '/sale/orders'
+                            ],
+
                         ];
                         break;
                     case "purchase":
@@ -145,16 +146,6 @@ class AppServiceProvider extends ServiceProvider
                                 'icon' => 'AddOder',
                                 'name' => 'Đơn mua',
                                 'path' => '/purchase/orders'
-                            ],
-                            [
-                                'icon' => '',
-                                'name' => 'Danh mục',
-                                'path' => '/purchase/categories'
-                            ],
-                            [
-                                'icon' => '',
-                                'name' => 'Đơn vị',
-                                'path' => '/purchase/units'
                             ]
 
                         ];

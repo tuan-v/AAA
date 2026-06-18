@@ -334,6 +334,7 @@ const actions = [
             if (item.status === "approved") return;
             openEdit(item);
         },
+        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: CheckIcon,
@@ -346,6 +347,7 @@ const actions = [
             if (item.status === "approved") return;
             openApproveConfirm(item);
         },
+        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
     },
 
     {
@@ -354,8 +356,10 @@ const actions = [
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => showDetail(item),
+        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
     },
 ];
+const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed"];
 const showConfirm = ref(false);
 const pendingApproveItem = ref(null);
 function openApproveConfirm(item) {

@@ -24,8 +24,8 @@
                     placeholder="Nhập tên kho"
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
-                <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
-                    {{ form.errors.name }}
+                <p v-if="errors.name" class="text-red-500 text-sm mt-1">
+                    {{ errors.name }}
                 </p>
             </div>
 
@@ -36,27 +36,21 @@
                         Tỉnh / Thành phố <span class="text-red">*</span>
                     </label>
 
-                    <select
-                        v-model="form.province_id"
-                        @change="onProvinceChange"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                    >
-                        <option value="">-- Chọn tỉnh thành --</option>
+                    <FormSelect
+                        v-model="form.province_code"
+                        :options="provinceOptions"
+                        label=""
+                        value-key="id"
+                        placeholder="-- Chọn tỉnh thành --"
+                        searchable
+                    />
 
-                        <option
-                            v-for="province in provinces"
-                            :key="province.id"
-                            :value="province.id"
-                        >
-                            {{ province.name }}
-                        </option>
-                        <p
-                            v-if="form.errors.province_id"
-                            class="text-red-500 text-sm mt-1"
-                        >
-                            {{ form.errors.province_id }}
-                        </p>
-                    </select>
+                    <p
+                        v-if="errors.province_code"
+                        class="text-red-500 text-sm mt-1"
+                    >
+                        {{ errors.province_code }}
+                    </p>
                 </div>
 
                 <div>
@@ -64,26 +58,20 @@
                         Xã / Phường <span class="text-red">*</span>
                     </label>
 
-                    <select
-                        v-model="form.ward_id"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                    >
-                        <option value="">-- Chọn xã phường --</option>
+                    <FormSelect
+                        v-model="form.ward_code"
+                        :options="wardOptions"
+                        value-key="id"
+                        placeholder="-- Chọn xã phường --"
+                        searchable
+                    />
 
-                        <option
-                            v-for="ward in wards"
-                            :key="ward.id"
-                            :value="ward.id"
-                        >
-                            {{ ward.name }}
-                        </option>
-                        <p
-                            v-if="form.errors.ward_id"
-                            class="text-red-500 text-sm mt-1"
-                        >
-                            {{ form.errors.ward_id }}
-                        </p>
-                    </select>
+                    <p
+                        v-if="errors.ward_code"
+                        class="text-red-500 text-sm mt-1"
+                    >
+                        {{ errors.ward_code }}
+                    </p>
                 </div>
             </div>
 
@@ -100,10 +88,10 @@
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
                 <p
-                    v-if="form.errors.address_detail"
+                    v-if="errors.address_detail"
                     class="text-red-500 text-sm mt-1"
                 >
-                    {{ form.errors.address_detail }}
+                    {{ errors.address_detail }}
                 </p>
             </div>
 
@@ -132,8 +120,21 @@
 
 <script setup>
 import axios from "axios";
-import { ref, reactive, watch, onMounted } from "vue";
+import { ref, reactive, watch, onMounted, computed } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import FormSelect from "../../components/FormSelect.vue";
+const provinceOptions = computed(() =>
+    provinces.value.map((item) => ({
+        value: item.id,
+        label: item.name,
+    })),
+);
+const wardOptions = computed(() =>
+    wards.value.map((item) => ({
+        value: item.id,
+        label: item.name,
+    })),
+);
 const provinces = ref([]);
 const wards = ref([]);
 const props = defineProps({
@@ -142,13 +143,14 @@ const props = defineProps({
         default: null,
     },
 });
-
+const loading = ref(false);
 const emit = defineEmits(["saved", "close"]);
-
-const form = useForm({
+const errors = ref({});
+const form = reactive({
+    id: null,
     name: "",
-    province_id: "",
-    ward_id: "",
+    province_code: "",
+    ward_code: "",
     address_detail: "",
     total_inventory_value: 0,
 });
@@ -158,23 +160,23 @@ watch(
     async (warehouse) => {
         if (!warehouse) {
             form.name = "";
-            form.province_id = "";
-            form.ward_id = "";
+            form.province_code = "";
+            form.ward_code = "";
             form.address_detail = "";
             form.total_inventory_value = 0;
             wards.value = [];
             return;
         }
-
+        form.id = warehouse.id;
         form.name = warehouse.name;
-        form.province_id = warehouse.province_id;
-        form.ward_id = warehouse.ward_id;
+        form.province_code = warehouse.province_code;
+        form.ward_code = warehouse.ward_code;
         form.address_detail = warehouse.address_detail;
         form.total_inventory_value = warehouse.total_inventory_value;
 
-        if (warehouse.province_id) {
+        if (warehouse.province_code) {
             const res = await axios.get(
-                `/api/provinces/${warehouse.province_id}/wards`,
+                `/api/provinces/${warehouse.province_code}/wards`,
             );
             wards.value = res.data;
         }
@@ -182,43 +184,74 @@ watch(
     { immediate: true },
 );
 
-function saveWarehouse() {
-    if (props.warehouse?.id) {
-        form.put(`/api/warehouses/${props.warehouse.id}`, {
-            onSuccess: () => {
-                emit("saved");
-                emit("close");
-            },
-        });
-    } else {
-        form.post("/api/warehouses", {
-            onSuccess: () => {
-                emit("saved");
-                emit("close");
-            },
-        });
+async function saveWarehouse() {
+    loading.value = true;
+    errors.value = {};
+
+    try {
+        const payload = {
+            name: form.name,
+            province_code: form.province_code,
+            ward_code: form.ward_code,
+            address_detail: form.address_detail,
+            total_inventory_value: form.total_inventory_value,
+        };
+
+        if (form.id) {
+            await axios.put(`/api/warehouses/${form.id}`, payload);
+        } else {
+            await axios.post("/api/warehouses", payload);
+        }
+
+        emit("saved");
+        emit("close");
+    } catch (error) {
+        if (error.response?.status === 422) {
+            errors.value = error.response.data.errors;
+        } else {
+            console.error(error);
+        }
+    } finally {
+        loading.value = false;
     }
 }
-function getProvinces() {
-    axios.get("/api/provinces").then((response) => {
-        provinces.value = response.data;
-    });
+async function getProvinces() {
+    try {
+        const res = await axios.get("/api/provinces");
+
+        provinces.value = res.data;
+    } catch (error) {
+        console.error(error);
+    }
 }
-function onProvinceChange() {
-    axios.get(`/api/provinces/${form.province_id}/wards`).then((res) => {
-        wards.value = res.data;
-    });
-}
-function getWards() {
-    if (!form.province_id) {
+async function getWards(provinceId) {
+    if (!provinceId) {
         wards.value = [];
         return;
     }
 
-    axios.get(`/api/provinces/${form.province_id}/wards`).then((response) => {
-        wards.value = response.data;
-    });
+    try {
+        const res = await axios.get(`/api/provinces/${provinceId}/wards`);
+
+        wards.value = res.data;
+    } catch (error) {
+        console.error(error);
+    }
 }
+watch(
+    () => form.province_code,
+    async (value) => {
+        if (!value) {
+            form.ward_code = "";
+            wards.value = [];
+            return;
+        }
+
+        form.ward_code = "";
+
+        await getWards(value);
+    },
+);
 onMounted(() => {
     getProvinces();
 });

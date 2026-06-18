@@ -8,9 +8,11 @@ class Warehouse extends Model
 {
     protected $fillable = [
         'name',
-        'address_id',
+        'address_detail',
         'total_inventory_value',
         'status',
+        'province_code',
+        'ward_code'
     ];
 
     public function address()
@@ -20,5 +22,13 @@ class Warehouse extends Model
     public function stocks()
     {
         return $this->hasMany(WarehouseProductStock::class);
+    }
+    public function province()
+    {
+        return $this->belongsTo(Province::class, 'province_code');
+    }
+    public function ward()
+    {
+        return $this->belongsTo(Ward::class, 'ward_code');
     }
 }

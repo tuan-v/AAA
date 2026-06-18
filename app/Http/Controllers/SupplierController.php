@@ -89,11 +89,8 @@ class SupplierController extends Controller
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_id' => 'required',
-            // 'province_name' => 'required|string|max:255',
-
-            'ward_id' => 'required',
-            // 'ward_name' => 'required|string|max:255',
+            'province_code' => 'required',
+            'ward_code' => 'required',
 
             'address_detail' => 'required|string|max:500',
 
@@ -117,8 +114,8 @@ class SupplierController extends Controller
 
             // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
             // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
-            'province_id.required' => 'Vui lòng chọn tỉnh',
-            'ward_id.required' => 'Vui lòng chọn xã/phường.',
+            'province_code.required' => 'Vui lòng chọn tỉnh',
+            'ward_code.required' => 'Vui lòng chọn xã/phường.',
             // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
 
             'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
@@ -168,10 +165,10 @@ class SupplierController extends Controller
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_id' => 'required',
+            'province_code' => 'required',
             // 'province_name' => 'required|string|max:255',
 
-            'ward_id' => 'required',
+            'ward_code' => 'required',
             // 'ward_name' => 'required|string|max:255',
 
             'address_detail' => 'required|string|max:500',
@@ -189,15 +186,14 @@ class SupplierController extends Controller
 
             'email.required' => "Email không được bỏ trống",
             'email.email' => 'Email không đúng định dạng.',
-            'email.unique' => 'Email đã bị trùng',
 
             'currency_id.required' => 'Vui lòng chọn tiền tệ.',
             'currency_id.exists' => 'Tiền tệ không tồn tại.',
 
             // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
             // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
-            'province_id.required' => 'Vui lòng chọn tỉnh',
-            'ward_id.required' => 'Vui lòng chọn xã/phường.',
+            'province_code.required' => 'Vui lòng chọn tỉnh',
+            'ward_code.required' => 'Vui lòng chọn xã/phường.',
             // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
 
             'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
