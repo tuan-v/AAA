@@ -140,6 +140,11 @@ const columns = [
             ),
     },
     {
+        label: "Mã kho",
+        align: "text-start",
+        render: (row) => h("span", {}, row.warehouse?.code ?? "-"),
+    },
+    {
         label: "Người tạo",
         render: (row) => h("span", {}, row.created_by?.name ?? "-"),
     },

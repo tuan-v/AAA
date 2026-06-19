@@ -122,6 +122,8 @@
 import axios from "axios";
 import { ref, reactive, watch, onMounted, computed } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 import FormSelect from "../../components/FormSelect.vue";
 const provinceOptions = computed(() =>
     provinces.value.map((item) => ({
@@ -197,19 +199,35 @@ async function saveWarehouse() {
             total_inventory_value: form.total_inventory_value,
         };
 
+        let res;
+
         if (form.id) {
-            await axios.put(`/api/warehouses/${form.id}`, payload);
+            res = await axios.put(`/api/warehouses/${form.id}`, payload);
+
+            toast.success("Cập nhật kho thành công", {
+                autoClose: 2000,
+            });
         } else {
-            await axios.post("/api/warehouses", payload);
+            res = await axios.post("/api/warehouses", payload);
+
+            toast.success("Tạo kho thành công", {
+                autoClose: 2000,
+            });
         }
 
-        emit("saved");
+        // Trả warehouse về component cha
+        emit("saved", res.data.data ?? res.data);
+
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors;
+
+            toast.error("Vui lòng kiểm tra lại dữ liệu");
         } else {
             console.error(error);
+
+            toast.error(error.response?.data?.message || "Có lỗi xảy ra");
         }
     } finally {
         loading.value = false;

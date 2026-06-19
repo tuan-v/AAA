@@ -14,6 +14,12 @@ class PurchaseOrder extends Model
         'note',
         'status',
         'exchange_rate',
+        'created_by',
+        'approved_by',
+        'approved_at',
+    ];
+    protected $casts = [
+        'expected_received_date' => 'datetime',
     ];
     protected $appends = ['total_amount'];
     public function getTotalAmountAttribute()
@@ -44,5 +50,13 @@ class PurchaseOrder extends Model
             WarehouseSlip::class,
             'purchase_order_id'
         );
+    }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

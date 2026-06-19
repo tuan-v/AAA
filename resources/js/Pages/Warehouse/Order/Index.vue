@@ -196,6 +196,25 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showSaleDetailModal" @close="showSaleDetailModal = false">
+        <template #body>
+            <SaleOrderDetail
+                :order="detailOrder"
+                @close="showSaleDetailModal = false"
+            />
+        </template>
+    </Modal>
+    <Modal
+        v-if="showPurchaseDetailModal"
+        @close="showPurchaseDetailModal = false"
+    >
+        <template #body>
+            <PurchaseOrderDetail
+                :order="purchaseDetailOrder"
+                @close="showPurchaseDetailModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -217,7 +236,8 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
-
+import SaleOrderDetail from "../../Sale/Order/SaleOrderDetail.vue";
+import PurchaseOrderDetail from "../../Purchase/Order/PurchaseOrderDetail.vue";
 const activeTab = ref("purchase");
 const showModal = ref(false);
 const modalKey = ref(0);
@@ -241,7 +261,8 @@ const saleStatusConfig = {
 const suppliers = ref([]);
 const products = ref([]);
 const currencies = ref([]);
-
+const purchaseDetailOrder = ref(null);
+const showPurchaseDetailModal = ref(false);
 const purchaseOrders = ref({
     data: [],
     current_page: 1,
@@ -344,7 +365,17 @@ const purchaseColumns = [
         },
     },
 ];
+async function openDetail(item) {
+    try {
+        const res = await axios.get(`/api/sale/orders/${item.id}`);
 
+        detailOrder.value = res.data.data ?? res.data;
+
+        showSaleDetailModal.value = true;
+    } catch (error) {
+        toast.error("Không tải được thông tin đơn hàng");
+    }
+}
 const purchaseActions = [
     {
         icon: ImportIcon,
@@ -370,11 +401,18 @@ const purchaseActions = [
             openStockIn(item);
         },
     },
+    {
+        icon: DetailButtonIcon,
+        title: "Chi tiết",
+        onClick: openPurchaseDetail,
+    },
 ];
 function openStockIn(item) {
     window.location.href = `/warehouse/slips/purchasecreate?order_id=${item.id}`;
 }
 // ==================== ĐƠN BÁN ====================
+const detailOrder = ref(null);
+const showSaleDetailModal = ref(false);
 const customers = ref([]);
 const provinces = ref([]);
 const wards = ref([]);
@@ -471,9 +509,25 @@ const saleActions = [
         onClick: (item) =>
             (window.location.href = `/warehouse/slips/salecreate?order_id=${item.id}&type=sale`),
     },
+    {
+        icon: DetailButtonIcon,
+        title: "Chi tiết",
+        onClick: openDetail,
+    },
 ];
 
 // API
+async function openPurchaseDetail(item) {
+    try {
+        const res = await axios.get(`/api/purchase/orders/${item.id}`);
+
+        purchaseDetailOrder.value = res.data;
+
+        showPurchaseDetailModal.value = true;
+    } catch (err) {
+        toast.error("Không tải được chi tiết đơn mua");
+    }
+}
 async function getPurchaseData(page = 1) {
     const res = await axios.get("/api/warehouse/orders", {
         params: { page, search: search.value },

@@ -13,6 +13,8 @@ class SalesOrderItem extends Model
         'unit_price',
         'vat_percent',
         'amount',
+        'company_unit_price',
+        'company_amount',
     ];
 
     public function order()

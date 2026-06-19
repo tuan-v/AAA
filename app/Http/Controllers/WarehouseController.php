@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SalesOrder;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WarehouseController extends Controller
@@ -63,7 +64,7 @@ class WarehouseController extends Controller
 
 
                     'total_inventory_value' => round($totalValue, 2),
-                    'currency_symbol' => $currency?->symbol ?? '₫',
+                    'currency_symbol' => $currency['symbol'] ?? '₫',
                     'status' => $warehouse->status,
                 ];
             });
@@ -83,10 +84,25 @@ class WarehouseController extends Controller
             'address_detail.required' => 'Địa chỉ chi tiết không được bỏ trống'
         ]);
 
+        DB::transaction(function () use ($validated, &$warehouse) {
+            $warehouse = Warehouse::create([
+                'name' => $validated['name'],
+                'province_code' => $validated['province_code'],
+                'ward_code' => $validated['ward_code'],
+                'address_detail' => $validated['address_detail'],
+                'company_id' => auth()->user()->company_id,
+            ]);
 
-        return Warehouse::create($validated);
+            $warehouse->update([
+                'code' => 'WH' . str_pad($warehouse->id, 5, '0', STR_PAD_LEFT)
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Tạo kho thành công',
+            'data' => $warehouse
+        ]);
     }
-
     public function all()
     {
         return response()->json(
@@ -114,18 +130,13 @@ class WarehouseController extends Controller
             'address_detail' => 'required',
         ]);
 
-        $warehouse->update([
-            'name' => $validated['name'],
-            'province_code' => $validated['province_code'],
-            'ward_code' => $validated['ward_code'],
-            'address_detail' => $validated['address_detail'],
-        ]);
+        $warehouse->update($validated);
 
         return response()->json([
-            'message' => 'Cập nhật thành công'
+            'message' => 'Cập nhật thành công',
+            'data' => $warehouse->fresh()
         ]);
     }
-
     public function toggleStatus($id)
     {
         $warehouse = Warehouse::findOrFail($id);

@@ -67,15 +67,6 @@
                     />
                 </div>
 
-                <div>
-                    <label class="block text-sm mb-1">Trạng thái</label>
-                    <input
-                        disabled
-                        value="Chờ xử lý"
-                        class="w-full bg-gray-100 border rounded-lg px-3 py-2"
-                    />
-                </div>
-
                 <div class="col-span-2">
                     <label class="block text-sm mb-1">Ghi chú</label>
                     <textarea

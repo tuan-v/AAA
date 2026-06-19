@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\WarehouseProductStock;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -52,7 +53,7 @@ class PurchaseOrderController extends Controller
                 'currency' => $item->currency,
                 'items' => $item->items,
                 'total_amount' => $total,
-                'expected_received_date' => $item->expected_received_date,
+                'expected_received_date' => $item->expected_received_date->format('d/m/Y'),
                 'exchange_rate' => $item->exchange_rate,
             ];
         });
@@ -90,14 +91,49 @@ class PurchaseOrderController extends Controller
                 'currency' => $item->currency,
                 'items' => $item->items,
                 'total_amount' => $item->items->sum(fn($i) => $i->quantity * $i->price),
-                'expected_received_date' => $item->expected_received_date,
+                'expected_received_date' => $item->expected_received_date->format('d/m/Y'),
+
 
             ];
         });
 
         return response()->json($orders);
     }
+    public function show($id)
+    {
+        $order = PurchaseOrder::with([
+            'supplier',
+            'currency',
+            'items.product',
+            'createdBy',
+            'approvedBy',
+            'warehouseSlips',
+            'warehouseSlips.items',
+        ])->findOrFail($id);
 
+        foreach ($order->items as $item) {
+
+            $received = 0;
+
+            foreach ($order->warehouseSlips as $slip) {
+
+                if ($slip->status !== 'approved') {
+                    continue;
+                }
+
+                foreach ($slip->items as $slipItem) {
+
+                    if ($slipItem->product_id == $item->product_id) {
+                        $received += $slipItem->quantity;
+                    }
+                }
+            }
+
+            $item->received_quantity = $received;
+        }
+
+        return response()->json($order);
+    }
     // =========================
     // STORE (FIXED)
     // =========================
@@ -152,6 +188,7 @@ class PurchaseOrderController extends Controller
                 'status' => 'pending',
                 'total_amount' => 0,
                 'exchange_rate' => $orderCurrency->exchange_rate,
+                'created_by' => auth()->id(),
             ]);
             foreach ($request->items as $item) {
 

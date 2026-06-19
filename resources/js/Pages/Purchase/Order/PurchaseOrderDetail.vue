@@ -1,3 +1,4 @@
+```vue
 <template>
     <div
         class="bg-white rounded-2xl shadow-xl w-full max-w-6xl p-6 relative z-50"
@@ -6,11 +7,15 @@
         <div class="flex justify-between items-center border-b pb-4 mb-6">
             <div>
                 <h2 class="text-3xl font-bold text-gray-800">
-                    Đơn bán hàng #{{ order?.code }}
+                    Đơn mua hàng #{{ order?.code }}
                 </h2>
+
                 <p class="text-sm text-gray-500">
-                    Ngày tạo: {{ formatDate(order?.created_at) }}
+                    Ngày tạo:
+                    {{ formatDate(order?.created_at) }}
+
                     • Trạng thái:
+
                     <span
                         :class="statusBadgeClass(order?.status)"
                         class="px-3 py-1 rounded-full text-sm font-medium"
@@ -19,103 +24,110 @@
                     </span>
                 </p>
             </div>
-            <div class="flex gap-3">
-                <button
-                    @click="duplicateOrder"
-                    class="px-5 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 flex items-center gap-2"
-                >
-                    📋 Tạo đơn mới từ đơn này
-                </button>
-                <button
-                    @click="$emit('close')"
-                    class="text-gray-500 hover:text-red-500 text-3xl leading-none"
-                >
-                    ✕
-                </button>
-            </div>
+
+            <button
+                @click="$emit('close')"
+                class="text-gray-500 hover:text-red-500 text-3xl leading-none"
+            >
+                ✕
+            </button>
         </div>
 
+        <!-- THÔNG TIN -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- THÔNG TIN ĐƠN HÀNG -->
+            <!-- LEFT -->
             <div class="lg:col-span-7 bg-gray-50 rounded-xl p-6">
                 <h3 class="font-semibold text-lg mb-4">
-                    Thông tin đơn bán hàng
+                    Thông tin đơn mua hàng
                 </h3>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Khách hàng</label
                         >
+                            Nhà cung cấp
+                        </label>
+
                         <p class="font-medium">
-                            {{
-                                order?.customer?.name ||
-                                order?.customer?.full_name
-                            }}
-                            ({{ order?.customer?.code }})
+                            {{ order?.supplier?.name }}
+                            ({{ order?.supplier?.code }})
                         </p>
                     </div>
+
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Tiền tệ</label
                         >
+                            Tiền tệ
+                        </label>
+
                         <p class="font-medium">
-                            {{ order?.currency?.code }} -
+                            {{ order?.currency?.code }}
+                            -
                             {{ order?.currency?.name }}
                         </p>
                     </div>
+
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Ngày giao dự kiến</label
                         >
+                            Ngày nhận dự kiến
+                        </label>
+
                         <p class="font-medium">
                             {{
-                                order?.expected_delivery_date
-                                    ? formatDate(order?.expected_delivery_date)
+                                order?.expected_received_date
+                                    ? formatDate(order.expected_received_date)
                                     : "Chưa có"
                             }}
                         </p>
                     </div>
+
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Người tạo</label
                         >
+                            Người tạo
+                        </label>
+
                         <p class="font-medium">
-                            {{ order?.created_by?.name ?? "-" }}
+                            {{ order?.created_by?.name || "-" }}
                         </p>
                     </div>
+
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Người duyệt</label
                         >
+                            Người duyệt
+                        </label>
+
                         <p class="font-medium">
-                            {{ order?.approved_by?.name ?? "-" }}
+                            {{ order?.approved_by?.name || "-" }}
                         </p>
                     </div>
+
+                    <!-- <div>
+                        <label
+                            class="block text-sm font-medium text-gray-500 mb-1"
+                        >
+                            Tỷ giá
+                        </label>
+
+                        <p class="font-medium">
+                            {{ order?.exchange_rate || 1 }}
+                        </p>
+                    </div> -->
 
                     <div class="md:col-span-2">
                         <label
                             class="block text-sm font-medium text-gray-500 mb-1"
-                            >Địa chỉ giao hàng</label
                         >
-                        <p class="text-gray-700">{{ order?.address_detail }}</p>
-                        <p
-                            v-if="order?.ward?.name || order?.province?.name"
-                            class="text-gray-600 text-sm"
-                        >
-                            {{ order?.ward?.name }}, {{ order?.province?.name }}
-                        </p>
-                    </div>
+                            Ghi chú
+                        </label>
 
-                    <div class="md:col-span-2">
-                        <label
-                            class="block text-sm font-medium text-gray-500 mb-1"
-                            >Ghi chú</label
-                        >
                         <p class="text-gray-700 whitespace-pre-line">
                             {{ order?.note || "Không có ghi chú" }}
                         </p>
@@ -123,33 +135,44 @@
                 </div>
             </div>
 
-            <!-- TÓM TẮT THANH TOÁN -->
+            <!-- RIGHT -->
             <div class="lg:col-span-5 bg-white border rounded-xl p-6">
-                <h3 class="font-semibold text-lg mb-4">Tóm tắt thanh toán</h3>
-                <div class="space-y-4 text-lg">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Tạm tính</span>
-                        <span>{{
-                            formatMoney(order?.subtotal || 0, order?.currency)
-                        }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">VAT</span>
-                        <span>{{
-                            formatMoney(order?.vat_amount || 0, order?.currency)
-                        }}</span>
-                    </div>
-                    <div
-                        class="flex justify-between border-t pt-4 text-2xl font-bold text-blue-700"
-                    >
-                        <span>Tổng tiền</span>
-                        <span>{{
+                <h3 class="font-semibold text-lg mb-4">
+                    Tổng giá trị đơn hàng
+                </h3>
+
+                <div
+                    class="flex justify-between border-t pt-4 text-2xl font-bold text-blue-700"
+                >
+                    <span>Tổng tiền</span>
+
+                    <span>
+                        {{
                             formatMoney(
                                 order?.total_amount || 0,
                                 order?.currency,
                             )
-                        }}</span>
+                        }}
+                    </span>
+                </div>
+
+                <div class="mt-6">
+                    <label class="block text-sm text-gray-500 mb-2">
+                        Tiến độ nhập kho
+                    </label>
+
+                    <div class="bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div
+                            class="bg-green-500 h-3"
+                            :style="{
+                                width: progressPercent + '%',
+                            }"
+                        />
                     </div>
+
+                    <p class="text-sm text-gray-500 mt-2">
+                        {{ progressPercent }}% hoàn thành
+                    </p>
                 </div>
             </div>
         </div>
@@ -165,13 +188,17 @@
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="border p-3 text-left">Sản phẩm</th>
+
                             <th class="border p-3 text-center">SL Đặt</th>
-                            <th class="border p-3 text-center">Đã xuất</th>
+
+                            <th class="border p-3 text-center">Đã nhập</th>
+
                             <th class="border p-3 text-right">Đơn giá</th>
-                            <th class="border p-3 text-center">VAT %</th>
+
                             <th class="border p-3 text-right">Thành tiền</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         <tr
                             v-for="item in order?.items"
@@ -181,55 +208,29 @@
                             <td class="border p-3 font-medium">
                                 {{ item.product?.name }}
                             </td>
+
                             <td class="border p-3 text-center">
                                 {{ item.quantity }}
                             </td>
-                            <td class="border p-3 text-center text-green-600">
-                                {{ item.exported_quantity || 0 }} /
+
+                            <td
+                                class="border p-3 text-center text-green-600 font-semibold"
+                            >
+                                {{ item.received_quantity || 0 }}
+                                /
                                 {{ item.quantity }}
                             </td>
+
                             <td class="border p-3 text-right">
-                                {{
-                                    formatMoney(
-                                        item.unit_price,
-                                        order?.currency,
-                                    )
-                                }}
+                                {{ formatMoney(item.price, order?.currency) }}
                             </td>
-                            <td class="border p-3 text-center">
-                                {{ item.vat_percent }}%
-                            </td>
+
                             <td class="border p-3 text-right font-semibold">
                                 {{ formatMoney(item.amount, order?.currency) }}
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- LỊCH SỬ CÔNG NỢ (nếu có) -->
-        <div
-            v-if="order?.debtHistory && order?.debtHistory.length > 0"
-            class="mt-8 bg-white border rounded-xl p-6"
-        >
-            <h3 class="font-semibold text-lg mb-4">Lịch sử ghi nhận công nợ</h3>
-            <div class="space-y-4">
-                <div
-                    v-for="(debt, i) in order.debtHistory"
-                    :key="i"
-                    class="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
-                >
-                    <div>
-                        <p class="text-sm text-gray-500">
-                            {{ formatDate(debt.created_at) }}
-                        </p>
-                        <p class="font-medium">{{ debt.description }}</p>
-                    </div>
-                    <p class="font-semibold text-red-600">
-                        {{ formatMoney(debt.amount, order.currency) }}
-                    </p>
-                </div>
             </div>
         </div>
     </div>
@@ -239,7 +240,7 @@
 import { computed } from "vue";
 import { formatMoney } from "@/config/helpers";
 
-const emit = defineEmits(["close", "duplicate"]);
+defineEmits(["close"]);
 
 const props = defineProps({
     order: {
@@ -248,14 +249,11 @@ const props = defineProps({
     },
 });
 
-// Alias để template dùng ngắn gọn
-const order = computed(() => props.order);
-
 const getStatusText = (status) => {
     const map = {
         pending: "Chờ xử lý",
         approved: "Đã duyệt",
-        partial: "Đã xuất một phần",
+        partial: "Nhập một phần",
         completed: "Hoàn thành",
         cancelled: "Đã hủy",
     };
@@ -276,7 +274,7 @@ const statusBadgeClass = (status) => {
 };
 
 const formatDate = (date) => {
-    if (!date) return "";
+    if (!date) return "-";
 
     return new Intl.DateTimeFormat("vi-VN", {
         day: "2-digit",
@@ -285,9 +283,22 @@ const formatDate = (date) => {
     }).format(new Date(date));
 };
 
-const duplicateOrder = () => {
-    if (!order.value) return;
+const progressPercent = computed(() => {
+    if (!props.order?.items?.length) return 0;
 
-    emit("duplicate", order.value);
-};
+    const totalQty = props.order.items.reduce(
+        (sum, item) => sum + Number(item.quantity || 0),
+        0,
+    );
+
+    const receivedQty = props.order.items.reduce(
+        (sum, item) => sum + Number(item.received_quantity || 0),
+        0,
+    );
+
+    if (!totalQty) return 0;
+
+    return Math.round((receivedQty / totalQty) * 100);
+});
 </script>
+```

@@ -33,7 +33,10 @@ class WarehouseSlipController extends Controller
         //     $query->where('type', 'export');
         // }
         if ($request->filled('sales_order_id')) {
-            $query->where('sales_order_id', $request->order_id);
+            $query->where(
+                'sales_order_id',
+                $request->sales_order_id
+            );
         }
         if ($request->filled('warehouse_id') && $request->warehouse_id !== 'all') {
             $query->where('warehouse_id', $request->warehouse_id);
@@ -61,6 +64,7 @@ class WarehouseSlipController extends Controller
                 'warehouse' => [
                     'id' => $item->warehouse_id,
                     'name' => $item->warehouse?->name,
+                    'code' => $item->warehouse?->code,
                 ],
                 'created_by' => [
                     'id' => $item->created_by,
@@ -116,6 +120,7 @@ class WarehouseSlipController extends Controller
             if ($validated['type'] === 'import') {
                 $order = PurchaseOrder::with('items')->findOrFail($validated['purchase_order_id']);
 
+
                 $slip = WarehouseSlip::create([
                     'code' => $this->generateCode('import'),
                     'type' => 'import',
@@ -128,47 +133,41 @@ class WarehouseSlipController extends Controller
             } else { // EXPORT
                 $order = SalesOrder::with('items')->findOrFail($validated['sales_order_id']);
 
+                $companyPrice = 0;
                 $slip = WarehouseSlip::create([
                     'code' => $this->generateCode('export'),
                     'type' => 'export',
                     'sales_order_id' => $order->id,
                     'warehouse_id' => $validated['warehouse_id'],
-                    'note' => $validated['note'],
+                    'note' => $validated['note'] ?? null,
                     'status' => 'pending',
                     'created_by' => auth()->id(),
                 ]);
             }
 
             foreach ($validated['items'] as $itemData) {
+                $orderItem = $order->items
+                    ->firstWhere('product_id', $itemData['product_id']);
                 $qty = (int)$itemData['quantity'];
                 if ($qty <= 0) continue;
-
-                if ($validated['type'] === 'import') {
-                    $this->increaseStock($validated['warehouse_id'], $itemData['product_id'], $qty);
-                } else {
-                    $this->decreaseStock($validated['warehouse_id'], $itemData['product_id'], $qty);
+                if (!$orderItem) {
+                    throw new \Exception(
+                        'Sản phẩm không tồn tại trong đơn hàng'
+                    );
                 }
-
-                $orderItem = $order->items->firstWhere('product_id', $itemData['product_id']);
-
+                $unitPrice = $validated['type'] === 'import'
+                    ? $orderItem->price
+                    : $orderItem->unit_price;
+                $companyPrice = $validated['type'] === 'import'
+                    ? ($unitPrice * ($order->exchange_rate ?? 1))
+                    : 0;
                 WarehouseSlipItem::create([
                     'slip_id' => $slip->id,
                     'product_id' => $itemData['product_id'],
                     'quantity' => $qty,
-                    'price' => $itemData['price'] ?? ($orderItem?->unit_price ?? 0),
+                    'price'         => $unitPrice,
+                    'company_price' => $companyPrice,
                 ]);
-
-                // Cập nhật exported_quantity cho Sales Order
-                if ($validated['type'] === 'export' && $orderItem) {
-                    $orderItem->exported_quantity = ($orderItem->exported_quantity ?? 0) + $qty;
-                    $orderItem->save();
-                }
-            }
-
-            if ($validated['type'] === 'import') {
-                $this->updateOrderStatus($order->id);
-            } else {
-                $this->updateSalesOrderStatus($order->id);
             }
 
             DB::commit();
@@ -354,23 +353,23 @@ class WarehouseSlipController extends Controller
             ->select('id', 'code')
             ->get();
     }
-    private function updateStockFromPO($warehouseId, $productId, $qty)
-    {
-        $stock = \App\Models\WarehouseProductStock::firstOrCreate([
-            'warehouse_id' => $warehouseId,
-            'product_id' => $productId,
+    // private function updateStockFromPO($warehouseId, $productId, $qty)
+    // {
+    //     $stock = \App\Models\WarehouseProductStock::firstOrCreate([
+    //         'warehouse_id' => $warehouseId,
+    //         'product_id' => $productId,
 
-        ]);
-        $stock->quantity += $qty;
-        $stock->save();
+    //     ]);
+    //     $stock->quantity += $qty;
+    //     $stock->save();
 
-        $product = Product::find($productId);
+    //     $product = Product::find($productId);
 
-        if ($product) {
-            $product->quantity += $qty;
-            $product->save();
-        }
-    }
+    //     if ($product) {
+    //         $product->quantity += $qty;
+    //         $product->save();
+    //     }
+    // }
     private function updateProductPriceFromPO(
         $productId,
         $companyPrice
@@ -415,19 +414,80 @@ class WarehouseSlipController extends Controller
             foreach ($slip->items as $item) {
 
                 if ($slip->type === 'import') {
-                    $this->increaseStock(
-                        $slip->warehouse_id,
-                        $item->product_id,
-                        $item->quantity
+                    $stock = WarehouseProductStock::firstOrCreate(
+                        [
+                            'warehouse_id' => $slip->warehouse_id,
+                            'product_id' => $item->product_id,
+                        ],
+                        [
+                            'quantity' => 0,
+                            'stock_value' => 0,
+                        ]
                     );
+                    $stock->refresh();
+
+                    $companyPrice = $item->company_price ?? 0;
+
+                    $stock->quantity += $item->quantity;
+                    $stock->stock_value += $item->quantity * $companyPrice;
+
+                    $this->updateProductPriceFromPO(
+                        $item->product_id,
+                        $companyPrice
+                    );
+                    $stock->save();
                 }
 
                 if ($slip->type === 'export') {
-                    $this->decreaseStock(
-                        $slip->warehouse_id,
-                        $item->product_id,
-                        $item->quantity
+                    $stock = WarehouseProductStock::firstOrCreate([
+                        'warehouse_id' => $slip->warehouse_id,
+                        'product_id' => $item->product_id,
+                    ]);
+                    $product = Product::find($item->product_id);
+                    if ($product) {
+
+                        $saleOrder = SalesOrder::with('items')
+                            ->find($slip->sales_order_id);
+
+                        $saleItem = $saleOrder->items
+                            ->firstWhere('product_id', $item->product_id);
+
+                        if ($saleItem) {
+                            $vatPercent = $saleItem->vat_percent ?? 0;
+
+                            $sellPrice =
+                                $saleItem->company_unit_price +
+                                ($saleItem->company_unit_price * $vatPercent / 100);
+
+                            $product->update([
+                                'sell_price' => $sellPrice
+                            ]);
+                            $product->save();
+                        }
+                    }
+                    if ($stock->quantity < $item->quantity) {
+                        throw new \Exception('Không đủ tồn kho');
+                    }
+
+                    $avgCost = $stock->quantity > 0
+                        ? $stock->stock_value / $stock->quantity
+                        : 0;
+
+                    $item->company_price = $avgCost;
+                    $item->save();
+
+                    $stock->quantity = max(
+                        0,
+                        $stock->quantity - $item->quantity
                     );
+
+                    $stock->stock_value = max(
+                        0,
+                        $stock->stock_value -
+                            ($item->quantity * $avgCost)
+                    );
+
+                    $stock->save();
                 }
             }
 
@@ -436,6 +496,17 @@ class WarehouseSlipController extends Controller
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
+            if ($slip->type === 'import') {
+                $this->updateOrderStatus($slip->purchase_order_id);
+            } else {
+                $this->updateSalesOrderStatus($slip->sales_order_id);
+            }
+
+            // $this->updateStockFromPO(
+            //     $slip->warehouse_id,
+            //     $item->product_id,
+            //     $item->quantity
+            // );
         });
 
         return response()->json(['message' => 'Duyệt thành công']);

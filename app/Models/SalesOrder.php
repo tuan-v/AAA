@@ -21,8 +21,13 @@ class SalesOrder extends Model
         'total_amount',
         'status',
         'created_by',
+        'approved_by',
+        'approved_at',
+        'exchange_rate',
     ];
-
+    protected $casts = [
+        'expected_delivery_date' => 'datetime',
+    ];
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -60,5 +65,13 @@ class SalesOrder extends Model
     public function warehouseSlips()
     {
         return $this->hasMany(WarehouseSlip::class, 'sales_order_id');
+    }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_vy');
     }
 }

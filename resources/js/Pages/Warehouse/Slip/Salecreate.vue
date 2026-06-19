@@ -242,7 +242,7 @@ async function loadSlips() {
 async function loadWarehouses() {
     const res = await axios.get("/api/available-for-export", {
         params: {
-            sales_order_id: orderId,
+            order_id: orderId,
         },
     });
 
@@ -290,8 +290,18 @@ async function submit() {
         });
 
         toast.success("Tạo phiếu xuất thành công");
-
-        await loadOrder();
+        //
+        validItems.forEach((submitted) => {
+            const item = items.value.find(
+                (i) => i.product_id === submitted.product_id,
+            );
+            if (item) {
+                item.exported_quantity =
+                    (item.exported_quantity || 0) +
+                    Number(submitted.export_quantity);
+                item.export_quantity = 0;
+            }
+        });
         await loadSlips();
     } catch (e) {
         toast.error(e.response?.data?.message || "Có lỗi xảy ra");
@@ -345,6 +355,11 @@ const slipActions = [
         visible: (r) => r.status === "pending",
         onClick: async (row) => {
             await axios.post(`/api/warehouse/slips/${row.id}/approve`);
+            toast.success("Duyệt phiếu thành công", {
+                position: "top-right",
+                autoClose: 3000,
+                theme: "colored",
+            });
             await loadSlips();
         },
     },

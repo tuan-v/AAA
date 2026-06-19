@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Currency;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Warehouse;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -51,7 +53,7 @@ class SalesOrderController extends Controller
                 'vat_amount' => $item->vat_amount ?? 0,
                 'total_amount' => $total,
                 'total_quantity' => $totalQuantity,
-                'expected_delivery_date' => $item->expected_delivery_date,
+                'expected_delivery_date' => $item->expected_delivery_date->format('d/m/Y'),
             ];
         });
 
@@ -69,11 +71,23 @@ class SalesOrderController extends Controller
             ->paginate(5);
 
         $orders->getCollection()->transform(function ($order) {
-
+            $totalQuantity = $order->items->sum('quantity');
             $order->total_quantity =
                 $order->items->sum('quantity');
-
-            return $order;
+            $total = $order->items->sum(fn($i) => $i->quantity * $i->unit_price)
+                + ($order->vat_amount ?? 0);
+            return [
+                'id' => $order->id,
+                'code' => $order->code,
+                'status' => $order->status,
+                'customer' => $order->customer,
+                'currency' => $order->currency,
+                'items' => $order->items,
+                'vat_amount' => $order->vat_amount ?? 0,
+                'total_amount' => $total,
+                'total_quantity' => $totalQuantity,
+                'expected_delivery_date' => $order->expected_delivery_date->format('d/m/Y'),
+            ];
         });
 
         return response()->json($orders);
@@ -107,7 +121,9 @@ class SalesOrderController extends Controller
             'warehouseSlips',          // phiếu xuất kho
             'warehouseSlips.items',
             'createdBy',               // người tạo
-            'approvedBy'               // người duyệt
+            'approvedBy',
+            'province',
+            'ward',
         ])->findOrFail($id);
 
         // Tính toán thêm exported quantity
@@ -135,36 +151,58 @@ class SalesOrderController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'currency_id' => 'required|exists:currencies,id',
+
+            'province_id' => 'nullable',
+            'ward_id' => 'nullable',
+            'address_detail' => 'nullable|string|max:500',
+            'note' => 'nullable|string',
+
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.vat_percent' => 'nullable|numeric|min:0|max:100',
             'items.*.amount' => 'required|numeric|min:0',
+
             'expected_delivery_date' => 'nullable|date',
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
         ]);
-
         DB::beginTransaction();
 
         try {
+            $currency = Currency::findOrFail(
+                $validated['currency_id']
+            );
 
+            $exchangeRate =
+                $currency->exchange_rate ?? 1;
             $last = SalesOrder::latest('id')->first();
 
             $order = SalesOrder::create([
                 'company_id' => auth()->user()->company_id,
                 'code' => 'SO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
+
                 'customer_id' => $validated['customer_id'],
                 'currency_id' => $validated['currency_id'],
+
+                'exchange_rate' => $exchangeRate,
+
+                'province_id' => $validated['province_id'] ?? null,
+                'ward_id' => $validated['ward_id'] ?? null,
+                'address_detail' => $validated['address_detail'] ?? null,
+                'note' => $validated['note'] ?? null,
+
                 'status' => 'pending',
+
                 'expected_delivery_date'
                 => $validated['expected_delivery_date'] ?? null,
-                'vat_amount'
-                => $validated['vat_amount'],
+
+                'vat_amount' => $validated['vat_amount'],
                 'subtotal' => $validated['subtotal'] ?? 0,
                 'total_amount' => $validated['total_amount'],
+
                 'created_by' => auth()->id(),
             ]);
 
@@ -175,12 +213,21 @@ class SalesOrderController extends Controller
                 $amount = $item['quantity'] * $item['unit_price'];
                 $vatPercent = $item['vat_percent'] ?? 0;
                 $vatAmount = ($amount * $vatPercent) / 100;
+                $companyUnitPrice =
+                    $item['unit_price'] * $exchangeRate;
+
+                $companyAmount =
+                    $amount * $exchangeRate;
                 $order->items()->create([
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
+                    'company_unit_price'
+                    => $companyUnitPrice,
                     'vat_percent' => $item['vat_percent'] ?? 0,        // SỬA
                     'amount'       => $item['amount'] ?? $amount,
+                    'company_amount'
+                    => $companyAmount,
                 ]);
                 $subtotal += $amount;
                 $total += $amount + $vatAmount;
@@ -384,7 +431,12 @@ class SalesOrderController extends Controller
         DB::beginTransaction();
 
         try {
+            $currency = Currency::findOrFail(
+                $validated['currency_id']
+            );
 
+            $exchangeRate =
+                $currency->exchange_rate ?? 1;
             $order->update([
 
                 'customer_id'
@@ -392,6 +444,9 @@ class SalesOrderController extends Controller
 
                 'currency_id'
                 => $validated['currency_id'] ?? null,
+
+                'exchange_rate'
+                => $exchangeRate,
 
                 'province_id'
                 => $validated['province_id'] ?? null,
@@ -425,25 +480,32 @@ class SalesOrderController extends Controller
 
             foreach ($validated['items'] as $item) {
 
+                $companyUnitPrice =
+                    $item['unit_price'] * $exchangeRate;
+
+                $companyAmount =
+                    $item['amount'] * $exchangeRate;
+
                 SalesOrderItem::create([
+                    'sales_order_id' => $order->id,
 
-                    'sales_order_id'
-                    => $order->id,
+                    'product_id' => $item['product_id'],
 
-                    'product_id'
-                    => $item['product_id'],
+                    'quantity' => $item['quantity'],
 
-                    'quantity'
-                    => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
 
-                    'unit_price'
-                    => $item['unit_price'],
+                    'company_unit_price'
+                    => $companyUnitPrice,
 
                     'vat_percent'
                     => $item['vat_percent'] ?? 0,
 
                     'amount'
                     => $item['amount'],
+
+                    'company_amount'
+                    => $companyAmount,
                 ]);
             }
 
@@ -499,7 +561,7 @@ class SalesOrderController extends Controller
             foreach ($order->warehouseSlips as $slip) {
 
                 // chỉ tính phiếu đã duyệt
-                if ($slip->status !== 'approved') {
+                if (!in_array($slip->status, ['approved', 'pending'])) {
                     continue;
                 }
 
