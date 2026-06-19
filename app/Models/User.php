@@ -55,6 +55,10 @@ class User extends Authenticatable
     // {
     //     static::addGlobalScope(new \App\Scopes\CompanyScope);
     // }
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
     public function isSystem(): bool
     {
         return $this->type === self::TYPE_SYSTEM;

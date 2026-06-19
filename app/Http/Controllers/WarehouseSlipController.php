@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\SalesOrder;
 use App\Models\WarehouseSlip;
 use App\Models\WarehouseSlipItem;
 use App\Models\WarehouseProductStock;
+use App\Services\ActivityLogService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,8 +91,15 @@ class WarehouseSlipController extends Controller
     // =========================
     public function show($id)
     {
-        $slip = WarehouseSlip::with(['warehouse', 'items.product'])
-            ->findOrFail($id);
+        $slip = WarehouseSlip::with([
+            'warehouse',
+            'items.product.unit',
+            'saleOrder.customer',
+            'purchaseOrder.supplier',
+            'createdBy',
+            'approvedBy',
+            'logs.user'
+        ])->findOrFail($id);
 
         return response()->json($slip);
     }
@@ -171,7 +180,23 @@ class WarehouseSlipController extends Controller
             }
 
             DB::commit();
-
+            ActivityLogService::log(
+                $slip,
+                'create',
+                'Tạo phiếu kho',
+                null,
+                [
+                    'type' => $slip->type,
+                    'warehouse_id' => $slip->warehouse_id,
+                    'items' => $slip->items->map(function ($i) {
+                        return [
+                            'product_id' => $i->product_id,
+                            'quantity' => $i->quantity,
+                            'price' => $i->price,
+                        ];
+                    }),
+                ]
+            );
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo phiếu kho thành công',
@@ -223,21 +248,21 @@ class WarehouseSlipController extends Controller
     // =========================
     // STOCK UPDATE
     // =========================
-    private function updateStock($warehouseId, $productId, $qty, $type)
-    {
-        $stock = WarehouseProductStock::firstOrCreate([
-            'warehouse_id' => $warehouseId,
-            'product_id' => $productId,
-        ]);
+    // private function updateStock($warehouseId, $productId, $qty, $type)
+    // {
+    //     $stock = WarehouseProductStock::firstOrCreate([
+    //         'warehouse_id' => $warehouseId,
+    //         'product_id' => $productId,
+    //     ]);
 
-        if ($type === 'import') {
-            $stock->quantity += $qty;
-        } else {
-            $stock->quantity = max(0, $stock->quantity - $qty);
-        }
+    //     if ($type === 'import') {
+    //         $stock->quantity += $qty;
+    //     } else {
+    //         $stock->quantity = max(0, $stock->quantity - $qty);
+    //     }
 
-        $stock->save();
-    }
+    //     $stock->save();
+    // }
 
     // =========================
     // ORDER STATUS UPDATE (OPTIMIZED)
@@ -353,23 +378,6 @@ class WarehouseSlipController extends Controller
             ->select('id', 'code')
             ->get();
     }
-    // private function updateStockFromPO($warehouseId, $productId, $qty)
-    // {
-    //     $stock = \App\Models\WarehouseProductStock::firstOrCreate([
-    //         'warehouse_id' => $warehouseId,
-    //         'product_id' => $productId,
-
-    //     ]);
-    //     $stock->quantity += $qty;
-    //     $stock->save();
-
-    //     $product = Product::find($productId);
-
-    //     if ($product) {
-    //         $product->quantity += $qty;
-    //         $product->save();
-    //     }
-    // }
     private function updateProductPriceFromPO(
         $productId,
         $companyPrice
@@ -379,27 +387,6 @@ class WarehouseSlipController extends Controller
         $product->update([
             'purchase_price' => $companyPrice,
         ]);
-    }
-    private function increaseStock($warehouseId, $productId, $qty)
-    {
-        $stock = WarehouseProductStock::firstOrCreate([
-            'warehouse_id' => $warehouseId,
-            'product_id' => $productId,
-        ]);
-
-        $stock->quantity += $qty;
-        $stock->save();
-    }
-
-    private function decreaseStock($warehouseId, $productId, $qty)
-    {
-        $stock = WarehouseProductStock::firstOrCreate([
-            'warehouse_id' => $warehouseId,
-            'product_id' => $productId,
-        ]);
-
-        $stock->quantity = max(0, $stock->quantity - $qty);
-        $stock->save();
     }
     public function approve($id)
     {
@@ -490,7 +477,23 @@ class WarehouseSlipController extends Controller
                     $stock->save();
                 }
             }
-
+            ActivityLogService::log(
+                $slip,
+                'approve',
+                'Duyệt phiếu kho',
+                ['status' => 'pending'],
+                [
+                    'status' => 'approved',
+                    'stock_impact' => $slip->items->map(function ($i) use ($slip) {
+                        return [
+                            'product_id' => $i->product_id,
+                            'qty_change' => $slip->type === 'import'
+                                ? $i->quantity
+                                : -$i->quantity,
+                        ];
+                    }),
+                ]
+            );
             $slip->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
@@ -520,6 +523,17 @@ class WarehouseSlipController extends Controller
             ], 422);
         }
         $slip->status = 'rejected';
+        ActivityLogService::log(
+            $slip,
+            'reject',
+            'Từ chối phiếu kho',
+            $old,
+            ['status' => 'rejected']
+        );
+
+        return response()->json([
+            'message' => 'Từ chối phiếu thành công'
+        ]);
         $slip->save();
 
         return response()->json([

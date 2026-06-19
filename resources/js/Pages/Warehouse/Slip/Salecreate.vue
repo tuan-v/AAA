@@ -137,6 +137,14 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showDetailModal" @close="showDetailModal = false">
+        <template #body>
+            <SlipDetail
+                :slipId="selectedSlip?.id"
+                @close="showDetailModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -151,9 +159,10 @@ import DataTable from "@/components/DataTable.vue";
 import FormSelect from "@/components/FormSelect.vue";
 import Modal from "@/components/Modal.vue";
 import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
-
+import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
 import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
+import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 
 // ===================== STATE
 const slips = ref([]);
@@ -164,7 +173,8 @@ const warehouseId = ref("");
 const loading = ref(false);
 const slipCode = ref("");
 const showWarehouseModal = ref(false);
-
+const showDetailModal = ref(false);
+const selectedSlip = ref(null);
 const orderId = new URLSearchParams(window.location.search).get("order_id");
 
 // ===================== WAREHOUSE
@@ -369,10 +379,30 @@ const slipActions = [
         visible: (r) => r.status === "pending",
         onClick: async (row) => {
             await axios.post(`/api/warehouse/slips/${row.id}/reject`);
+            toast.success("Hủy phiếu thành công", {
+                position: "top-right",
+                autoClose: 3000,
+                theme: "colored",
+            });
             await loadSlips();
+            await loadOrder();
         },
     },
+    {
+        title: "Chi tiết",
+        icon: DetailButtonIcon,
+        onClick: openDetail,
+    },
 ];
+async function openDetail(row) {
+    try {
+        const res = await axios.get(`/api/warehouse/slips/${row.id}`);
+        selectedSlip.value = res.data;
+        showDetailModal.value = true;
+    } catch (e) {
+        toast.error("Không load được chi tiết phiếu");
+    }
+}
 
 // ===================== INIT
 onMounted(() => {

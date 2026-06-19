@@ -46,6 +46,11 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showDetail" @close="showDetail = false">
+        <template #body>
+            <UserDetail :userId="selectedUserId" @close="showDetail = false" />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -55,6 +60,7 @@ import Pagination from "@/components/Pagination.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import UserForm from "./UserForm.vue";
+import UserDetail from "./UserDetail.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
@@ -73,6 +79,8 @@ const users = ref({
     current_page: 1,
     last_page: 1,
 });
+const showDetail = ref(false);
+const selectedUserId = ref(null);
 const selectedUser = ref(null);
 const showModal = ref(false);
 const permissions = usePage().props.auth.permissions;
@@ -188,7 +196,8 @@ async function toggleStatus(user) {
     }
 }
 function show(id) {
-    window.location.href = `/user/${id}`;
+    selectedUserId.value = id;
+    showDetail.value = true;
 }
 
 onMounted(() => {

@@ -60,4 +60,8 @@ class WarehouseSlip extends Model
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
+    public function logs()
+    {
+        return $this->morphMany(ActivityLog::class, 'model');
+    }
 }

@@ -90,12 +90,19 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showDetailModal" @close="showDetailModal = false">
+        <template #body>
+            <SlipDetail
+                :slipId="selectedSlip?.id"
+                @close="showDetailModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 <script setup>
 import { Head, usePage } from "@inertiajs/vue3";
 import { ref, onMounted, h, watch } from "vue";
 import axios from "axios";
-
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
@@ -106,11 +113,13 @@ import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
+import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
 const warehouseFilter = ref("all");
 const search = ref("");
 const activeTab = ref("import");
 const can = (permission) => permissions.includes(permission);
-
+const showDetailModal = ref(false);
 const showModal = ref(false);
 const selectedSlip = ref(null);
 const products = ref([]);
@@ -269,8 +278,21 @@ const actions = [
             }
         },
     },
+    {
+        title: "Chi tiết",
+        icon: DetailButtonIcon,
+        onClick: openDetail,
+    },
 ];
-
+async function openDetail(row) {
+    try {
+        const res = await axios.get(`/api/warehouse/slips/${row.id}`);
+        selectedSlip.value = res.data;
+        showDetailModal.value = true;
+    } catch (e) {
+        toast.error("Không load được chi tiết phiếu");
+    }
+}
 function debounce(fn, delay = 300) {
     let timeout;
     return (...args) => {

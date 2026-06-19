@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -26,9 +27,10 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::with('roles')
-            ->visibleFor(auth()->user())
-            ->findOrFail($id);
+        $user = User::with([
+            'roles',
+            'logs.user'
+        ])->findOrFail($id);
 
         return response()->json($user);
     }
@@ -81,7 +83,17 @@ class UserController extends Controller
         ]);
 
         $user->syncRoles($validated['role']);
-
+        ActivityLogService::log(
+            $user,
+            'create',
+            'Tạo user',
+            null,
+            [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $validated['role'],
+            ]
+        );
         return response()->json([
             'message' => 'Thêm tài khoản thành công',
             'user' => $user
@@ -133,7 +145,13 @@ class UserController extends Controller
         if (!empty($validated['password'])) {
             $data['password'] = bcrypt($validated['password']);
         }
-
+        ActivityLogService::log(
+            $user,
+            'update',
+            'Cập nhật user',
+            $user->getOriginal(),
+            $user->getChanges()
+        );
         $user->update($data);
 
         // 🔥 đảm bảo vẫn thuộc company hiện tại
@@ -165,7 +183,13 @@ class UserController extends Controller
                 ])
             ]
         ]);
-
+        ActivityLogService::log(
+            $user,
+            'update',
+            'Đổi trạng thái user',
+            ['status' => $user->getOriginal('status')],
+            ['status' => $request->status]
+        );
         $user->update([
             'status' => $request->status
         ]);

@@ -138,6 +138,14 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showDetailModal" @close="showDetailModal = false">
+        <template #body>
+            <SlipDetail
+                :slipId="selectedSlip?.id"
+                @close="showDetailModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -155,6 +163,9 @@ import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import FormSelect from "@/components/FormSelect.vue";
 import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
+import SlipDetail from "./SlipDetail.vue";
+const showDetailModal = ref(false);
+const selectedSlip = ref(null);
 const slipColumns = [
     {
         key: "code",
@@ -268,7 +279,21 @@ const slipActions = [
             }
         },
     },
+    {
+        title: "Chi tiết",
+        icon: DetailButtonIcon,
+        onClick: openDetail,
+    },
 ];
+async function openDetail(row) {
+    try {
+        const res = await axios.get(`/api/warehouse/slips/${row.id}`);
+        selectedSlip.value = res.data;
+        showDetailModal.value = true;
+    } catch (e) {
+        toast.error("Không load được chi tiết phiếu");
+    }
+}
 function onInputQuantity(item) {
     const max = item.quantity - (item.received_quantity || 0);
 

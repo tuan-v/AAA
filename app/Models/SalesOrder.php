@@ -72,6 +72,6 @@ class SalesOrder extends Model
     }
     public function approvedBy()
     {
-        return $this->belongsTo(User::class, 'approved_vy');
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

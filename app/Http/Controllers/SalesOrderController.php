@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Warehouse;
+use App\Services\ActivityLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -240,7 +241,13 @@ class SalesOrderController extends Controller
             ]);
 
             DB::commit();
-
+            ActivityLogService::log([
+                'action' => 'create',
+                'model_type' => SalesOrder::class,
+                'model_id' => $order->id,
+                'new_values' => $order->toArray(),
+                'description' => 'Tạo đơn bán hàng',
+            ]);
             return response()->json([
                 'message' => 'Tạo đơn bán thành công',
                 'id' => $order->id
@@ -256,7 +263,7 @@ class SalesOrderController extends Controller
     public function update(Request $request, $id)
     {
         $order = SalesOrder::findOrFail($id);
-
+        $old = $order->toArray();
         if ($order->status !== 'pending') {
 
             return response()->json([
@@ -508,7 +515,14 @@ class SalesOrderController extends Controller
                     => $companyAmount,
                 ]);
             }
-
+            ActivityLogService::log([
+                'action' => 'update',
+                'model_type' => SalesOrder::class,
+                'model_id' => $order->id,
+                'old_values' => $old,
+                'new_values' => $order->fresh()->toArray(),
+                'description' => 'Cập nhật đơn bán hàng',
+            ]);
             DB::commit();
 
             return response()->json([
@@ -540,7 +554,12 @@ class SalesOrderController extends Controller
             'approved_by' => auth()->id(),
             'approved_at' => now(),
         ]);
-
+        ActivityLogService::log([
+            'action' => 'approve',
+            'model_type' => SalesOrder::class,
+            'model_id' => $order->id,
+            'description' => 'Duyệt đơn bán hàng',
+        ]);
         return response()->json([
             'message' => 'Duyệt đơn bán thành công'
         ]);
