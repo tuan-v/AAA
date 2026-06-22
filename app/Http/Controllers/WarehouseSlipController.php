@@ -27,13 +27,6 @@ class WarehouseSlipController extends Controller
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-        // if ($request->type === 'import') {
-        //     $query->where('type', 'import');
-        // }
-
-        // if ($request->type === 'export') {
-        //     $query->where('type', 'export');
-        // }
         if ($request->filled('sales_order_id')) {
             $query->where(
                 'sales_order_id',
@@ -245,28 +238,6 @@ class WarehouseSlipController extends Controller
 
         return $prefix . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
-    // =========================
-    // STOCK UPDATE
-    // =========================
-    // private function updateStock($warehouseId, $productId, $qty, $type)
-    // {
-    //     $stock = WarehouseProductStock::firstOrCreate([
-    //         'warehouse_id' => $warehouseId,
-    //         'product_id' => $productId,
-    //     ]);
-
-    //     if ($type === 'import') {
-    //         $stock->quantity += $qty;
-    //     } else {
-    //         $stock->quantity = max(0, $stock->quantity - $qty);
-    //     }
-
-    //     $stock->save();
-    // }
-
-    // =========================
-    // ORDER STATUS UPDATE (OPTIMIZED)
-    // =========================
     private function updateOrderStatus($orderId)
     {
         $order = PurchaseOrder::with('items')->findOrFail($orderId);
@@ -530,11 +501,6 @@ class WarehouseSlipController extends Controller
             $old,
             ['status' => 'rejected']
         );
-
-        return response()->json([
-            'message' => 'Từ chối phiếu thành công'
-        ]);
-        $slip->save();
 
         return response()->json([
             'message' => 'Từ chối phiếu thành công'

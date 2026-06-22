@@ -172,6 +172,7 @@ const defaultConfig = {
     dateFormat: "Y-m-d",
     altInput: true,
     altFormat: "d/m/Y",
+    allowInput: true,
     locale: {
         firstDayOfWeek: 1,
         weekdays: {
