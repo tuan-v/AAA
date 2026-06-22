@@ -225,8 +225,8 @@ const navItems = ref([
     },
     {
         name: "KẾ TOÁN",
-        module: "accounting",
-        route: "/accounting",
+        module: "accountant",
+        route: "/accountant",
     },
 ]);
 

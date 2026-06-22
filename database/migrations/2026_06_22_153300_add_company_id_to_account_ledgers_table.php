@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('account_ledgers', function (Blueprint $table) {
+            $table->foreignId('company_id')
+                ->after('id')
+                ->constrained()
+                ->cascadeOnDelete();
+            $table->index('account_id');
+            $table->index('transaction_id');
+            $table->index('ledger_date');
+            $table->index(['account_id', 'ledger_date']);
+            $table->foreignId('currency_id')
+                ->nullable()
+                ->after('transaction_id')
+                ->constrained();
+            $table->softDeletes();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('account_ledgers', function (Blueprint $table) {
+            //
+        });
+    }
+};

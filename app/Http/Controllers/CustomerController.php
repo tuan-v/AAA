@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\SalesOrder;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -216,20 +217,86 @@ class CustomerController extends Controller
     }
     public function show($id)
     {
-        $customer = Customer::with('currency')->findOrFail($id);
+        $customer = Customer::with(['orders' => function ($q) {
+            $q->latest()->limit(10);
+        }, 'debts' => function ($q) {
+            $q->latest()->limit(15);
+        }])
+            ->findOrFail($id);
+
+        // Tính toán công nợ
+        $totalDebt = $customer->debts->sum('amount'); // tùy theo logic của bạn
+        $paidAmount = $customer->debts->where('type', 'payment')->sum('amount');
+        $remaining = $customer->opening_balance + $totalDebt - $paidAmount;
 
         return response()->json([
-            'id' => $customer->id,
-            'code' => $customer->code,
-            'name' => $customer->name,
-            'phone' => $customer->phone,
-            'email' => $customer->email,
-            'currency_id' => $customer->currency_id,
-            'province_id' => $customer->province_id,
-            'ward_id' => $customer->ward_id,
-            'address_detail' => $customer->address_detail,
-            'opening_debt' => $customer->opening_debt,
-            'status' => $customer->status,
+            'customer' => $customer,
+            'debt_summary' => [
+                'total_debt' => $totalDebt,
+                'paid' => $paidAmount,
+                'remaining' => $remaining,
+                'opening_balance' => $customer->opening_balance,
+            ],
+            'recent_orders' => $customer->orders,
+            'debt_history' => $customer->debts,
+        ]);
+    }
+    public function detail($id)
+    {
+        $customer = Customer::with([
+            'currency',
+            'province',
+            'ward',
+            'orders' => function ($query) {
+                $query->latest()->limit(8);
+            },
+            'debts' => function ($query) {
+                $query->latest()->limit(10);
+            },
+            'payments' => function ($query) {
+                $query->latest()->limit(10);
+            }
+        ])->findOrFail($id);
+
+        // Tính toán công nợ
+        $openingDebt = (float) $customer->opening_debt;
+        $totalReceivable = $customer->orders->sum('total_amount') ?? 0;   // giả sử SalesOrder có field total_amount
+        $totalPaid = $customer->payments->sum('amount') ?? 0;
+
+        $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
+
+        return response()->json([
+            'customer' => $customer,
+            'debt_summary' => [
+                'opening_debt'     => $openingDebt,
+                'total_receivable' => $totalReceivable,
+                'total_paid'       => $totalPaid,
+                'remaining_debt'   => $remainingDebt,
+            ],
+            'recent_orders' => $customer->orders,
+            'debt_history'  => $customer->debts,
+            'payments'      => $customer->payments,
+        ]);
+    }
+    public function createQuickOrder(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        $order = SalesOrder::create([
+            'company_id'   => $customer->company_id,
+            'customer_id'  => $customer->id,
+            'code'         => 'SO' . date('YmdHi') . rand(10, 99),
+            'order_date'   => now(),
+            'status'       => 'draft',
+            'total_amount' => 0,
+            // thêm các field khác nếu cần
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đơn hàng mới đã được tạo thành công!',
+            'order_id' => $order->id,
+            'redirect_url' => "/sale/orders/{$order->id}/edit"   // điều chỉnh theo route Vue của bạn
         ]);
     }
     public function toggleStatus($id)

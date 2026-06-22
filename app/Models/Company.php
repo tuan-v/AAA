@@ -55,4 +55,8 @@ class Company extends Model
     {
         return $this->hasMany(SalesOrder::class);
     }
+    public function transactionCategories()
+    {
+        return $this->hasMany(TransactionCategory::class);
+    }
 }

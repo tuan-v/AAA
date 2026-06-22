@@ -101,6 +101,17 @@
             />
         </template>
     </Modal>
+    <Modal
+        v-if="showPurchaseDetailModal"
+        @close="showPurchaseDetailModal = false"
+    >
+        <template #body>
+            <PurchaseOrderDetail
+                :order="purchaseDetailOrder"
+                @close="showPurchaseDetailModal = false"
+            />
+        </template>
+    </Modal>
     <div
         v-if="showConfirm"
         class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -168,6 +179,7 @@ import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
+import PurchaseOrderDetail from "./PurchaseOrderDetail.vue";
 const filters = [
     {
         name: "search",
@@ -251,7 +263,8 @@ const onSupplierCreated = async (newSupplier) => {
 const suppliers = ref([]);
 const products = ref([]);
 const currencies = ref([]);
-
+const purchaseDetailOrder = ref(null);
+const showPurchaseDetailModal = ref(false);
 const search = ref("");
 const statusFilter = ref("");
 
@@ -358,6 +371,11 @@ const actions = [
         onClick: (item) => showDetail(item),
         hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
     },
+    {
+        icon: DetailButtonIcon,
+        title: "Chi tiết",
+        onClick: openPurchaseDetail,
+    },
 ];
 const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed"];
 const showConfirm = ref(false);
@@ -420,7 +438,7 @@ async function fetchProducts() {
 }
 
 async function fetchCurrencies() {
-    const res = await axios.get("/api/currencies");
+    const res = await axios.get("/api/accountant/currencies");
 
     currencies.value = res.data.data ?? res.data;
 }
@@ -441,10 +459,20 @@ function openEdit(item) {
     selectedOrder.value = item;
     showModal.value = true;
 }
+async function openPurchaseDetail(item) {
+    try {
+        const res = await axios.get(`/api/purchase/orders/${item.id}`);
 
-function showDetail(item) {
-    window.location.href = `/purchase/orders/${item.id}`;
+        purchaseDetailOrder.value = res.data;
+
+        showPurchaseDetailModal.value = true;
+    } catch (err) {
+        toast.error("Không tải được chi tiết đơn mua");
+    }
 }
+// function showDetail(item) {
+//     window.location.href = `/purchase/orders/${item.id}`;
+// }
 
 function reloadData() {
     showModal.value = false;

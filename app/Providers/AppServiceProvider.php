@@ -150,6 +150,29 @@ class AppServiceProvider extends ServiceProvider
 
                         ];
                         break;
+                    case "accountant":
+                        $menuItems = [
+                            [
+                                'icon' => 'CurrencyIcon',
+                                'name' => 'Tiền tệ',
+                                'path' => '/accountant/currencies'
+                            ],
+                            [
+                                'icon' => '',
+                                'name' => 'Ngân hàng',
+                                'path' => '/accountant/banks'
+                            ],
+                            [
+                                'icon' => '',
+                                'name' => 'Tài khoản và quỹ',
+                                'path' => '/accountant/accounts'
+                            ],
+                            [
+                                'icon' => '',
+                                'name' => 'Giao dịch',
+                                'path' => '/accountant/transactions'
+                            ],
+                        ];
                 }
             }
 

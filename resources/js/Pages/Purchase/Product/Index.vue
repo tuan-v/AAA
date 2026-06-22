@@ -205,12 +205,6 @@ const columns = [
             );
 
             return h("div", { class: "flex flex-col gap-1" }, [
-                h(
-                    "div",
-                    { class: "text-xs font-semibold text-blue-600" },
-                    `Tổng tồn: ${total} ${row.unit_name || ""}`,
-                ),
-
                 ...(row.warehouse?.length
                     ? row.warehouse.map((w) =>
                           h(
@@ -234,6 +228,15 @@ const columns = [
                               "Không có kho",
                           ),
                       ]),
+
+                // Tổng tồn đặt cuối
+                h(
+                    "div",
+                    {
+                        class: "text-xs font-semibold text-blue-600 border-t pt-1 mt-1",
+                    },
+                    `Tổng tồn: ${total} ${row.unit_name || ""}`,
+                ),
             ]);
         },
     },

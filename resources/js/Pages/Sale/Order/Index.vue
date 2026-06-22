@@ -103,6 +103,14 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showSaleDetailModal" @close="showSaleDetailModal = false">
+        <template #body>
+            <SaleOrderDetail
+                :order="detailOrder"
+                @close="showSaleDetailModal = false"
+            />
+        </template>
+    </Modal>
 
     <!-- Confirm Duyệt Đơn -->
     <div
@@ -165,11 +173,13 @@ import SearchPage from "@/components/SearchPage.vue";
 import { formatMoney } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
-
+import SaleOrderDetail from "./SaleOrderDetail.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
+const showSaleDetailModal = ref(false);
+const detailOrder = ref(null);
 
 const filters = [
     { name: "search", type: "text", placeholder: "Mã đơn / Tên khách hàng" },
@@ -299,7 +309,11 @@ const actions = [
         icon: DeleteIcon,
         title: "Hủy đơn",
         hidden: (row) => row.status !== "pending",
-        // onClick: cancelOrder, // bạn có thể implement sau
+    },
+    {
+        title: "Chi tiết",
+        icon: DetailButtonIcon,
+        onClick: openDetail,
     },
 ];
 
@@ -309,7 +323,17 @@ function handleFilter(params) {
     statusFilter.value = params.status || "";
     getData(1);
 }
+async function openDetail(item) {
+    try {
+        const res = await axios.get(`/api/sale/orders/${item.id}`);
 
+        detailOrder.value = res.data.data ?? res.data;
+
+        showSaleDetailModal.value = true;
+    } catch (error) {
+        toast.error("Không tải được thông tin đơn hàng");
+    }
+}
 // API Calls
 async function getData(page = 1) {
     const res = await axios.get("/api/sale/orders", {
@@ -333,7 +357,7 @@ async function fetchProducts() {
 }
 
 async function fetchCurrencies() {
-    const res = await axios.get("/api/currencies");
+    const res = await axios.get("/api/accountant/currencies");
     currencies.value = res.data.data ?? res.data;
 }
 
@@ -360,24 +384,24 @@ function openApproveConfirm(item) {
     pendingApproveItem.value = item;
     showConfirm.value = true;
 }
-function openDetail() {}
-async function confirmApprove() {
-    if (!pendingApproveItem.value) return;
+// function openDetail() {}
+// async function confirmApprove() {
+//     if (!pendingApproveItem.value) return;
 
-    try {
-        await axios.post(
-            `/api/sale/orders/${pendingApproveItem.value.id}/approve`,
-        );
+//     try {
+//         await axios.post(
+//             `/api/sale/orders/${pendingApproveItem.value.id}/approve`,
+//         );
 
-        toast.success("Duyệt đơn bán hàng thành công!");
-        showConfirm.value = false;
-        pendingApproveItem.value = null;
-        getData();
-    } catch (err) {
-        toast.error("Duyệt đơn thất bại");
-        console.error(err);
-    }
-}
+//         toast.success("Duyệt đơn bán hàng thành công!");
+//         showConfirm.value = false;
+//         pendingApproveItem.value = null;
+//         getData();
+//     } catch (err) {
+//         toast.error("Duyệt đơn thất bại");
+//         console.error(err);
+//     }
+// }
 
 function showDetail(item) {
     window.location.href = `/sale/orders/${item.id}`;

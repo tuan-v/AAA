@@ -65,6 +65,23 @@ Route::prefix('/sale')->group(function () {
         return Inertia::render('Sale/Order/Index');
     });
 });
+Route::prefix('/accountant')->group(function () {
+    Route::get('/', function () {
+        return Inertia::render('Accountant/Account/Index');
+    });
+    Route::get('/accounts', function () {
+        return Inertia::render('Accountant/Account/Index');
+    });
+    Route::get('/currencies', function () {
+        return Inertia::render('Accountant/Currency/Index');
+    });
+    Route::get('/banks', function () {
+        return Inertia::render('Accountant/Bank/Index');
+    });
+    Route::get('/transactions', function () {
+        return Inertia::render('Accountant/Transaction/Index');
+    });
+});
 Route::get('/permission', function () {
     return Inertia::render(
         'Manage/Permission'
@@ -139,9 +156,6 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/users', [UserController::class, 'index']);
     });
-});
-Route::get('/accounting', function () {
-    return Inertia::render('Accounting/Index');
 });
 
 Route::get('/users', function () {

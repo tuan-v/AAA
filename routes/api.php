@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AddressController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\RoleController;
@@ -16,6 +18,9 @@ use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TransactionCategoryController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TransactionTypeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
@@ -45,11 +50,40 @@ Route::get('/sale/customers/next-code', [CustomerController::class, 'nextCode'])
 Route::prefix('sale')->group(function () {
     Route::get('/customers/all',  [CustomerController::class, 'all']);
     Route::apiResource('customers', CustomerController::class)->names('sale.customers');
+    Route::get('/customers/{id}/detail', [CustomerController::class, 'detail'])
+        ->name('sale.customers.detail');
+    Route::post('/customers/{id}/quick-order', [CustomerController::class, 'createQuickOrder'])
+        ->name('sale.customers.quick-order');
     Route::apiResource('orders', SalesOrderController::class)->names('sale.orders');
 });
+Route::prefix('accountant')->group(function () {
 
-Route::post('/purchase/orders/{id}/approve', [PurchaseOrderController::class, 'approve']);
+    // currency
+    Route::apiResource('currencies', CurrencyController::class);
+    Route::get('currencies/{currency}/rates', [CurrencyController::class, 'rates']);
+    Route::post('currencies/{currency}/rates', [CurrencyController::class, 'storeRate']);
+    Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus']);
 
+    // bank
+    Route::apiResource('banks', BankController::class);
+    Route::patch('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus']);
+
+    // account
+    Route::get('accounts/all', [AccountController::class, 'all']);
+    Route::apiResource('accounts', AccountController::class);
+    Route::patch('accounts/{account}/toggle-status', [AccountController::class, 'toggleStatus']);
+
+    // transaction types
+    Route::apiResource('transaction-categories', TransactionCategoryController::class);
+    Route::patch('transaction-types/{transactionType}/toggle-status', [TransactionTypeController::class, 'toggleStatus']);
+    Route::get('transaction-types/all', [TransactionTypeController::class, 'all']);
+
+    Route::apiResource('transactions', TransactionController::class);
+
+    Route::get('transactions/{id}/detail', [TransactionController::class, 'show']);
+    Route::post('transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+    Route::post('/accounts/{id}/rebuild-balance', [AccountController::class, 'rebuildBalance']);
+});
 Route::get(
     '/warehouse/orders/{id}/stock-in',
     [PurchaseOrderController::class, 'stockInData']
@@ -78,8 +112,6 @@ Route::get('/products/for-select', [ProductController::class, 'forSelect']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/units', [UnitController::class, 'index']);
 
-
-Route::get('/currencies', [CurrencyController::class, 'index']);
 //
 
 Route::middleware('permission:role.view')->group(function () {
@@ -141,6 +173,10 @@ Route::patch(
 Route::patch(
     '/warehouse/products/{id}/status',
     [ProductController::class, 'toggleStatus']
+);
+Route::patch(
+    'currencies/{currency}/toggle-status',
+    [CurrencyController::class, 'toggleStatus']
 );
 
 Route::get(

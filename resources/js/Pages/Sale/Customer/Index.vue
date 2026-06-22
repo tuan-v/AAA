@@ -65,6 +65,38 @@
             />
         </template>
     </Modal>
+    <!-- ==================== MODALS ==================== -->
+    <!-- Modal Chi tiết -->
+    <Modal v-if="showDetailModal" @close="showDetailModal = false" size="large">
+        <template #header>
+            <h3 class="text-xl font-semibold">Chi tiết khách hàng</h3>
+        </template>
+        <template #body>
+            <CustomerDetail
+                :customer-id="selectedCustomerId"
+                @close="showDetailModal = false"
+                @create-order="openCreateOrder"
+            />
+        </template>
+    </Modal>
+
+    <!-- Modal Tạo Đơn Hàng -->
+    <Modal v-if="showOrderModal" @close="showOrderModal = false" size="large">
+        <template #header>
+            <h3 class="text-xl font-semibold">Tạo đơn hàng mới</h3>
+        </template>
+        <template #body>
+            <SaleOrderForm
+                :customer-id="createOrderCustomerId"
+                :customers="customers.data"
+                :currencies="currencies"
+                :products="products"
+                :provinces="provinces"
+                @saved="handleOrderSaved"
+                @close="showOrderModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -82,7 +114,9 @@ import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import SearchPage from "../../../components/SearchPage.vue";
 import CustomerForm from "./CustomerForm.vue";
-
+import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
+import CustomerDetail from "./CustomerDetail.vue";
+import SaleOrderForm from "../Order/SaleOrderForm.vue";
 /* ================= STATE ================= */
 const filterParams = ref({});
 
@@ -120,12 +154,15 @@ const customers = ref({
     current_page: 1,
     last_page: 1,
 });
-
+const products = ref([]);
+const provinces = ref([]);
 const currencies = ref([]);
-
+const selectedCustomerId = ref(null);
+const showDetailModal = ref(false);
 const showModal = ref(false);
 const selectedCustomer = ref(null);
-
+const showOrderModal = ref(false);
+const createOrderCustomerId = ref(null);
 /* ================= COLUMNS ================= */
 const columns = [
     {
@@ -199,6 +236,12 @@ const actions = [
         type: "status",
         onClick: (item) => toggleStatus(item),
     },
+    {
+        icon: DetailButtonIcon, // Nút xem chi tiết
+        type: "view",
+        onClick: (item) => openDetail(item),
+        tooltip: "Xem chi tiết",
+    },
 ];
 
 /* ================= METHODS ================= */
@@ -211,7 +254,17 @@ function openEdit(item) {
     selectedCustomer.value = item;
     showModal.value = true;
 }
+function openDetail(item) {
+    selectedCustomerId.value = item.id;
+    showDetailModal.value = true;
+}
+function openCreateOrder(customerId) {
+    showDetailModal.value = false;
 
+    createOrderCustomerId.value = customerId;
+
+    showOrderModal.value = true;
+}
 function handlePageChange(page) {
     getData(page);
 }
@@ -263,7 +316,17 @@ function reloadData() {
 
 /* init */
 onMounted(async () => {
-    const res = await axios.get("/api/currencies");
-    currencies.value = res.data;
+    const [currencyRes, customerRes, productRes, provinceRes] =
+        await Promise.all([
+            axios.get("/api/accountant/currencies"),
+            axios.get("/api/sale/customers/all"),
+            axios.get("/api/products/for-select"),
+            axios.get("/api/provinces"),
+        ]);
+
+    currencies.value = currencyRes.data;
+    products.value = productRes.data;
+    provinces.value = provinceRes.data;
+    getData(1);
 });
 </script>

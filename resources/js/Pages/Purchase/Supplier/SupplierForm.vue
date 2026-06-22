@@ -382,7 +382,7 @@ async function submit() {
 }
 
 onMounted(async () => {
-    const res = await axios.get("/api/currencies");
+    const res = await axios.get("/api/accountant/currencies");
     currencies.value = res.data || [];
 });
 onMounted(() => {

@@ -1,276 +1,377 @@
 <template>
-    <div
-        class="bg-white rounded-2xl shadow-xl w-full max-w-6xl p-6 relative z-50"
-    >
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl relative z-50">
         <!-- HEADER -->
-        <div class="flex justify-between items-center border-b pb-4 mb-6">
+        <div
+            class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl px-6 py-5 flex justify-between items-center"
+        >
             <div>
-                <h2 class="text-2xl font-bold">
+                <h2 class="text-xl font-bold text-white">
                     {{ form.id ? "Cập nhật đơn bán hàng" : "Tạo đơn bán hàng" }}
                 </h2>
-                <p class="text-sm text-gray-500">Quản lý đơn bán hàng</p>
+                <p class="text-sm text-blue-200 mt-0.5">Quản lý đơn bán hàng</p>
             </div>
             <button
                 @click="$emit('close')"
-                class="text-gray-500 hover:text-red-500 text-2xl"
+                class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
             >
-                ✕
+                <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                    />
+                </svg>
             </button>
         </div>
 
-        <!-- THÔNG TIN ĐƠN HÀNG -->
-        <div class="bg-gray-50 rounded-xl p-5 mb-6">
-            <h3 class="font-semibold text-lg mb-4">Thông tin đơn bán hàng</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormSelect
-                    v-model="form.customer_id"
-                    :options="customerOptions"
-                    label="Khách hàng"
-                    placeholder="Chọn khách hàng..."
-                    searchable
-                    allow-create
-                    add-new-text="Thêm khách hàng mới"
-                    @add-new="openCustomerModal"
-                />
+        <div class="p-6 space-y-5">
+            <!-- THÔNG TIN ĐƠN HÀNG -->
+            <div class="border border-gray-100 rounded-xl p-5 bg-gray-50/60">
+                <h3
+                    class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"
+                >
+                    <span
+                        class="w-1 h-4 bg-blue-500 rounded-full inline-block"
+                    ></span>
+                    Thông tin đơn bán hàng
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormSelect
+                        v-model="form.customer_id"
+                        :options="customerOptions"
+                        label="Khách hàng"
+                        placeholder="Chọn khách hàng..."
+                        searchable
+                        allow-create
+                        add-new-text="Thêm khách hàng mới"
+                        @add-new="openCustomerModal"
+                    />
 
-                <div>
-                    <label class="block text-sm font-medium mb-1"
-                        >Tiền tệ</label
-                    >
-                    <select
-                        v-model="form.currency_id"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">Chọn tiền tệ</option>
-                        <option
-                            v-for="c in currencies"
-                            :key="c.id"
-                            :value="c.id"
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Tiền tệ</label
                         >
-                            {{ c.code }} - {{ c.name }}
-                        </option>
-                    </select>
-                </div>
+                        <select
+                            v-model="form.currency_id"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                            <option value="">Chọn tiền tệ</option>
+                            <option
+                                v-for="c in currencies"
+                                :key="c.id"
+                                :value="c.id"
+                            >
+                                {{ c.code }} - {{ c.name }}
+                            </option>
+                        </select>
+                    </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1"
-                        >Tỉnh / Thành phố</label
-                    >
-                    <FormSelect
-                        v-model="form.province_id"
-                        :options="provinceOptions"
-                        placeholder="Tìm hoặc chọn tỉnh..."
-                        searchable
-                        @update:modelValue="onProvinceChange"
-                    />
-                </div>
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Tỉnh / Thành phố</label
+                        >
+                        <FormSelect
+                            v-model="form.province_id"
+                            :options="provinceOptions"
+                            placeholder="Tìm hoặc chọn tỉnh..."
+                            searchable
+                            @update:modelValue="onProvinceChange"
+                        />
+                    </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1"
-                        >Phường / Xã</label
-                    >
-                    <FormSelect
-                        v-model="form.ward_id"
-                        :options="wardOptions"
-                        placeholder="Tìm hoặc chọn phường..."
-                        searchable
-                        :disabled="!form.province_id"
-                    />
-                </div>
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Phường / Xã</label
+                        >
+                        <FormSelect
+                            v-model="form.ward_id"
+                            :options="wardOptions"
+                            placeholder="Tìm hoặc chọn phường..."
+                            searchable
+                            :disabled="!form.province_id"
+                        />
+                    </div>
 
-                <div>
-                    <InputDate
-                        v-model="form.expected_delivery_date"
-                        label="Ngày giao dự kiến"
-                        :clearable="true"
-                        :config="{ minDate: 'today' }"
-                    />
-                </div>
+                    <div>
+                        <InputDate
+                            v-model="form.expected_delivery_date"
+                            label="Ngày giao dự kiến"
+                            :clearable="true"
+                            :config="{ minDate: 'today' }"
+                        />
+                    </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-1"
-                        >Trạng thái</label
-                    >
-                    <input
-                        disabled
-                        value="Chờ xử lý"
-                        class="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2"
-                    />
-                </div>
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Trạng thái</label
+                        >
+                        <input
+                            disabled
+                            value="Chờ xử lý"
+                            class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                        />
+                    </div>
 
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium mb-1"
-                        >Địa chỉ chi tiết</label
-                    >
-                    <textarea
-                        v-model="form.address_detail"
-                        rows="2"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
-                        placeholder="Số nhà, ngõ, đường..."
-                    />
-                </div>
+                    <div class="md:col-span-2">
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Địa chỉ chi tiết</label
+                        >
+                        <textarea
+                            v-model="form.address_detail"
+                            rows="2"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="Số nhà, ngõ, đường..."
+                        />
+                    </div>
 
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium mb-1"
-                        >Ghi chú</label
-                    >
-                    <textarea
-                        v-model="form.note"
-                        rows="3"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
-                        placeholder="Ghi chú cho đơn hàng..."
-                    />
+                    <div class="md:col-span-2">
+                        <label
+                            class="block text-sm font-medium text-gray-600 mb-1"
+                            >Ghi chú</label
+                        >
+                        <textarea
+                            v-model="form.note"
+                            rows="2"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="Ghi chú cho đơn hàng..."
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- DANH SÁCH SẢN PHẨM -->
-        <div class="bg-white border rounded-xl p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-lg">Danh sách sản phẩm</h3>
-                <button
-                    @click="addItem"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg flex items-center gap-2"
+            <!-- DANH SÁCH SẢN PHẨM -->
+            <div class="border border-gray-100 rounded-xl p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3
+                        class="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
+                        <span
+                            class="w-1 h-4 bg-indigo-500 rounded-full inline-block"
+                        ></span>
+                        Danh sách sản phẩm
+                    </h3>
+                    <button
+                        @click="addItem"
+                        class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 4.5v15m7.5-7.5h-15"
+                            />
+                        </svg>
+                        Sản phẩm
+                    </button>
+                </div>
+
+                <div
+                    class="overflow-x-auto rounded-lg border border-gray-100 overflow-visible"
                 >
-                    + Thêm sản phẩm
+                    <table class="w-full table-auto min-w-full text-sm">
+                        <thead class="bg-gray-50 sticky top-0 z-10">
+                            <tr>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-5/12"
+                                >
+                                    Sản phẩm
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-20"
+                                >
+                                    Tồn kho
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-28"
+                                >
+                                    Số lượng
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-24"
+                                >
+                                    VAT %
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                >
+                                    Đơn giá
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                >
+                                    Thành tiền
+                                </th>
+                                <th
+                                    class="border-b border-gray-100 px-3 py-2.5 w-10"
+                                ></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            <tr
+                                v-for="(item, index) in form.items"
+                                :key="index"
+                                class="hover:bg-blue-50/30 transition"
+                            >
+                                <td class="px-3 py-2 relative z-50">
+                                    <FormSelect
+                                        v-model="item.product_id"
+                                        :options="productOptions"
+                                        searchable
+                                        @update:modelValue="
+                                            () => onSelectProduct(item)
+                                        "
+                                    />
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <span
+                                        class="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+                                        :class="
+                                            (item.stock_quantity ?? 0) > 0
+                                                ? 'bg-green-50 text-green-600'
+                                                : 'bg-red-50 text-red-500'
+                                        "
+                                    >
+                                        {{ item.stock_quantity ?? 0 }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        :max="item.stock_quantity || 999999"
+                                        v-model="item.quantity"
+                                        @input="handleQuantityChange(item)"
+                                        class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        v-model="item.vat_percent"
+                                        @input="calculateItem(item)"
+                                        class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input
+                                        :value="formatNumber(item.unit_price)"
+                                        @input="updateUnitPrice(item, $event)"
+                                        class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-right text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </td>
+                                <td
+                                    class="px-3 py-2 text-right font-semibold text-green-600"
+                                >
+                                    {{
+                                        formatMoney(
+                                            item.amount || 0,
+                                            currentCurrency,
+                                        )
+                                    }}
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <button
+                                        @click="removeItem(index)"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition mx-auto"
+                                    >
+                                        <DeleteIcon class="w-4 h-4" />
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TỔNG TIỀN -->
+                <div class="flex justify-end mt-5">
+                    <div
+                        class="bg-blue-50 border border-blue-100 rounded-xl p-5 min-w-[340px] space-y-2"
+                    >
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Tạm tính</span>
+                            <span class="font-medium text-gray-800">{{
+                                formatMoney(subtotal, currentCurrency)
+                            }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>VAT</span>
+                            <span class="font-medium text-gray-800">{{
+                                formatMoney(vatAmount, currentCurrency)
+                            }}</span>
+                        </div>
+                        <div
+                            class="flex justify-between pt-3 border-t border-blue-200 text-base font-bold text-blue-700"
+                        >
+                            <span>Tổng cộng</span>
+                            <span>{{
+                                formatMoney(totalAmount, currentCurrency)
+                            }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION -->
+            <div class="flex justify-end gap-3 pt-1">
+                <button
+                    @click="$emit('close')"
+                    class="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
+                >
+                    Hủy
+                </button>
+                <button
+                    @click="submit"
+                    :disabled="loading"
+                    class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-sm font-medium rounded-lg disabled:opacity-50 transition"
+                >
+                    <svg
+                        v-if="loading"
+                        class="w-4 h-4 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        />
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8z"
+                        />
+                    </svg>
+                    {{
+                        loading
+                            ? "Đang lưu..."
+                            : form.id
+                              ? "Cập nhật đơn"
+                              : "Tạo đơn hàng"
+                    }}
                 </button>
             </div>
-
-            <div class="overflow-x-auto border rounded-lg overflow-visible">
-                <!-- Thêm overflow-visible -->
-                <table class="w-full table-auto min-w-full">
-                    <thead class="bg-gray-100 sticky top-0 z-10">
-                        <!-- Tăng z-index cho header -->
-                        <tr>
-                            <th class="border p-3 text-left w-5/12">
-                                Sản phẩm
-                            </th>
-                            <th class="border p-3 text-center w-20">Tồn kho</th>
-                            <th class="border p-3 text-center w-32">
-                                Số lượng
-                            </th>
-                            <th class="border p-3 text-center w-24">VAT %</th>
-                            <th class="border p-3 text-right">Đơn giá</th>
-                            <th class="border p-3 text-right">Thành tiền</th>
-                            <th class="border p-3 w-12"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="(item, index) in form.items"
-                            :key="index"
-                            class="hover:bg-gray-50"
-                        >
-                            <td class="border p-2 relative z-50">
-                                <FormSelect
-                                    v-model="item.product_id"
-                                    :options="productOptions"
-                                    searchable
-                                    @update:modelValue="
-                                        () => onSelectProduct(item)
-                                    "
-                                />
-                            </td>
-                            <td class="border p-2 text-center font-medium">
-                                {{ item.stock_quantity ?? 0 }}
-                            </td>
-                            <td class="border p-2 relative">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    :max="item.stock_quantity || 999999"
-                                    v-model="item.quantity"
-                                    @input="handleQuantityChange(item)"
-                                    class="w-full border rounded px-3 py-2 text-center"
-                                />
-                            </td>
-                            <td class="border p-2">
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    v-model="item.vat_percent"
-                                    @input="calculateItem(item)"
-                                    class="w-full border rounded px-3 py-2 text-center"
-                                />
-                            </td>
-                            <td class="border p-2">
-                                <input
-                                    :value="formatNumber(item.unit_price)"
-                                    @input="updateUnitPrice(item, $event)"
-                                    class="w-full border rounded px-3 py-2 text-right"
-                                />
-                            </td>
-                            <td
-                                class="border p-2 text-right font-semibold text-green-600"
-                            >
-                                {{
-                                    formatMoney(
-                                        item.amount || 0,
-                                        currentCurrency,
-                                    )
-                                }}
-                            </td>
-                            <td class="border p-2 text-center">
-                                <button
-                                    @click="removeItem(index)"
-                                    class="text-red-500 hover:text-red-700"
-                                >
-                                    <DeleteIcon class="w-5 h-5" />
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex justify-end mt-6">
-                <div class="bg-blue-50 rounded-xl p-6 min-w-[380px]">
-                    <div class="flex justify-between text-lg">
-                        <span class="text-gray-600">Tạm tính</span
-                        ><span>{{
-                            formatMoney(subtotal, currentCurrency)
-                        }}</span>
-                    </div>
-                    <div class="flex justify-between mt-2 text-lg">
-                        <span class="text-gray-600">VAT</span
-                        ><span>{{
-                            formatMoney(vatAmount, currentCurrency)
-                        }}</span>
-                    </div>
-                    <div
-                        class="flex justify-between mt-4 border-t pt-4 text-2xl font-bold text-blue-700"
-                    >
-                        <span>Tổng: </span
-                        ><span>{{
-                            formatMoney(totalAmount, currentCurrency)
-                        }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ACTION -->
-        <div class="flex justify-end gap-3 mt-8">
-            <button
-                @click="$emit('close')"
-                class="px-6 py-3 border rounded-lg hover:bg-gray-50"
-            >
-                Hủy
-            </button>
-            <button
-                @click="submit"
-                :disabled="loading"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg disabled:opacity-50 font-medium"
-            >
-                {{
-                    loading
-                        ? "Đang lưu..."
-                        : form.id
-                          ? "Cập nhật đơn"
-                          : "Tạo đơn hàng"
-                }}
-            </button>
         </div>
     </div>
 
@@ -295,6 +396,7 @@ import InputDate from "@/components/InputDate.vue";
 import Modal from "@/components/Modal.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import CustomerForm from "../Customer/CustomerForm.vue";
+
 const provinceOptions = computed(() =>
     props.provinces.map((p) => ({
         value: p.id,
@@ -307,12 +409,17 @@ const wardOptions = computed(() =>
         label: w.name,
     })),
 );
+
 const props = defineProps({
     order: { type: Object, default: null },
     customers: { type: Array, default: () => [] },
     currencies: { type: Array, default: () => [] },
     products: { type: Array, default: () => [] },
     provinces: { type: Array, default: () => [] },
+    customerId: {
+        type: [Number, String],
+        default: null,
+    },
 });
 
 const emit = defineEmits(["saved", "close", "customer-created"]);
@@ -321,7 +428,6 @@ const showCustomerModal = ref(false);
 const loading = ref(false);
 const wards = ref([]);
 
-// Computed
 const filteredWards = computed(() => wards.value);
 
 const productOptions = ref([]);
@@ -348,7 +454,6 @@ const form = reactive({
     items: [],
 });
 
-// Computed tiền
 const subtotal = computed(() =>
     form.items.reduce(
         (sum, item) =>
@@ -364,7 +469,6 @@ const vatAmount = computed(() =>
 );
 const totalAmount = computed(() => subtotal.value + vatAmount.value);
 
-// ==================== LOAD WARDS ====================
 async function loadWards(provinceId) {
     if (!provinceId) {
         wards.value = [];
@@ -380,7 +484,29 @@ async function loadWards(provinceId) {
     }
 }
 
-// ==================== METHODS ====================
+const loadCustomerData = async (customerId) => {
+    if (!customerId) return;
+    try {
+        const res = await axios.get(`/api/sale/customers/${customerId}/detail`);
+        const customer = res.data.customer;
+
+        form.customer_id = String(customer.id);
+        form.currency_id = customer.currency_id || customer.currency?.id || "";
+        form.province_id = customer.province_id || "";
+        form.address_detail = customer.address_detail || "";
+
+        if (form.province_id) {
+            await loadWards(form.province_id);
+            form.ward_id = customer.ward_id || "";
+        }
+
+        toast.success(`Đã tải thông tin khách hàng: ${customer.name}`);
+    } catch (error) {
+        console.error("Lỗi tải thông tin khách hàng:", error);
+        toast.error("Không thể tải đầy đủ thông tin khách hàng");
+    }
+};
+
 function addItem() {
     form.items.push({
         product_id: "",
@@ -408,20 +534,16 @@ function onSelectProduct(item) {
         product.stock_quantity ?? product.quantity ?? product.stock ?? 0,
     );
 
-    // ❌ HẾT HÀNG -> TOAST + RESET
     if (stock <= 0) {
         toast.error("Sản phẩm này đã hết tồn kho");
-
         item.product_id = "";
         item.unit_price = 0;
         item.stock_quantity = 0;
         item.quantity = 0;
         item.amount = 0;
-
         return;
     }
 
-    // ✅ CÒN HÀNG -> SET DATA
     item.unit_price = Number(product.sale_price || 0);
     item.stock_quantity = stock;
     item.quantity = 1;
@@ -476,7 +598,6 @@ function onCustomerCreated(newCustomer) {
     emit("customer-created", newCustomer);
 }
 
-// Submit
 async function submit() {
     if (!form.customer_id) return alert("Vui lòng chọn khách hàng");
     if (form.items.length === 0)
@@ -552,7 +673,6 @@ function resetForm() {
     });
 }
 
-// ==================== WATCHERS ====================
 watch(() => form.province_id, loadWards);
 
 watch(
@@ -611,13 +731,26 @@ watch(
 
 onMounted(async () => {
     if (form.items.length === 0) addItem();
-    const res = await axios.get("/api/products/for-select");
 
-    productOptions.value = res.data.map((p) => ({
-        value: String(p.id),
-        label: `${p.name}`,
-        sale_price: Number(p.sale_price || 0),
-        stock_quantity: Number(p.stock_quantity || 0),
-    }));
+    if (props.products.length > 0) {
+        productOptions.value = props.products.map((p) => ({
+            value: String(p.id),
+            label: p.name,
+            sale_price: Number(p.sale_price || 0),
+            stock_quantity: Number(p.stock_quantity || 0),
+        }));
+    } else {
+        const res = await axios.get("/api/products/for-select");
+        productOptions.value = res.data.map((p) => ({
+            value: String(p.id),
+            label: p.name,
+            sale_price: Number(p.sale_price || 0),
+            stock_quantity: Number(p.stock_quantity || 0),
+        }));
+    }
+
+    if (props.customerId) {
+        await loadCustomerData(props.customerId);
+    }
 });
 </script>
