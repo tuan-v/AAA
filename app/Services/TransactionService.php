@@ -27,7 +27,7 @@ class TransactionService
             $transaction = Transaction::create([
                 'company_id' => $data['company_id'],
                 'code' => $this->generateCode(),
-                'transaction_date' => $data['transaction_date'],
+                'transaction_date' => $data['transaction_date'] ?? now(),
                 'type' => $data['type'],
                 'category_id' => $data['category_id'],
                 'currency_id' => $data['currency_id'],
@@ -56,28 +56,35 @@ class TransactionService
     }
     private function updateBalance(Transaction $transaction)
     {
-        $amount = $transaction->amount_base;
-
         if ($transaction->type === 'receipt') {
-
-            $account = Account::where('id', $transaction->to_account_id)
+            $account = Account::with('currency')->where('id', $transaction->to_account_id)
                 ->lockForUpdate()
                 ->first();
             if (!$account) {
                 throw new \Exception("Account not found");
             }
+            // Quy đổi số tiền sang tiền tệ của tài khoản
+            $amount = ($account->currency_id === $transaction->currency_id)
+                ? $transaction->amount
+                : ($transaction->amount_base / ($account->currency->exchange_rate ?: 1));
+
             $account->current_balance += $amount;
             $account->save();
         }
 
         if ($transaction->type === 'payment') {
-
-            $account = Account::where('id', $transaction->from_account_id)
+            $account = Account::with('currency')->where('id', $transaction->from_account_id)
                 ->lockForUpdate()
                 ->first();
             if (!$account) {
                 throw new \Exception("From account not found");
             }
+
+            // Quy đổi số tiền sang tiền tệ của tài khoản
+            $amount = ($account->currency_id === $transaction->currency_id)
+                ? $transaction->amount
+                : ($transaction->amount_base / ($account->currency->exchange_rate ?: 1));
+
             if ($account->current_balance < $amount) {
                 throw new \Exception("Insufficient balance");
             }
@@ -86,24 +93,36 @@ class TransactionService
         }
 
         if ($transaction->type === 'transfer') {
-
-            $from = Account::where('id', $transaction->from_account_id)
+            $from = Account::with('currency')->where('id', $transaction->from_account_id)
                 ->lockForUpdate()
                 ->first();
             if (!$from) {
                 throw new \Exception("From account not found");
             }
-            if ($from->current_balance < $amount) {
-                throw new \Exception("Insufficient balance");
-            }
-            $to = Account::where('id', $transaction->to_account_id)
+
+            $to = Account::with('currency')->where('id', $transaction->to_account_id)
                 ->lockForUpdate()
                 ->first();
             if (!$to) {
                 throw new \Exception("To account not found");
             }
-            $from->current_balance -= $amount;
-            $to->current_balance += $amount;
+
+            // Quy đổi cho tài khoản gửi
+            $fromAmount = ($from->currency_id === $transaction->currency_id)
+                ? $transaction->amount
+                : ($transaction->amount_base / ($from->currency->exchange_rate ?: 1));
+
+            // Quy đổi cho tài khoản nhận
+            $toAmount = ($to->currency_id === $transaction->currency_id)
+                ? $transaction->amount
+                : ($transaction->amount_base / ($to->currency->exchange_rate ?: 1));
+
+            if ($from->current_balance < $fromAmount) {
+                throw new \Exception("Insufficient balance");
+            }
+
+            $from->current_balance -= $fromAmount;
+            $to->current_balance += $toAmount;
 
             $from->save();
             $to->save();

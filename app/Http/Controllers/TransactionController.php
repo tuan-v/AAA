@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Transaction;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
@@ -63,7 +64,6 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:0',
             'currency_id' => 'required',
             'category_id' => 'required',
-            'transaction_date' => 'required|date',
 
             'from_account_id' => 'nullable|exists:accounts,id',
             'to_account_id' => 'nullable|exists:accounts,id',
@@ -77,5 +77,21 @@ class TransactionController extends Controller
         ]);
 
         return response()->json($transaction);
+    }
+    public function ledger(Account $account)
+    {
+        return $account->ledgers()
+            ->with('transaction')
+            ->orderBy('ledger_date')
+            ->paginate(50);
+    }
+    public function show(Transaction $transaction)
+    {
+        return $transaction->load([
+            'fromAccount',
+            'toAccount',
+            'currency',
+            'category',
+        ]);
     }
 }

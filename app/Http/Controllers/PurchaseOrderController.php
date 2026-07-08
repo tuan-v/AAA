@@ -6,12 +6,19 @@ use App\Models\Currency;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\WarehouseProductStock;
+use App\Services\ActivityLogService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderController extends Controller
 {
+    private function getCompanyCurrency()
+    {
+        $company = auth()->user()->company ?? auth()->user()->companies()->first();
+        return $company ? $company->default_currency : null;
+    }
+
     // =========================
     // INDEX
     // =========================
@@ -38,29 +45,38 @@ class PurchaseOrderController extends Controller
         }
 
         $orders = $query->latest()->paginate(5);
+        $companyCurrency = $this->getCompanyCurrency();
 
-        $orders->getCollection()->transform(function ($item) {
+        $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
+            foreach ($item->items as $i) {
+                $displayPrice =
+     $i->price
+    * $item->exchange_rate
+    / $companyCurrency->exchange_rate;
 
-            $total = $item->items->sum(function ($i) {
-                return $i->quantity * $i->price;
-            });
+$i->price = round($displayPrice, 2);
+$i->amount = round($displayPrice * $i->quantity, 2);
+            }
+            $total = $item->items->sum('amount');
 
             return [
                 'id' => $item->id,
                 'code' => $item->code,
                 'status' => $item->status,
                 'supplier' => $item->supplier,
-                'currency' => $item->currency,
+                'currency' => $companyCurrency ?: $item->currency,
                 'items' => $item->items,
-                'total_amount' => $total,
-                'expected_received_date' => $item->expected_received_date->format('d/m/Y'),
+                'total_amount' => round($total, 2),
+                'expected_received_date' => $item->expected_received_date
+    ? $item->expected_received_date->format('d/m/Y')
+    : null,
                 'exchange_rate' => $item->exchange_rate,
             ];
         });
 
         return response()->json($orders);
     }
-    public function warehouseIndex(Request $request)
+    public function warehouseIndex(Request $request)    
     {
         $query = PurchaseOrder::with([
             'supplier',
@@ -80,20 +96,31 @@ class PurchaseOrderController extends Controller
         }
 
         $orders = $query->latest()->paginate(5);
+        $companyCurrency = $this->getCompanyCurrency();
 
-        $orders->getCollection()->transform(function ($item) {
+        $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
+            foreach ($item->items as $i) {
+                $displayPrice =
+                    $i->price
+                    * $item->exchange_rate
+                    / $companyCurrency->exchange_rate;
+
+                $i->price = round($displayPrice, 2);
+                $i->amount = round($displayPrice * $i->quantity, 2);
+            }
+            $total = $item->items->sum('amount');   
 
             return [
                 'id' => $item->id,
                 'code' => $item->code,
                 'status' => $item->status,
                 'supplier' => $item->supplier,
-                'currency' => $item->currency,
+                'currency' => $companyCurrency ?: $item->currency,
                 'items' => $item->items,
-                'total_amount' => $item->items->sum(fn($i) => $i->quantity * $i->price),
-                'expected_received_date' => $item->expected_received_date->format('d/m/Y'),
-
-
+                'total_amount' => round($total, 2),
+                'expected_received_date' => $item->expected_received_date
+                        ? $item->expected_received_date->format('d/m/Y')
+                         : null,
             ];
         });
 
@@ -111,28 +138,37 @@ class PurchaseOrderController extends Controller
             'warehouseSlips.items',
         ])->findOrFail($id);
 
+        $companyCurrency = $this->getCompanyCurrency();
+
         foreach ($order->items as $item) {
 
-            $received = 0;
+    $received = 0;
 
-            foreach ($order->warehouseSlips as $slip) {
+    foreach ($order->warehouseSlips as $slip) {
 
-                if ($slip->status !== 'approved') {
-                    continue;
-                }
-
-                foreach ($slip->items as $slipItem) {
-
-                    if ($slipItem->product_id == $item->product_id) {
-                        $received += $slipItem->quantity;
-                    }
-                }
-            }
-
-            $item->received_quantity = $received;
+        if ($slip->status !== 'approved') {
+            continue;
         }
 
-        return response()->json($order);
+        foreach ($slip->items as $slipItem) {
+
+            if ($slipItem->product_id == $item->product_id) {
+                $received += $slipItem->quantity;
+            }
+        }
+    }
+
+    $item->received_quantity = $received;
+
+    // Giữ nguyên giá NCC
+    $item->amount = $item->price * $item->quantity;
+}
+
+$order->total_amount = $order->items->sum('amount');
+
+// Giữ nguyên currency của đơn hàng
+// KHÔNG setRelation thành companyCurrency
+return response()->json($order);
     }
     // =========================
     // STORE (FIXED)
@@ -341,8 +377,9 @@ class PurchaseOrderController extends Controller
             'warehouseSlips.items'
         ])->findOrFail($id);
 
-        foreach ($order->items as $item) {
+        $companyCurrency = $this->getCompanyCurrency();
 
+        foreach ($order->items as $item) {
             $received = $order->warehouseSlips
                 ->where('status', 'approved')
                 ->where('type', 'import')
@@ -351,7 +388,17 @@ class PurchaseOrderController extends Controller
                 ->sum('quantity');
 
             $item->received_quantity = $received;
+            $displayPrice =
+                $item->price
+                * $order->exchange_rate
+                / $companyCurrency->exchange_rate;
+
+            $item->price = round($displayPrice, 2);
+            $item->amount = round($displayPrice * $item->quantity, 2);
         }
+
+        $order->total_amount = round($order->items->sum('amount'), 2);
+        $order->setRelation('currency', $companyCurrency ?: $order->currency);
 
         return response()->json($order);
     }

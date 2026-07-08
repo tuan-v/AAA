@@ -79,9 +79,9 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
-
+import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import TransactionForm from "./TransactionForm.vue";
-// import TransactionDetail from "./TransactionDetail.vue";
+import TransactionDetail from "./TransactionDetail.vue";
 
 /* ================= STATE ================= */
 
@@ -172,15 +172,32 @@ const columns = [
     },
     {
         label: "Tiền tệ",
-        render: (row) => row.currency?.code ?? "-",
+        render: (row) => h("span", row.currency?.code ?? "-"),
     },
     {
         label: "Tài khoản",
-        render: (row) => row.fromAccount?.name || row.toAccount?.name || "-",
+        render: (row) => {
+            let accountName = "-";
+
+            if (row.type === "receipt") {
+                accountName = row.to_account?.name ?? "-";
+            }
+
+            if (row.type === "payment") {
+                accountName = row.from_account?.name ?? "-";
+            }
+
+            if (row.type === "transfer") {
+                accountName = `${row.from_account?.name ?? "-"} → ${row.to_account?.name ?? "-"}`;
+            }
+
+            return h("span", {}, accountName);
+        },
     },
     {
         label: "Ngày",
-        render: (row) => new Date(row.transaction_date).toLocaleString(),
+        render: (row) =>
+            h("span", new Date(row.transaction_date).toLocaleString()),
     },
 ];
 
@@ -188,6 +205,7 @@ const columns = [
 
 const actions = [
     {
+        icon: DetailButtonIcon,
         type: "view",
         onClick: (item) => openDetail(item),
     },

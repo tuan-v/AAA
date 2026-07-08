@@ -88,11 +88,47 @@ class WarehouseSlipController extends Controller
             'warehouse',
             'items.product.unit',
             'saleOrder.customer',
+            'saleOrder.currency',
+            'saleOrder.items',
             'purchaseOrder.supplier',
+            'purchaseOrder.currency',
+            'purchaseOrder.items',
             'createdBy',
             'approvedBy',
             'logs.user'
         ])->findOrFail($id);
+
+        $company = auth()->user()->company ?? auth()->user()->companies()->first();
+        $companyCurrency = $company ? $company->default_currency : null;
+
+        // Quy đổi giá trị item của phiếu kho
+        foreach ($slip->items as $item) {
+            $item->price = $item->company_price;
+        }
+
+        // Quy đổi đơn mua hàng đi kèm
+        if ($slip->purchaseOrder) {
+            $order = $slip->purchaseOrder;
+            foreach ($order->items as $item) {
+                $item->price = $item->company_price;
+                $item->amount = $item->quantity * $item->company_price;
+            }
+            $order->total_amount = round($order->items->sum('amount'), 2);
+            $order->setRelation('currency', $companyCurrency ?: $order->currency);
+        }
+
+        // Quy đổi đơn bán hàng đi kèm
+        if ($slip->saleOrder) {
+            $order = $slip->saleOrder;
+            foreach ($order->items as $item) {
+                $item->unit_price = $item->company_unit_price;
+                $item->amount = $item->company_amount;
+            }
+            $order->subtotal = round($order->items->sum('amount'), 2);
+            $order->vat_amount = round(($order->vat_amount ?? 0) * ($order->exchange_rate ?? 1), 2);
+            $order->total_amount = round($order->subtotal + $order->vat_amount, 2);
+            $order->setRelation('currency', $companyCurrency ?: $order->currency);
+        }
 
         return response()->json($slip);
     }
@@ -493,7 +529,10 @@ class WarehouseSlipController extends Controller
                 'message' => 'Phiếu đã được xử lý'
             ], 422);
         }
+        $old = ['status' => $slip->status];
         $slip->status = 'rejected';
+        $slip->save();
+
         ActivityLogService::log(
             $slip,
             'reject',

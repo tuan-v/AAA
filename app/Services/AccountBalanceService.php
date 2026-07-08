@@ -14,7 +14,7 @@ class AccountBalanceService
 
             $account = Account::findOrFail($accountId);
 
-            $balance = 0;
+            $balance = $account->opening_balance;
 
             $ledgers = AccountLedger::where('account_id', $accountId)
                 ->orderBy('ledger_date')

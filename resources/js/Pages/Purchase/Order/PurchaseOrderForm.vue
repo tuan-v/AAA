@@ -310,6 +310,20 @@ function resetForm() {
 watch(
     () => props.order,
     (order) => {
+        console.log("order =", order);
+        console.log("expected_received_date =", order?.expected_received_date);
+
+        form.expected_received_date = order?.expected_received_date
+            ? String(order.expected_received_date).substring(0, 10)
+            : "";
+
+        console.log("form =", form.expected_received_date);
+    },
+    { immediate: true }
+);
+watch(
+    () => props.order,
+    (order) => {
         if (!order) {
             resetForm();
             return;
@@ -318,7 +332,9 @@ watch(
         form.id = order.id;
         form.supplier_id = order.supplier_id || order.supplier?.id || "";
         form.currency_id = order.currency_id || order.currency?.id || "";
-        form.expected_received_date = order.expected_received_date || "";
+        form.expected_received_date = order.expected_received_date
+        ? String(order.expected_received_date).substring(0, 10)
+        : "";
         form.note = order.note || "";
 
         // Xử lý items cẩn thận

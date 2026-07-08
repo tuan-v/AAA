@@ -11,37 +11,26 @@ class LedgerService
     public function record($transaction)
     {
         return DB::transaction(function () use ($transaction) {
-
-            $amount = $transaction->amount_base;
-
-            // RECEIPT
             if ($transaction->type === 'receipt') {
-                return $this->receipt($transaction, $amount);
+                return $this->receipt($transaction);
             }
-
-            // PAYMENT
             if ($transaction->type === 'payment') {
-                return $this->payment($transaction, $amount);
+                return $this->payment($transaction);
             }
-
-            // TRANSFER
             if ($transaction->type === 'transfer') {
-                return $this->transfer($transaction, $amount);
+                return $this->transfer($transaction);
             }
         });
     }
-    private function receipt($transaction, $amount)
+
+    private function receipt($transaction)
     {
-        $account = Account::lockForUpdate()->find($transaction->to_account_id);
+        $account = Account::with('currency')->find($transaction->to_account_id);
+        $amount = ($account->currency_id === $transaction->currency_id)
+            ? $transaction->amount
+            : ($transaction->amount_base / ($account->currency->exchange_rate ?: 1));
 
-        if (!$account) {
-            throw new \Exception("Account not found");
-        }
-
-        $account->current_balance += $amount;
-        $account->save();
-
-        return AccountLedger::create([
+        AccountLedger::create([
             'company_id' => $transaction->company_id,
             'account_id' => $account->id,
             'transaction_id' => $transaction->id,
@@ -52,22 +41,15 @@ class LedgerService
             'description' => $transaction->description,
         ]);
     }
-    private function payment($transaction, $amount)
+
+    private function payment($transaction)
     {
-        $account = Account::lockForUpdate()->find($transaction->from_account_id);
+        $account = Account::with('currency')->find($transaction->from_account_id);
+        $amount = ($account->currency_id === $transaction->currency_id)
+            ? $transaction->amount
+            : ($transaction->amount_base / ($account->currency->exchange_rate ?: 1));
 
-        if (!$account) {
-            throw new \Exception("Account not found");
-        }
-
-        if ($account->current_balance < $amount) {
-            throw new \Exception("Insufficient balance");
-        }
-
-        $account->current_balance -= $amount;
-        $account->save();
-
-        return AccountLedger::create([
+        AccountLedger::create([
             'company_id' => $transaction->company_id,
             'account_id' => $account->id,
             'transaction_id' => $transaction->id,
@@ -78,22 +60,19 @@ class LedgerService
             'description' => $transaction->description,
         ]);
     }
-    private function transfer($transaction, $amount)
+
+    private function transfer($transaction)
     {
-        $from = Account::lockForUpdate()->find($transaction->from_account_id);
-        $to = Account::lockForUpdate()->find($transaction->to_account_id);
+        $from = Account::with('currency')->find($transaction->from_account_id);
+        $to   = Account::with('currency')->find($transaction->to_account_id);
 
-        if (!$from || !$to) {
-            throw new \Exception("Account not found");
-        }
+        $fromAmount = ($from->currency_id === $transaction->currency_id)
+            ? $transaction->amount
+            : ($transaction->amount_base / ($from->currency->exchange_rate ?: 1));
 
-        if ($from->current_balance < $amount) {
-            throw new \Exception("Insufficient balance");
-        }
-
-        // trừ tiền
-        $from->current_balance -= $amount;
-        $from->save();
+        $toAmount = ($to->currency_id === $transaction->currency_id)
+            ? $transaction->amount
+            : ($transaction->amount_base / ($to->currency->exchange_rate ?: 1));
 
         AccountLedger::create([
             'company_id' => $transaction->company_id,
@@ -101,21 +80,17 @@ class LedgerService
             'transaction_id' => $transaction->id,
             'ledger_date' => $transaction->transaction_date,
             'debit' => 0,
-            'credit' => $amount,
+            'credit' => $fromAmount,
             'balance_after' => $from->current_balance,
             'description' => $transaction->description,
         ]);
 
-        // cộng tiền
-        $to->current_balance += $amount;
-        $to->save();
-
-        return AccountLedger::create([
+        AccountLedger::create([
             'company_id' => $transaction->company_id,
             'account_id' => $to->id,
             'transaction_id' => $transaction->id,
             'ledger_date' => $transaction->transaction_date,
-            'debit' => $amount,
+            'debit' => $toAmount,
             'credit' => 0,
             'balance_after' => $to->current_balance,
             'description' => $transaction->description,

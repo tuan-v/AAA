@@ -25,6 +25,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
+use App\Http\Controllers\Accountant\AccountLedgerController;
 
 Route::get('/warehouses/all', [WarehouseController::class, 'all']);
 Route::apiResource('warehouses', WarehouseController::class);
@@ -82,7 +83,9 @@ Route::prefix('accountant')->group(function () {
 
     Route::get('transactions/{id}/detail', [TransactionController::class, 'show']);
     Route::post('transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+
     Route::post('/accounts/{id}/rebuild-balance', [AccountController::class, 'rebuildBalance']);
+    Route::get('/account-ledgers', [AccountLedgerController::class, 'index']);
 });
 Route::get(
     '/warehouse/orders/{id}/stock-in',

@@ -706,19 +706,24 @@ watch(
 
         form.id = order.id;
         form.customer_id = order.customer_id || order.customer?.id || "";
-        form.currency_id = order.currency_id || order.currency?.id || "";
+        // Luôn lấy currency_id gốc từ DB (không phải currency đã quy đổi sang tiền công ty)
+        form.currency_id = order.currency_id || "";
         form.province_id = order.province_id || "";
         form.ward_id = order.ward_id || "";
         form.address_detail =
             order.address_detail || order.shipping_address || "";
-        form.expected_delivery_date = order.expected_delivery_date || "";
+        // Đảm bảo có ngày giao và ghi chú
+        form.expected_delivery_date = order.expected_delivery_date
+            ? String(order.expected_delivery_date).substring(0, 10)
+            : "";
         form.note = order.note || "";
 
         if (order.items?.length > 0) {
             form.items = order.items.map((item) => ({
                 product_id: String(item.product_id || item.product?.id),
                 quantity: Number(item.quantity),
-                unit_price: Number(item.unit_price || item.price),
+                // Lấy unit_price gốc (giá khách hàng), không dùng company_unit_price
+                unit_price: Number(item.unit_price || item.price || 0),
                 vat_percent: Number(item.vat_percent || 0),
                 amount: Number(item.amount || 0),
                 stock_quantity: Number(item.product?.stock_quantity ?? 0),

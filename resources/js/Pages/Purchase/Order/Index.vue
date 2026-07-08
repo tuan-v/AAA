@@ -448,15 +448,20 @@ function openCreate() {
     showModal.value = true;
 }
 
-function openEdit(item) {
+async function openEdit(item) {
     if (item.status === "approved") {
-        toast.warning("Đơn này đã được duyệt rồi, không thể sửa được.", {
-            position: "top-right",
-            timeout: 3000,
-        });
+        toast.warning("Đơn này đã được duyệt rồi, không thể sửa.");
         return;
     }
-    selectedOrder.value = item;
+
+    try {
+        const res = await axios.get(`/api/purchase/orders/${item.id}`);
+
+        selectedOrder.value = { ...res.data };
+    } catch (e) {
+        selectedOrder.value = { ...item };
+    }
+
     showModal.value = true;
 }
 async function openPurchaseDetail(item) {

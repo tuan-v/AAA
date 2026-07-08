@@ -368,14 +368,22 @@ function openCreate() {
     showModal.value = true;
 }
 
-function openEdit(item) {
+async function openEdit(item) {
     if (item.status !== "pending") {
         toast.warning(
             "Đơn này không thể sửa vì đã được duyệt hoặc hoàn thành.",
         );
         return;
     }
-    selectedOrder.value = { ...item };
+    try {
+        // Fetch chi tiết đầy đủ để có note, currency_id gốc, expected_delivery_date
+        const res = await axios.get(`/api/sale/orders/${item.id}`);
+        const fullOrder = res.data.data ?? res.data;
+        selectedOrder.value = { ...fullOrder };
+    } catch {
+        // Fallback dùng data từ list nếu API lỗi
+        selectedOrder.value = { ...item };
+    }
     orderKey.value++;
     showModal.value = true;
 }

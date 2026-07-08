@@ -19,8 +19,8 @@ class PurchaseOrder extends Model
         'approved_at',
     ];
     protected $casts = [
-        'expected_received_date' => 'datetime',
-    ];
+    'expected_received_date' => 'date:Y-m-d',
+];
     protected $appends = ['total_amount'];
     public function getTotalAmountAttribute()
     {

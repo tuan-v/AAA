@@ -172,6 +172,11 @@ class AppServiceProvider extends ServiceProvider
                                 'name' => 'Giao dịch',
                                 'path' => '/accountant/transactions'
                             ],
+                            [
+                                'icon' => '',
+                                'name' => 'Sổ quỹ',
+                                'path' => '/accountant/account-ledgers'
+                            ]
                         ];
                 }
             }

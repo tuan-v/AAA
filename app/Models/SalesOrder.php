@@ -26,7 +26,7 @@ class SalesOrder extends Model
         'exchange_rate',
     ];
     protected $casts = [
-        'expected_delivery_date' => 'datetime',
+        'expected_delivery_date' => 'date:Y-m-d',
     ];
     public function company()
     {

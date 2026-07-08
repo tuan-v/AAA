@@ -81,6 +81,9 @@ Route::prefix('/accountant')->group(function () {
     Route::get('/transactions', function () {
         return Inertia::render('Accountant/Transaction/Index');
     });
+    Route::get('/account-ledgers', function () {
+        return Inertia::render('Accountant/AccountLedger/Index');
+    });
 });
 Route::get('/permission', function () {
     return Inertia::render(

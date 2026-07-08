@@ -11,6 +11,11 @@ class LogUserActivity
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // bỏ qua các request đọc dữ liệu (GET) để tránh đầy database
+        if ($request->isMethod('GET')) {
+            return $next($request);
+        }
+
         // bỏ qua nếu chưa login
         if (!auth()->check()) {
             return $next($request);

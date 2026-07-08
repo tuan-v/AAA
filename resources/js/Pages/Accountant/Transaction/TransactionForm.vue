@@ -158,9 +158,9 @@
                     </option>
                 </select>
             </div>
-            <div class="section-label">Thời gian giao dịch</div>
+            <!-- <div class="section-label">Thời gian giao dịch</div> -->
 
-            <div class="field">
+            <!-- <div class="field">
                 <label class="label">
                     <i class="ti ti-calendar"></i>Ngày giao dịch
                 </label>
@@ -170,7 +170,7 @@
                     type="date"
                     class="input"
                 />
-            </div>
+            </div> -->
 
             <div class="divider"></div>
 
