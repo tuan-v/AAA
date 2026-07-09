@@ -15,11 +15,11 @@ class TransactionCategory extends Model
         'name',
         'type',
         'description',
-        'is_active',
+        'status',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'status' => 'integer',
     ];
 
     // RELATION
@@ -36,7 +36,7 @@ class TransactionCategory extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('status', 1);
     }
 
     // HELPERS

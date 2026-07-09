@@ -100,6 +100,20 @@ class AccountController extends Controller
 
             'bank_account_no' =>
             'nullable|string|max:255',
+        ], [
+            'code.required' => 'Mã tài khoản không được để trống',
+            'code.unique' => 'Mã tài khoản đã tồn tại',
+            'name.required' => 'Tên tài khoản không được để trống',
+            'type.required' => 'Loại tài khoản không được để trống',
+            'type.in' => 'Loại tài khoản không hợp lệ',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'currency_id.exists' => 'Đơn vị tiền tệ không hợp lệ',
+            'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
+            'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
+            'bank_id.exists' => 'Ngân hàng không hợp lệ',
+            'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
+            'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
+            'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
         ]);
 
         if (
@@ -173,6 +187,18 @@ class AccountController extends Controller
 
             'bank_account_no' =>
             'nullable|string|max:255',
+        ], [
+            'name.required' => 'Tên tài khoản không được để trống',
+            'type.required' => 'Loại tài khoản không được để trống',
+            'type.in' => 'Loại tài khoản không hợp lệ',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'currency_id.exists' => 'Đơn vị tiền tệ không hợp lệ',
+            'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
+            'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
+            'bank_id.exists' => 'Ngân hàng không hợp lệ',
+            'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
+            'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
+            'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
         ]);
 
         if (

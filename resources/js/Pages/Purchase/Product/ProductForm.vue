@@ -198,6 +198,7 @@ import "vue3-toastify/dist/index.css";
 import FormSelect from "../../../components/FormSelect.vue";
 import CategoryForm from "../Category/CategoryForm.vue";
 import UnitForm from "../Unit/UnitForm.vue";
+import Modal from "@/components/Modal.vue";
 const showCategoryModal = ref(false);
 const showUnitModal = ref(false);
 const purchasePriceDisplay = ref("");

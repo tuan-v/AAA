@@ -20,7 +20,6 @@ use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TransactionCategoryController;
 use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\TransactionTypeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
@@ -41,18 +40,26 @@ Route::prefix('warehouse')->group(function () {
 });
 Route::prefix('purchase')->group(function () {
     Route::get('/suppliers/all', [SupplierController::class, 'all']);
+    Route::get('/suppliers/{id}/detail', [SupplierController::class, 'detail'])->name('purchase.suppliers.detail');
     Route::apiResource('suppliers', SupplierController::class)->names('purchase.suppliers');
     Route::apiResource('categories', CategoryController::class)->names('purchase.categories');
     Route::apiResource('units', UnitController::class)->names('purchase.units');
     Route::apiResource('orders', PurchaseOrderController::class)->names('purchase.orders');
     Route::apiResource('products', ProductController::class)->names('purchase.products');
+    Route::post(
+        'orders/{id}/approve',
+        [PurchaseOrderController::class, 'approve']
+    )->name('purchase.orders.approve');
+    Route::get(
+        'orders/{id}/stock-in-data',
+        [PurchaseOrderController::class, 'stockInData']
+    );
 });
 Route::get('/sale/customers/next-code', [CustomerController::class, 'nextCode']);
 Route::prefix('sale')->group(function () {
     Route::get('/customers/all',  [CustomerController::class, 'all']);
     Route::apiResource('customers', CustomerController::class)->names('sale.customers');
-    Route::get('/customers/{id}/detail', [CustomerController::class, 'detail'])
-        ->name('sale.customers.detail');
+    Route::get('/customers/{id}/detail', [CustomerController::class, 'detail'])->name('sale.customers.detail');
     Route::post('/customers/{id}/quick-order', [CustomerController::class, 'createQuickOrder'])
         ->name('sale.customers.quick-order');
     Route::apiResource('orders', SalesOrderController::class)->names('sale.orders');
@@ -61,6 +68,7 @@ Route::prefix('accountant')->group(function () {
 
     // currency
     Route::apiResource('currencies', CurrencyController::class);
+    Route::get('/currencies/all', [CurrencyController::class, 'all']);
     Route::get('currencies/{currency}/rates', [CurrencyController::class, 'rates']);
     Route::post('currencies/{currency}/rates', [CurrencyController::class, 'storeRate']);
     Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus']);
@@ -73,16 +81,43 @@ Route::prefix('accountant')->group(function () {
     Route::get('accounts/all', [AccountController::class, 'all']);
     Route::apiResource('accounts', AccountController::class);
     Route::patch('accounts/{account}/toggle-status', [AccountController::class, 'toggleStatus']);
+    Route::get('/accounts/{account}/ledger', [AccountLedgerController::class, 'accountLedger']);
+
+    // debt monitoring
+    Route::get('/customers-debt', [CustomerController::class, 'index'])
+        ->name('accountant.customers-debt.index');
+    Route::get('/customers-debt/{id}/detail', [CustomerController::class, 'detail'])
+        ->name('accountant.customers-debt.detail');
+    Route::get('/suppliers-debt', [SupplierController::class, 'index'])
+        ->name('accountant.suppliers-debt.index');
+    Route::get('/suppliers-debt/{id}/detail', [SupplierController::class, 'detail'])
+        ->name('accountant.suppliers-debt.detail');
 
     // transaction types
-    Route::apiResource('transaction-categories', TransactionCategoryController::class);
-    Route::patch('transaction-types/{transactionType}/toggle-status', [TransactionTypeController::class, 'toggleStatus']);
-    Route::get('transaction-types/all', [TransactionTypeController::class, 'all']);
+    Route::get('/transaction-categories', [TransactionCategoryController::class, 'index']);
 
-    Route::apiResource('transactions', TransactionController::class);
+    Route::get('/transaction-categories/active', [TransactionCategoryController::class, 'active']);
 
-    Route::get('transactions/{id}/detail', [TransactionController::class, 'show']);
-    Route::post('transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+    Route::post('/transaction-categories', [TransactionCategoryController::class, 'store']);
+
+    Route::get('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'show']);
+
+    Route::put('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'update']);
+
+    Route::delete('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'destroy']);
+
+    // transactions
+    Route::get('/transactions', [TransactionController::class, 'index']);
+
+    Route::post('/transactions', [TransactionController::class, 'store']);
+
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+
+    Route::put('/transactions/{transaction}', [TransactionController::class, 'update']);
+
+    Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy']);
+
+    Route::post('/transactions/{transaction}/cancel', [TransactionController::class, 'cancel']);
 
     Route::post('/accounts/{id}/rebuild-balance', [AccountController::class, 'rebuildBalance']);
     Route::get('/account-ledgers', [AccountLedgerController::class, 'index']);

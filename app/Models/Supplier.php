@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
 {
+    use BelongsToCompany;
     protected $fillable = [
+        'company_id',
         'code',
         'name',
         'phone',
@@ -32,6 +35,17 @@ class Supplier extends Model
     {
         return $this->belongsTo(Currency::class);
     }
+
+    public function debts()
+    {
+        return $this->hasMany(SupplierDebt::class);
+    }
+
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
     protected $appends = ['full_address'];
 
     public function getFullAddressAttribute()

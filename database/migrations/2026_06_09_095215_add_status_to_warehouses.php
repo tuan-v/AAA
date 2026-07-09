@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('warehouses', function (Blueprint $table) {
-            $table->enum('status', ['active', 'inactive'])->default('active')
-                ->comment("active: Đang hoạt động, inactive: Không hoạt động")
-                ->after('total_inventory_value');
-        });
+        if (!Schema::hasColumn('warehouses', 'status')) {
+            Schema::table('warehouses', function (Blueprint $table) {
+                $table->enum('status', ['active', 'inactive'])->default('active')
+                    ->comment("active: Đang hoạt động, inactive: Không hoạt động")
+                    ->after('total_inventory_value');
+            });
+        }
     }
 
     /**

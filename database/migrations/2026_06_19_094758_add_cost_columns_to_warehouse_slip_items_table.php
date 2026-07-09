@@ -11,21 +11,27 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('warehouse_slip_items', function (Blueprint $table) {
-            $table->decimal(
-                'cost_price',
-                18,
-                2
-            )->default(0)
-                ->after('company_price');
+        if (Schema::hasTable('warehouse_slip_items')) {
+            Schema::table('warehouse_slip_items', function (Blueprint $table) {
+                if (!Schema::hasColumn('warehouse_slip_items', 'cost_price')) {
+                    $table->decimal(
+                        'cost_price',
+                        18,
+                        2
+                    )->default(0)
+                        ->after('company_price');
+                }
 
-            $table->decimal(
-                'cost_amount',
-                18,
-                2
-            )->default(0)
-                ->after('cost_price');
-        });
+                if (!Schema::hasColumn('warehouse_slip_items', 'cost_amount')) {
+                    $table->decimal(
+                        'cost_amount',
+                        18,
+                        2
+                    )->default(0)
+                        ->after('cost_price');
+                }
+            });
+        }
     }
 
     /**

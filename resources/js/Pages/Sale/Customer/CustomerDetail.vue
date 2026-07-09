@@ -1,5 +1,8 @@
 <template>
-    <div class="fixed inset-0 bg-slate-100 overflow-y-auto z-50">
+    <div
+        class="fixed inset-0 bg-slate-100 overflow-y-auto z-999"
+        v-if="!loading"
+    >
         <div class="max-w-6xl mx-auto px-4 py-6 relative">
             <!-- Close -->
             <button
@@ -260,7 +263,63 @@
                             ></span>
                             Đơn hàng gần đây
                         </h2>
-                        <OrderHistoryTable :orders="recentOrders" />
+                        <div
+                            v-if="recentOrders.length"
+                            class="overflow-hidden rounded-xl border border-gray-100"
+                        >
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="text-left p-2">Mã đơn</th>
+                                        <th class="text-left p-2">Ngày</th>
+                                        <th class="text-left p-2">Tổng tiền</th>
+                                        <th class="text-left p-2">
+                                            Trạng thái
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="order in recentOrders"
+                                        :key="order.id"
+                                        class="border-t"
+                                    >
+                                        <td
+                                            class="p-2 font-medium text-gray-700"
+                                        >
+                                            {{ order.code || "-" }}
+                                        </td>
+                                        <td class="p-2">
+                                            {{
+                                                order.order_date
+                                                    ? new Date(
+                                                          order.order_date,
+                                                      ).toLocaleDateString(
+                                                          "vi-VN",
+                                                      )
+                                                    : "-"
+                                            }}
+                                        </td>
+                                        <td class="p-2">
+                                            {{
+                                                formatCurrency(
+                                                    order.total_amount || 0,
+                                                )
+                                            }}
+                                        </td>
+                                        <td class="p-2">
+                                            {{ order.status || "-" }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div
+                            v-else
+                            class="text-gray-400 text-center py-6 text-sm"
+                        >
+                            Chưa có đơn hàng nào
+                        </div>
                     </div>
                 </div>
 
@@ -279,10 +338,9 @@
                             Tổng quan công nợ
                         </h2>
 
-                        <!-- Progress bar tỷ lệ thanh toán -->
                         <div
                             class="mb-5"
-                            v-if="debtSummary.total_receivable > 0"
+                            v-if="(debtSummary.total_receivable || 0) > 0"
                         >
                             <div class="flex justify-between text-xs mb-2">
                                 <span class="text-green-500 font-medium"
@@ -306,7 +364,44 @@
                             </div>
                         </div>
 
-                        <DebtSummaryCard :debt-summary="debtSummary" />
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500"
+                                    >Công nợ đầu kỳ</span
+                                >
+                                <span class="font-medium text-gray-700">{{
+                                    formatCurrency(customer.opening_debt || 0)
+                                }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500"
+                                    >Tổng phát sinh</span
+                                >
+                                <span class="font-medium text-blue-600">{{
+                                    formatCurrency(
+                                        debtSummary.total_receivable || 0,
+                                    )
+                                }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Đã thanh toán</span>
+                                <span class="font-medium text-green-600">{{
+                                    formatCurrency(debtSummary.total_paid || 0)
+                                }}</span>
+                            </div>
+                            <div
+                                class="flex justify-between text-sm border-t pt-2 mt-2"
+                            >
+                                <span class="text-gray-700 font-semibold"
+                                    >Còn lại</span
+                                >
+                                <span class="font-semibold text-red-600">{{
+                                    formatCurrency(
+                                        debtSummary.remaining_debt || 0,
+                                    )
+                                }}</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Lịch sử thanh toán -->
@@ -321,7 +416,45 @@
                             ></span>
                             Lịch sử thanh toán
                         </h2>
-                        <div class="text-gray-400 text-center py-10 text-sm">
+                        <div v-if="debtHistory.length" class="space-y-2">
+                            <div
+                                v-for="item in debtHistory.slice(0, 8)"
+                                :key="item.id"
+                                class="rounded-xl border border-gray-100 p-3 bg-gray-50"
+                            >
+                                <div
+                                    class="flex items-center justify-between gap-2"
+                                >
+                                    <span
+                                        class="text-sm font-medium text-gray-700"
+                                        >{{ item.note || item.type }}</span
+                                    >
+                                    <span
+                                        class="text-sm font-semibold"
+                                        :class="
+                                            item.amount >= 0
+                                                ? 'text-red-600'
+                                                : 'text-green-600'
+                                        "
+                                    >
+                                        {{ formatCurrency(item.amount) }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    {{
+                                        item.created_at
+                                            ? new Date(
+                                                  item.created_at,
+                                              ).toLocaleString()
+                                            : "-"
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+                        <div
+                            v-else
+                            class="text-gray-400 text-center py-10 text-sm"
+                        >
                             Chưa có dữ liệu
                         </div>
                     </div>
@@ -334,12 +467,11 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
-// import DebtSummaryCard from "@/components/customers/DebtSummaryCard.vue";
-// import OrderHistoryTable from "@/components/customers/OrderHistoryTable.vue";
 
 const customer = ref({});
 const debtSummary = ref({});
 const recentOrders = ref([]);
+const debtHistory = ref([]);
 
 const props = defineProps({
     customerId: {
@@ -360,6 +492,7 @@ onMounted(async () => {
         customer.value = res.data.customer;
         debtSummary.value = res.data.debt_summary;
         recentOrders.value = res.data.recent_orders;
+        debtHistory.value = res.data.debt_history || [];
     } finally {
         loading.value = false;
     }

@@ -81,6 +81,21 @@ Route::prefix('/accountant')->group(function () {
     Route::get('/transactions', function () {
         return Inertia::render('Accountant/Transaction/Index');
     });
+    Route::get('/customers-debt', function () {
+        return Inertia::render('Accountant/Customer/Index');
+    });
+    Route::get('/customer-debts', function () {
+        return Inertia::render('Accountant/Customer/Index');
+    });
+    Route::get('/suppliers-debt', function () {
+        return Inertia::render('Accountant/Supplier/Index');
+    });
+    Route::get('/supplier-debts', function () {
+        return Inertia::render('Accountant/Supplier/Index');
+    });
+    Route::get('/transaction-categories', function () {
+        return Inertia::render('Accountant/TransactionCategory/Index');
+    });
     Route::get('/account-ledgers', function () {
         return Inertia::render('Accountant/AccountLedger/Index');
     });

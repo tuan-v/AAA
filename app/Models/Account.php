@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+
 
 class Account extends Model
 {
+    use BelongsToCompany;
     protected $fillable = [
         'company_id',
         'code',
@@ -60,6 +63,17 @@ class Account extends Model
     }
     public function ledgers()
     {
-        return $this->hasMany(AccountLedger::class);
+
+        return $this->hasMany(AccountLedger::class)
+            ->latest('ledger_date');
+    }
+    public function increaseBalance(float $amount): void
+    {
+        $this->increment('current_balance', $amount);
+    }
+
+    public function decreaseBalance(float $amount): void
+    {
+        $this->decrement('current_balance', $amount);
     }
 }

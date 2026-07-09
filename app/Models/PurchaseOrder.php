@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class PurchaseOrder extends Model
 {
+    use BelongsToCompany;
     protected $fillable = [
+        'company_id',
         'code',
         'supplier_id',
         'currency_id',
@@ -19,8 +22,8 @@ class PurchaseOrder extends Model
         'approved_at',
     ];
     protected $casts = [
-    'expected_received_date' => 'date:Y-m-d',
-];
+        'expected_received_date' => 'date:Y-m-d',
+    ];
     protected $appends = ['total_amount'];
     public function getTotalAmountAttribute()
     {

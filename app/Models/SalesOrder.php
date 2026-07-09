@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesOrder extends Model
 {
+    use BelongsToCompany;
     protected $fillable = [
         'code',
         'company_id',

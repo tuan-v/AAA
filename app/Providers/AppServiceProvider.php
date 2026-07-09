@@ -5,12 +5,13 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
+use App\Services\CurrencyService;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->singleton(CurrencyService::class);
     }
 
     public function boot(): void
@@ -158,28 +159,49 @@ class AppServiceProvider extends ServiceProvider
                                 'path' => '/accountant/currencies'
                             ],
                             [
-                                'icon' => '',
+                                'icon' => 'BankIcon',
                                 'name' => 'Ngân hàng',
                                 'path' => '/accountant/banks'
                             ],
                             [
-                                'icon' => '',
-                                'name' => 'Tài khoản và quỹ',
+                                'icon' => 'WalletIcon',
+                                'name' => 'Tài khoản & Quỹ',
                                 'path' => '/accountant/accounts'
                             ],
                             [
-                                'icon' => '',
+                                'icon' => 'ReceiptIcon',
+                                'name' => 'Loại giao dịch',
+                                'path' => '/accountant/transaction-categories'
+                            ],
+                            [
+                                'icon' => 'TransferIcon',
                                 'name' => 'Giao dịch',
                                 'path' => '/accountant/transactions'
                             ],
                             [
-                                'icon' => '',
+                                'icon' => 'BookIcon',
                                 'name' => 'Sổ quỹ',
                                 'path' => '/accountant/account-ledgers'
-                            ]
-                        ];
+                            ],
+                            [
+                                'icon' => 'UserIcon',
+                                'name' => 'Công nợ khách hàng',
+                                'path' => '/accountant/customer-debts'
+                            ],
+                            [
+                                'icon' => 'TruckIcon',
+                                'name' => 'Công nợ nhà cung cấp',
+                                'path' => '/accountant/supplier-debts'
+                            ],
+                            [
+                                'icon' => 'ChartIcon',
+                                'name' => 'Báo cáo',
+                                'path' => '/accountant/reports'
+                            ],
+                            ];
+                    }
                 }
-            }
+            
 
             return [
                 [

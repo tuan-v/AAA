@@ -52,6 +52,8 @@
                 :accounts="accounts"
                 :categories="categories"
                 :currencies="currencies"
+                :customers="customers"
+                :suppliers="suppliers"
                 @saved="reloadData"
                 @close="showModal = false"
             />
@@ -96,6 +98,8 @@ const transactions = ref({
 const accounts = ref([]);
 const categories = ref([]);
 const currencies = ref([]);
+const customers = ref([]);
+const suppliers = ref([]);
 
 const showModal = ref(false);
 const showDetail = ref(false);
@@ -161,13 +165,18 @@ const columns = [
         },
     },
     {
+        label: "Đơn hàng",
+        render: (row) =>
+            h("span", row.sales_order?.code || row.purchase_order?.code || "-"),
+    },
+    {
         label: "Số tiền",
         align: "text-right",
         render: (row) =>
             h(
                 "span",
                 { class: "font-semibold" },
-                Number(row.amount_base ?? 0).toLocaleString("vi-VN"),
+                `${row.currency?.symbol ?? ""} ${Number(row.amount ?? 0).toLocaleString("vi-VN")}`.trim(),
             ),
     },
     {
@@ -270,14 +279,19 @@ function reloadData() {
 
 /* INIT */
 onMounted(async () => {
-    const [accRes, catRes, curRes] = await Promise.all([
-        axios.get("/api/accountant/accounts/all"),
-        axios.get("/api/accountant/transaction-categories"),
-        axios.get("/api/accountant/currencies"),
-    ]);
+    const [accRes, catRes, curRes, customerRes, supplierRes] =
+        await Promise.all([
+            axios.get("/api/accountant/accounts/all"),
+            axios.get("/api/accountant/transaction-categories"),
+            axios.get("/api/accountant/currencies"),
+            axios.get("/api/sale/customers/all"),
+            axios.get("/api/purchase/suppliers/all"),
+        ]);
 
     accounts.value = accRes.data;
     categories.value = catRes.data.data || [];
+    customers.value = customerRes.data || [];
+    suppliers.value = supplierRes.data || [];
 
     // inject category options into filter
     filters[2].options = (catRes.data.data || []).map((c) => ({

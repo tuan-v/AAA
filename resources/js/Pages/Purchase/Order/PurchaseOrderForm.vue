@@ -310,20 +310,6 @@ function resetForm() {
 watch(
     () => props.order,
     (order) => {
-        console.log("order =", order);
-        console.log("expected_received_date =", order?.expected_received_date);
-
-        form.expected_received_date = order?.expected_received_date
-            ? String(order.expected_received_date).substring(0, 10)
-            : "";
-
-        console.log("form =", form.expected_received_date);
-    },
-    { immediate: true }
-);
-watch(
-    () => props.order,
-    (order) => {
         if (!order) {
             resetForm();
             return;

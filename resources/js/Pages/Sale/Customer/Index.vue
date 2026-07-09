@@ -205,6 +205,21 @@ const columns = [
                 Number(row.opening_debt ?? 0).toLocaleString("vi-VN"),
             ),
     },
+    {
+        label: "Công nợ hiện tại",
+        align: "text-right",
+        render: (row) =>
+            h(
+                "span",
+                {
+                    class:
+                        Number(row.current_debt ?? 0) > 0
+                            ? "text-red-600 font-semibold"
+                            : "text-green-600 font-semibold",
+                },
+                Number(row.current_debt ?? 0).toLocaleString("vi-VN"),
+            ),
+    },
 
     {
         label: "Trạng thái",

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
+    use BelongsToCompany; // <-- 2. Kích hoạt sử dụng Trait ở đây
+
     protected $fillable = [
         'company_id',
         'code',

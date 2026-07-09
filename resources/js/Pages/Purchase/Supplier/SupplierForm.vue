@@ -383,7 +383,7 @@ async function submit() {
 
 onMounted(async () => {
     const res = await axios.get("/api/accountant/currencies");
-    currencies.value = res.data || [];
+    currencies.value = res.data?.data ?? []; // lấy đúng mảng lồng bên trong
 });
 onMounted(() => {
     fetchProvinces();

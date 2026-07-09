@@ -43,7 +43,7 @@
                             placeholder="0"
                         />
                         <span class="currency-badge">
-                            {{ selectedCurrencyCode }}
+                            {{ selectedCurrencyLabel }}
                         </span>
                     </div>
                 </div>
@@ -51,7 +51,11 @@
                     <label class="label">
                         <i class="ti ti-world"></i>Tiền tệ
                     </label>
-                    <select v-model="form.currency_id" class="input">
+                    <select
+                        v-model="form.currency_id"
+                        class="input"
+                        @change="onCurrencyChange"
+                    >
                         <option value="">Chọn tiền tệ</option>
                         <option
                             v-for="c in normalizedCurrencies"
@@ -141,6 +145,102 @@
 
             <div class="divider"></div>
 
+            <!-- RELATED ORDER -->
+            <div class="section-label">Đơn hàng liên quan</div>
+            <div v-if="form.type === 'receipt'" class="grid2">
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-user"></i>Khách hàng
+                    </label>
+                    <select
+                        v-model="form.customer_id"
+                        class="input"
+                        @change="onCustomerChange"
+                    >
+                        <option value="">Chọn khách hàng</option>
+                        <option
+                            v-for="c in customers || []"
+                            :key="c.id"
+                            :value="c.id"
+                        >
+                            {{ c.code }} - {{ c.name }}
+                        </option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-file-description"></i>Đơn bán
+                    </label>
+                    <select
+                        v-model="form.sales_order_id"
+                        class="input"
+                        @change="onSalesOrderChange"
+                    >
+                        <option value="">Chọn đơn bán</option>
+                        <option
+                            v-for="o in orderOptions"
+                            :key="o.id"
+                            :value="o.id"
+                        >
+                            {{ o.label }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div v-if="form.type === 'payment'" class="grid2">
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-building-store"></i>Nhà cung cấp
+                    </label>
+                    <select
+                        v-model="form.supplier_id"
+                        class="input"
+                        @change="onSupplierChange"
+                    >
+                        <option value="">Chọn nhà cung cấp</option>
+                        <option
+                            v-for="s in suppliers || []"
+                            :key="s.id"
+                            :value="s.id"
+                        >
+                            {{ s.code }} - {{ s.name }}
+                        </option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-file-description"></i>Đơn mua
+                    </label>
+                    <select
+                        v-model="form.purchase_order_id"
+                        class="input"
+                        @change="onPurchaseOrderChange"
+                    >
+                        <option value="">Chọn đơn mua</option>
+                        <option
+                            v-for="o in orderOptions"
+                            :key="o.id"
+                            :value="o.id"
+                        >
+                            {{ o.label }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div v-if="currencyHintMessage" class="currency-hint">
+                <i class="ti ti-info-circle"></i>
+                {{ currencyHintMessage }}
+            </div>
+
+            <div v-if="currencyMismatchMessage" class="currency-warning">
+                <i class="ti ti-alert-triangle"></i>
+                {{ currencyMismatchMessage }}
+            </div>
+
+            <div class="divider"></div>
+
             <!-- CATEGORY -->
             <div class="section-label">Phân loại</div>
             <div class="field">
@@ -201,7 +301,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from "vue";
+import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
 
 const props = defineProps({
@@ -209,6 +309,8 @@ const props = defineProps({
     accounts: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     currencies: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
+    suppliers: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(["saved", "close"]);
@@ -227,10 +329,36 @@ const normalizedCurrencies = computed(() =>
         : props.currencies?.data || [],
 );
 
-const selectedCurrencyCode = computed(() => {
-    if (!form.currency_id) return "";
-    const c = normalizedCurrencies.value.find((x) => x.id === form.currency_id);
-    return c?.code ?? "";
+const selectedCurrency = computed(() => {
+    if (!form.currency_id) return null;
+    return (
+        normalizedCurrencies.value.find(
+            (x) => Number(x.id) === Number(form.currency_id),
+        ) || null
+    );
+});
+
+const selectedCurrencyLabel = computed(() => {
+    if (!selectedCurrency.value) return "";
+    const symbol =
+        selectedCurrency.value.symbol || selectedCurrency.value.code || "";
+    return `${selectedCurrency.value.code} ${symbol}`.trim();
+});
+
+const selectedOrderCurrency = ref(null);
+const orderOptions = ref([]);
+
+const currencyHintMessage = computed(() => {
+    if (!selectedOrderCurrency.value) return "";
+    return `Đơn hàng đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Giao dịch sẽ tự động khớp theo đơn hàng.`;
+});
+
+const currencyMismatchMessage = computed(() => {
+    if (!selectedOrderCurrency.value || !form.currency_id) return "";
+    if (Number(form.currency_id) !== Number(selectedOrderCurrency.value.id)) {
+        return `Đơn hàng này đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Vui lòng chọn cùng tiền tệ với đơn hàng hoặc tạo giao dịch quy đổi.`;
+    }
+    return "";
 });
 
 const form = reactive({
@@ -242,6 +370,11 @@ const form = reactive({
     category_id: "",
     from_account_id: "",
     to_account_id: "",
+    customer_id: "",
+    supplier_id: "",
+    sales_order_id: "",
+    purchase_order_id: "",
+    exchange_rate: 1,
     transaction_date: "",
     description: "",
 });
@@ -256,9 +389,16 @@ function resetForm() {
         category_id: "",
         from_account_id: "",
         to_account_id: "",
+        customer_id: "",
+        supplier_id: "",
+        sales_order_id: "",
+        purchase_order_id: "",
+        exchange_rate: 1,
         transaction_date: "",
         description: "",
     });
+    orderOptions.value = [];
+    selectedOrderCurrency.value = null;
 }
 
 watch(
@@ -277,21 +417,175 @@ watch(
             category_id: val.category_id ?? "",
             from_account_id: val.from_account_id ?? "",
             to_account_id: val.to_account_id ?? "",
+            customer_id: val.customer_id ?? "",
+            supplier_id: val.supplier_id ?? "",
+            sales_order_id: val.sales_order_id ?? "",
+            purchase_order_id: val.purchase_order_id ?? "",
+            exchange_rate: val.exchange_rate ?? 1,
             transaction_date: val.transaction_date?.slice?.(0, 10) ?? "",
             description: val.description ?? "",
         });
+
+        if (form.type === "receipt" && form.customer_id) {
+            loadOrderOptions();
+        }
+
+        if (form.type === "payment" && form.supplier_id) {
+            loadOrderOptions();
+        }
     },
     { immediate: true },
 );
 
+watch(
+    () => form.type,
+    () => {
+        form.sales_order_id = "";
+        form.purchase_order_id = "";
+        form.customer_id = "";
+        form.supplier_id = "";
+        orderOptions.value = [];
+        selectedOrderCurrency.value = null;
+    },
+);
+
+watch(
+    () => form.customer_id,
+    (value) => {
+        if (!value) {
+            orderOptions.value = [];
+            return;
+        }
+        if (form.type === "receipt") {
+            loadOrderOptions();
+        }
+    },
+);
+
+watch(
+    () => form.supplier_id,
+    (value) => {
+        if (!value) {
+            orderOptions.value = [];
+            return;
+        }
+        if (form.type === "payment") {
+            loadOrderOptions();
+        }
+    },
+);
+
+async function loadOrderOptions() {
+    try {
+        if (form.type === "receipt") {
+            if (!form.customer_id) {
+                orderOptions.value = [];
+                return;
+            }
+
+            const res = await axios.get("/api/sale/orders", {
+                params: { customer_id: form.customer_id },
+            });
+
+            orderOptions.value = (res.data.data || []).map((order) => ({
+                id: order.id,
+                label: `${order.code} • ${order.customer?.name ?? ""} • ${Number(order.total_amount ?? 0).toLocaleString("vi-VN")}`,
+                customer_id: order.customer?.id ?? form.customer_id,
+                currency: order.currency || null,
+                currency_id: order.currency?.id ?? order.currency_id ?? null,
+                exchange_rate: order.currency?.exchange_rate ?? 1,
+            }));
+            return;
+        }
+
+        if (form.type === "payment") {
+            if (!form.supplier_id) {
+                orderOptions.value = [];
+                return;
+            }
+
+            const res = await axios.get("/api/purchase/orders", {
+                params: { supplier_id: form.supplier_id },
+            });
+
+            orderOptions.value = (res.data.data || []).map((order) => ({
+                id: order.id,
+                label: `${order.code} • ${order.supplier?.name ?? ""} • ${Number(order.total_amount ?? 0).toLocaleString("vi-VN")}`,
+                supplier_id: order.supplier?.id ?? form.supplier_id,
+                currency: order.currency || null,
+                currency_id: order.currency?.id ?? order.currency_id ?? null,
+                exchange_rate: order.currency?.exchange_rate ?? 1,
+            }));
+            return;
+        }
+
+        orderOptions.value = [];
+    } catch (error) {
+        console.error("Không tải được danh sách đơn hàng liên quan", error);
+        orderOptions.value = [];
+    }
+}
+
+function onCustomerChange() {
+    form.sales_order_id = "";
+    selectedOrderCurrency.value = null;
+    loadOrderOptions();
+}
+
+function onSupplierChange() {
+    form.purchase_order_id = "";
+    selectedOrderCurrency.value = null;
+    loadOrderOptions();
+}
+
+function onCurrencyChange() {
+    const currency = selectedCurrency.value;
+    if (currency?.exchange_rate) {
+        form.exchange_rate = Number(currency.exchange_rate) || 1;
+    }
+}
+
+function onSalesOrderChange() {
+    const selected = orderOptions.value.find(
+        (order) => Number(order.id) === Number(form.sales_order_id),
+    );
+    if (selected?.customer_id) {
+        form.customer_id = selected.customer_id;
+    }
+    if (selected?.currency_id) {
+        form.currency_id = selected.currency_id;
+        form.exchange_rate = Number(selected.exchange_rate) || 1;
+        selectedOrderCurrency.value = selected.currency || null;
+    }
+}
+
+function onPurchaseOrderChange() {
+    const selected = orderOptions.value.find(
+        (order) => Number(order.id) === Number(form.purchase_order_id),
+    );
+    if (selected?.supplier_id) {
+        form.supplier_id = selected.supplier_id;
+    }
+    if (selected?.currency_id) {
+        form.currency_id = selected.currency_id;
+        form.exchange_rate = Number(selected.exchange_rate) || 1;
+        selectedOrderCurrency.value = selected.currency || null;
+    }
+}
+
 async function save() {
+    if (currencyMismatchMessage.value) {
+        window.alert(currencyMismatchMessage.value);
+        return;
+    }
+
     const payload = {
         ...form,
     };
     if (isEdit.value) {
-        await axios.put(`/api/accountant/transactions/${form.id}`, form);
+        await axios.put(`/api/accountant/transactions/${form.id}`, payload);
     } else {
-        await axios.post(`/api/accountant/transactions`, form);
+        await axios.post(`/api/accountant/transactions`, payload);
     }
     emit("saved");
 }

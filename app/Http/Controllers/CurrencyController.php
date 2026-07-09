@@ -31,6 +31,15 @@ class CurrencyController extends Controller
                 return $currency;
             });
     }
+    // public function all()
+    // {
+    //     return response()->json(
+    //         Currency::select('id', 'code', 'name', 'symbol', 'exchange_rate')
+    //             ->where('status', 'active') // hoặc 1, tùy kiểu dữ liệu cột status
+    //             ->orderBy('code')
+    //             ->get()
+    //     );
+    // }
 
     public function store(Request $request)
     {

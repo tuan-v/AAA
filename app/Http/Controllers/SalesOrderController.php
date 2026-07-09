@@ -8,6 +8,7 @@ use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Warehouse;
 use App\Services\ActivityLogService;
+use App\Services\CustomerDebtService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,32 +44,36 @@ class SalesOrderController extends Controller
             $query->where('code', 'like', "%{$request->search}%");
         }
 
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
         $orders = $query->latest()->paginate(5);
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
             foreach ($item->items as $i) {
 
-    $displayPrice = round(
-        $i->unit_price * $item->exchange_rate /
-        ($companyCurrency->exchange_rate ?: 1),
-        2
-    );
+                $displayPrice = round(
+                    $i->unit_price * $item->exchange_rate /
+                        ($companyCurrency->exchange_rate ?: 1),
+                    2
+                );
 
-    $i->unit_price = $displayPrice;
-    $i->amount = round($displayPrice * $i->quantity, 2);
-}
+                $i->unit_price = $displayPrice;
+                $i->amount = round($displayPrice * $i->quantity, 2);
+            }
 
-$subtotal = $item->items->sum('amount');
+            $subtotal = $item->items->sum('amount');
 
-$vatAmount = round(
-    ($item->vat_amount ?? 0)
-    * $item->exchange_rate
-    / ($companyCurrency->exchange_rate ?: 1),
-    2
-);
+            $vatAmount = round(
+                ($item->vat_amount ?? 0)
+                    * $item->exchange_rate
+                    / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
 
-$total = $subtotal + $vatAmount;
+            $total = $subtotal + $vatAmount;
             $totalQuantity = $item->items->sum('quantity');
 
             return [
@@ -101,28 +106,28 @@ $total = $subtotal + $vatAmount;
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($order) use ($companyCurrency) {
-           foreach ($order->items as $i) {
+            foreach ($order->items as $i) {
 
-    $displayPrice = round(
-        $i->unit_price * $order->exchange_rate /
-        ($companyCurrency->exchange_rate ?: 1),
-        2
-    );
+                $displayPrice = round(
+                    $i->unit_price * $order->exchange_rate /
+                        ($companyCurrency->exchange_rate ?: 1),
+                    2
+                );
 
-    $i->unit_price = $displayPrice;
-    $i->amount = round($displayPrice * $i->quantity, 2);
-}
+                $i->unit_price = $displayPrice;
+                $i->amount = round($displayPrice * $i->quantity, 2);
+            }
 
-$subtotal = $order->items->sum('amount');
+            $subtotal = $order->items->sum('amount');
 
-$vatAmount = round(
-    ($order->vat_amount ?? 0)
-    * $order->exchange_rate
-    / ($companyCurrency->exchange_rate ?: 1),
-    2
-);
+            $vatAmount = round(
+                ($order->vat_amount ?? 0)
+                    * $order->exchange_rate
+                    / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
 
-$total = $subtotal + $vatAmount;
+            $total = $subtotal + $vatAmount;
             $totalQuantity = $order->items->sum('quantity');
 
             return [
@@ -194,7 +199,7 @@ $total = $subtotal + $vatAmount;
         // Quy đổi giá trị phiếu xuất kho đi kèm
         foreach ($order->warehouseSlips as $slip) {
             foreach ($slip->items as $slipItem) {
-            $slipItem->amount = $slipItem->price * $slipItem->quantity;
+                $slipItem->amount = $slipItem->price * $slipItem->quantity;
             }
         }
         $order->subtotal = $order->items->sum('amount');
@@ -229,6 +234,51 @@ $total = $subtotal + $vatAmount;
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
+        ], [
+            'customer_id.required' => 'Khách hàng không được để trống',
+            'customer_id.exists' => 'Khách hàng không tồn tại',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'currency_id.exists' => 'Đơn vị tiền tệ không tồn tại',
+
+            'address_detail.string' => 'Địa chỉ phải là chuỗi',
+            'address_detail.max' => 'Địa chỉ không được vượt quá 500 ký tự',
+
+            'note.string' => 'Ghi chú phải là chuỗi',
+
+            'items.required' => 'Sản phẩm không được để trống',
+            'items.array' => 'Sản phẩm không hợp lệ',
+            'items.min' => 'Sản phẩm không được để trống',
+
+            'items.*.product_id.required' => 'Sản phẩm không được để trống',
+            'items.*.product_id.exists' => 'Sản phẩm không tồn tại',
+
+            'items.*.quantity.required' => 'Số lượng không được để trống',
+            'items.*.quantity.numeric' => 'Số lượng phải là số',
+            'items.*.quantity.min' => 'Số lượng phải lớn hơn 0',
+
+            'items.*.unit_price.required' => 'Đơn giá không được để trống',
+            'items.*.unit_price.numeric' => 'Đơn giá phải là số',
+            'items.*.unit_price.min' => 'Đơn giá phải lớn hơn hoặc bằng 0',
+
+            'items.*.vat_percent.required' => 'VAT phải là số',
+            'items.*.vat_percent.numeric' => 'VAT phải là số',
+            'items.*.vat_percent.min' => 'VAT phải lớn hơn hoặc bằng 0',
+            'items.*.vat_percent.max' => 'VAT không được vượt quá 100',
+
+            'items.*.amount.required' => 'Thành tiền không được để trống',
+            'items.*.amount.numeric' => 'Thành tiền phải là số',
+            'items.*.amount.min' => 'Thành tiền phải lớn hơn hoặc bằng 0',
+
+            'expected_delivery_date.date' => 'Ngày giao hàng phải là ngày',
+            'vat_amount.required' => 'VAT không được để trống',
+            'vat_amount.numeric' => 'VAT phải là số',
+            'vat_amount.min' => 'VAT phải lớn hơn hoặc bằng 0',
+            'subtotal.required' => 'Tổng phụ không được để trống',
+            'subtotal.numeric' => 'Tổng phụ phải là số',
+            'subtotal.min' => 'Tổng phụ phải lớn hơn hoặc bằng 0',
+            'total_amount.required' => 'Tổng tiền không được để trống',
+            'total_amount.numeric' => 'Tổng tiền phải là số',
+            'total_amount.min' => 'Tổng tiền phải lớn hơn hoặc bằng 0',
         ]);
         DB::beginTransaction();
 
@@ -331,16 +381,16 @@ $total = $subtotal + $vatAmount;
             'ward_id' => ['nullable'],
             'address_detail' => ['nullable', 'string', 'max:500'],
             'expected_delivery_date' => ['nullable', 'date'],
-            'note' => ['nullable','string'],
-            'subtotal' => ['required','numeric','min:0'],
-            'vat_amount' => ['required','numeric','min:0'],
-            'total_amount' => ['required','numeric','min:0'],
-            'items' => ['required','array','min:1'],
-            'items.*.product_id' => ['required','exists:products,id'],
-            'items.*.quantity' => ['required','numeric','min:0.01'],    
-            'items.*.unit_price' => ['required','numeric','min:0'],
-            'items.*.vat_percent' => ['nullable','numeric','min:0'],
-            'items.*.amount' => ['required','numeric','min:0'],
+            'note' => ['nullable', 'string'],
+            'subtotal' => ['required', 'numeric', 'min:0'],
+            'vat_amount' => ['required', 'numeric', 'min:0'],
+            'total_amount' => ['required', 'numeric', 'min:0'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.vat_percent' => ['nullable', 'numeric', 'min:0'],
+            'items.*.amount' => ['required', 'numeric', 'min:0'],
         ], [
             'customer_id.required' => 'Vui lòng chọn khách hàng.',
             'customer_id.exists' => 'Khách hàng không tồn tại.',
@@ -390,7 +440,7 @@ $total = $subtotal + $vatAmount;
                 'province_id'           => $validated['province_id'] ?? null,
                 'ward_id'               => $validated['ward_id'] ?? null,
                 'address_detail'        => $validated['address_detail'] ?? null,
-                'expected_delivery_date'=> $validated['expected_delivery_date'] ?? null,
+                'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
                 'note'                  => $validated['note'] ?? null,
                 'subtotal'              => $validated['subtotal'],
                 'vat_amount'            => $validated['vat_amount'],
@@ -429,7 +479,7 @@ $total = $subtotal + $vatAmount;
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
-    public function approve($id)
+    public function approve($id, CustomerDebtService $customerDebtService)
     {
         $order = SalesOrder::findOrFail($id);
 
@@ -439,11 +489,17 @@ $total = $subtotal + $vatAmount;
             ], 422);
         }
 
-        $order->update([
-            'status' => 'approved',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($order, $customerDebtService) {
+            $order->update([
+                'status'      => 'approved',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            // Tự động phát sinh công nợ phải thu KH khi đơn bán được duyệt
+            $customerDebtService->createFromSalesOrder($order);
+        });
+
         return response()->json([
             'message' => 'Duyệt đơn bán thành công'
         ]);
@@ -475,7 +531,7 @@ $total = $subtotal + $vatAmount;
             $item->exported_quantity = $exported;
             $displayPrice = round(
                 $item->unit_price * $order->exchange_rate /
-                ($companyCurrency->exchange_rate ?: 1),
+                    ($companyCurrency->exchange_rate ?: 1),
                 2
             );
 

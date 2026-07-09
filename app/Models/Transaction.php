@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Account;
 use App\Models\TransactionCategory;
 use App\Models\Currency;
+use App\Traits\BelongsToCompany;
 
 class Transaction extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [

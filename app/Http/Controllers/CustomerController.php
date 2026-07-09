@@ -36,6 +36,11 @@ class CustomerController extends Controller
             ->paginate(5)
             ->through(function ($customer) {
 
+                $debtEntries = $customer->debts()->latest()->get();
+                $totalReceivable = (float) abs($debtEntries->whereIn('type', ['sale', 'refund'])->sum('amount'));
+                $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
+                $currentDebt = (float) $customer->opening_debt + $totalReceivable - $totalPaid;
+
                 return [
                     'id' => $customer->id,
 
@@ -58,6 +63,7 @@ class CustomerController extends Controller
                     'address_detail' => $customer->address_detail,
 
                     'opening_debt' => $customer->opening_debt,
+                    'current_debt' => $currentDebt,
 
                     'status' => $customer->status,
 
@@ -258,23 +264,27 @@ class CustomerController extends Controller
             }
         ])->findOrFail($id);
 
-        // Tính toán công nợ
         $openingDebt = (float) $customer->opening_debt;
-        $totalReceivable = $customer->orders->sum('total_amount') ?? 0;   // giả sử SalesOrder có field total_amount
-        $totalPaid = $customer->payments->sum('amount') ?? 0;
+        $debtEntries = $customer->debts()->latest()->get();
 
+        $totalReceivable = (float) abs($debtEntries
+            ->whereIn('type', ['sale', 'refund'])
+            ->sum('amount'));
+        $totalPaid = (float) abs($debtEntries
+            ->where('type', 'payment')
+            ->sum('amount'));
         $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
 
         return response()->json([
             'customer' => $customer,
             'debt_summary' => [
                 'opening_debt'     => $openingDebt,
-                'total_receivable' => $totalReceivable,
-                'total_paid'       => $totalPaid,
+                'total_receivable' => abs($totalReceivable),
+                'total_paid'       => abs($totalPaid),
                 'remaining_debt'   => $remainingDebt,
             ],
             'recent_orders' => $customer->orders,
-            'debt_history'  => $customer->debts,
+            'debt_history'  => $debtEntries,
             'payments'      => $customer->payments,
         ]);
     }

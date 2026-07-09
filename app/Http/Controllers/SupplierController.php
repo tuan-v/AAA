@@ -29,6 +29,11 @@ class SupplierController extends Controller
             ->paginate(5)
             ->through(function ($supplier) {
 
+                $debtEntries = $supplier->debts()->latest()->get();
+                $totalReceivable = (float) abs($debtEntries->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
+                $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
+                $currentDebt = (float) $supplier->total_debts + $totalReceivable - $totalPaid;
+
                 return [
                     'id' => $supplier->id,
                     'code' => $supplier->code,
@@ -54,6 +59,7 @@ class SupplierController extends Controller
                     ])->filter()->implode(', '),
 
                     'total_debts' => $supplier->total_debts,
+                    'current_debt' => $currentDebt,
                     'total_advance' => $supplier->total_advance,
 
                     'status' => $supplier->status,
@@ -149,6 +155,42 @@ class SupplierController extends Controller
     public function show($id)
     {
         return Supplier::findOrFail($id);
+    }
+
+    public function detail($id)
+    {
+        $supplier = Supplier::with([
+            'currency',
+            'purchaseOrders' => function ($query) {
+                $query->latest()->limit(8);
+            },
+            'debts' => function ($query) {
+                $query->latest()->limit(10);
+            },
+        ])->findOrFail($id);
+
+        $openingDebt = (float) ($supplier->total_debts ?? 0);
+        $debtEntries = $supplier->debts()->latest()->get();
+
+        $totalReceivable = (float) abs($debtEntries
+            ->whereIn('type', ['invoice', 'adjustment'])
+            ->sum('amount'));
+        $totalPaid = (float) abs($debtEntries
+            ->where('type', 'payment')
+            ->sum('amount'));
+        $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
+
+        return response()->json([
+            'supplier' => $supplier,
+            'debt_summary' => [
+                'opening_debt'     => $openingDebt,
+                'total_receivable' => abs($totalReceivable),
+                'total_paid'       => abs($totalPaid),
+                'remaining_debt'   => $remainingDebt,
+            ],
+            'recent_orders' => $supplier->purchaseOrders,
+            'debt_history'  => $debtEntries,
+        ]);
     }
 
     public function update(Request $request, $id)

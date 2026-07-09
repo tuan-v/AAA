@@ -75,6 +75,103 @@
             />
         </template>
     </Modal>
+
+    <Modal v-if="showDebtModal" @close="showDebtModal = false" size="large">
+        <template #body>
+            <div class="p-4 bg-white rounded-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">
+                            Công nợ nhà cung cấp
+                        </h3>
+                        <p class="text-sm text-gray-500">
+                            {{ selectedSupplier?.name }}
+                        </p>
+                    </div>
+                    <button
+                        class="text-gray-400 hover:text-red-500"
+                        @click="showDebtModal = false"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div v-if="debtLoading" class="text-sm text-gray-500">
+                    Đang tải...
+                </div>
+                <div v-else>
+                    <div class="grid md:grid-cols-3 gap-3 mb-4">
+                        <div class="rounded-xl border p-3 bg-red-50">
+                            <p class="text-xs uppercase text-red-500">
+                                Còn phải trả
+                            </p>
+                            <p class="text-xl font-semibold text-red-600">
+                                {{ formatDebt(debtSummary.remaining_debt) }}
+                            </p>
+                        </div>
+                        <div class="rounded-xl border p-3 bg-blue-50">
+                            <p class="text-xs uppercase text-blue-500">
+                                Tổng phát sinh
+                            </p>
+                            <p class="text-xl font-semibold text-blue-600">
+                                {{ formatDebt(debtSummary.total_receivable) }}
+                            </p>
+                        </div>
+                        <div class="rounded-xl border p-3 bg-green-50">
+                            <p class="text-xs uppercase text-green-500">
+                                Đã thanh toán
+                            </p>
+                            <p class="text-xl font-semibold text-green-600">
+                                {{ formatDebt(debtSummary.total_paid) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="border rounded-xl overflow-hidden">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left p-2">Thời gian</th>
+                                    <th class="text-left p-2">Loại</th>
+                                    <th class="text-left p-2">Số tiền</th>
+                                    <th class="text-left p-2">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="item in debtHistory"
+                                    :key="item.id"
+                                    class="border-t"
+                                >
+                                    <td class="p-2">
+                                        {{
+                                            item.created_at
+                                                ? new Date(
+                                                      item.created_at,
+                                                  ).toLocaleString()
+                                                : "-"
+                                        }}
+                                    </td>
+                                    <td class="p-2">{{ item.type }}</td>
+                                    <td
+                                        class="p-2"
+                                        :class="
+                                            item.amount >= 0
+                                                ? 'text-red-600'
+                                                : 'text-green-600'
+                                        "
+                                    >
+                                        {{ formatDebt(item.amount) }}
+                                    </td>
+                                    <td class="p-2">{{ item.note || "-" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -135,7 +232,11 @@ const suppliers = ref({
 const currencies = ref([]);
 
 const showModal = ref(false);
+const showDebtModal = ref(false);
 const selectedSupplier = ref(null);
+const debtSummary = ref({});
+const debtHistory = ref([]);
+const debtLoading = ref(false);
 
 /* ================= COLUMNS ================= */
 const columns = [
@@ -154,9 +255,23 @@ const columns = [
             ),
     },
     {
-        label: "Công nợ",
+        label: "Công nợ đầu kỳ",
         render: (row) =>
             h("span", {}, Number(row.total_debts ?? 0).toLocaleString("vi-VN")),
+    },
+    {
+        label: "Công nợ hiện tại",
+        render: (row) =>
+            h(
+                "span",
+                {
+                    class:
+                        Number(row.current_debt ?? 0) > 0
+                            ? "text-red-600 font-semibold"
+                            : "text-green-600 font-semibold",
+                },
+                Number(row.current_debt ?? 0).toLocaleString("vi-VN"),
+            ),
     },
     {
         label: "Tạm ứng",
@@ -192,9 +307,14 @@ const actions = [
         onClick: (item) => openEdit(item),
     },
     {
-        icon: Unlock, // FIX: KHÔNG dùng function để tránh lỗi '0'
+        icon: Unlock,
         type: "status",
         onClick: (item) => toggleStatus(item),
+    },
+    {
+        icon: EditButtonIcon,
+        type: "view",
+        onClick: (item) => openDebtDetail(item),
     },
 ];
 
@@ -207,6 +327,25 @@ function openCreate() {
 function openEdit(item) {
     selectedSupplier.value = item;
     showModal.value = true;
+}
+
+async function openDebtDetail(item) {
+    selectedSupplier.value = item;
+    showDebtModal.value = true;
+    debtLoading.value = true;
+    try {
+        const res = await axios.get(
+            `/api/purchase/suppliers/${item.id}/detail`,
+        );
+        debtSummary.value = res.data.debt_summary || {};
+        debtHistory.value = res.data.debt_history || [];
+    } finally {
+        debtLoading.value = false;
+    }
+}
+
+function formatDebt(value) {
+    return Number(value ?? 0).toLocaleString("vi-VN");
 }
 
 function handlePageChange(page) {

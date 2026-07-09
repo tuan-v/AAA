@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\BelongsToCompany;
 
 class WarehouseSlip extends Model
 {
+    use BelongsToCompany;
     protected $fillable = [
+        'company_id',
         'code',
         'warehouse_id',
         'purchase_order_id',

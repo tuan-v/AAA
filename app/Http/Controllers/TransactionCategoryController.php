@@ -2,101 +2,107 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
+use App\Http\Requests\TransactionCategory\StoreTransactionCategoryRequest;
+use App\Http\Requests\TransactionCategory\UpdateTransactionCategoryRequest;
+use App\Http\Resources\TransactionCategoryResource;
 use App\Models\TransactionCategory;
-use App\Models\Transaction;
-use Illuminate\Http\Request;
+use App\Services\TransactionCategoryService;
+use Illuminate\Http\JsonResponse;
 
 class TransactionCategoryController extends Controller
 {
-    // 📌 LIST
-    public function index(Request $request)
+    public function __construct(
+        protected TransactionCategoryService $service
+    ) {}
+
+    /**
+     * Danh sách.
+     */
+    public function index(): JsonResponse
     {
-        $query = TransactionCategory::query();
-
-        if ($request->type) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->keyword) {
-            $query->where('name', 'like', "%{$request->keyword}%");
-        }
-
-        return $query->latest()->paginate(20);
-    }
-
-    // 📌 STORE
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required',
-            'type' => 'required|in:income,expense,transfer',
-        ]);
-
-        return TransactionCategory::create([
-            'company_id' => auth()->user()->company_id,
-            'code' => $this->generateCode(),
-            'name' => $request->name,
-            'type' => $request->type,
-            'description' => $request->description,
-            'is_active' => true,
-        ]);
-    }
-
-    // 📌 SHOW
-    public function show($id)
-    {
-        return TransactionCategory::findOrFail($id);
-    }
-
-    // 📌 UPDATE
-    public function update(Request $request, $id)
-    {
-        $category = TransactionCategory::findOrFail($id);
-
-        $category->update($request->only([
-            'name',
-            'type',
-            'description',
-            'is_active'
-        ]));
-
-        return $category;
-    }
-
-    // 📌 DELETE (THEO NGHIỆP VỤ)
-    public function destroy($id)
-    {
-        $category = TransactionCategory::findOrFail($id);
-
-        $used = Transaction::where('category_id', $id)->exists();
-
-        if ($used) {
-            return response()->json([
-                'message' => 'Không thể xóa vì đã có giao dịch sử dụng'
-            ], 422);
-        }
-
-        $category->delete();
+        $categories = $this->service->paginate(request()->all());
 
         return response()->json([
-            'message' => 'Deleted'
+            'success' => true,
+            'message' => 'Lấy danh sách loại giao dịch thành công.',
+            'data' => TransactionCategoryResource::collection($categories),
+            'meta' => [
+                'current_page' => $categories->currentPage(),
+                'last_page' => $categories->lastPage(),
+                'per_page' => $categories->perPage(),
+                'total' => $categories->total(),
+            ],
         ]);
     }
 
-    // 📌 TOGGLE STATUS
-    public function toggleStatus($id)
+    /**
+     * Danh sách đang hoạt động.
+     */
+    public function active(): JsonResponse
     {
-        $category = TransactionCategory::findOrFail($id);
-
-        $category->is_active = !$category->is_active;
-        $category->save();
-
-        return $category;
+        return response()->json([
+            'success' => true,
+            'data' => TransactionCategoryResource::collection(
+                $this->service->getActive()
+            ),
+        ]);
     }
 
-    // helper
-    private function generateCode()
+    /**
+     * Chi tiết.
+     */
+    public function show(TransactionCategory $transactionCategory): JsonResponse
     {
-        return 'TC' . now()->format('YmdHis');
+        return response()->json([
+            'success' => true,
+            'data' => new TransactionCategoryResource($transactionCategory),
+        ]);
+    }
+
+    /**
+     * Tạo mới.
+     */
+    public function store(StoreTransactionCategoryRequest $request): JsonResponse
+    {
+        $category = $this->service->create($request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tạo loại giao dịch thành công.',
+            'data' => new TransactionCategoryResource($category),
+        ], 201);
+    }
+
+    /**
+     * Cập nhật.
+     */
+    public function update(
+        UpdateTransactionCategoryRequest $request,
+        TransactionCategory $transactionCategory
+    ): JsonResponse {
+        $category = $this->service->update(
+            $transactionCategory,
+            $request->validated()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật loại giao dịch thành công.',
+            'data' => new TransactionCategoryResource($category),
+        ]);
+    }
+
+    /**
+     * Xóa.
+     */
+    public function destroy(TransactionCategory $transactionCategory): JsonResponse
+    {
+        $this->service->delete($transactionCategory);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Xóa loại giao dịch thành công.',
+        ]);
     }
 }

@@ -24,7 +24,9 @@ class TransactionController extends Controller
             'fromAccount',
             'toAccount',
             'category',
-            'currency'
+            'currency',
+            'salesOrder',
+            'purchaseOrder'
         ]);
 
         // 🔥 FILTER theo yêu cầu nghiệp vụ
@@ -67,7 +69,26 @@ class TransactionController extends Controller
 
             'from_account_id' => 'nullable|exists:accounts,id',
             'to_account_id' => 'nullable|exists:accounts,id',
+            'customer_id' => 'nullable|exists:customers,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'sales_order_id' => 'nullable|exists:sales_orders,id',
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
             'exchange_rate' => 'nullable|numeric',
+        ],[
+            'type.required' => 'Loại giao dịch không được để trống',
+            'type.in' => 'Loại giao dịch không hợp lệ',
+            'amount.required' => 'Số tiền không được để trống',
+            'amount.numeric' => 'Số tiền phải là số',
+            'amount.min' => 'Số tiền phải lớn hơn hoặc bằng 0',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'category_id.required' => 'Danh mục không được để trống',
+            'from_account_id.exists' => 'Tài khoản không tồn tại',
+            'to_account_id.exists' => 'Tài khoản không tồn tại',
+            'customer_id.exists' => 'Khách hàng không tồn tại',
+            'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
+            'sales_order_id.exists' => 'Đơn hàng không tồn tại',
+            'purchase_order_id.exists' => 'Đơn hàng không tồn tại',
+            'exchange_rate.numeric' => 'Tỷ giá phải là số',
         ]);
 
         $transaction = $this->service->create([
@@ -92,6 +113,8 @@ class TransactionController extends Controller
             'toAccount',
             'currency',
             'category',
+            'salesOrder',
+            'purchaseOrder',
         ]);
     }
 }

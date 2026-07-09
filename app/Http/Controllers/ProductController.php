@@ -5,25 +5,23 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Product;
 use Illuminate\Http\Request;
-
+use App\Services\CurrencyService;   
 class ProductController extends Controller
 {
+    public function __construct(
+        protected CurrencyService $currencyService
+    ) {}
     // Danh sách
     public function index(Request $request)
     {
-        $companyCurrency = auth()
-            ->user()
-            ->company
-            ->currencies()
-            ->first();
-
+        $company = auth()->user()->company;
+        $currency = $this->currencyService->getCompanyCurrency($company);
         $query = Product::with([
             'category',
             'unit',
             'stocks',
             'stocks.warehouse'
-        ]);
-        $query = Product::query()
+        ])
             ->select('products.*')
             ->leftJoin('warehouse_product_stocks as wps', 'products.id', '=', 'wps.product_id')
             ->selectRaw('COALESCE(SUM(wps.quantity), 0) as total_quantity')
@@ -71,7 +69,7 @@ class ProductController extends Controller
         $products = $query
             ->orderByDesc('id')
             ->paginate(5)
-            ->through(function ($p) use ($companyCurrency) {
+            ->through(function ($p) use ($currency) {
 
                 return [
                     'id' => $p->id,
@@ -91,10 +89,15 @@ class ProductController extends Controller
                             'quantity' => $s->quantity,
                         ];
                     }),
-                    'purchase_price' => $p->purchase_price,
-                    'sell_price' => $p->sell_price,
+                    'purchase_price' => $this->currencyService
+                        ->convertByCurrency($p->purchase_price, $currency),
 
-                    'currency_symbol' => $companyCurrency?->symbol,
+                    'sell_price' => $this->currencyService
+                        ->convertByCurrency($p->sell_price, $currency),
+
+                    'currency_symbol' => $currency?->symbol,
+
+                    'currency_code' => $currency?->code,
 
                     'image' => $p->image
                         ? asset('storage/' . $p->image)

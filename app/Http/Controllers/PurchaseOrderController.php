@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\WarehouseProductStock;
 use App\Services\ActivityLogService;
+use App\Services\SupplierDebtService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,18 +45,22 @@ class PurchaseOrderController extends Controller
             $query->where('code', 'like', "%{$request->search}%");
         }
 
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
         $orders = $query->latest()->paginate(5);
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
             foreach ($item->items as $i) {
                 $displayPrice =
-     $i->price
-    * $item->exchange_rate
-    / $companyCurrency->exchange_rate;
+                    $i->price
+                    * $item->exchange_rate
+                    / $companyCurrency->exchange_rate;
 
-$i->price = round($displayPrice, 2);
-$i->amount = round($displayPrice * $i->quantity, 2);
+                $i->price = round($displayPrice, 2);
+                $i->amount = round($displayPrice * $i->quantity, 2);
             }
             $total = $item->items->sum('amount');
 
@@ -68,15 +73,15 @@ $i->amount = round($displayPrice * $i->quantity, 2);
                 'items' => $item->items,
                 'total_amount' => round($total, 2),
                 'expected_received_date' => $item->expected_received_date
-    ? $item->expected_received_date->format('d/m/Y')
-    : null,
+                    ? $item->expected_received_date->format('d/m/Y')
+                    : null,
                 'exchange_rate' => $item->exchange_rate,
             ];
         });
 
         return response()->json($orders);
     }
-    public function warehouseIndex(Request $request)    
+    public function warehouseIndex(Request $request)
     {
         $query = PurchaseOrder::with([
             'supplier',
@@ -95,6 +100,10 @@ $i->amount = round($displayPrice * $i->quantity, 2);
             $query->where('code', 'like', "%{$request->search}%");
         }
 
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
         $orders = $query->latest()->paginate(5);
         $companyCurrency = $this->getCompanyCurrency();
 
@@ -108,7 +117,7 @@ $i->amount = round($displayPrice * $i->quantity, 2);
                 $i->price = round($displayPrice, 2);
                 $i->amount = round($displayPrice * $i->quantity, 2);
             }
-            $total = $item->items->sum('amount');   
+            $total = $item->items->sum('amount');
 
             return [
                 'id' => $item->id,
@@ -119,8 +128,8 @@ $i->amount = round($displayPrice * $i->quantity, 2);
                 'items' => $item->items,
                 'total_amount' => round($total, 2),
                 'expected_received_date' => $item->expected_received_date
-                        ? $item->expected_received_date->format('d/m/Y')
-                         : null,
+                    ? $item->expected_received_date->format('d/m/Y')
+                    : null,
             ];
         });
 
@@ -142,33 +151,33 @@ $i->amount = round($displayPrice * $i->quantity, 2);
 
         foreach ($order->items as $item) {
 
-    $received = 0;
+            $received = 0;
 
-    foreach ($order->warehouseSlips as $slip) {
+            foreach ($order->warehouseSlips as $slip) {
 
-        if ($slip->status !== 'approved') {
-            continue;
-        }
+                if ($slip->status !== 'approved') {
+                    continue;
+                }
 
-        foreach ($slip->items as $slipItem) {
+                foreach ($slip->items as $slipItem) {
 
-            if ($slipItem->product_id == $item->product_id) {
-                $received += $slipItem->quantity;
+                    if ($slipItem->product_id == $item->product_id) {
+                        $received += $slipItem->quantity;
+                    }
+                }
             }
+
+            $item->received_quantity = $received;
+
+            // Giữ nguyên giá NCC
+            $item->amount = $item->price * $item->quantity;
         }
-    }
 
-    $item->received_quantity = $received;
+        $order->total_amount = $order->items->sum('amount');
 
-    // Giữ nguyên giá NCC
-    $item->amount = $item->price * $item->quantity;
-}
-
-$order->total_amount = $order->items->sum('amount');
-
-// Giữ nguyên currency của đơn hàng
-// KHÔNG setRelation thành companyCurrency
-return response()->json($order);
+        // Giữ nguyên currency của đơn hàng
+        // KHÔNG setRelation thành companyCurrency
+        return response()->json($order);
     }
     // =========================
     // STORE (FIXED)
@@ -182,6 +191,19 @@ return response()->json($order);
             'items.*.product_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.price' => 'required|numeric|min:0',
+        ], [
+            'supplier_id.required' => 'Nhà cung cấp không được để trống',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'items.required' => 'Sản phẩm không được để trống',
+            'items.array' => 'Sản phẩm không hợp lệ',
+            'items.min' => 'Sản phẩm không được để trống',
+            'items.*.product_id.required' => 'Sản phẩm không được để trống',
+            'items.*.quantity.required' => 'Số lượng không được để trống',
+            'items.*.quantity.numeric' => 'Số lượng phải là số',
+            'items.*.quantity.min' => 'Số lượng phải lớn hơn 0',
+            'items.*.price.required' => 'Giá không được để trống',
+            'items.*.price.numeric' => 'Giá phải là số',
+            'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
         ]);
 
         try {
@@ -271,7 +293,25 @@ return response()->json($order);
     public function update(Request $request, $id)
     {
         $request->validate([
+            'supplier_id' => 'required',
+            'currency_id' => 'required',
             'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+        ], [
+            'supplier_id.required' => 'Nhà cung cấp không được để trống',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'items.required' => 'Sản phẩm không được để trống',
+            'items.array' => 'Sản phẩm không hợp lệ',
+            'items.min' => 'Sản phẩm không được để trống',
+            'items.*.product_id.required' => 'Sản phẩm không được để trống',
+            'items.*.quantity.required' => 'Số lượng không được để trống',
+            'items.*.quantity.numeric' => 'Số lượng phải là số',
+            'items.*.quantity.min' => 'Số lượng phải lớn hơn 0',
+            'items.*.price.required' => 'Giá không được để trống',
+            'items.*.price.numeric' => 'Giá phải là số',
+            'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
         ]);
 
         DB::transaction(function () use ($request, $id) {
@@ -344,9 +384,9 @@ return response()->json($order);
     // =========================
     // APPROVE (WAREHOUSE UPDATE)
     // =========================
-    public function approve($id)
+    public function approve($id, SupplierDebtService $supplierDebtService)
     {
-        $order = PurchaseOrder::findOrFail($id);
+        $order = PurchaseOrder::with('items')->findOrFail($id);
 
         if ($order->status !== 'pending') {
             return response()->json([
@@ -354,11 +394,16 @@ return response()->json($order);
             ], 422);
         }
 
-        $order->update([
-            'status' => 'approved',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($order, $supplierDebtService) {
+            $order->update([
+                'status'      => 'approved',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            // Tự động phát sinh công nợ phải trả NCC khi đơn mua được duyệt
+            $supplierDebtService->createFromPurchaseOrder($order);
+        });
 
         return response()->json([
             'message' => 'Duyệt đơn thành công'
