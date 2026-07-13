@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
@@ -61,5 +62,16 @@ class PurchaseOrder extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'PO');
+            }
+        });
     }
 }

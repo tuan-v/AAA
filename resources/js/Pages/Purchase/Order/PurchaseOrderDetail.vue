@@ -253,8 +253,8 @@ const getStatusText = (status) => {
     const map = {
         pending: "Chờ xử lý",
         approved: "Đã duyệt",
-        partial: "Nhập một phần",
-        completed: "Hoàn thành",
+        partial: "Đã duyệt",
+        completed: "Đã duyệt",
         cancelled: "Đã hủy",
     };
 
@@ -265,8 +265,8 @@ const statusBadgeClass = (status) => {
     const classes = {
         pending: "bg-yellow-100 text-yellow-700",
         approved: "bg-blue-100 text-blue-700",
-        partial: "bg-purple-100 text-purple-700",
-        completed: "bg-green-100 text-green-700",
+        partial: "bg-blue-100 text-blue-700",
+        completed: "bg-blue-100 text-blue-700",
         cancelled: "bg-red-100 text-red-700",
     };
 

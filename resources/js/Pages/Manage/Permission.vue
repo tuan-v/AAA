@@ -30,6 +30,7 @@
             :currentPage="permissions.current_page"
             :doingShow="permissions.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
         <Modal v-if="showModal" @close="showModal = false">
             <template #body>
@@ -54,11 +55,15 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import PermissionForm from "./PermissionForm.vue";
 import { Head, usePage } from "@inertiajs/vue3";
 import DeleteIcon from "../../icons/DeleteIcon.vue";
-
+const page = ref(1);
+const perPage = ref(10);
 const handlePageChange = (page) => {
     getData(page);
 };
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const permissions = ref({
     data: [],
     total: 0,
@@ -111,7 +116,12 @@ const reloadData = () => {
 };
 const getData = async (page = 1) => {
     try {
-        const res = await axios.get(`/api/permissions?page=${page}`);
+        const res = await axios.get("/api/permissions", {
+            params: {
+                page,
+                per_page: perPage.value,
+            },
+        });
 
         permissions.value = res.data;
     } catch (error) {
@@ -123,6 +133,10 @@ async function deletePermission(id) {
     await axios.delete(`/api/permissions/${id}`);
 
     reloadData();
+}
+function openEdit(permission) {
+    selectedPermission.value = permission;
+    showModal.value = true;
 }
 
 onMounted(() => {

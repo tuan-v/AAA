@@ -37,6 +37,7 @@
             :currentPage="ledgers.current_page"
             :doingShow="ledgers.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 </template>
@@ -53,7 +54,7 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 
 /* ================= STATE ================= */
-
+const perPage = ref(10);
 const ledgers = ref({
     data: [],
     total: 0,
@@ -173,7 +174,7 @@ const columns = [
     },
 
     {
-        label: "Diễn giải",
+        label: "Mô tả",
         align: "text-left",
         render: (row) => h("span", {}, row.description ?? "-"),
     },
@@ -210,6 +211,7 @@ const fetchData = async (page = 1) => {
     const res = await axios.get("/api/accountant/account-ledgers", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
@@ -224,7 +226,10 @@ const fetchData = async (page = 1) => {
         last_page: data.last_page ?? 1,
     };
 };
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const getData = debounce((page = 1) => {
     fetchData(page);
 }, 300);

@@ -76,6 +76,7 @@
             :currentPage="slips.current_page"
             :doingShow="slips.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -124,6 +125,7 @@ const showModal = ref(false);
 const selectedSlip = ref(null);
 const products = ref([]);
 const warehouses = ref([]);
+const perPage = ref(10);
 const slips = ref({
     data: [],
     total: 0,
@@ -158,7 +160,7 @@ const columns = [
         render: (row) => h("span", {}, row.created_by?.name ?? "-"),
     },
     {
-        label: "Người duyệt",
+        label: "Người duyệt/từ chối",
         render: (row) => h("span", {}, row.approved_by?.name ?? "-"),
     },
     {
@@ -182,7 +184,7 @@ const columns = [
         align: "text-right",
     },
     {
-        label: "Ngày duyệt",
+        label: "Ngày duyệt/từ chối",
         align: "text-right",
         render: (row) => h("span", {}, row.approved_at ?? "-"),
     },
@@ -223,9 +225,12 @@ const actions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         visible: (row) => row.status === "pending",
-        disabled: (row) => row.status === "approved",
+        disabled: (row) =>
+            row.status === "approved" || row.status === "rejected",
         class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+            row.status === "approved" || row.status === "rejected"
+                ? "opacity-40 cursor-not-allowed"
+                : "",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -236,7 +241,6 @@ const actions = [
                     theme: "colored",
                 });
                 await getData(slips.value.current_page);
-                // await loadSlips();
             } catch (e) {
                 console.error(e);
 
@@ -253,9 +257,12 @@ const actions = [
         title: "Từ chối",
         icon: DeleteIcon,
         visible: (row) => row.status === "pending",
-        disabled: (row) => row.status === "approved",
+        disabled: (row) =>
+            row.status === "rejected" || row.status === "approved",
         class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+            row.status === "rejected" || row.status === "approved"
+                ? "opacity-40 cursor-not-allowed"
+                : "",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -266,7 +273,7 @@ const actions = [
                     theme: "colored",
                 });
 
-                await loadSlips();
+                await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
 
@@ -310,6 +317,7 @@ const fetchData = async (page = 1) => {
     const res = await axios.get(url, {
         params: {
             page,
+            per_page: perPage.value,
             search: search.value,
             warehouse_id: warehouseFilter.value,
             context: "approved_only",
@@ -318,10 +326,13 @@ const fetchData = async (page = 1) => {
 
     slips.value = res.data;
 };
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 watch(activeTab, () => {
     getData(1);
 });
-watch(search, () => getData(1));
 watch(warehouseFilter, () => getData(1));
 function goToExport() {
     window.location.href = "/warehouse/export";

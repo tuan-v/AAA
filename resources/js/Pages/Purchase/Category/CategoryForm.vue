@@ -102,6 +102,8 @@
 import axios from "axios";
 import { watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 
 const props = defineProps({
     category: {
@@ -141,20 +143,27 @@ async function save() {
     try {
         form.clearErrors();
 
+        let res;
+
         if (form.id) {
-            await axios.put(
+            res = await axios.put(
                 `/api/warehouse/categories/${form.id}`,
                 form.data(),
             );
-        } else {
-            await axios.post("/api/warehouse/categories", form.data());
-        }
 
-        emit("saved");
+            toast.success("Cập nhật danh mục thành công");
+        } else {
+            res = await axios.post("/api/warehouse/categories", form.data());
+
+            toast.success("Thêm danh mục thành công");
+        }
+        emit("saved", res.data); // hoặc res.data nếu API trả trực tiếp object
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
             form.setError(error.response.data.errors);
+        } else {
+            toast.error("Có lỗi xảy ra");
         }
     }
 }

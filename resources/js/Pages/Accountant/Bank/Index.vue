@@ -48,6 +48,7 @@
             :currentPage="banks.current_page"
             :doingShow="banks.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -79,7 +80,7 @@ import BankForm from "./BankForm.vue";
 
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-
+const perPage = ref(10);
 const banks = ref({
     data: [],
     total: 0,
@@ -209,13 +210,17 @@ async function fetchData(page = 1) {
     const res = await axios.get("/api/accountant/banks", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
 
     banks.value = res.data;
 }
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 function getData(page = 1) {
     fetchData(page);
 }

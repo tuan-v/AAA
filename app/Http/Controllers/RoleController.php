@@ -10,11 +10,12 @@ use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = min((int) $request->input('per_page', 10), 100);
         return Role::with('permissions')
             ->orderBy('id', 'desc')
-            ->paginate(5);
+            ->paginate($perPage);
     }
 
     public function permissions()

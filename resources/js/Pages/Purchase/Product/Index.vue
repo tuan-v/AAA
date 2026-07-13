@@ -91,6 +91,7 @@
             :currentPage="products.current_page"
             :doingShow="products.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -157,12 +158,13 @@ const can = (permission) => {
 const currentFilters = ref({});
 const showModal = ref(false);
 const selectedProduct = ref(null);
-
+const perPage = ref(10);
 const products = ref({
     data: [],
     total: 0,
     per_page: 10,
     current_page: 1,
+    per_page: 10,
     last_page: 1,
 });
 
@@ -282,6 +284,7 @@ const fetchData = async (page = 1, params = {}) => {
         const response = await axios.get(`/api/warehouse/products`, {
             params: {
                 page,
+                per_page: perPage.value,
                 search: params.search || "",
                 warehouse_id: params.warehouse_id || "",
                 stock: params.stock || "all",
@@ -293,6 +296,7 @@ const fetchData = async (page = 1, params = {}) => {
         console.error(error);
     }
 };
+
 const getData = (page = 1, params = {}) => {
     fetchData(page, params);
 };
@@ -325,10 +329,14 @@ function openEdit(product) {
 }
 
 const handlePageChange = (page) => {
-    getData(page, currentFilters.value);
+    fetchData(page, currentFilters.value);
+};
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    fetchData(1, currentFilters.value);
 };
 const reloadData = () => {
-    getData(products.value.current_page);
+    fetchData(products.value.current_page, currentFilters.value);
     showModal.value = false;
 };
 async function deleteProduct(id) {
@@ -339,7 +347,7 @@ async function deleteProduct(id) {
     try {
         await axios.delete(`/api/warehouse/products/${id}`);
 
-        getData(products.value.current_page);
+        fetchData(products.value.current_page, currentFilters.value);
     } catch (error) {
         console.error(error);
         alert("Xóa sản phẩm thất bại");

@@ -17,8 +17,13 @@
                 <!-- MÃ PHIẾU NHẬP (LẤY TỪ BACKEND SAU KHI LOAD / HOẶC PREVIEW) -->
                 <div class="mt-2 text-sm text-gray-600">
                     Mã phiếu nhập:
-                    <span class="font-semibold text-black">
-                        {{ slipCode || "Đang tạo..." }}
+
+                    <span v-if="createdSlip" class="font-bold text-blue-600">
+                        {{ createdSlip.code }}
+                    </span>
+
+                    <span v-else class="text-gray-500">
+                        Được tạo tự động sau khi lưu
                     </span>
                 </div>
             </div>
@@ -238,6 +243,7 @@ const slipActions = [
                 });
 
                 await loadSlips();
+                await loadOrder(); // Cập nhật lại số lượng nhập trong đơn hàng
             } catch (e) {
                 console.error(e);
 
@@ -268,6 +274,7 @@ const slipActions = [
                 });
 
                 await loadSlips();
+                await loadOrder(); // Cập nhật lại số lượng nhập trong đơn hàng
             } catch (e) {
                 console.error(e);
 
@@ -434,21 +441,11 @@ async function submit() {
 
         const res = await axios.post("/api/warehouse/slips", payload);
 
-        toast.success("Tạo phiếu nhập kho thành công!");
+        toast.success(`Tạo phiếu ${res.data.slip.code} thành công!`);
+        // SỬA TẠI ĐÂY: Gọi lại API load lại thông tin đơn hàng để đồng bộ số lượng chuẩn xác từ DB
+        await loadOrder();
 
-        // Cập nhật local
-        validItems.forEach((submitted) => {
-            const item = items.value.find(
-                (i) => i.product_id === submitted.product_id,
-            );
-            if (item) {
-                item.received_quantity =
-                    (item.received_quantity || 0) +
-                    Number(submitted.import_quantity);
-                item.import_quantity = 0;
-            }
-        });
-
+        // Cập nhật lại danh sách phiếu hiển thị ở bảng phía dưới
         await loadSlips();
     } catch (error) {
         console.error("Lỗi tạo phiếu:", error.response?.data);

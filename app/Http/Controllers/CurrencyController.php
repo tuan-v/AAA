@@ -22,10 +22,10 @@ class CurrencyController extends Controller
         if ($request->filled('status')) {
             $query->where('is_active', $request->status);
         }
-
+        $perPage = min((int) $request->input('per_page', 10), 100);
         return $query
             ->orderByDesc('id')
-            ->paginate(10)
+            ->paginate($perPage)
             ->through(function ($currency) {
                 $currency->is_used = $currency->isUsed();
                 return $currency;

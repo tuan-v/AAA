@@ -38,23 +38,39 @@ class UserController extends Controller
     // Thêm user
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:50|unique:users,username',
-            'email' => 'required|email|max:255|unique:users,email',
-            'phone' => 'nullable|regex:/^(0)[0-9]{9,10}$/',
-            'password' => 'required|string',
-            'status' => [
-                'required',
-                Rule::in([
-                    User::STATUS_ACTIVE,
-                    User::STATUS_INACTIVE,
-                    User::STATUS_BLOCKED,
-                    User::STATUS_PENDING,
-                ])
+        $validated = $request->validate(
+            [
+                'name' => 'required|string|max:255',
+                'username' => 'required|string|max:50|unique:users,username',
+                'email' => 'required|email|max:255|unique:users,email',
+                'phone' => 'required|regex:/^(0)[0-9]{9,10}$/',
+                'password' => 'required|string',
+                'status' => [
+                    'required',
+                    Rule::in([
+                        User::STATUS_ACTIVE,
+                        User::STATUS_INACTIVE,
+                        User::STATUS_BLOCKED,
+                        User::STATUS_PENDING,
+                    ])
+                ],
+                'role' => 'required|exists:roles,name'
             ],
-            'role' => 'required|exists:roles,name'
-        ]);
+            [
+                'name.required' => 'Vui lòng nhập tên',
+                'username.required' => 'Vui lòng nhập tên đăng nhập',
+                'username.unique' => 'Username đã tồn tại',
+                'email.required' => 'Vui lòng nhập email',
+                'email.unique' => 'Email đã tồn tại',
+                'phone.required' => 'Vui lòng nhập số điện thoại',
+                'phone.regex' => 'Số điện thoại không hợp lệ',
+                'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự',
+                'password.confirmed' => 'Xác nhận mật khẩu không khớp',
+                'password.required' => 'Vui lòng nhập mật khẩu',
+                'role.required' => 'Vui lòng chọn vai trò',
+                'role.exists' => 'Vai trò không tồn tại'
+            ]
+        );
 
         // ❗ CHECK TRÙNG TRONG COMPANY (PHẢI ĐẶT TRƯỚC KHI CREATE)
         $exists = User::whereHas('companies', function ($q) {

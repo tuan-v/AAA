@@ -1,109 +1,304 @@
 <template>
     <div
-        class="relative bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 z-50"
+        class="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-2xl overflow-hidden"
     >
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">
-                {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
-            </h2>
-            <button @click="$emit('close')">✕</button>
-        </div>
-        <form @submit.prevent="saveUser">
-            <div class="grid grid-cols-2 gap-4">
+        <!-- HEADER -->
+        <div
+            class="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
+        >
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"
+                >
+                    <i class="ti ti-user-square-rounded text-2xl"></i>
+                </div>
                 <div>
-                    <label>Họ tên</label>
-                    <input
-                        v-model="form.name"
-                        class="border p-2 w-full rounded"
-                    />
-                    <p v-if="errors.name" class="text-red-500 text-xs">
-                        {{ errors.name[0] }}
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                        {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
+                    </h2>
+                    <p class="text-sm text-gray-400 mt-0.5">
+                        {{
+                            props.user
+                                ? "Chỉnh sửa thông tin tài khoản nhân sự"
+                                : "Tạo tài khoản nhân sự mới"
+                        }}
                     </p>
-                </div>
-                <div>
-                    <label>Tên đăng nhập</label>
-                    <input
-                        v-model="form.username"
-                        class="border p-2 w-full rounded"
-                    />
-                    <p v-if="errors.username" class="text-red-500 text-xs">
-                        {{ errors.username[0] }}
-                    </p>
-                </div>
-                <div>
-                    <label>Email</label>
-                    <input
-                        v-model="form.email"
-                        class="border p-2 w-full rounded"
-                    />
-                    <p v-if="errors.email" class="text-red-500 text-xs">
-                        {{ errors.email[0] }}
-                    </p>
-                </div>
-                <div>
-                    <label>Số điện thoại</label>
-                    <input
-                        v-model="form.phone"
-                        class="border p-2 w-full rounded"
-                    />
-                    <p v-if="errors.phone" class="text-red-500 text-xs">
-                        {{ errors.phone[0] }}
-                    </p>
-                </div>
-                <div>
-                    <label>Mật khẩu</label>
-                    <input
-                        type="text"
-                        v-model="form.password"
-                        class="border p-2 w-full rounded"
-                    />
-                    <p v-if="errors.password" class="text-red-500 text-xs">
-                        {{ errors.password[0] }}
-                    </p>
-                </div>
-                <div>
-                    <label>Trạng thái</label>
-
-                    <select
-                        v-model="form.status"
-                        class="border p-2 w-full rounded"
-                    >
-                        <option value="active">Hoạt động</option>
-                        <option value="blocked">Ngưng hoạt động</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Vai trò</label>
-                    <select
-                        v-model="form.role"
-                        class="border p-2 w-full rounded"
-                    >
-                        <option
-                            v-for="role in roles"
-                            :key="role.id"
-                            :value="role.name"
-                        >
-                            {{ role.name }}
-                        </option>
-                    </select>
-                </div>
-                <div>
-                    <label>Công ty</label>
-
-                    <input
-                        :value="company?.name || ''"
-                        disabled
-                        class="border p-2 w-full rounded bg-gray-100"
-                    />
-
-                    <input type="hidden" v-model="form.company_id" />
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 mt-5">
+            <button
+                @click="$emit('close')"
+                type="button"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+                <i class="ti ti-x text-xl"></i>
+            </button>
+        </div>
+
+        <form @submit.prevent="saveUser">
+            <!-- BODY -->
+            <div class="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                <!-- SECTION: THÔNG TIN CÁ NHÂN -->
+                <div class="mb-6">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                    >
+                        <i class="ti ti-id-badge-2 text-base"></i>
+                        Thông tin cá nhân
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Họ tên <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.name"
+                                    placeholder="Nhập họ tên"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                    :class="errors.name ? 'border-red-300' : ''"
+                                />
+                            </div>
+                            <p
+                                v-if="errors.name"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.name[0] }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Số điện thoại
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.phone"
+                                    placeholder="Nhập số điện thoại"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                    :class="
+                                        errors.phone ? 'border-red-300' : ''
+                                    "
+                                />
+                            </div>
+                            <p
+                                v-if="errors.phone"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.phone[0] }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Email
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-mail absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.email"
+                                    placeholder="ten@congty.com"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                    :class="
+                                        errors.email ? 'border-red-300' : ''
+                                    "
+                                />
+                            </div>
+                            <p
+                                v-if="errors.email"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.email[0] }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: TÀI KHOẢN & BẢO MẬT -->
+                <div class="mb-6">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                    >
+                        <i class="ti ti-shield-lock text-base"></i>
+                        Tài khoản &amp; bảo mật
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Tên đăng nhập
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-at absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.username"
+                                    placeholder="Nhập tên đăng nhập"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                    :class="
+                                        errors.username ? 'border-red-300' : ''
+                                    "
+                                />
+                            </div>
+                            <p
+                                v-if="errors.username"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.username[0] }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Mật khẩu
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    type="text"
+                                    v-model="form.password"
+                                    :placeholder="
+                                        props.user
+                                            ? 'Để trống nếu không đổi'
+                                            : 'Nhập mật khẩu'
+                                    "
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                    :class="
+                                        errors.password ? 'border-red-300' : ''
+                                    "
+                                />
+                            </div>
+                            <p
+                                v-if="errors.password"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.password[0] }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Trạng thái
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-toggle-right absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"
+                                ></i>
+                                <select
+                                    v-model="form.status"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
+                                >
+                                    <option value="active">Hoạt động</option>
+                                    <option value="blocked">
+                                        Ngưng hoạt động
+                                    </option>
+                                </select>
+                                <i
+                                    class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
+                                ></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: PHÂN QUYỀN -->
+                <div>
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                    >
+                        <i class="ti ti-key text-base"></i>
+                        Phân quyền &amp; đơn vị
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Vai trò
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-shield-star absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"
+                                ></i>
+                                <select
+                                    v-model="form.role"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
+                                >
+                                    <option
+                                        v-for="role in roles"
+                                        :key="role.id"
+                                        :value="role.name"
+                                    >
+                                        {{ role.name }}
+                                    </option>
+                                </select>
+                                <i
+                                    class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
+                                ></i>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Công ty
+                            </label>
+                            <div class="relative">
+                                <i
+                                    class="ti ti-building absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    :value="company?.name || ''"
+                                    disabled
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500"
+                                />
+                            </div>
+
+                            <input type="hidden" v-model="form.company_id" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div
+                class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60"
+            >
                 <button
                     type="button"
-                    class="px-4 py-2 border rounded"
+                    class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                     @click="$emit('close')"
                 >
                     Hủy
@@ -111,8 +306,9 @@
 
                 <button
                     type="submit"
-                    class="bg-blue-500 text-white px-4 py-2 rounded"
+                    class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
                 >
+                    <i class="ti ti-device-floppy text-base"></i>
                     Lưu
                 </button>
             </div>

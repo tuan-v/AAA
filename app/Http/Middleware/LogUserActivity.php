@@ -2,113 +2,37 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\ActivityLog;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Auth;
 
 class LogUserActivity
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next)
     {
-        // bỏ qua các request đọc dữ liệu (GET) để tránh đầy database
-        if ($request->isMethod('GET')) {
-            return $next($request);
-        }
-
-        // bỏ qua nếu chưa login
-        if (!auth()->check()) {
-            return $next($request);
-        }
-
-        // bỏ request rác
-        if ($this->shouldIgnore($request)) {
-            return $next($request);
-        }
-
-        // xác định action ERP
-        $action = $this->resolveAction($request);
-
-        // xác định module hệ thống
-        $module = $this->detectModule($request->path());
-
+        // Chạy qua Request để thực hiện hành động trước
         $response = $next($request);
 
-        // chỉ log các request quan trọng
-        ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => $action,
+        // Chỉ log khi user đã đăng nhập và thực hiện các thao tác thay đổi dữ liệu
+        if (Auth::check() && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
 
-            // nếu chưa gắn model cụ thể thì để null
-            'model_type' => null,
-            'model_id' => null,
+            // Xác định module dựa trên URL
+            $segments = $request->segments();
+            $module = isset($segments[1]) ? ucfirst($segments[1]) : 'Hệ thống';
 
-            // mô tả dễ đọc cho admin
-            'description' => strtoupper($action) . ' ' . $request->path(),
-
-            // metadata ERP
-            'new_values' => [
+            // Tạo log mô tả cơ bản
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => $request->method(),
                 'module' => $module,
-                'url' => $request->path(),
-                'method' => $request->method(),
-                'full_url' => $request->fullUrl(),
-            ],
-
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
-
-        return $response;
-    }
-
-    /**
-     * Xác định hành động ERP
-     */
-    private function resolveAction(Request $request): string
-    {
-        return match ($request->method()) {
-            'POST' => 'create',
-            'PUT', 'PATCH' => 'update',
-            'DELETE' => 'delete',
-            default => 'view',
-        };
-    }
-
-    /**
-     * Xác định module hệ thống
-     */
-    private function detectModule(string $path): string
-    {
-        return match (true) {
-            str_contains($path, 'warehouse') => 'warehouse',
-            str_contains($path, 'slip') => 'warehouse',
-            str_contains($path, 'sales') => 'sales',
-            str_contains($path, 'purchase') => 'purchase',
-            str_contains($path, 'product') => 'product',
-            str_contains($path, 'auth') => 'auth',
-            default => 'system',
-        };
-    }
-
-    /**
-     * Lọc request không cần log
-     */
-    private function shouldIgnore(Request $request): bool
-    {
-        $ignorePaths = [
-            'favicon.ico',
-            'sanctum',
-            'api/ping',
-            'storage',
-            '_debugbar',
-        ];
-
-        foreach ($ignorePaths as $path) {
-            if (str_contains($request->path(), $path)) {
-                return true;
-            }
+                'description' => "Người dùng " . Auth::user()->name . " thực hiện thao tác tại đường dẫn: " . $request->getRequestUri(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+                'payload_after' => json_encode($request->except(['password', 'password_confirmation'])),
+            ]);
         }
 
-        return false;
+        return $response;
     }
 }

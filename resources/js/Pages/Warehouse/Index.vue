@@ -29,6 +29,7 @@
             :currentPage="warehouses.current_page"
             :doingShow="warehouses.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -36,8 +37,16 @@
         <template #body>
             <WarehouseForm
                 :warehouse="selectedWarehouse"
-                @saved="getData"
+                @saved="reloadData"
                 @close="showModal = false"
+            />
+        </template>
+    </Modal>
+    <Modal v-if="showDetailModal" @close="showDetailModal = false">
+        <template #body>
+            <WarehouseDetail
+                :warehouse-id="selectedWarehouseId"
+                @close="showDetailModal = false"
             />
         </template>
     </Modal>
@@ -58,10 +67,12 @@ import WarehouseForm from "./WarehouseForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { get } from "lodash";
 import { formatMoney } from "@/config/helpers";
-
+import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
+import WarehouseDetail from "./WarehouseDetail.vue";
 const handlePageChange = (page) => {
     getData(page);
 };
+const perPage = ref(10);
 const form = ref({});
 const warehouses = ref({
     data: [],
@@ -72,6 +83,8 @@ const warehouses = ref({
 });
 
 const selectedWarehouse = ref(null);
+const selectedWarehouseId = ref(null);
+const showDetailModal = ref(false);
 const showModal = ref(false);
 
 const columns = [
@@ -124,6 +137,11 @@ const actions = [
         type: "status",
         onClick: (item) => toggleStatus(item),
     },
+    {
+        title: "Chi tiết",
+        icon: DetailButtonIcon,
+        onClick: openDetail,
+    },
 ];
 
 function openCreate() {
@@ -140,9 +158,43 @@ function openEdit(warehouse) {
 
     showModal.value = true;
 }
-const getData = async (page = 1) => {
-    const response = await axios.get(`/api/warehouses?page=${page}`);
-    warehouses.value = response.data;
+
+function openDetail(warehouse) {
+    const id = warehouse.id || warehouse.warehouse_id;
+
+    if (!id) {
+        alert("Không tìm thấy mã kho!");
+        return;
+    }
+
+    selectedWarehouseId.value = id;
+    showDetailModal.value = true;
+}
+const fetchData = async (page = 1) => {
+    try {
+        const response = await axios.get("/api/warehouses", {
+            params: {
+                page,
+                per_page: perPage.value,
+            },
+        });
+
+        warehouses.value = response.data;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const getData = (page = 1) => {
+    fetchData(page);
+};
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
+const reloadData = () => {
+    getData(warehouses.value.current_page);
+    showModal.value = false;
 };
 async function toggleStatus(warehouse) {
     const id = warehouse.id || warehouse.warehouse_id;

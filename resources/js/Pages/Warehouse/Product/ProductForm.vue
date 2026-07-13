@@ -1,173 +1,304 @@
 <template>
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-3xl p-5 z-50">
+    <div
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-3xl overflow-hidden z-50"
+    >
         <!-- Header -->
-        <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-semibold">
-                {{ form.id ? "Cập nhật sản phẩm" : "Thêm sản phẩm" }}
-            </h2>
+        <div
+            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
+        >
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
+                >
+                    <i class="ti ti-box text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                        {{ form.id ? "Cập nhật sản phẩm" : "Thêm sản phẩm" }}
+                    </h2>
+                    <p class="text-sm text-gray-400 mt-0.5">
+                        {{
+                            form.id
+                                ? "Chỉnh sửa thông tin sản phẩm"
+                                : "Khai báo sản phẩm mới vào hệ thống"
+                        }}
+                    </p>
+                </div>
+            </div>
 
             <button
                 @click="$emit('close')"
-                class="text-gray-500 hover:text-red-500"
+                type="button"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                ✕
+                <i class="ti ti-x text-xl"></i>
             </button>
         </div>
 
         <form @submit.prevent="saveProduct">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Tên -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Tên sản phẩm <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        v-model="form.name"
-                        type="text"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-
-                    <p v-if="errors.name" class="text-red-500 text-sm">
-                        {{ errors.name[0] }}
-                    </p>
-                </div>
-
-                <!-- SKU -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Mã hàng
-                    </label>
-
-                    <input
-                        v-model="form.sku"
-                        type="text"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-                    <p v-if="errors.sku" class="text-red-500 text-sm">
-                        {{ errors.sku[0] }}
-                    </p>
-                </div>
-
-                <!-- Danh mục -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Danh mục <span class="text-red-500">*</span>
-                    </label>
-
-                    <FormSelect
-                        v-model="form.category_id"
-                        :options="categoryOptions"
-                        searchable
-                        allow-create
-                        add-new-text="Thêm danh mục mới"
-                        @add-new="showCategoryModal = true"
-                    />
-
-                    <p v-if="errors.category_id" class="text-red-500 text-sm">
-                        {{ errors.category_id[0] }}
-                    </p>
-                </div>
-
-                <!-- Đơn vị -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Đơn vị tính <span class="text-red-500">*</span>
-                    </label>
-
-                    <FormSelect
-                        v-model="form.unit_id"
-                        :options="unitOptions"
-                        searchable
-                        allow-create
-                        add-new-text="Thêm đơn vị mới"
-                        @add-new="showUnitModal = true"
-                    />
-
-                    <p v-if="errors.unit_id" class="text-red-500 text-sm">
-                        {{ errors.unit_id[0] }}
-                    </p>
-                </div>
-
-                <!-- Loại -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Loại sản phẩm <span class="text-red-500">*</span>
-                    </label>
-
-                    <select
-                        v-model="form.type"
-                        class="w-full border rounded-lg px-3 py-2"
+            <div class="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                <!-- SECTION: THÔNG TIN CƠ BẢN -->
+                <div class="mb-6">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                     >
-                        <option value="hang_hoa">Hàng hóa</option>
-                        <option value="vat_tu">Vật tư</option>
-                        <option value="dich_vu">Dịch vụ</option>
-                    </select>
+                        <i class="ti ti-clipboard-text text-base"></i>
+                        Thông tin cơ bản
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tên -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Tên sản phẩm <span class="text-red-500">*</span>
+                            </label>
+
+                            <div class="relative">
+                                <i
+                                    class="ti ti-package absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.name"
+                                    type="text"
+                                    placeholder="Nhập tên sản phẩm"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                    :class="errors.name ? 'border-red-300' : ''"
+                                />
+                            </div>
+
+                            <p
+                                v-if="errors.name"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.name[0] }}
+                            </p>
+                        </div>
+
+                        <!-- SKU -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Mã hàng
+                            </label>
+
+                            <div class="relative">
+                                <i
+                                    class="ti ti-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                                ></i>
+                                <input
+                                    v-model="form.sku"
+                                    type="text"
+                                    placeholder="Nhập mã hàng (SKU)"
+                                    class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                    :class="errors.sku ? 'border-red-300' : ''"
+                                />
+                            </div>
+                            <p
+                                v-if="errors.sku"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.sku[0] }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Trạng thái -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Trạng thái
-                    </label>
-
-                    <select
-                        v-model="form.status"
-                        class="w-full border rounded-lg px-3 py-2"
+                <!-- SECTION: PHÂN LOẠI -->
+                <div class="mb-6">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                     >
-                        <option value="active">Hoạt động</option>
-                        <option value="inactive">Ẩn</option>
-                    </select>
+                        <i class="ti ti-category text-base"></i>
+                        Phân loại &amp; đơn vị
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Danh mục -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Danh mục <span class="text-red-500">*</span>
+                            </label>
+
+                            <FormSelect
+                                v-model="form.category_id"
+                                :options="categoryOptions"
+                                searchable
+                                allow-create
+                                add-new-text="Thêm danh mục mới"
+                                @add-new="showCategoryModal = true"
+                            />
+
+                            <p
+                                v-if="errors.category_id"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.category_id[0] }}
+                            </p>
+                        </div>
+
+                        <!-- Đơn vị -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Đơn vị tính <span class="text-red-500">*</span>
+                            </label>
+
+                            <FormSelect
+                                v-model="form.unit_id"
+                                :options="unitOptions"
+                                searchable
+                                allow-create
+                                add-new-text="Thêm đơn vị mới"
+                                @add-new="showUnitModal = true"
+                            />
+
+                            <p
+                                v-if="errors.unit_id"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.unit_id[0] }}
+                            </p>
+                        </div>
+
+                        <!-- Loại -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Loại sản phẩm
+                                <span class="text-red-500">*</span>
+                            </label>
+
+                            <div class="relative">
+                                <i
+                                    class="ti ti-tags absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"
+                                ></i>
+                                <select
+                                    v-model="form.type"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
+                                >
+                                    <option value="hang_hoa">Hàng hóa</option>
+                                    <option value="vat_tu">Vật tư</option>
+                                    <option value="dich_vu">Dịch vụ</option>
+                                </select>
+                                <i
+                                    class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
+                                ></i>
+                            </div>
+                        </div>
+
+                        <!-- Trạng thái -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1.5"
+                            >
+                                Trạng thái
+                            </label>
+
+                            <div class="relative">
+                                <i
+                                    class="ti ti-toggle-right absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"
+                                ></i>
+                                <select
+                                    v-model="form.status"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
+                                >
+                                    <option value="active">Hoạt động</option>
+                                    <option value="inactive">Ẩn</option>
+                                </select>
+                                <i
+                                    class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
+                                ></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Upload ảnh -->
+                <!-- SECTION: HÌNH ẢNH -->
+                <div class="mb-6">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                    >
+                        <i class="ti ti-photo text-base"></i>
+                        Hình ảnh sản phẩm
+                    </h3>
+
+                    <div class="flex items-start gap-4">
+                        <label
+                            class="flex-1 flex items-center gap-3 border border-dashed border-gray-300 rounded-lg px-4 py-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                        >
+                            <i
+                                class="ti ti-cloud-upload text-2xl text-gray-400"
+                            ></i>
+                            <div class="text-sm">
+                                <p class="font-medium text-gray-600">
+                                    Chọn hoặc kéo thả ảnh vào đây
+                                </p>
+                                <p class="text-gray-400 text-xs mt-0.5">
+                                    PNG, JPG tối đa vài MB
+                                </p>
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                @change="handleImage"
+                                class="hidden"
+                            />
+                        </label>
+
+                        <!-- Preview -->
+                        <img
+                            v-if="previewImage"
+                            :src="previewImage"
+                            class="w-20 h-20 object-cover rounded-lg border border-gray-200 shrink-0"
+                        />
+                    </div>
+                </div>
+
+                <!-- Mô tả -->
                 <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Hình ảnh
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1.5"
+                    >
+                        Mô tả
                     </label>
 
-                    <input
-                        type="file"
-                        accept="image/*"
-                        @change="handleImage"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
+                    <textarea
+                        v-model="form.description"
+                        rows="3"
+                        placeholder="Mô tả ngắn về sản phẩm..."
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                    ></textarea>
                 </div>
-            </div>
-
-            <!-- Preview -->
-            <div v-if="previewImage" class="mt-4">
-                <img
-                    :src="previewImage"
-                    class="w-32 h-32 object-cover rounded-lg border"
-                />
-            </div>
-
-            <!-- Mô tả -->
-            <div class="mt-4">
-                <label class="block text-sm font-medium mb-1"> Mô tả </label>
-
-                <textarea
-                    v-model="form.description"
-                    rows="3"
-                    class="w-full border rounded-lg px-3 py-2"
-                ></textarea>
             </div>
 
             <!-- Footer -->
-            <div class="flex justify-end gap-3 mt-5">
+            <div
+                class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60"
+            >
                 <button
                     type="button"
                     @click="$emit('close')"
-                    class="px-4 py-2 border rounded-lg"
+                    class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                 >
                     Hủy
                 </button>
 
                 <button
                     type="submit"
-                    class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
+                    <i class="ti ti-device-floppy text-base"></i>
                     {{ form.id ? "Cập nhật" : "Lưu" }}
                 </button>
             </div>
@@ -309,20 +440,21 @@ function handleSellPrice(e) {
 function onCategoryCreated(newCategory) {
     showCategoryModal.value = false;
 
-    if (!categories.value.some((c) => c.id == newCategory.id)) {
-        categories.value.push(newCategory);
+    if (!categories.value.some((c) => c.id === newCategory.id)) {
+        categories.value.unshift(newCategory);
     }
 
-    form.category_id = newCategory.id;
+    form.value.category_id = newCategory.id;
 }
+
 function onUnitCreated(newUnit) {
     showUnitModal.value = false;
 
-    if (!units.value.some((u) => u.id == newUnit.id)) {
-        units.value.push(newUnit);
+    if (!units.value.some((u) => u.id === newUnit.id)) {
+        units.value.unshift(newUnit);
     }
 
-    form.unit_id = newUnit.id;
+    form.value.unit_id = newUnit.id;
 }
 function formatPurchaseBlur() {
     purchasePriceDisplay.value = formatMoney(form.value.purchase_price || 0);
@@ -378,8 +510,8 @@ async function saveProduct() {
 async function loadData() {
     try {
         const [categoryRes, unitRes] = await Promise.all([
-            axios.get("/api/categories"),
-            axios.get("/api/units"),
+            axios.get("/api/purchase/categories/select?active_only=1"),
+            axios.get("/api/purchase/units/select?active_only=1"),
         ]);
         categories.value = categoryRes.data.data || categoryRes.data;
         units.value = unitRes.data.data || unitRes.data;

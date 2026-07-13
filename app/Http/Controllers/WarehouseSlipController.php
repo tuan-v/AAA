@@ -46,7 +46,7 @@ class WarehouseSlipController extends Controller
                 $request->purchase_order_id
             );
         }
-        $slips = $query->latest()->paginate(10);
+        $slips = $query->latest()->paginate(min((int) $request->input('per_page', 10), 100));
 
         $slips->getCollection()->transform(function ($item) {
             return [
@@ -160,7 +160,6 @@ class WarehouseSlipController extends Controller
 
 
                 $slip = WarehouseSlip::create([
-                    'code' => $this->generateCode('import'),
                     'type' => 'import',
                     'purchase_order_id' => $order->id,
                     'warehouse_id' => $validated['warehouse_id'],
@@ -173,7 +172,6 @@ class WarehouseSlipController extends Controller
 
                 $companyPrice = 0;
                 $slip = WarehouseSlip::create([
-                    'code' => $this->generateCode('export'),
                     'type' => 'export',
                     'sales_order_id' => $order->id,
                     'warehouse_id' => $validated['warehouse_id'],
@@ -258,38 +256,22 @@ class WarehouseSlipController extends Controller
     // =========================
     // CODE GENERATOR (SAFE)
     // =========================
-    private function generateCode($type)
-    {
-        $prefix = $type === 'import' ? 'PN' : 'PX';
-
-        $lastSlip = WarehouseSlip::where('type', $type)
-            ->orderByDesc('id')
-            ->first();
-
-        $number = 1;
-
-        if ($lastSlip) {
-            $number = (int) substr($lastSlip->code, 2) + 1;
-        }
-
-        return $prefix . str_pad($number, 6, '0', STR_PAD_LEFT);
-    }
     private function updateOrderStatus($orderId)
     {
         $order = PurchaseOrder::with('items')->findOrFail($orderId);
 
-        $importedMap = WarehouseSlipItem::query()
-            ->selectRaw('product_id, SUM(quantity) as total')
-            ->whereIn('slip_id', function ($q) use ($orderId) {
-                $q->select('id')
-                    ->from('warehouse_slips')
-                    ->where('purchase_order_id', $orderId)
-                    ->where('type', 'import')
-                    ->where('status', 'approved');
-            })
-            ->groupBy('product_id')
-            ->pluck('total', 'product_id');
-
+        // $importedMap = WarehouseSlipItem::query()
+        //     ->selectRaw('product_id, SUM(quantity) as total')
+        //     ->whereIn('slip_id', function ($q) use ($orderId) {
+        //         $q->select('id')
+        //             ->from('warehouse_slips')
+        //             ->where('purchase_order_id', $orderId)
+        //             ->where('type', 'import')
+        //             ->where('status', ['approved']);
+        //     })
+        //     ->groupBy('product_id')
+        //     ->pluck('total', 'product_id');
+        $importedMap = $this->getReceivedMap($orderId);
         $totalItems = 0;
         $importedItems = 0;
         $completed = true;
@@ -531,6 +513,8 @@ class WarehouseSlipController extends Controller
         }
         $old = ['status' => $slip->status];
         $slip->status = 'rejected';
+        $slip->approved_by = auth()->id();
+        $slip->approved_at = now();
         $slip->save();
 
         ActivityLogService::log(
@@ -544,5 +528,19 @@ class WarehouseSlipController extends Controller
         return response()->json([
             'message' => 'Từ chối phiếu thành công'
         ]);
+    }
+    private function getReceivedMap($purchaseOrderId)
+    {
+        return WarehouseSlipItem::query()
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->whereIn('slip_id', function ($q) use ($purchaseOrderId) {
+                $q->select('id')
+                    ->from('warehouse_slips')
+                    ->where('purchase_order_id', $purchaseOrderId)
+                    ->where('type', 'import')
+                    ->whereIn('status', ['pending', 'approved']);
+            })
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
     }
 }

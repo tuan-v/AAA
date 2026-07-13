@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
@@ -75,5 +76,16 @@ class Account extends Model
     public function decreaseBalance(float $amount): void
     {
         $this->decrement('current_balance', $amount);
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'TK');
+            }
+        });
     }
 }

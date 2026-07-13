@@ -9,15 +9,18 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Category::query();
+        $company = auth()->user()->companies()->first();
+
+        $query = Category::where('company_id', $company->id);
 
         // SEARCH
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
+
         return $query
             ->orderByDesc('id')
-            ->paginate(5);
+            ->paginate(min((int) $request->input('per_page', 10), 100));
     }
 
     public function store(Request $request)
@@ -37,35 +40,43 @@ class CategoryController extends Controller
                 'description.max' => 'Mô tả không được vượt quá 1000 ký tự',
             ]
         );
+        $company = auth()->user()->companies()->first();
 
-        $lastCategory = Category::latest('id')->first();
-
-        $nextNumber = $lastCategory
-            ? $lastCategory->id + 1
-            : 1;
-
-        $validated['code'] =
-            'DM' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-        $lastCode = Category::max('code');
-
-        if (!$lastCode) {
-            $validated['code'] = 'DM0001';
-        } else {
-            $number = (int) str_replace('DM', '', $lastCode);
-
-            $validated['code'] =
-                'DM' . str_pad($number + 1, 4, '0', STR_PAD_LEFT);
-        }
+        $validated['company_id'] = $company->id;
         return Category::create($validated);
+        // return response()->json([
+        //     'message' => 'Thêm danh mục thành công',
+        //     'data' => $category,
+        // ]);
+    }
+    public function select(Request $request)
+    {
+        $company = auth()->user()->companies()->first();
+
+        $query = Category::where('company_id', $company->id);
+
+        if ($request->boolean('active_only')) {
+            $query->where('status', 'active');
+        }
+
+        return response()->json(
+            $query->orderBy('id')->get()
+        );
     }
     public function show($id)
     {
-        return Category::findOrFail($id);
+        $company = auth()->user()->companies()->first();
+
+        return Category::where('company_id', $company->id)
+            ->findOrFail($id);
     }
 
     public function update(Request $request, $id)
     {
-        $category = Category::findOrFail($id);
+        $company = auth()->user()->companies()->first();
+
+        $category = Category::where('company_id', $company->id)
+            ->findOrFail($id);
 
         $validated = $request->validate(
             [
@@ -92,7 +103,10 @@ class CategoryController extends Controller
     }
     public function toggleStatus($id)
     {
-        $category = Category::findOrFail($id);
+        $company = auth()->user()->companies()->first();
+
+        $category = Category::where('company_id', $company->id)
+            ->findOrFail($id);
 
         $category->status =
             $category->status === 'active'

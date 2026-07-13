@@ -14,11 +14,25 @@ class UnitController extends Controller
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
+        if ($request->boolean('active_only')) {
+            $query->where('status', 'active');
+        }
         return $query
             ->orderByDesc('id')
-            ->paginate(5);
+            ->paginate(min((int) $request->input('per_page', 10), 100));
     }
+    public function select(Request $request)
+    {
+        $query = Unit::query();
 
+        if ($request->boolean('active_only')) {
+            $query->where('status', 'active');
+        }
+
+        return response()->json(
+            $query->orderBy('name')->get()
+        );
+    }
     public function store(Request $request)
     {
         $request->validate([

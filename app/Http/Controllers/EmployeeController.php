@@ -9,10 +9,13 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = min((int) $request->input('per_page', 10), 100);
         return User::with('roles')
             ->latest()
+            ->orderByDesc('id', 'desc')
+            ->paginate($perPage)
             ->get()
             ->map(function ($item) {
 
@@ -31,9 +34,9 @@ class EmployeeController extends Controller
                     'status' => $item->status,
 
                     'role_name' =>
-                        $item->roles
-                            ->pluck('name')
-                            ->join(', ')
+                    $item->roles
+                        ->pluck('name')
+                        ->join(', ')
                 ];
             });
     }
@@ -56,12 +59,12 @@ class EmployeeController extends Controller
             'phone' => $request->phone,
 
             'password' =>
-                Hash::make(
-                    $request->password
-                ),
+            Hash::make(
+                $request->password
+            ),
 
             'status' =>
-                $request->status
+            $request->status
         ], [
             'name.required' => 'Tên nhân viên không được để trống',
             'username.required' => 'Tên đăng nhập không được để trống',

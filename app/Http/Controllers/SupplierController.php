@@ -3,11 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\SalesOrder;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use App\Services\CodeGeneratorService;
+use App\Services\CurrencyService;
 
 class SupplierController extends Controller
 {
+    public function __construct(
+        protected CurrencyService $currencyService,
+        protected CodeGeneratorService $codeGenerator
+    ) {}
     public function index(Request $request)
     {
         $query = Supplier::with('currency');
@@ -23,16 +30,18 @@ class SupplierController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-
+        $perPage = min((int) $request->input('per_page', 10), 100);
         return $query
             ->latest()
-            ->paginate(5)
+            ->paginate($perPage)
             ->through(function ($supplier) {
 
                 $debtEntries = $supplier->debts()->latest()->get();
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
                 $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
                 $currentDebt = (float) $supplier->total_debts + $totalReceivable - $totalPaid;
+                $companyCurrency = $this->currencyService
+                    ->getCompanyCurrency(auth()->user()->company);
 
                 return [
                     'id' => $supplier->id,
@@ -64,6 +73,12 @@ class SupplierController extends Controller
 
                     'status' => $supplier->status,
                     'created_at' => $supplier->created_at,
+                    'company_currency' => [
+                        'id' => optional($companyCurrency)->id,
+                        'code' => optional($companyCurrency)->code,
+                        'name' => optional($companyCurrency)->name,
+                        'symbol' => optional($companyCurrency)->symbol,
+                    ],
                 ];
             });
     }
@@ -102,8 +117,6 @@ class SupplierController extends Controller
 
             'total_debts' => 'nullable|numeric|min:0',
             'total_advance' => 'nullable|numeric|min:0',
-
-            'status' => 'required|in:active,inactive',
         ], [
             'name.required' => 'Tên nhà cung cấp không được để trống.',
             'name.max' => 'Tên nhà cung cấp tối đa 255 ký tự.',
@@ -132,22 +145,8 @@ class SupplierController extends Controller
 
             'total_advance.numeric' => 'Tiền ứng trước phải là số.',
             'total_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
-
-            'status.required' => 'Vui lòng chọn trạng thái.',
-            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
 
-
-        $last = Supplier::latest('id')->first();
-
-        $validated['code'] =
-            'NCC' .
-            str_pad(
-                ($last?->id ?? 0) + 1,
-                4,
-                '0',
-                STR_PAD_LEFT
-            );
 
         return Supplier::create($validated);
     }
@@ -165,31 +164,107 @@ class SupplierController extends Controller
                 $query->latest()->limit(8);
             },
             'debts' => function ($query) {
-                $query->latest()->limit(10);
+                $query->latest();
             },
         ])->findOrFail($id);
 
         $openingDebt = (float) ($supplier->total_debts ?? 0);
-        $debtEntries = $supplier->debts()->latest()->get();
 
-        $totalReceivable = (float) abs($debtEntries
-            ->whereIn('type', ['invoice', 'adjustment'])
-            ->sum('amount'));
-        $totalPaid = (float) abs($debtEntries
-            ->where('type', 'payment')
-            ->sum('amount'));
-        $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
+        $debtEntries = $supplier->debts;
+
+        // Tổng phát sinh phải trả
+        $totalPayable = (float) abs(
+            $debtEntries
+                ->whereIn('type', ['invoice', 'adjustment'])
+                ->sum('amount')
+        );
+
+        // Đã thanh toán
+        $totalPaid = (float) abs(
+            $debtEntries
+                ->where('type', 'payment')
+                ->sum('amount')
+        );
+
+        $remainingDebt = $openingDebt + $totalPayable - $totalPaid;
 
         return response()->json([
-            'supplier' => $supplier,
-            'debt_summary' => [
-                'opening_debt'     => $openingDebt,
-                'total_receivable' => abs($totalReceivable),
-                'total_paid'       => abs($totalPaid),
-                'remaining_debt'   => $remainingDebt,
+
+            'supplier' => [
+
+                'id' => $supplier->id,
+                'code' => $supplier->code,
+                'name' => $supplier->name,
+                'phone' => $supplier->phone,
+                'email' => $supplier->email,
+
+                'currency' => [
+                    'id' => optional($supplier->currency)->id,
+                    'code' => optional($supplier->currency)->code,
+                    'name' => optional($supplier->currency)->name,
+                    'symbol' => optional($supplier->currency)->symbol,
+                ],
+
+                'opening_debt' => $openingDebt,
+
+                'address_detail' => $supplier->address_detail,
+
+                'province' => [
+                    'code' => $supplier->province_code,
+                    'name' => $supplier->province_name,
+                ],
+
+                'ward' => [
+                    'code' => $supplier->ward_code,
+                    'name' => $supplier->ward_name,
+                ],
+
+                'status' => $supplier->status,
             ],
-            'recent_orders' => $supplier->purchaseOrders,
-            'debt_history'  => $debtEntries,
+
+            'debt_summary' => [
+
+                'opening_debt' => $openingDebt,
+
+                // tên này đúng với SupplierDetail.vue
+                'total_payable' => $totalPayable,
+
+                'total_paid' => $totalPaid,
+
+                'remaining_debt' => $remainingDebt,
+            ],
+
+            'recent_orders' => $supplier->purchaseOrders->map(function ($order) {
+
+                return [
+                    'id' => $order->id,
+                    'code' => $order->code,
+                    'order_date' => $order->order_date,
+                    'total_amount' => $order->total_amount,
+                    'exchange_rate' => $order->exchange_rate,
+
+                    'currency' => [
+                        'code' => optional($order->currency)->code,
+                        'symbol' => optional($order->currency)->symbol,
+                    ],
+
+                    'status' => $order->status,
+                ];
+            }),
+
+            'debt_history' => $debtEntries
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(function ($item) {
+
+                    return [
+                        'id' => $item->id,
+                        'type' => $item->type,
+                        'note' => $item->note,
+                        'amount' => $item->amount,
+                        'created_at' => $item->created_at,
+                    ];
+                }),
         ]);
     }
 

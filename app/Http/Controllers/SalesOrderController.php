@@ -48,7 +48,7 @@ class SalesOrderController extends Controller
             $query->where('customer_id', $request->customer_id);
         }
 
-        $orders = $query->latest()->paginate(5);
+        $orders = $query->latest()->paginate(min((int) $request->input('per_page', 10), 100));
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
@@ -101,7 +101,7 @@ class SalesOrderController extends Controller
         ])
             ->whereIn('status', ['approved', 'partial', 'completed'])
             ->latest()
-            ->paginate(5);
+            ->paginate(10);
 
         $companyCurrency = $this->getCompanyCurrency();
 
@@ -297,7 +297,6 @@ class SalesOrderController extends Controller
 
             $order = SalesOrder::create([
                 'company_id' => auth()->user()->company_id,
-                'code' => 'SO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
 
                 'customer_id' => $validated['customer_id'],
                 'currency_id' => $validated['currency_id'],

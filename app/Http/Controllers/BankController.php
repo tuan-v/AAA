@@ -45,10 +45,10 @@ class BankController extends Controller
                 $request->status
             );
         }
-
+        $perPage = min((int) $request->input('per_page', 10), 100);
         return $query
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->through(function ($bank) {
 
                 $bank->is_used =

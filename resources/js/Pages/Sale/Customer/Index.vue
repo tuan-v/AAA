@@ -51,6 +51,7 @@
             :currentPage="customers.current_page"
             :doingShow="customers.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -154,6 +155,7 @@ const customers = ref({
     current_page: 1,
     last_page: 1,
 });
+const perPage = ref(10);
 const products = ref([]);
 const provinces = ref([]);
 const currencies = ref([]);
@@ -202,7 +204,7 @@ const columns = [
             h(
                 "span",
                 {},
-                Number(row.opening_debt ?? 0).toLocaleString("vi-VN"),
+                `${Number(row.opening_debt ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`,
             ),
     },
     {
@@ -217,7 +219,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                Number(row.current_debt ?? 0).toLocaleString("vi-VN"),
+                `${Number(row.current_debt ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`,
             ),
     },
 
@@ -298,6 +300,7 @@ const fetchData = async (page = 1) => {
     const res = await axios.get("/api/sale/customers", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
@@ -312,7 +315,10 @@ const fetchData = async (page = 1) => {
         last_page: data?.last_page ?? 1,
     };
 };
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const getData = debounce((page = 1) => {
     fetchData(page);
 }, 300);

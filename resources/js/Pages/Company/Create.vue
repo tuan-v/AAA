@@ -89,24 +89,19 @@
 
                 <!-- PROVINCE -->
                 <div class="mt-4">
-                    <label class="text-sm font-medium">
-                        Tỉnh / Thành phố <span class="text-red">*</span>
-                    </label>
-
-                    <select
+                    <FormSelect
                         v-model="form.province_id"
-                        @change="onProvinceChange"
-                        class="input"
-                    >
-                        <option value="">-- Chọn tỉnh --</option>
-                        <option
-                            v-for="p in provinces"
-                            :key="p.id"
-                            :value="p.id"
-                        >
-                            {{ p.name }}
-                        </option>
-                    </select>
+                        label="Tỉnh / Thành phố"
+                        required
+                        placeholder="Chọn tỉnh / thành phố"
+                        :options="
+                            provinces.map((item) => ({
+                                value: item.id,
+                                label: item.name,
+                            }))
+                        "
+                        @update:modelValue="onProvinceChange"
+                    />
 
                     <p v-if="errors.province_id" class="text-red-500 text-xs">
                         {{ errors.province_id[0] }}
@@ -115,16 +110,18 @@
 
                 <!-- WARD -->
                 <div class="mt-4">
-                    <label class="text-sm font-medium">
-                        Phường / Xã <span class="text-red">*</span></label
-                    >
-
-                    <select v-model="form.ward_id" class="input">
-                        <option value="">-- Chọn phường/xã --</option>
-                        <option v-for="w in wards" :key="w.id" :value="w.id">
-                            {{ w.name }}
-                        </option>
-                    </select>
+                    <FormSelect
+                        v-model="form.ward_id"
+                        label="Phường / Xã"
+                        required
+                        placeholder="Chọn phường / xã"
+                        :options="
+                            wards.map((item) => ({
+                                value: item.id,
+                                label: item.name,
+                            }))
+                        "
+                    />
 
                     <p v-if="errors.ward_id" class="text-red-500 text-xs">
                         {{ errors.ward_id[0] }}
@@ -184,7 +181,7 @@
 <script setup>
 import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
-
+import FormSelect from "@/components/FormSelect.vue";
 const props = defineProps({
     currencies: Array,
     defaultCurrencyId: Number,
@@ -232,9 +229,10 @@ async function loadWards(provinceId) {
 
     wards.value = res.data || [];
 }
-function onProvinceChange() {
+function onProvinceChange(value) {
+    form.province_id = value;
     form.ward_id = "";
-    loadWards(form.province_id);
+    loadWards(value);
 }
 
 /* SAVE */

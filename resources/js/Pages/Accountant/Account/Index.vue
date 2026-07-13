@@ -1,12 +1,12 @@
 <template>
-    <Head title="Tài khoản & Quỹ" />
+    <Head title="Tài khoản" />
 
     <AdminLayout>
         <PageBreadcrumb
             title=""
             :items="[
                 {
-                    text: 'Tài khoản & Quỹ',
+                    text: 'Tài khoản',
                     link: null,
                 },
             ]"
@@ -48,6 +48,7 @@
             :currentPage="accounts.current_page"
             :doingShow="accounts.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -82,7 +83,7 @@ import AccountForm from "./AccountForm.vue";
 
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-
+const perPage = ref(10);
 const accounts = ref({
     data: [],
     total: 0,
@@ -291,13 +292,17 @@ async function fetchData(page = 1) {
     const res = await axios.get("/api/accountant/accounts", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
 
     accounts.value = res.data;
 }
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 function getData(page = 1) {
     fetchData(page);
 }

@@ -61,6 +61,7 @@
             :currentPage="suppliers.current_page"
             :doingShow="suppliers.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -75,101 +76,13 @@
             />
         </template>
     </Modal>
-
-    <Modal v-if="showDebtModal" @close="showDebtModal = false" size="large">
+    <!-- Modal chi tiết NCC -->
+    <Modal v-if="showDebtModal" @close="showDebtModal = false">
         <template #body>
-            <div class="p-4 bg-white rounded-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="text-lg font-semibold">
-                            Công nợ nhà cung cấp
-                        </h3>
-                        <p class="text-sm text-gray-500">
-                            {{ selectedSupplier?.name }}
-                        </p>
-                    </div>
-                    <button
-                        class="text-gray-400 hover:text-red-500"
-                        @click="showDebtModal = false"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                <div v-if="debtLoading" class="text-sm text-gray-500">
-                    Đang tải...
-                </div>
-                <div v-else>
-                    <div class="grid md:grid-cols-3 gap-3 mb-4">
-                        <div class="rounded-xl border p-3 bg-red-50">
-                            <p class="text-xs uppercase text-red-500">
-                                Còn phải trả
-                            </p>
-                            <p class="text-xl font-semibold text-red-600">
-                                {{ formatDebt(debtSummary.remaining_debt) }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border p-3 bg-blue-50">
-                            <p class="text-xs uppercase text-blue-500">
-                                Tổng phát sinh
-                            </p>
-                            <p class="text-xl font-semibold text-blue-600">
-                                {{ formatDebt(debtSummary.total_receivable) }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border p-3 bg-green-50">
-                            <p class="text-xs uppercase text-green-500">
-                                Đã thanh toán
-                            </p>
-                            <p class="text-xl font-semibold text-green-600">
-                                {{ formatDebt(debtSummary.total_paid) }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="border rounded-xl overflow-hidden">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="text-left p-2">Thời gian</th>
-                                    <th class="text-left p-2">Loại</th>
-                                    <th class="text-left p-2">Số tiền</th>
-                                    <th class="text-left p-2">Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="item in debtHistory"
-                                    :key="item.id"
-                                    class="border-t"
-                                >
-                                    <td class="p-2">
-                                        {{
-                                            item.created_at
-                                                ? new Date(
-                                                      item.created_at,
-                                                  ).toLocaleString()
-                                                : "-"
-                                        }}
-                                    </td>
-                                    <td class="p-2">{{ item.type }}</td>
-                                    <td
-                                        class="p-2"
-                                        :class="
-                                            item.amount >= 0
-                                                ? 'text-red-600'
-                                                : 'text-green-600'
-                                        "
-                                    >
-                                        {{ formatDebt(item.amount) }}
-                                    </td>
-                                    <td class="p-2">{{ item.note || "-" }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            <SupplierDetail
+                :supplier-id="selectedSupplier?.id"
+                @close="showDebtModal = false"
+            />
         </template>
     </Modal>
 </template>
@@ -184,13 +97,14 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
-
+import SupplierDetail from "./SupplierDetail.vue";
 import SupplierForm from "./SupplierForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import SearchPage from "../../../components/SearchPage.vue";
-
+import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
+import { getStatusLabel } from "@/config/status";
 /* ================= STATE ================= */
 const filterParams = ref({});
 
@@ -217,7 +131,6 @@ const filters = [
     },
 ];
 function handleFilter(params) {
-    console.log("FILTER:", params);
     filterParams.value = params;
     getData(1);
 }
@@ -230,7 +143,7 @@ const suppliers = ref({
 });
 
 const currencies = ref([]);
-
+const perPage = ref(10);
 const showModal = ref(false);
 const showDebtModal = ref(false);
 const selectedSupplier = ref(null);
@@ -257,7 +170,11 @@ const columns = [
     {
         label: "Công nợ đầu kỳ",
         render: (row) =>
-            h("span", {}, Number(row.total_debts ?? 0).toLocaleString("vi-VN")),
+            h(
+                "span",
+                {},
+                `${Number(row.total_debts ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
+            ),
     },
     {
         label: "Công nợ hiện tại",
@@ -270,7 +187,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                Number(row.current_debt ?? 0).toLocaleString("vi-VN"),
+                `${Number(row.current_debt ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
             ),
     },
     {
@@ -279,7 +196,7 @@ const columns = [
             h(
                 "span",
                 {},
-                Number(row.total_advance ?? 0).toLocaleString("vi-VN"),
+                `${Number(row.total_advance ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
             ),
     },
     {
@@ -294,7 +211,7 @@ const columns = [
                             ? "bg-green-100 text-green-700 px-2 py-1 rounded"
                             : "bg-red-100 text-red-700 px-2 py-1 rounded",
                 },
-                row.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động",
+                getStatusLabel(row.status),
             ),
     },
 ];
@@ -312,7 +229,7 @@ const actions = [
         onClick: (item) => toggleStatus(item),
     },
     {
-        icon: EditButtonIcon,
+        icon: DetailButtonIcon,
         type: "view",
         onClick: (item) => openDebtDetail(item),
     },
@@ -328,20 +245,9 @@ function openEdit(item) {
     selectedSupplier.value = item;
     showModal.value = true;
 }
-
-async function openDebtDetail(item) {
+function openDebtDetail(item) {
     selectedSupplier.value = item;
     showDebtModal.value = true;
-    debtLoading.value = true;
-    try {
-        const res = await axios.get(
-            `/api/purchase/suppliers/${item.id}/detail`,
-        );
-        debtSummary.value = res.data.debt_summary || {};
-        debtHistory.value = res.data.debt_history || [];
-    } finally {
-        debtLoading.value = false;
-    }
 }
 
 function formatDebt(value) {
@@ -351,7 +257,17 @@ function formatDebt(value) {
 function handlePageChange(page) {
     getData(page);
 }
+const getCurrencies = async () => {
+    try {
+        const res = await axios.get("/api/accountant/currencies");
 
+        console.log(res.data);
+
+        currencies.value = res.data.data ?? res.data;
+    } catch (e) {
+        console.error(e);
+    }
+};
 /* debounce giống product */
 function debounce(fn, delay = 300) {
     let timeout;
@@ -366,6 +282,7 @@ const fetchData = async (page = 1) => {
     const res = await axios.get("/api/purchase/suppliers", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
@@ -380,7 +297,10 @@ const fetchData = async (page = 1) => {
         last_page: data?.last_page ?? 1,
     };
 };
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const getData = debounce((page = 1) => {
     fetchData(page);
 }, 300);
@@ -398,7 +318,7 @@ function reloadData() {
 }
 
 /* init */
-onMounted(() => {
-    getData();
+onMounted(async () => {
+    await Promise.all([getData(), getCurrencies()]);
 });
 </script>

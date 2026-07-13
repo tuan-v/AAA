@@ -29,11 +29,11 @@ class CustomerController extends Controller
                 $request->status
             );
         }
-
+        $perPage = min((int) $request->input('per_page', 5), 100);
         return $query
             ->latest()
             ->orderByDesc('id')
-            ->paginate(5)
+            ->paginate($perPage)
             ->through(function ($customer) {
 
                 $debtEntries = $customer->debts()->latest()->get();
@@ -101,7 +101,7 @@ class CustomerController extends Controller
                     'regex:/^(0|\+84)[0-9]{9,10}$/'
                 ],
 
-                'email' => 'nullable|email',
+                'email' => 'required|email',
 
                 'currency_id' => 'required|exists:currencies,id',
 
@@ -142,17 +142,6 @@ class CustomerController extends Controller
             ]
         );
 
-        $last = Customer::latest('id')->first();
-
-        $validated['code'] =
-            'KH' .
-            str_pad(
-                ($last?->id ?? 0) + 1,
-                4,
-                '0',
-                STR_PAD_LEFT
-            );
-
         return Customer::create($validated);
     }
     public function update(
@@ -171,7 +160,7 @@ class CustomerController extends Controller
                     'regex:/^(0|\+84)[0-9]{9,10}$/'
                 ],
 
-                'email' => 'nullable|email',
+                'email' => 'required|email',
 
                 'currency_id' => 'required|exists:currencies,id',
 
@@ -322,18 +311,6 @@ class CustomerController extends Controller
 
         return response()->json([
             'status' => $customer->status
-        ]);
-    }
-    public function nextCode()
-    {
-        $last = Customer::orderBy('id', 'desc')->first();
-
-        $nextId = ($last?->id ?? 0) + 1;
-
-        $code = 'KH' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-
-        return response()->json([
-            'code' => $code
         ]);
     }
 }

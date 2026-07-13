@@ -18,8 +18,7 @@ class TransactionService extends BaseService
         protected LedgerService $ledgerService,
         protected CustomerDebtService $customerDebtService,
         protected SupplierDebtService $supplierDebtService
-    ) {
-    }
+    ) {}
 
     // -------------------------------------------------------------------------
     // PUBLIC API
@@ -47,7 +46,6 @@ class TransactionService extends BaseService
 
             $transaction = $this->repository->create([
                 'company_id'        => $this->companyId(),
-                'code'              => $this->generateCode(),
                 'transaction_date'  => $data['transaction_date'] ?? now(),
                 'type'              => $data['type'],
                 'category_id'       => $data['category_id'],
@@ -367,22 +365,22 @@ class TransactionService extends BaseService
      * Retry tối đa 5 lần nếu trùng (race condition khi tạo đồng thời).
      * Yêu cầu: cột `code` trên bảng transactions có UNIQUE constraint.
      */
-    private function generateCode(): string
-    {
-        for ($i = 0; $i < 5; $i++) {
-            $code = 'TXN-' . now()->format('YmdHis') . '-' . str_pad(
-                (string) random_int(0, 9999),
-                4,
-                '0',
-                STR_PAD_LEFT
-            );
+    // private function generateCode(): string
+    // {
+    //     for ($i = 0; $i < 5; $i++) {
+    //         $code = 'TXN-' . now()->format('YmdHis') . '-' . str_pad(
+    //             (string) random_int(0, 9999),
+    //             4,
+    //             '0',
+    //             STR_PAD_LEFT
+    //         );
 
-            if (!Transaction::where('code', $code)->exists()) {
-                return $code;
-            }
-        }
+    //         if (!Transaction::where('code', $code)->exists()) {
+    //             return $code;
+    //         }
+    //     }
 
-        // Fallback cực hiếm: thêm microtime để gần như chắc chắn unique
-        return 'TXN-' . now()->format('YmdHis') . '-' . substr((string) microtime(true), -6);
-    }
+    //     // Fallback cực hiếm: thêm microtime để gần như chắc chắn unique
+    //     return 'TXN-' . now()->format('YmdHis') . '-' . substr((string) microtime(true), -6);
+    // }
 }

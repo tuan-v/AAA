@@ -9,14 +9,15 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(
-            Permission::orderBy('id', 'desc')->paginate(5)
+        $perPage = $request->get('per_page', 10);
 
+        return response()->json(
+            Permission::orderBy('id', 'desc')
+                ->paginate($perPage)
         );
     }
-
     public function store(Request $request)
     {
         $request->validate([

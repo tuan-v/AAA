@@ -37,8 +37,9 @@
                     </label>
                     <div class="amount-wrap">
                         <input
-                            v-model="form.amount"
-                            type="number"
+                            :value="formatMoney(form.amount)"
+                            @input="handleAmountInput"
+                            type="text"
                             class="input"
                             placeholder="0"
                         />
@@ -258,19 +259,6 @@
                     </option>
                 </select>
             </div>
-            <!-- <div class="section-label">Thời gian giao dịch</div> -->
-
-            <!-- <div class="field">
-                <label class="label">
-                    <i class="ti ti-calendar"></i>Ngày giao dịch
-                </label>
-
-                <input
-                    v-model="form.transaction_date"
-                    type="date"
-                    class="input"
-                />
-            </div> -->
 
             <div class="divider"></div>
 
@@ -303,7 +291,7 @@
 <script setup>
 import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
-
+import { formatMoney } from "@/config/helpers";
 const props = defineProps({
     transaction: { type: Object, default: null },
     accounts: { type: Array, default: () => [] },
@@ -312,7 +300,11 @@ const props = defineProps({
     customers: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
 });
+function handleAmountInput(e) {
+    const raw = e.target.value.replace(/[^\d]/g, "");
 
+    form.amount = raw ? Number(raw) : 0;
+}
 const emit = defineEmits(["saved", "close"]);
 
 const isEdit = computed(() => !!props.transaction?.id);
@@ -489,7 +481,7 @@ async function loadOrderOptions() {
 
             orderOptions.value = (res.data.data || []).map((order) => ({
                 id: order.id,
-                label: `${order.code} • ${order.customer?.name ?? ""} • ${Number(order.total_amount ?? 0).toLocaleString("vi-VN")}`,
+                label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 customer_id: order.customer?.id ?? form.customer_id,
                 currency: order.currency || null,
                 currency_id: order.currency?.id ?? order.currency_id ?? null,
@@ -510,7 +502,7 @@ async function loadOrderOptions() {
 
             orderOptions.value = (res.data.data || []).map((order) => ({
                 id: order.id,
-                label: `${order.code} • ${order.supplier?.name ?? ""} • ${Number(order.total_amount ?? 0).toLocaleString("vi-VN")}`,
+                label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 supplier_id: order.supplier?.id ?? form.supplier_id,
                 currency: order.currency || null,
                 currency_id: order.currency?.id ?? order.currency_id ?? null,

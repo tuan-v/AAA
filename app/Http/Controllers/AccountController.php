@@ -81,7 +81,6 @@ class AccountController extends Controller
             ->first();
 
         $validated = $request->validate([
-            'code' => 'required|unique:accounts,code',
             'name' => 'required',
 
             'type' => [
@@ -101,8 +100,6 @@ class AccountController extends Controller
             'bank_account_no' =>
             'nullable|string|max:255',
         ], [
-            'code.required' => 'Mã tài khoản không được để trống',
-            'code.unique' => 'Mã tài khoản đã tồn tại',
             'name.required' => 'Tên tài khoản không được để trống',
             'type.required' => 'Loại tài khoản không được để trống',
             'type.in' => 'Loại tài khoản không hợp lệ',

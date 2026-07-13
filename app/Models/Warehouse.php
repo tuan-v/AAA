@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
@@ -34,5 +35,19 @@ class Warehouse extends Model
     public function ward()
     {
         return $this->belongsTo(Ward::class, 'ward_code');
+    }
+    public function slips()
+    {
+        return $this->hasMany(WarehouseSlip::class);
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'WH');
+            }
+        });
     }
 }

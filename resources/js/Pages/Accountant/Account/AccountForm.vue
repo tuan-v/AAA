@@ -16,24 +16,6 @@
 
         <form @submit.prevent="saveAccount">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- CODE -->
-                <div>
-                    <label class="block text-sm font-medium mb-1">
-                        Mã tài khoản
-                        <span class="text-red-500">*</span>
-                    </label>
-
-                    <input
-                        v-model="form.code"
-                        :disabled="!!form.id"
-                        class="w-full border rounded-lg px-3 py-2"
-                    />
-
-                    <p v-if="errors.code" class="text-red-500 text-sm">
-                        {{ errors.code[0] }}
-                    </p>
-                </div>
-
                 <!-- NAME -->
                 <div>
                     <label class="block text-sm font-medium mb-1">

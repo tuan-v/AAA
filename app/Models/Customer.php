@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,7 +31,10 @@ class Customer extends Model
 
     public function currency()
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(
+            Currency::class,
+            'currency_id'
+        );
     }
 
     public function province()
@@ -56,5 +60,15 @@ class Customer extends Model
     public function payments()
     {
         return $this->hasMany(CustomerPayment::class);
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'KH');
+            }
+        });
     }
 }

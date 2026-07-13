@@ -84,6 +84,7 @@
             :currentPage="orders.current_page"
             :doingShow="orders.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -210,7 +211,7 @@ const orders = ref({ data: [], current_page: 1, per_page: 10, total: 0 });
 const customers = ref([]);
 const products = ref([]);
 const currencies = ref([]);
-
+const perPage = ref(10);
 const search = ref("");
 const statusFilter = ref("");
 const showModal = ref(false);
@@ -339,12 +340,18 @@ async function getData(page = 1) {
     const res = await axios.get("/api/sale/orders", {
         params: {
             page,
+            per_page: perPage.value,
             search: search.value,
             status: statusFilter.value,
         },
     });
     orders.value = res.data;
 }
+
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 
 async function fetchCustomers() {
     const res = await axios.get("/api/sale/customers/all");
@@ -393,23 +400,23 @@ function openApproveConfirm(item) {
     showConfirm.value = true;
 }
 // function openDetail() {}
-// async function confirmApprove() {
-//     if (!pendingApproveItem.value) return;
+async function confirmApprove() {
+    if (!pendingApproveItem.value) return;
 
-//     try {
-//         await axios.post(
-//             `/api/sale/orders/${pendingApproveItem.value.id}/approve`,
-//         );
+    try {
+        await axios.post(
+            `/api/sale/orders/${pendingApproveItem.value.id}/approve`,
+        );
 
-//         toast.success("Duyệt đơn bán hàng thành công!");
-//         showConfirm.value = false;
-//         pendingApproveItem.value = null;
-//         getData();
-//     } catch (err) {
-//         toast.error("Duyệt đơn thất bại");
-//         console.error(err);
-//     }
-// }
+        toast.success("Duyệt đơn bán hàng thành công!");
+        showConfirm.value = false;
+        pendingApproveItem.value = null;
+        getData();
+    } catch (err) {
+        toast.error("Duyệt đơn thất bại");
+        console.error(err);
+    }
+}
 
 function showDetail(item) {
     window.location.href = `/sale/orders/${item.id}`;

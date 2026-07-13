@@ -125,7 +125,8 @@
 import axios from "axios";
 import { watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
-
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const props = defineProps({
     unit: {
         type: Object,
@@ -167,7 +168,12 @@ async function save() {
             await axios.post("/api/warehouse/units", form.data());
         }
 
-        emit("saved");
+        toast.success(
+            form.value.id
+                ? "Cập nhật đơn vị thành công"
+                : "Thêm đơn vị thành công",
+        );
+        emit("saved", res.data);
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {

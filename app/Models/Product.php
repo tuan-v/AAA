@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
@@ -52,4 +53,15 @@ class Product extends Model
         return $this->stocks()->sum('quantity');
     }
     public $timestamps = false;
+    // protected static function booted()
+    // {
+    //     static::creating(function ($model) {
+
+    //         if (!$model->code) {
+
+    //             $model->code = app(CodeGeneratorService::class)
+    //                 ->generate(self::class, 'SP');
+    //         }
+    //     });
+    // }
 }

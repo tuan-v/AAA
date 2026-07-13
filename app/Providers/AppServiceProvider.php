@@ -6,12 +6,15 @@ use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use App\Services\CurrencyService;
+use App\Services\CodeGeneratorService;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->app->singleton(CurrencyService::class);
+
+        $this->app->singleton(CodeGeneratorService::class);
     }
 
     public function boot(): void
@@ -165,7 +168,7 @@ class AppServiceProvider extends ServiceProvider
                             ],
                             [
                                 'icon' => 'WalletIcon',
-                                'name' => 'Tài khoản & Quỹ',
+                                'name' => 'Tài khoản',
                                 'path' => '/accountant/accounts'
                             ],
                             [
@@ -198,10 +201,10 @@ class AppServiceProvider extends ServiceProvider
                                 'name' => 'Báo cáo',
                                 'path' => '/accountant/reports'
                             ],
-                            ];
-                    }
+                        ];
                 }
-            
+            }
+
 
             return [
                 [

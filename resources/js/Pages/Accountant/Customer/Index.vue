@@ -41,107 +41,11 @@
             :currentPage="customers.current_page"
             :doingShow="customers.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
-    <Modal v-if="showDetail" @close="showDetail = false" size="large">
-        <template #body>
-            <div class="p-4 bg-white rounded-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="text-lg font-semibold">
-                            {{ selectedCustomer?.name }}
-                        </h3>
-                        <p class="text-sm text-gray-500">
-                            {{ selectedCustomer?.code }}
-                        </p>
-                    </div>
-                    <button
-                        class="text-gray-400 hover:text-red-500"
-                        @click="showDetail = false"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                <div v-if="detailLoading" class="text-sm text-gray-500">
-                    Đang tải...
-                </div>
-                <div v-else>
-                    <div class="grid md:grid-cols-3 gap-3 mb-4">
-                        <div class="rounded-xl border p-3 bg-red-50">
-                            <p class="text-xs uppercase text-red-500">
-                                Còn phải thu
-                            </p>
-                            <p class="text-xl font-semibold text-red-600">
-                                {{ formatMoney(detailSummary.remaining_debt) }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border p-3 bg-blue-50">
-                            <p class="text-xs uppercase text-blue-500">
-                                Tổng phát sinh
-                            </p>
-                            <p class="text-xl font-semibold text-blue-600">
-                                {{
-                                    formatMoney(detailSummary.total_receivable)
-                                }}
-                            </p>
-                        </div>
-                        <div class="rounded-xl border p-3 bg-green-50">
-                            <p class="text-xs uppercase text-green-500">
-                                Đã thanh toán
-                            </p>
-                            <p class="text-xl font-semibold text-green-600">
-                                {{ formatMoney(detailSummary.total_paid) }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="border rounded-xl overflow-hidden">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="text-left p-2">Thời gian</th>
-                                    <th class="text-left p-2">Loại</th>
-                                    <th class="text-left p-2">Số tiền</th>
-                                    <th class="text-left p-2">Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="item in debtHistory"
-                                    :key="item.id"
-                                    class="border-t"
-                                >
-                                    <td class="p-2">
-                                        {{
-                                            item.created_at
-                                                ? new Date(
-                                                      item.created_at,
-                                                  ).toLocaleString()
-                                                : "-"
-                                        }}
-                                    </td>
-                                    <td class="p-2">{{ item.type }}</td>
-                                    <td
-                                        class="p-2"
-                                        :class="
-                                            item.amount >= 0
-                                                ? 'text-red-600'
-                                                : 'text-green-600'
-                                        "
-                                    >
-                                        {{ formatMoney(item.amount) }}
-                                    </td>
-                                    <td class="p-2">{{ item.note || "-" }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </template>
-    </Modal>
+    <CustomerDetail v-model="showDetail" :customer="selectedCustomer" />
 </template>
 
 <script setup>
@@ -152,10 +56,13 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
-import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 
+// Import component chi tiết mới tách
+import CustomerDetail from "./CustomerDetail.vue"; // Điều chỉnh lại đường dẫn cho đúng cấu trúc thư mục của bạn
+
+const perPage = ref(10);
 const customers = ref({
     data: [],
     total: 0,
@@ -166,9 +73,6 @@ const customers = ref({
 const filterParams = ref({});
 const showDetail = ref(false);
 const selectedCustomer = ref(null);
-const detailSummary = ref({});
-const debtHistory = ref([]);
-const detailLoading = ref(false);
 
 const filters = [
     { name: "search", type: "text", placeholder: "Tên KH / mã KH / SĐT" },
@@ -246,7 +150,11 @@ function debounce(fn, delay = 300) {
 
 const fetchData = async (page = 1) => {
     const res = await axios.get("/api/accountant/customers-debt", {
-        params: { page, ...filterParams.value },
+        params: {
+            page,
+            per_page: perPage.value,
+            ...filterParams.value,
+        },
     });
     const data = res.data;
     customers.value = {
@@ -258,25 +166,16 @@ const fetchData = async (page = 1) => {
     };
 };
 
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const getData = debounce(fetchData, 300);
 
-async function openDetail(item) {
+// Hàm mở chi tiết giờ cực kỳ ngắn gọn
+function openDetail(item) {
     selectedCustomer.value = item;
     showDetail.value = true;
-    detailLoading.value = true;
-    try {
-        const res = await axios.get(
-            `/api/accountant/customers-debt/${item.id}/detail`,
-        );
-        detailSummary.value = res.data.debt_summary || {};
-        debtHistory.value = res.data.debt_history || [];
-    } finally {
-        detailLoading.value = false;
-    }
-}
-
-function formatMoney(value) {
-    return Number(value ?? 0).toLocaleString("vi-VN");
 }
 
 onMounted(() => {

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Account;
 use App\Models\TransactionCategory;
 use App\Models\Currency;
+use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
 
 class Transaction extends Model
@@ -115,5 +116,15 @@ class Transaction extends Model
     public function getFormattedBaseAmountAttribute()
     {
         return number_format($this->amount_base, 2);
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'GD');
+            }
+        });
     }
 }

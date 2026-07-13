@@ -107,7 +107,9 @@
                 :totalItems="purchaseOrders.total"
                 :itemsPerPage="purchaseOrders.per_page"
                 :currentPage="purchaseOrders.current_page"
+                :doingShow="purchaseOrders.data.length"
                 @page-change="handlePurchasePageChange"
+                @items-per-page-change="handlePurchasePerPageChange"
             />
         </div>
 
@@ -123,7 +125,7 @@
                     <p class="text-2xl font-bold">{{ saleOrders.total }}</p>
                 </div>
                 <div class="bg-yellow-50 p-4 rounded-xl border">
-                    <p class="text-yellow-600 text-sm">Chờ xử lý</p>
+                    <p class="text-yellow-600 text-sm">Chờ xuất kho</p>
                     <p class="text-2xl font-bold">
                         {{
                             saleOrders.data.filter(
@@ -133,27 +135,23 @@
                     </p>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-xl border">
-                    <p class="text-blue-600 text-sm">Đã duyệt</p>
+                    <p class="text-blue-600 text-sm">Xuất một phần</p>
                     <p class="text-2xl font-bold">
                         {{
                             saleOrders.data.filter((x) =>
-                                ["approved", "completed"].includes(x.status),
+                                ["partial"].includes(x.status),
                             ).length
                         }}
                     </p>
                 </div>
 
                 <div class="bg-green-50 p-4 rounded-xl border">
-                    <p class="text-green-600 text-sm">Doanh thu</p>
+                    <p class="text-green-600 text-sm">Xuất đầy đủ</p>
                     <p class="text-2xl font-bold">
                         {{
-                            formatMoney(
-                                saleOrders.data.reduce(
-                                    (sum, item) =>
-                                        sum + Number(item.total_amount ?? 0),
-                                    0,
-                                ),
-                            )
+                            saleOrders.data.filter((x) =>
+                                ["completed"].includes(x.status),
+                            ).length
                         }}
                     </p>
                 </div>
@@ -179,8 +177,10 @@
             <Pagination
                 :totalItems="saleOrders.total"
                 :itemsPerPage="saleOrders.per_page"
+                :doingShow="saleOrders.data.length"
                 :currentPage="saleOrders.current_page"
                 @page-change="handleSalePageChange"
+                @items-per-page-change="handleSalePerPageChange"
             />
         </div>
     </AdminLayout>
@@ -263,6 +263,7 @@ const products = ref([]);
 const currencies = ref([]);
 const purchaseDetailOrder = ref(null);
 const showPurchaseDetailModal = ref(false);
+const purchasePerPage = ref(10);
 const purchaseOrders = ref({
     data: [],
     current_page: 1,
@@ -411,6 +412,7 @@ function openStockIn(item) {
     window.location.href = `/warehouse/slips/purchasecreate?order_id=${item.id}`;
 }
 // ==================== ĐƠN BÁN ====================
+const salePerPage = ref(10);
 const detailOrder = ref(null);
 const showSaleDetailModal = ref(false);
 const customers = ref([]);
@@ -530,17 +532,37 @@ async function openPurchaseDetail(item) {
 }
 async function getPurchaseData(page = 1) {
     const res = await axios.get("/api/warehouse/orders", {
-        params: { page, search: search.value },
+        params: {
+            page,
+            per_page: purchasePerPage.value,
+            search: search.value,
+            status: statusFilter.value,
+        },
     });
     purchaseOrders.value = res.data;
+    purchasePerPage.value = res.data.per_page;
 }
+const handlePurchasePerPageChange = (value) => {
+    purchasePerPage.value = value;
+    getPurchaseData(1);
+};
 
 async function getSaleData(page = 1) {
     const res = await axios.get("/api/saleorders/warehouse", {
-        params: { page, search: search.value, status: statusFilter.value },
+        params: {
+            page,
+            per_page: salePerPage.value,
+            search: search.value,
+            status: statusFilter.value,
+        },
     });
     saleOrders.value = res.data;
+    salePerPage.value = res.data.per_page;
 }
+const handleSalePerPageChange = (value) => {
+    salePerPage.value = value;
+    getSaleData(1);
+};
 const search = ref("");
 const statusFilter = ref("");
 function handlePurchaseFilter(params) {

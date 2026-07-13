@@ -26,23 +26,30 @@ use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
 
+Route::get('/warehouses/{warehouse}/detail', [WarehouseController::class, 'detail']);
 Route::get('/warehouses/all', [WarehouseController::class, 'all']);
 Route::apiResource('warehouses', WarehouseController::class);
 Route::prefix('warehouse')->group(function () {
     Route::apiResource('products', ProductController::class)->names('warehouse.products.index');
+    Route::get('categories/select', [CategoryController::class, 'select']);
     Route::apiResource('categories', CategoryController::class)->names('warehouse.categories');
+    Route::get('/units/select', [UnitController::class, 'select']);
     Route::apiResource('units', UnitController::class)->names('warehouse.units');
     Route::apiResource('slips', WarehouseSlipController::class)->names('warehouse.slips');
     Route::get('/inventory', [WarehouseInventoryController::class, 'index'])
         ->name('warehouse.inventory');
     Route::post('/slips/{id}/approve', [WarehouseSlipController::class, 'approve'])
         ->name('warehouse.slips.approve');
+    Route::get('/stocks', [WarehouseController::class, 'getStocks'])
+        ->name('warehouse.stocks');
 });
 Route::prefix('purchase')->group(function () {
     Route::get('/suppliers/all', [SupplierController::class, 'all']);
     Route::get('/suppliers/{id}/detail', [SupplierController::class, 'detail'])->name('purchase.suppliers.detail');
     Route::apiResource('suppliers', SupplierController::class)->names('purchase.suppliers');
+    Route::get('categories/select', [CategoryController::class, 'select']);
     Route::apiResource('categories', CategoryController::class)->names('purchase.categories');
+    Route::get('/units/select', [UnitController::class, 'select']);
     Route::apiResource('units', UnitController::class)->names('purchase.units');
     Route::apiResource('orders', PurchaseOrderController::class)->names('purchase.orders');
     Route::apiResource('products', ProductController::class)->names('purchase.products');

@@ -1,163 +1,303 @@
 <template>
     <div
-        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl p-6 z-50"
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl overflow-hidden z-50"
     >
-        <div class="flex justify-between items-center border-b pb-4 mb-5">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800">
-                    {{ form.id ? "Cập nhật khách hàng" : "Thêm khách hàng" }}
-                </h2>
-                <p v-if="form.code" class="text-sm text-blue-600 font-semibold">
-                    Mã khách hàng: {{ form.code }}
-                </p>
-            </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <!-- TÊN -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Tên khách hàng <span class="text-red">*</span>
-                </label>
-
-                <input
-                    v-model="form.name"
-                    type="text"
-                    class="w-full border rounded-lg px-3 py-2"
-                />
-
-                <p v-if="errors.name" class="text-red-500 text-xs mt-1">
-                    {{ errors.name[0] }}
-                </p>
-            </div>
-
-            <!-- PHONE -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Số điện thoại <span class="text-red">*</span>
-                </label>
-
-                <input
-                    v-model="form.phone"
-                    type="text"
-                    class="w-full border rounded-lg px-3 py-2"
-                />
-
-                <p v-if="errors.phone" class="text-red-500 text-xs mt-1">
-                    {{ errors.phone[0] }}
-                </p>
-            </div>
-
-            <!-- EMAIL -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Email <span class="text-red">*</span>
-                </label>
-
-                <input
-                    v-model="form.email"
-                    type="email"
-                    class="w-full border rounded-lg px-3 py-2"
-                />
-            </div>
-
-            <!-- TIỀN TỆ -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Tiền tệ <span class="text-red">*</span>
-                </label>
-
-                <select
-                    v-model="form.currency_id"
-                    class="w-full border rounded-lg px-3 py-2"
+        <!-- HEADER -->
+        <div
+            class="flex justify-between items-start px-7 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
+        >
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
                 >
-                    <option value="">Chọn tiền tệ</option>
-
-                    <option
-                        v-for="currency in currencies"
-                        :key="currency.id"
-                        :value="currency.id"
+                    <i class="ti ti-user-circle text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                        {{
+                            form.id ? "Cập nhật khách hàng" : "Thêm khách hàng"
+                        }}
+                    </h2>
+                    <p
+                        v-if="form.code"
+                        class="text-sm text-blue-600 font-semibold mt-0.5 flex items-center gap-1"
                     >
-                        {{ currency.code }}
-                    </option>
-                </select>
+                        <i class="ti ti-id-badge-2 text-base"></i>
+                        {{ form.code }}
+                    </p>
+                    <p v-else class="text-sm text-gray-400 mt-0.5">
+                        Mã khách hàng sẽ được tạo tự động
+                    </p>
+                </div>
             </div>
 
-            <!-- TỈNH -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Tỉnh / Thành phố <span class="text-red">*</span>
-                </label>
-
-                <FormSelect
-                    v-model="form.province_id"
-                    :options="provinceOptions"
-                    searchable
-                    placeholder="Chọn tỉnh"
-                />
-            </div>
-
-            <!-- PHƯỜNG -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Xã / Phường <span class="text-red">*</span>
-                </label>
-
-                <FormSelect
-                    v-model="form.ward_id"
-                    :options="wardOptions"
-                    searchable
-                    placeholder="Chọn xã/phường"
-                />
-            </div>
-
-            <!-- ĐỊA CHỈ -->
-
-            <div class="col-span-2">
-                <label class="block text-sm font-medium mb-1">
-                    Địa chỉ chi tiết <span class="text-red">*</span>
-                </label>
-
-                <textarea
-                    v-model="form.address_detail"
-                    rows="3"
-                    class="w-full border rounded-lg px-3 py-2"
-                />
-            </div>
-
-            <!-- CÔNG NỢ -->
-
-            <div>
-                <label class="block text-sm font-medium mb-1">
-                    Công nợ đầu kỳ
-                </label>
-
-                <input
-                    v-model="form.opening_debt"
-                    type="number"
-                    min="0"
-                    class="w-full border rounded-lg px-3 py-2"
-                />
-            </div>
-
-            <!-- TRẠNG THÁI -->
+            <button
+                @click="$emit('close')"
+                type="button"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+                <i class="ti ti-x text-xl"></i>
+            </button>
         </div>
 
-        <div class="flex justify-end gap-3 mt-6 border-t pt-4">
-            <button @click="$emit('close')" class="px-4 py-2 border rounded-lg">
+        <!-- BODY -->
+        <div class="px-7 py-6 max-h-[75vh] overflow-y-auto">
+            <!-- SECTION: THÔNG TIN CHUNG -->
+            <div class="mb-6">
+                <h3
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                >
+                    <i class="ti ti-address-book text-base"></i>
+                    Thông tin chung
+                </h3>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- TÊN -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Tên khách hàng <span class="text-red-500">*</span>
+                        </label>
+
+                        <div class="relative">
+                            <i
+                                class="ti ti-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.name"
+                                type="text"
+                                placeholder="Nhập tên khách hàng"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.name ? 'border-red-300' : ''"
+                            />
+                        </div>
+
+                        <p
+                            v-if="errors.name"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.name[0] }}
+                        </p>
+                    </div>
+
+                    <!-- PHONE -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Số điện thoại <span class="text-red-500">*</span>
+                        </label>
+
+                        <div class="relative">
+                            <i
+                                class="ti ti-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.phone"
+                                type="text"
+                                placeholder="Nhập số điện thoại"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.phone ? 'border-red-300' : ''"
+                            />
+                        </div>
+
+                        <p
+                            v-if="errors.phone"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.phone[0] }}
+                        </p>
+                    </div>
+
+                    <!-- EMAIL -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Email <span class="text-red-500">*</span>
+                        </label>
+
+                        <div class="relative">
+                            <i
+                                class="ti ti-mail absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.email"
+                                type="email"
+                                placeholder="ten@congty.com"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.email ? 'border-red-300' : ''"
+                            />
+                        </div>
+
+                        <p
+                            v-if="errors.email"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.email[0] }}
+                        </p>
+                    </div>
+
+                    <!-- TIỀN TỆ -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Tiền tệ mặc định
+                        </label>
+
+                        <FormSelect
+                            v-model="form.currency_id"
+                            :options="currencyOptions"
+                            placeholder="Tìm và chọn loại tiền tệ..."
+                            searchable
+                        />
+                        <p
+                            v-if="errors.currency_id"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.currency_id[0] }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: ĐỊA CHỈ -->
+            <div class="mb-6">
+                <h3
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                >
+                    <i class="ti ti-map-pin text-base"></i>
+                    Địa chỉ
+                </h3>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- TỈNH -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Tỉnh / Thành phố <span class="text-red-500">*</span>
+                        </label>
+
+                        <FormSelect
+                            v-model="form.province_id"
+                            :options="provinceOptions"
+                            searchable
+                            placeholder="Chọn tỉnh"
+                        />
+                        <p
+                            v-if="errors.province_id"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.province_id[0] }}
+                        </p>
+                    </div>
+
+                    <!-- PHƯỜNG -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Xã / Phường <span class="text-red-500">*</span>
+                        </label>
+
+                        <FormSelect
+                            v-model="form.ward_id"
+                            :options="wardOptions"
+                            searchable
+                            placeholder="Chọn xã/phường"
+                            :disabled="!form.province_id"
+                        />
+                        <p
+                            v-if="errors.ward_id"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.ward_id[0] }}
+                        </p>
+                    </div>
+
+                    <!-- ĐỊA CHỈ -->
+                    <div class="col-span-2">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Địa chỉ chi tiết <span class="text-red-500">*</span>
+                        </label>
+
+                        <textarea
+                            v-model="form.address_detail"
+                            rows="3"
+                            placeholder="Số nhà, tên đường, khu vực..."
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: TÀI CHÍNH -->
+            <div>
+                <h3
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
+                >
+                    <i class="ti ti-cash text-base"></i>
+                    Tài chính
+                </h3>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- CÔNG NỢ -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Công nợ đầu kỳ
+                        </label>
+
+                        <div class="relative">
+                            <i
+                                class="ti ti-coin absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.opening_debt"
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div
+            class="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 bg-gray-50/60"
+        >
+            <button
+                @click="$emit('close')"
+                class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
                 Đóng
             </button>
 
             <button
                 @click="save"
                 :disabled="loading"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
+                <i
+                    v-if="loading"
+                    class="ti ti-loader-2 animate-spin text-base"
+                ></i>
+                <i v-else class="ti ti-device-floppy text-base"></i>
                 {{ loading ? "Đang lưu..." : "Lưu" }}
             </button>
         </div>
@@ -180,6 +320,24 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+});
+// ==================== CẤU TRÚC OPTIONS CHUẨN HOÁ CHO FORMSELECT ====================
+const currencyOptions = computed(() => {
+    // 1. Kiểm tra nếu không có dữ liệu thì trả về mảng rỗng chống lỗi crash
+    if (!props.currencies) return [];
+
+    // 2. Dự phòng trường hợp props.currencies truyền sang là Object dạng pagination { data: [...] }
+    const currencyArray = Array.isArray(props.currencies)
+        ? props.currencies
+        : props.currencies.data || [];
+
+    // 3. Nếu vẫn không tìm ra mảng hợp lệ, trả về mảng trống
+    if (!Array.isArray(currencyArray)) return [];
+
+    return currencyArray.map((c) => ({
+        value: String(c.id),
+        label: `${c.code} - ${c.name}`,
+    }));
 });
 const provinceOptions = computed(() =>
     provinces.value.map((item) => ({
@@ -239,7 +397,6 @@ watch(
     async (customer) => {
         if (!customer) {
             resetForm();
-            fetchNextCode(); // 👈 thêm cái này
             return;
         }
 
@@ -306,10 +463,6 @@ watch(
         await fetchWards(value);
     },
 );
-async function fetchNextCode() {
-    const res = await axios.get("/api/sale/customers/next-code");
-    form.code = res.data.code;
-}
 async function save() {
     loading.value = true;
 

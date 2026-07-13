@@ -6,14 +6,21 @@ use App\Models\Currency;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\WarehouseProductStock;
+use App\Models\WarehouseSlipItem;
 use App\Services\ActivityLogService;
 use App\Services\SupplierDebtService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\CodeGeneratorService;
+use App\Services\CurrencyService;
 
 class PurchaseOrderController extends Controller
 {
+    public function __construct(
+        protected CurrencyService $currencyService,
+        protected CodeGeneratorService $codeGenerator
+    ) {}
     private function getCompanyCurrency()
     {
         $company = auth()->user()->company ?? auth()->user()->companies()->first();
@@ -48,8 +55,8 @@ class PurchaseOrderController extends Controller
         if ($request->filled('supplier_id')) {
             $query->where('supplier_id', $request->supplier_id);
         }
-
-        $orders = $query->latest()->paginate(5);
+        $perPage = min((int) $request->input('per_page', 10), 100);
+        $orders = $query->latest()->paginate($perPage);
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
@@ -104,7 +111,7 @@ class PurchaseOrderController extends Controller
             $query->where('supplier_id', $request->supplier_id);
         }
 
-        $orders = $query->latest()->paginate(5);
+        $orders = $query->latest()->paginate(10);
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($item) use ($companyCurrency) {
@@ -212,11 +219,10 @@ class PurchaseOrderController extends Controller
 
             $total = 0;
 
-            $last = PurchaseOrder::latest('id')->first();
+
             $orderCurrency = Currency::findOrFail(
                 $request->currency_id
             );
-
             $company = auth()
                 ->user()
                 ->companies()
@@ -238,7 +244,6 @@ class PurchaseOrderController extends Controller
             $validated['exchange_rate']
                 = $orderCurrency->exchange_rate;
             $order = PurchaseOrder::create([
-                'code' => 'PO' . str_pad(($last?->id ?? 0) + 1, 5, '0', STR_PAD_LEFT),
                 'supplier_id' => $request->supplier_id,
                 'currency_id' => $request->currency_id,
                 'expected_received_date' => $request->expected_received_date,
@@ -444,6 +449,21 @@ class PurchaseOrderController extends Controller
 
         $order->total_amount = round($order->items->sum('amount'), 2);
         $order->setRelation('currency', $companyCurrency ?: $order->currency);
+        $receivedMap = WarehouseSlipItem::query()
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->whereIn('slip_id', function ($q) use ($order) {
+                $q->select('id')
+                    ->from('warehouse_slips')
+                    ->where('purchase_order_id', $order->id)
+                    ->where('type', 'import')
+                    ->whereIn('status', ['pending', 'approved']);
+            })
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        foreach ($order->items as $item) {
+            $item->received_quantity = $receivedMap[$item->product_id] ?? 0;
+        }
 
         return response()->json($order);
     }

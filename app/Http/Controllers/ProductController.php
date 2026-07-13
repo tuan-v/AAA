@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use App\Services\CurrencyService;   
+use App\Services\CurrencyService;
+
 class ProductController extends Controller
 {
     public function __construct(
@@ -68,7 +69,7 @@ class ProductController extends Controller
 
         $products = $query
             ->orderByDesc('id')
-            ->paginate(5)
+            ->paginate($request->input('per_page', 5))
             ->through(function ($p) use ($currency) {
 
                 return [
@@ -134,7 +135,7 @@ class ProductController extends Controller
         $validated = $request->validate(
             [
                 'name' => 'required|max:255',
-                'sku' => 'nullable|max:255|unique:products,sku',
+                'sku' => 'required|max:255|unique:products,sku',
 
                 'category_id' => 'required|exists:categories,id',
                 'unit_id' => 'required|exists:units,id',
@@ -154,9 +155,9 @@ class ProductController extends Controller
             [
                 'name.required' => 'Tên sản phẩm không được để trống.',
                 'name.max' => 'Tên sản phẩm tối đa 255 ký tự.',
-
-                'sku.unique' => 'Mã SKU đã tồn tại.',
-                'sku.max' => 'SKU tối đa 255 ký tự.',
+                'sku.required' => 'Vui lòng nhập mã hàng.',
+                'sku.unique' => 'Mã hàng đã tồn tại.',
+                'sku.max' => 'Mã hàng tối đa 255 ký tự.',
 
                 'category_id.required' => 'Vui lòng chọn danh mục.',
                 'category_id.exists' => 'Danh mục không tồn tại.',

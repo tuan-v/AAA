@@ -52,8 +52,8 @@ class TransactionController extends Controller
         if ($request->keyword) {
             $query->where('description', 'like', "%{$request->keyword}%");
         }
-
-        $transactions = $query->latest()->paginate(20);
+        $perPage = min((int) $request->input('per_page', 10), 100);
+        $transactions = $query->latest()->paginate($perPage);
 
         return response()->json($transactions);
     }
@@ -74,7 +74,7 @@ class TransactionController extends Controller
             'sales_order_id' => 'nullable|exists:sales_orders,id',
             'purchase_order_id' => 'nullable|exists:purchase_orders,id',
             'exchange_rate' => 'nullable|numeric',
-        ],[
+        ], [
             'type.required' => 'Loại giao dịch không được để trống',
             'type.in' => 'Loại giao dịch không hợp lệ',
             'amount.required' => 'Số tiền không được để trống',

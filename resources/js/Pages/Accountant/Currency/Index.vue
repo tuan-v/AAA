@@ -52,6 +52,7 @@
             :currentPage="currencies.current_page"
             :doingShow="currencies.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -87,7 +88,7 @@ import "vue3-toastify/dist/index.css";
 import CurrencyForm from "./CurrencyForm.vue";
 
 /* ================= STATE ================= */
-
+const perPage = ref(10);
 const filterParams = ref({});
 
 const currencies = ref({
@@ -250,6 +251,7 @@ const fetchData = async (page = 1) => {
     const res = await axios.get("/api/accountant/currencies", {
         params: {
             page,
+            per_page: perPage.value,
             ...filterParams.value,
         },
     });
@@ -264,7 +266,10 @@ const fetchData = async (page = 1) => {
         last_page: data.last_page ?? 1,
     };
 };
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const getData = debounce((page = 1) => {
     fetchData(page);
 }, 300);

@@ -11,6 +11,11 @@ Route::prefix('/warehouse')->group(function () {
     Route::get('/', function () {
         return Inertia::render('Warehouse/Index');
     });
+    Route::get('/{id}/detail', function ($id) {
+        return Inertia::render('Warehouse/WarehouseDetail', [
+            'id' => (int) $id,
+        ]);
+    });
     Route::get('/products', function () {
         return Inertia::render('Warehouse/Product/Index');
     });

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,5 +67,17 @@ class WarehouseSlip extends Model
     public function logs()
     {
         return $this->morphMany(ActivityLog::class, 'model');
+    }
+    protected static function booted()
+    {
+        static::creating(function ($slip) {
+            if (!$slip->code) {
+                $prefix = $slip->type === 'import' ? 'PN' : 'PX';
+
+                // Truyền cả Class và Prefix vào để Service phân biệt nhóm số đếm
+                $slip->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, $prefix);
+            }
+        });
     }
 }

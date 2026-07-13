@@ -84,6 +84,7 @@
             :currentPage="orders.current_page"
             :doingShow="orders.data.length"
             @page-change="handlePageChange"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -267,9 +268,12 @@ const purchaseDetailOrder = ref(null);
 const showPurchaseDetailModal = ref(false);
 const search = ref("");
 const statusFilter = ref("");
-
+const perPage = ref(10);
 const showModal = ref(false);
-
+const handlePerPageChange = (value) => {
+    perPage.value = value;
+    getData(1);
+};
 const selectedOrder = ref(null);
 
 const columns = [
@@ -413,6 +417,7 @@ async function getData(page = 1) {
     const res = await axios.get("/api/purchase/orders", {
         params: {
             page,
+            per_page: perPage.value,
             search: search.value,
             status: statusFilter.value,
         },

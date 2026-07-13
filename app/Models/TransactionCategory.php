@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -64,5 +65,15 @@ class TransactionCategory extends Model
             'transfer' => 'Chuyển khoản',
             default => $this->type,
         };
+    }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+
+            if (!$model->code) {
+                $model->code = app(CodeGeneratorService::class)
+                    ->generate(self::class, 'LGD');
+            }
+        });
     }
 }

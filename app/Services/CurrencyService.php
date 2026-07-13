@@ -13,7 +13,7 @@ class CurrencyService
             ->first();
     }
 
-     public function convertByCurrency(
+    public function convertByCurrency(
         float $amount,
         $currency
     ): float {

@@ -26,20 +26,20 @@
 
             <!-- Header -->
             <div
-                class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 flex items-center justify-between gap-4 mb-4"
+                class="bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl p-6 flex items-center justify-between gap-4 mb-4"
             >
                 <div class="flex items-center gap-4">
                     <div
                         class="w-16 h-16 rounded-full bg-white/20 text-white flex items-center justify-center text-2xl font-semibold flex-shrink-0 ring-2 ring-white/30"
                     >
-                        {{ customer.name?.charAt(0)?.toUpperCase() }}
+                        {{ supplier.name?.charAt(0)?.toUpperCase() }}
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-white">
-                            {{ customer.name }}
+                            {{ supplier.name }}
                         </h1>
-                        <p class="text-blue-200 text-sm mt-0.5">
-                            {{ customer.code }}
+                        <p class="text-orange-100 text-sm mt-0.5">
+                            {{ supplier.code }}
                         </p>
                         <div class="flex gap-5 mt-2 flex-wrap">
                             <span
@@ -58,7 +58,7 @@
                                         d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
                                     />
                                 </svg>
-                                {{ customer.phone || "Chưa có SĐT" }}
+                                {{ supplier.phone || "Chưa có SĐT" }}
                             </span>
                             <span
                                 class="flex items-center gap-1.5 text-sm text-white/80"
@@ -76,7 +76,7 @@
                                         d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
                                     />
                                 </svg>
-                                {{ customer.email || "Chưa có Email" }}
+                                {{ supplier.email || "Chưa có Email" }}
                             </span>
                         </div>
                     </div>
@@ -84,7 +84,7 @@
                 <div class="flex gap-2 items-center flex-shrink-0">
                     <button
                         @click="createQuickOrder"
-                        class="flex items-center gap-2 bg-white text-blue-700 font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-blue-50 transition shadow"
+                        class="flex items-center gap-2 bg-white text-orange-700 font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-orange-50 transition shadow"
                     >
                         <svg
                             class="w-4 h-4"
@@ -99,10 +99,10 @@
                                 d="M12 4.5v15m7.5-7.5h-15"
                             />
                         </svg>
-                        Tạo đơn hàng
+                        Tạo đơn mua hàng
                     </button>
                     <button
-                        @click="editCustomer"
+                        @click="editSupplier"
                         class="flex items-center gap-2 border border-white/30 text-white rounded-xl px-5 py-2.5 text-sm hover:bg-white/10 transition"
                     >
                         <svg
@@ -135,14 +135,16 @@
                         {{ formatCurrency(debtSummary.remaining_debt) }}
                     </p>
                 </div>
-                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <div
+                    class="bg-orange-50 border border-orange-100 rounded-xl p-4"
+                >
                     <p
-                        class="text-xs text-blue-400 mb-1 font-medium uppercase tracking-wide"
+                        class="text-xs text-orange-400 mb-1 font-medium uppercase tracking-wide"
                     >
-                        Tổng phát sinh
+                        Tổng phát sinh (phải trả)
                     </p>
-                    <p class="text-2xl font-bold text-blue-600">
-                        {{ formatCurrency(debtSummary.total_receivable) }}
+                    <p class="text-2xl font-bold text-orange-600">
+                        {{ formatCurrency(debtSummary.total_payable) }}
                     </p>
                 </div>
                 <div class="bg-green-50 border border-green-100 rounded-xl p-4">
@@ -173,7 +175,7 @@
             <div class="grid grid-cols-12 gap-4">
                 <!-- Left -->
                 <div class="col-span-12 xl:col-span-8 space-y-4">
-                    <!-- Thông tin khách hàng -->
+                    <!-- Thông tin NCC -->
                     <div
                         class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6"
                     >
@@ -181,9 +183,9 @@
                             class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2"
                         >
                             <span
-                                class="w-1 h-5 bg-blue-500 rounded-full inline-block"
+                                class="w-1 h-5 bg-orange-500 rounded-full inline-block"
                             ></span>
-                            Thông tin khách hàng
+                            Thông tin nhà cung cấp
                         </h2>
                         <div class="grid md:grid-cols-2 gap-3 mb-3">
                             <div
@@ -195,7 +197,7 @@
                                     Số điện thoại
                                 </p>
                                 <p class="text-base font-medium text-gray-800">
-                                    {{ customer.phone || "Chưa cập nhật" }}
+                                    {{ supplier.phone || "Chưa cập nhật" }}
                                 </p>
                             </div>
                             <div
@@ -207,7 +209,7 @@
                                     Email
                                 </p>
                                 <p class="text-base font-medium text-gray-800">
-                                    {{ customer.email || "Chưa cập nhật" }}
+                                    {{ supplier.email || "Chưa cập nhật" }}
                                 </p>
                             </div>
                             <div
@@ -219,7 +221,7 @@
                                     Tiền tệ
                                 </p>
                                 <p class="text-base font-medium text-gray-800">
-                                    {{ customer.currency?.name || "VND" }}
+                                    {{ supplier.currency?.name || "VND" }}
                                 </p>
                             </div>
                             <div
@@ -233,7 +235,7 @@
                                 <p
                                     class="text-base font-semibold text-orange-600"
                                 >
-                                    {{ formatCurrency(customer.opening_debt) }}
+                                    {{ formatCurrency(supplier.opening_debt) }}
                                 </p>
                             </div>
                         </div>
@@ -251,7 +253,7 @@
                         </div>
                     </div>
 
-                    <!-- Đơn hàng gần đây -->
+                    <!-- Đơn mua hàng gần đây -->
                     <div
                         class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6"
                     >
@@ -261,7 +263,7 @@
                             <span
                                 class="w-1 h-5 bg-indigo-500 rounded-full inline-block"
                             ></span>
-                            Đơn hàng gần đây
+                            Đơn mua hàng gần đây
                         </h2>
                         <div
                             v-if="recentOrders.length"
@@ -300,13 +302,14 @@
                                                     : "-"
                                             }}
                                         </td>
-                                        <td class="p-2">
-                                            {{
-                                                formatCurrency(
-                                                    order.total_amount || 0,
-                                                )
-                                            }}
-                                        </td>
+                                        {{
+                                            Number(
+                                                order.total_amount,
+                                            ).toLocaleString("vi-VN")
+                                        }}
+                                        {{
+                                            supplier.currency?.symbol
+                                        }}
                                         <td class="p-2">
                                             {{
                                                 getStatusLabel(order.status) ||
@@ -338,12 +341,12 @@
                             <span
                                 class="w-1 h-5 bg-red-400 rounded-full inline-block"
                             ></span>
-                            Tổng quan công nợ
+                            Tổng quan công nợ phải trả
                         </h2>
 
                         <div
                             class="mb-5"
-                            v-if="(debtSummary.total_receivable || 0) > 0"
+                            v-if="(debtSummary.total_payable || 0) > 0"
                         >
                             <div class="flex justify-between text-xs mb-2">
                                 <span class="text-green-500 font-medium"
@@ -373,16 +376,16 @@
                                     >Công nợ đầu kỳ</span
                                 >
                                 <span class="font-medium text-gray-700">{{
-                                    formatCurrency(customer.opening_debt || 0)
+                                    formatCurrency(supplier.opening_debt || 0)
                                 }}</span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-500"
                                     >Tổng phát sinh</span
                                 >
-                                <span class="font-medium text-blue-600">{{
+                                <span class="font-medium text-orange-600">{{
                                     formatCurrency(
-                                        debtSummary.total_receivable || 0,
+                                        debtSummary.total_payable || 0,
                                     )
                                 }}</span>
                             </div>
@@ -471,13 +474,13 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { getStatusLabel } from "@/config/status";
-const customer = ref({});
+const supplier = ref({});
 const debtSummary = ref({});
 const recentOrders = ref([]);
 const debtHistory = ref([]);
 
 const props = defineProps({
-    customerId: {
+    supplierId: {
         type: Number,
         required: true,
     },
@@ -489,10 +492,10 @@ const loading = ref(true);
 onMounted(async () => {
     try {
         const res = await axios.get(
-            `/api/sale/customers/${props.customerId}/detail`,
+            `/api/purchase/suppliers/${props.supplierId}/detail`,
         );
 
-        customer.value = res.data.customer;
+        supplier.value = res.data.supplier;
         debtSummary.value = res.data.debt_summary;
         recentOrders.value = res.data.recent_orders;
         debtHistory.value = res.data.debt_history || [];
@@ -503,15 +506,15 @@ onMounted(async () => {
 
 const fullAddress = computed(() => {
     const parts = [
-        customer.value.address_detail,
-        customer.value.ward?.name,
-        customer.value.province?.name,
+        supplier.value.address_detail,
+        supplier.value.ward?.name,
+        supplier.value.province?.name,
     ].filter(Boolean);
     return parts.join(", ") || "Chưa có địa chỉ";
 });
 
 const paidPercent = computed(() => {
-    const total = debtSummary.value.total_receivable || 0;
+    const total = debtSummary.value.total_payable || 0;
     const paid = debtSummary.value.total_paid || 0;
     if (total === 0) return 0;
     return Math.round((paid / total) * 100);
@@ -525,10 +528,10 @@ const formatCurrency = (amount) => {
 };
 
 const createQuickOrder = () => {
-    emit("create-order", customer.value.id);
+    emit("create-order", supplier.value.id);
 };
 
-const editCustomer = () => {
+const editSupplier = () => {
     // Điều hướng đến trang edit
 };
 </script>
