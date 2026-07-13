@@ -1,166 +1,212 @@
 <template>
     <div
-        class="bg-white rounded-2xl shadow-xl w-full max-w-5xl relative z-50 overflow-hidden"
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl overflow-hidden"
     >
+        <!-- Header -->
         <div
-            class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 flex justify-between items-center"
+            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
-            <div>
-                <h2 class="text-xl font-bold text-white">
-                    {{
-                        form.id
-                            ? "Cập nhật nhà cung cấp"
-                            : "Thêm nhà cung cấp mới"
-                    }}
-                </h2>
-                <p class="text-sm text-blue-200 mt-0.5">
-                    Quản lý và thiết lập thông tin đối tác nhà cung cấp hệ thống
-                </p>
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
+                >
+                    <i class="ti ti-truck-delivery text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                        {{
+                            form.id
+                                ? "Cập nhật nhà cung cấp"
+                                : "Thêm nhà cung cấp mới"
+                        }}
+                    </h2>
+                    <p
+                        v-if="form.code"
+                        class="text-sm text-blue-600 font-semibold mt-0.5 flex items-center gap-1"
+                    >
+                        <i class="ti ti-id-badge-2 text-base"></i>
+                        {{ form.code }}
+                    </p>
+                    <p v-else class="text-sm text-gray-400 mt-0.5">
+                        Mã nhà cung cấp sẽ được tạo tự động
+                    </p>
+                </div>
             </div>
 
             <button
                 @click="$emit('close')"
-                class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
+                type="button"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                ✕
+                <i class="ti ti-x text-xl"></i>
             </button>
         </div>
 
-        <div class="p-6 space-y-5">
-            <div class="border border-gray-100 rounded-xl p-5 bg-gray-50/60">
+        <div class="px-6 py-6 max-h-[75vh] overflow-y-auto space-y-6">
+            <!-- SECTION: THÔNG TIN CƠ BẢN -->
+            <div>
                 <h3
-                    class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                 >
-                    <span
-                        class="w-1 h-4 bg-blue-500 rounded-full inline-block"
-                    ></span>
+                    <i class="ti ti-address-book text-base"></i>
                     Thông tin cơ bản
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Tên -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
                             Tên nhà cung cấp <span class="text-red-500">*</span>
                         </label>
-                        <input
-                            v-model="form.name"
-                            type="text"
-                            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[38px] transition"
-                            placeholder="Nhập tên nhà cung cấp..."
-                        />
-                        <p v-if="errors.name" class="text-red-500 text-xs mt-1">
-                            {{ errors.name[0] }}
+
+                        <div class="relative">
+                            <i
+                                class="ti ti-building-store absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.name"
+                                type="text"
+                                placeholder="Nhập tên nhà cung cấp"
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.name ? 'border-red-300' : ''"
+                            />
+                        </div>
+                        <p
+                            v-if="errors.name"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.name[0] }}
                         </p>
                     </div>
 
+                    <!-- Mã (chỉ hiển thị, không cho sửa) -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
                             Mã nhà cung cấp
                         </label>
-                        <div class="flex gap-2">
+                        <div class="relative">
+                            <i
+                                class="ti ti-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
                             <input
                                 v-model="form.code"
                                 type="text"
-                                class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[38px] transition"
-                                :class="
-                                    errors.code
-                                        ? 'border-red-500 bg-red-50'
-                                        : 'border-gray-200'
-                                "
-                                placeholder="Mã tự động..."
+                                disabled
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                                placeholder="Mã tự động khi lưu"
                             />
-                            <button
-                                @click="generateCode"
-                                type="button"
-                                class="bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap border border-gray-200 shadow-sm"
-                            >
-                                Tự sinh mã
-                            </button>
                         </div>
+                        <p
+                            v-if="errors.code"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.code[0] }}
+                        </p>
                     </div>
 
+                    <!-- Phone -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
-                            >Số điện thoại</label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                        <input
-                            v-model="form.phone"
-                            type="text"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[38px]"
-                            placeholder="Nhập số điện thoại..."
-                        />
+                            Số điện thoại
+                        </label>
+                        <div class="relative">
+                            <i
+                                class="ti ti-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.phone"
+                                type="text"
+                                placeholder="Nhập số điện thoại"
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.phone ? 'border-red-300' : ''"
+                            />
+                        </div>
                         <p
                             v-if="errors.phone"
-                            class="text-red-500 text-xs mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.phone[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.phone[0] }}
                         </p>
                     </div>
 
+                    <!-- Email -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
-                            >Email</label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                        <input
-                            v-model="form.email"
-                            type="email"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[38px]"
-                            placeholder="example@domain.com"
-                        />
+                            Email
+                        </label>
+                        <div class="relative">
+                            <i
+                                class="ti ti-mail absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="form.email"
+                                type="email"
+                                placeholder="ten@congty.com"
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                :class="errors.email ? 'border-red-300' : ''"
+                            />
+                        </div>
                         <p
                             v-if="errors.email"
-                            class="text-red-500 text-xs mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.email[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.email[0] }}
                         </p>
                     </div>
 
+                    <!-- Tiền tệ -->
                     <div class="md:col-span-2">
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
                             Tiền tệ mặc định
                         </label>
-                        <div>
-                            <FormSelect
-                                v-model="form.currency_id"
-                                :options="currencyOptions"
-                                placeholder="Tìm kiếm hoặc chọn loại tiền tệ..."
-                                searchable
-                            />
-                        </div>
+                        <FormSelect
+                            v-model="form.currency_id"
+                            :options="currencyOptions"
+                            placeholder="Tìm kiếm hoặc chọn loại tiền tệ..."
+                            searchable
+                        />
                         <p
                             v-if="errors.currency_id"
-                            class="text-red-500 text-xs mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.currency_id[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.currency_id[0] }}
                         </p>
                     </div>
                 </div>
             </div>
 
-            <div class="border border-gray-100 rounded-xl p-5 bg-gray-50/60">
+            <!-- SECTION: ĐỊA CHỈ TRỤ SỞ -->
+            <div>
                 <h3
-                    class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                 >
-                    <span
-                        class="w-1 h-4 bg-indigo-500 rounded-full inline-block"
-                    ></span>
-                    Thông tin địa chỉ trụ sở
+                    <i class="ti ti-map-pin text-base"></i>
+                    Địa chỉ trụ sở
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Tỉnh -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
-                            >Tỉnh / Thành phố</label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
+                            Tỉnh / Thành phố
+                        </label>
                         <FormSelect
                             v-model="selectedProvince"
                             :options="provinceOptions"
@@ -170,17 +216,20 @@
                         />
                         <p
                             v-if="errors.province_id"
-                            class="text-red-500 text-xs mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.province_id[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.province_id[0] }}
                         </p>
                     </div>
 
+                    <!-- Phường -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
-                            >Phường / Xã</label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
+                            Phường / Xã
+                        </label>
                         <FormSelect
                             v-model="selectedWard"
                             :options="wardOptions"
@@ -190,53 +239,68 @@
                         />
                         <p
                             v-if="errors.ward_id"
-                            class="text-red-500 text-xs mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.ward_id[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.ward_id[0] }}
                         </p>
                     </div>
 
+                    <!-- Địa chỉ chi tiết -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
-                            >Địa chỉ chi tiết</label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                        <input
-                            v-model="addressDetail"
-                            type="text"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent h-[38px]"
-                            placeholder="Số nhà, ngõ, tên đường..."
-                        />
+                            Địa chỉ chi tiết
+                        </label>
+                        <div class="relative">
+                            <i
+                                class="ti ti-map-2 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                v-model="addressDetail"
+                                type="text"
+                                placeholder="Số nhà, ngõ, tên đường..."
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Ghi chú -->
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1"
-                    >Ghi chú
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    Ghi chú
                 </label>
                 <textarea
                     v-model="form.note"
                     rows="2"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition"
                     placeholder="Ghi chú thông tin đặc biệt về nhà cung cấp này..."
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                 />
             </div>
+        </div>
 
-            <div class="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                <button
-                    @click="$emit('close')"
-                    class="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition font-medium"
-                >
-                    Hủy bỏ
-                </button>
-                <button
-                    @click="submit"
-                    class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-sm font-medium rounded-lg transition shadow-sm hover:shadow-md"
-                >
-                    {{ form.id ? "Cập nhật ngay" : "Thêm nhà cung cấp" }}
-                </button>
-            </div>
+        <!-- Footer -->
+        <div
+            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60"
+        >
+            <button
+                @click="$emit('close')"
+                type="button"
+                class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+                Hủy bỏ
+            </button>
+            <button
+                @click="submit"
+                type="button"
+                class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+                <i class="ti ti-device-floppy text-base"></i>
+                {{ form.id ? "Cập nhật ngay" : "Thêm nhà cung cấp" }}
+            </button>
         </div>
     </div>
 </template>
@@ -357,13 +421,6 @@ async function fetchWards(provinceCode) {
 function onProvinceChange() {
     selectedWard.value = "";
     fetchWards(selectedProvince.value);
-}
-
-function generateCode() {
-    const random = Math.floor(Math.random() * 9999)
-        .toString()
-        .padStart(4, "0");
-    form.code = `NCC${random}`;
 }
 
 function resetForm() {

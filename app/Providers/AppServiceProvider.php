@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Repositories\DashboardRepository;
+use App\Repositories\DashboardRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +17,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CurrencyService::class);
 
         $this->app->singleton(CodeGeneratorService::class);
+        $this->app->bind(
+            DashboardRepositoryInterface::class,
+            DashboardRepository::class
+        );
     }
 
     public function boot(): void

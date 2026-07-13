@@ -35,7 +35,7 @@
                 />
 
                 <p v-if="form.errors.name" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.name }}
+                    {{ form.errors.name[0] }}
                 </p>
             </div>
 
@@ -73,7 +73,7 @@
                 </select>
 
                 <p v-if="form.errors.status" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.status }}
+                    {{ form.errors.status[0] }}
                 </p>
             </div>
 

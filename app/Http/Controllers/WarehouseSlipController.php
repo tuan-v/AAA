@@ -379,7 +379,7 @@ class WarehouseSlipController extends Controller
     }
     public function approve($id)
     {
-        $slip = WarehouseSlip::with(['items'])->findOrFail($id);
+        $slip = WarehouseSlip::with(['items', 'warehouse'])->findOrFail($id);
 
         if ($slip->status !== 'pending') {
             return response()->json(['message' => 'Phiếu đã xử lý'], 422);
@@ -392,6 +392,7 @@ class WarehouseSlipController extends Controller
                 if ($slip->type === 'import') {
                     $stock = WarehouseProductStock::firstOrCreate(
                         [
+                            'company_id' => $slip->company_id,
                             'warehouse_id' => $slip->warehouse_id,
                             'product_id' => $item->product_id,
                         ],
@@ -416,6 +417,7 @@ class WarehouseSlipController extends Controller
 
                 if ($slip->type === 'export') {
                     $stock = WarehouseProductStock::firstOrCreate([
+                        'company_id' => $slip->company_id,
                         'warehouse_id' => $slip->warehouse_id,
                         'product_id' => $item->product_id,
                     ]);

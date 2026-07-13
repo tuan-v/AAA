@@ -20,12 +20,22 @@ class PermissionController extends Controller
     }
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|min:2',
-        ]);
+        $request->validate(
+            [
+                'name' => 'required|min:2',
+                'description' => 'required|string',
+            ],
+            [
+                'name.required' => 'Tên quyền không được để trống',
+                'name.min' => 'Tên quyền phải có ít nhất 2 ký tự',
+                'description.required' => 'Mô tả không được để trống',
+                'description.string' => 'Mô tả phải là chuỗi ký tự',
+            ]
+        );
         $permission = Permission::create([
             'name' => $request->name,
             'group' => $request->group,
+            'description' => $request->description,
             'guard_name' => 'web'
         ]);
 
@@ -42,6 +52,7 @@ class PermissionController extends Controller
         $permission->update([
             'name' => $request->name,
             'group' => $request->group,
+            'description' => $request->description,
         ]);
 
         return response()->json([

@@ -1,31 +1,50 @@
 <template>
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl relative z-50">
+    <div
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-6xl relative z-50"
+    >
+        <!-- Header -->
         <div
-            class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl px-6 py-5 flex justify-between items-center"
+            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl"
         >
-            <div>
-                <h2 class="text-xl font-bold text-white">
-                    {{ form.id ? "Cập nhật đơn mua" : "Tạo đơn mua hàng" }}
-                </h2>
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
+                >
+                    <i class="ti ti-shopping-cart text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                        {{ form.id ? "Cập nhật đơn mua" : "Tạo đơn mua hàng" }}
+                    </h2>
+                    <p class="text-sm text-gray-400 mt-0.5">
+                        {{
+                            form.id
+                                ? "Chỉnh sửa thông tin đơn mua hàng"
+                                : "Khai báo đơn mua hàng mới với nhà cung cấp"
+                        }}
+                    </p>
+                </div>
             </div>
+
             <button
                 @click="$emit('close')"
-                class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
+                type="button"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                ✕
+                <i class="ti ti-x text-xl"></i>
             </button>
         </div>
 
-        <div class="p-6 space-y-5">
-            <div class="border border-gray-100 rounded-xl p-5 bg-gray-50/60">
+        <div class="p-6 space-y-6">
+            <!-- SECTION: THÔNG TIN ĐƠN MUA -->
+            <div>
                 <h3
-                    class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"
+                    class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                 >
-                    <span
-                        class="w-1 h-4 bg-blue-500 rounded-full inline-block"
-                    ></span>
+                    <i class="ti ti-clipboard-text text-base"></i>
                     Thông tin đơn mua
                 </h3>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <div>
@@ -43,9 +62,10 @@
                         </div>
                         <p
                             v-if="errors.supplier_id"
-                            class="text-red-500 text-sm mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.supplier_id[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.supplier_id[0] }}
                         </p>
                     </div>
 
@@ -61,15 +81,16 @@
                         </div>
                         <p
                             v-if="errors.currency_id"
-                            class="text-red-500 text-sm mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.currency_id[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.currency_id[0] }}
                         </p>
                     </div>
 
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
                             Dự kiến nhận<span class="text-red-500">*</span>
                         </label>
@@ -81,62 +102,68 @@
                         />
                         <p
                             v-if="errors.expected_received_date"
-                            class="text-red-500 text-sm mt-1"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
                         >
-                            {{ errors.expected_received_date[0] }}
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.expected_received_date[0] }}
                         </p>
                     </div>
 
                     <div class="md:col-span-2">
                         <label
-                            class="block text-sm font-medium text-gray-600 mb-1"
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
                             >Ghi chú</label
                         >
                         <textarea
                             rows="2"
                             v-model="form.note"
-                            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            class="w-full border rounded-lg px-3 py-2.5 text-sm transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                             :class="
                                 errors.note
-                                    ? 'border-red-500 bg-red-50'
+                                    ? 'border-red-300'
                                     : 'border-gray-200'
                             "
                             placeholder="Nhập ghi chú đơn mua hàng..."
                         />
-                        <p v-if="errors.note" class="text-red-500 text-sm mt-1">
-                            {{ errors.note[0] }}
+                        <p
+                            v-if="errors.note"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.note[0] }}
                         </p>
                     </div>
                 </div>
             </div>
 
+            <!-- SECTION: DANH SÁCH SẢN PHẨM MUA -->
             <div class="border border-gray-100 rounded-xl p-5 overflow-visible">
                 <div class="flex justify-between items-center mb-4">
                     <h3
-                        class="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                        class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2"
                     >
-                        <span
-                            class="w-1 h-4 bg-indigo-500 rounded-full inline-block"
-                        ></span>
+                        <i class="ti ti-list-details text-base"></i>
                         Danh sách sản phẩm mua
                     </h3>
                     <button
                         @click="addItem"
-                        class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                        type="button"
+                        class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                     >
-                        + Sản phẩm
+                        <i class="ti ti-plus text-base"></i>
+                        Sản phẩm
                     </button>
                 </div>
 
                 <p
                     v-if="errors.items"
-                    class="text-red-500 text-sm mb-3 font-semibold"
+                    class="text-red-500 text-sm mb-3 font-semibold flex items-center gap-1"
                 >
-                    {{ errors.items[0] }}
+                    <i class="ti ti-alert-circle"></i>{{ errors.items[0] }}
                 </p>
 
                 <div
-                    class="overflow-x-auto rounded-lg border border-gray-100 style-scroll-visible pb-32 -mb-32"
+                    class="overflow-x-auto rounded-lg border border-gray-200 style-scroll-visible pb-32 -mb-32"
                 >
                     <table
                         class="w-full table-auto min-w-[800px] text-sm table-layout-fixed"
@@ -172,7 +199,7 @@
                             <tr
                                 v-for="(item, index) in form.items"
                                 :key="index"
-                                class="hover:bg-blue-50/30 transition relative"
+                                class="hover:bg-blue-50/30 transition-colors relative"
                                 :style="{
                                     zIndex: form.items.length + 10 - index,
                                 }"
@@ -180,7 +207,7 @@
                                 <td class="px-3 py-2 overflow-visible">
                                     <div
                                         :class="{
-                                            'rounded-lg border border-red-500':
+                                            'rounded-lg border border-red-300':
                                                 errors[
                                                     `items.${index}.product_id`
                                                 ],
@@ -201,9 +228,10 @@
                                         v-if="
                                             errors[`items.${index}.product_id`]
                                         "
-                                        class="text-red-500 text-xs mt-1"
+                                        class="text-red-500 text-xs mt-1 flex items-center gap-1"
                                     >
-                                        {{
+                                        <i class="ti ti-alert-circle"></i
+                                        >{{
                                             errors[
                                                 `items.${index}.product_id`
                                             ][0]
@@ -216,10 +244,10 @@
                                         type="number"
                                         min="1"
                                         v-model="item.quantity"
-                                        class="w-full border rounded-lg px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full border rounded-lg px-2 py-1.5 text-center text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                         :class="
                                             errors[`items.${index}.quantity`]
-                                                ? 'border-red-500 bg-red-50'
+                                                ? 'border-red-300'
                                                 : 'border-gray-200'
                                         "
                                     />
@@ -237,10 +265,10 @@
                                     <input
                                         :value="formatNumber(item.price)"
                                         @input="updatePrice(item, $event)"
-                                        class="w-full border rounded-lg px-2 py-1.5 text-right text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full border rounded-lg px-2 py-1.5 text-right text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                         :class="
                                             errors[`items.${index}.price`]
-                                                ? 'border-red-500 bg-red-50'
+                                                ? 'border-red-300'
                                                 : 'border-gray-200'
                                         "
                                     />
@@ -253,7 +281,7 @@
                                 </td>
 
                                 <td
-                                    class="px-3 py-2 text-right font-semibold text-green-600"
+                                    class="px-3 py-2 text-right font-semibold text-blue-600"
                                 >
                                     {{
                                         formatMoney(
@@ -267,7 +295,8 @@
                                 <td class="px-3 py-2 text-center">
                                     <button
                                         @click="removeItem(index)"
-                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition mx-auto"
+                                        type="button"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors mx-auto"
                                         title="Xóa sản phẩm"
                                     >
                                         <DeleteIcon class="w-4 h-4" />
@@ -291,48 +320,38 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="flex justify-end gap-3 pt-1">
-                <button
-                    @click="$emit('close')"
-                    class="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
-                >
-                    Hủy
-                </button>
-                <button
-                    @click="submit"
-                    :disabled="loading"
-                    class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-sm font-medium rounded-lg disabled:opacity-50 transition"
-                >
-                    <svg
-                        v-if="loading"
-                        class="w-4 h-4 animate-spin"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                    >
-                        <circle
-                            class="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            stroke-width="4"
-                        />
-                        <path
-                            class="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8z"
-                        />
-                    </svg>
-                    {{
-                        loading
-                            ? "Đang lưu..."
-                            : form.id
-                              ? "Cập nhật đơn mua"
-                              : "Lưu đơn hàng"
-                    }}
-                </button>
-            </div>
+        <!-- Footer -->
+        <div
+            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl"
+        >
+            <button
+                @click="$emit('close')"
+                type="button"
+                class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+                Hủy
+            </button>
+            <button
+                @click="submit"
+                type="button"
+                :disabled="loading"
+                class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+                <i
+                    v-if="loading"
+                    class="ti ti-loader-2 animate-spin text-base"
+                ></i>
+                <i v-else class="ti ti-device-floppy text-base"></i>
+                {{
+                    loading
+                        ? "Đang lưu..."
+                        : form.id
+                          ? "Cập nhật đơn mua"
+                          : "Lưu đơn hàng"
+                }}
+            </button>
         </div>
     </div>
 
@@ -403,6 +422,13 @@ const totalAmount = computed(() =>
     ),
 );
 
+// FIX: "currentCurrency" được dùng trong template (formatMoney(..., currentCurrency))
+// nhưng trước đây chưa từng được khai báo -> luôn là undefined -> formatMoney
+// không có tiền tệ để lấy symbol -> mất ký hiệu tiền tệ ở cột Đơn giá/Thành tiền.
+const currentCurrency = computed(
+    () => props.currencies.find((c) => c.id == form.currency_id) || null,
+);
+
 // ==================== FETCH PRODUCTS ====================
 const fetchAllProducts = async () => {
     try {
@@ -418,6 +444,20 @@ const fetchAllProducts = async () => {
 };
 
 // ==================== METHODS ====================
+// FIX: "onSelectProduct" được gọi trong template khi chọn sản phẩm ở bảng
+// (@update:modelValue="() => onSelectProduct(item)") nhưng trước đây chưa
+// từng được khai báo -> chọn sản phẩm không tự điền đơn giá.
+// Tự động điền đơn giá từ productOptions khi người dùng chọn sản phẩm,
+// chỉ điền khi ô giá đang trống để không ghi đè giá người dùng đã tự sửa tay.
+function onSelectProduct(item) {
+    const product = productOptions.value.find(
+        (p) => p.value === String(item.product_id),
+    );
+    if (product && (item.price === "" || item.price === null)) {
+        item.price = product.price;
+    }
+}
+
 const openSupplierModal = () => (showSupplierModal.value = true);
 
 const onSupplierCreated = (newSupplier) => {
@@ -447,6 +487,18 @@ function parseNumber(value) {
 
 function addItem() {
     form.items.push({ product_id: "", quantity: 1, price: "" });
+}
+
+// FIX: "removeItem" được gọi trong template (nút xóa dòng sản phẩm)
+// nhưng trước đây chưa từng được khai báo -> bấm nút xóa không có tác dụng gì.
+// Giữ lại tối thiểu 1 dòng sản phẩm trong bảng: nếu chỉ còn 1 dòng thì reset
+// dòng đó về rỗng thay vì xóa hẳn, để form luôn có ít nhất 1 hàng để nhập.
+function removeItem(index) {
+    if (form.items.length > 1) {
+        form.items.splice(index, 1);
+    } else {
+        form.items[0] = { product_id: "", quantity: 1, price: "" };
+    }
 }
 
 // Khắc phục lỗi watch khởi tạo sai cú pháp bằng việc dùng hàm ẩn danh theo dõi chuẩn Vue 3

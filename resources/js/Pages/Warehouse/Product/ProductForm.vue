@@ -7,11 +7,6 @@
             class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-                <div
-                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
-                >
-                    <i class="ti ti-box text-2xl"></i>
-                </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{ form.id ? "Cập nhật sản phẩm" : "Thêm sản phẩm" }}
@@ -31,7 +26,7 @@
                 type="button"
                 class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                <i class="ti ti-x text-xl"></i>
+                X
             </button>
         </div>
 

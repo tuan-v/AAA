@@ -35,7 +35,7 @@
                 />
 
                 <p v-if="form.errors.name" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.name }}
+                    {{ form.errors.name[0] }}
                 </p>
             </div>
 
@@ -161,13 +161,24 @@ async function save() {
     try {
         form.clearErrors();
 
+        // FIX: trước đây không lưu kết quả axios vào biến nào cả, nên
+        // emit("saved") luôn bắn đi không kèm dữ liệu -> ProductForm nhận
+        // "newUnit" là undefined -> newUnit.id lỗi -> không tự fill được.
+        let res;
+
         if (form.id) {
-            await axios.put(`/api/warehouse/units/${form.id}`, form.data());
+            res = await axios.put(
+                `/api/warehouse/units/${form.id}`,
+                form.data(),
+            );
         } else {
-            await axios.post("/api/warehouse/units", form.data());
+            res = await axios.post("/api/warehouse/units", form.data());
+            toast.success("Thêm đơn vị thành công");
         }
 
-        emit("saved");
+        // API chuẩn của dự án trả về { success, message, data, meta }
+        // -> object đơn vị vừa tạo/sửa nằm ở res.data.data
+        emit("saved", res.data);
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {

@@ -89,6 +89,10 @@ const columns = [
         key: "group",
         label: "Nhóm",
     },
+    {
+        key: "description",
+        label: "Mô tả",
+    },
 ];
 
 const actions = [

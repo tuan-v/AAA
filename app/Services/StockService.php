@@ -13,6 +13,7 @@ class StockService
 
             WarehouseProductStock::updateOrCreate(
                 [
+                    'company_id' => $slip->company_id,
                     'warehouse_id' => $slip->warehouse_id,
                     'product_id' => $item->product_id,
                 ],

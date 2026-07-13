@@ -70,7 +70,11 @@ class PurchaseOrder extends Model
             if (!$model->code) {
 
                 $model->code = app(CodeGeneratorService::class)
-                    ->generate(self::class, 'PO');
+                    ->generate(
+                        self::class,
+                        'PO',
+                        $model->company_id
+                    );
             }
         });
     }

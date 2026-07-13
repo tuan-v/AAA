@@ -35,7 +35,7 @@
                 />
 
                 <p v-if="form.errors.name" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.name }}
+                    {{ form.errors.name[0] }}
                 </p>
             </div>
 
@@ -73,7 +73,7 @@
                 </select>
 
                 <p v-if="form.errors.status" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.status }}
+                    {{ form.errors.status[0] }}
                 </p>
             </div>
 
@@ -141,16 +141,24 @@ async function save() {
     try {
         form.clearErrors();
 
+        // FIX: trước đây thiếu khai báo "res" nên emit("saved", res.data) ném
+        // ReferenceError, bị catch nuốt mất -> lưu thành công dưới DB nhưng
+        // modal không đóng và ProductForm không nhận được category vừa tạo.
+        let res;
+
         if (form.id) {
-            await axios.put(
+            res = await axios.put(
                 `/api/warehouse/categories/${form.id}`,
                 form.data(),
             );
         } else {
-            await axios.post("/api/warehouse/categories", form.data());
+            res = await axios.post("/api/warehouse/categories", form.data());
+            toast.success("Thêm danh mục thành công");
         }
 
-        emit("saved");
+        // API chuẩn của dự án trả về { success, message, data, meta }
+        // -> object danh mục vừa tạo/sửa nằm ở res.data.data
+        emit("saved", res.data);
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {

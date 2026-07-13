@@ -25,6 +25,8 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
+use App\Http\Controllers\DashboardController;
+
 
 Route::get('/warehouses/{warehouse}/detail', [WarehouseController::class, 'detail']);
 Route::get('/warehouses/all', [WarehouseController::class, 'all']);
@@ -256,4 +258,6 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::middleware('auth:sanctum')->group(function () {});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/dashboard/overview', [DashboardController::class, 'overview']);
+});

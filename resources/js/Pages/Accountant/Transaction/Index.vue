@@ -176,13 +176,13 @@ const columns = [
             h(
                 "span",
                 { class: "font-semibold" },
-                `${row.currency?.symbol ?? ""} ${Number(row.amount ?? 0).toLocaleString("vi-VN")}`.trim(),
+                ` ${Number(row.amount ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`.trim(),
             ),
     },
-    {
-        label: "Tiền tệ",
-        render: (row) => h("span", row.currency?.code ?? "-"),
-    },
+    // {
+    //     label: "Tiền tệ",
+    //     render: (row) => h("span", row.currency?.code ?? "-"),
+    // },
     {
         label: "Tài khoản",
         render: (row) => {

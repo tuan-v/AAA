@@ -11,6 +11,7 @@ class Permission extends Model
         'name',
         'guard_name',
         'group',
+        'description',
     ];
     public function roles()
     {

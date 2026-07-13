@@ -11,15 +11,27 @@
             <div class="mb-3">
                 <label class="block mb-1">Tên quyền</label>
                 <input v-model="form.name" class="border p-2 w-full" />
+                <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">
+                    {{ form.errors.name[0] }}
+                </p>
             </div>
 
             <div class="mb-5">
                 <label class="block mb-1">Nhóm</label>
                 <input v-model="form.group" class="border p-2 w-full" />
+                <p v-if="form.errors.group" class="text-red-500 text-xs mt-1">
+                    {{ form.errors.group[0] }}
+                </p>
             </div>
             <div class="mb-5">
                 <label class="block mb-1">Mô tả</label>
                 <input v-model="form.description" class="border p-2 w-full" />
+                <p
+                    v-if="form.errors.description"
+                    class="text-red-500 text-xs mt-1"
+                >
+                    {{ form.errors.description[0] }}
+                </p>
             </div>
 
             <div class="flex justify-end gap-2">

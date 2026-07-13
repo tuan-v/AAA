@@ -125,21 +125,21 @@
                     <p class="text-2xl font-bold">{{ saleOrders.total }}</p>
                 </div>
                 <div class="bg-yellow-50 p-4 rounded-xl border">
-                    <p class="text-yellow-600 text-sm">Chờ xuất kho</p>
+                    <p class="text-yellow-600 text-sm">Xuất một phần</p>
                     <p class="text-2xl font-bold">
                         {{
                             saleOrders.data.filter(
-                                (x) => x.status === "pending",
+                                (x) => x.status === "partial",
                             ).length
                         }}
                     </p>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-xl border">
-                    <p class="text-blue-600 text-sm">Xuất một phần</p>
+                    <p class="text-blue-600 text-sm">Chờ xuất kho</p>
                     <p class="text-2xl font-bold">
                         {{
                             saleOrders.data.filter((x) =>
-                                ["partial"].includes(x.status),
+                                ["approved"].includes(x.status),
                             ).length
                         }}
                     </p>

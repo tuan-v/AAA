@@ -108,7 +108,7 @@
 
 <script setup>
 import { Head, usePage } from "@inertiajs/vue3";
-import { ref, onMounted, h, watch } from "vue";
+import { ref, onMounted, h, watch, computed } from "vue";
 import axios from "axios";
 import { Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -125,7 +125,8 @@ import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 const warehouse = ref([]);
-const filters = [
+
+const filters = computed(() => [
     {
         name: "search",
         type: "text",
@@ -135,7 +136,7 @@ const filters = [
         name: "warehouse_id",
         type: "select",
         placeholder: "Chọn kho",
-        options: [],
+        options: warehouse.value,
     },
     {
         name: "stock",
@@ -148,7 +149,7 @@ const filters = [
             { value: "out_stock", label: "Hết hàng" },
         ],
     },
-];
+]);
 
 const permissions = usePage().props.auth.permissions || [];
 
@@ -371,7 +372,7 @@ async function toggleStatus(product) {
 async function fetchWarehouses() {
     const res = await axios.get("/api/warehouses/all");
 
-    warehouse.value = res.data.map((w) => ({
+    warehouse.value = res.data.data.map((w) => ({
         value: w.id,
         label: w.name,
     }));

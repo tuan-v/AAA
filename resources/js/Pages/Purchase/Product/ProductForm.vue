@@ -7,11 +7,6 @@
             class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-                <div
-                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
-                >
-                    <i class="ti ti-box text-2xl"></i>
-                </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{ form.id ? "Cập nhật sản phẩm" : "Thêm sản phẩm" }}
@@ -31,7 +26,7 @@
                 type="button"
                 class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                <i class="ti ti-x text-xl"></i>
+                X
             </button>
         </div>
 
@@ -82,7 +77,7 @@
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
                             >
-                                Mã hàng
+                                Mã hàng <span class="text-red-500">*</span>
                             </label>
 
                             <div class="relative">
@@ -92,7 +87,7 @@
                                 <input
                                     v-model="form.sku"
                                     type="text"
-                                    placeholder="Nhập mã hàng (SKU)"
+                                    placeholder="Nhập mã hàng "
                                     class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                     :class="errors.sku ? 'border-red-300' : ''"
                                 />
@@ -190,31 +185,6 @@
                                     <option value="hang_hoa">Hàng hóa</option>
                                     <option value="vat_tu">Vật tư</option>
                                     <option value="dich_vu">Dịch vụ</option>
-                                </select>
-                                <i
-                                    class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
-                                ></i>
-                            </div>
-                        </div>
-
-                        <!-- Trạng thái -->
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-1.5"
-                            >
-                                Trạng thái
-                            </label>
-
-                            <div class="relative">
-                                <i
-                                    class="ti ti-toggle-right absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none"
-                                ></i>
-                                <select
-                                    v-model="form.status"
-                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
-                                >
-                                    <option value="active">Hoạt động</option>
-                                    <option value="inactive">Ẩn</option>
                                 </select>
                                 <i
                                     class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
