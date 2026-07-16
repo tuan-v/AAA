@@ -25,239 +25,321 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
 
-Route::get('/warehouses/{warehouse}/detail', [WarehouseController::class, 'detail']);
-Route::get('/warehouses/all', [WarehouseController::class, 'all']);
-Route::apiResource('warehouses', WarehouseController::class);
-Route::prefix('warehouse')->group(function () {
-    Route::apiResource('products', ProductController::class)->names('warehouse.products.index');
-    Route::get('categories/select', [CategoryController::class, 'select']);
-    Route::apiResource('categories', CategoryController::class)->names('warehouse.categories');
-    Route::get('/units/select', [UnitController::class, 'select']);
-    Route::apiResource('units', UnitController::class)->names('warehouse.units');
-    Route::apiResource('slips', WarehouseSlipController::class)->names('warehouse.slips');
-    Route::get('/inventory', [WarehouseInventoryController::class, 'index'])
-        ->name('warehouse.inventory');
-    Route::post('/slips/{id}/approve', [WarehouseSlipController::class, 'approve'])
-        ->name('warehouse.slips.approve');
-    Route::get('/stocks', [WarehouseController::class, 'getStocks'])
-        ->name('warehouse.stocks');
-});
-Route::prefix('purchase')->group(function () {
-    Route::get('/suppliers/all', [SupplierController::class, 'all']);
-    Route::get('/suppliers/{id}/detail', [SupplierController::class, 'detail'])->name('purchase.suppliers.detail');
-    Route::apiResource('suppliers', SupplierController::class)->names('purchase.suppliers');
-    Route::get('categories/select', [CategoryController::class, 'select']);
-    Route::apiResource('categories', CategoryController::class)->names('purchase.categories');
-    Route::get('/units/select', [UnitController::class, 'select']);
-    Route::apiResource('units', UnitController::class)->names('purchase.units');
-    Route::apiResource('orders', PurchaseOrderController::class)->names('purchase.orders');
-    Route::apiResource('products', ProductController::class)->names('purchase.products');
-    Route::post(
-        'orders/{id}/approve',
-        [PurchaseOrderController::class, 'approve']
-    )->name('purchase.orders.approve');
-    Route::get(
-        'orders/{id}/stock-in-data',
-        [PurchaseOrderController::class, 'stockInData']
-    );
-});
-Route::get('/sale/customers/next-code', [CustomerController::class, 'nextCode']);
-Route::prefix('sale')->group(function () {
-    Route::get('/customers/all',  [CustomerController::class, 'all']);
-    Route::apiResource('customers', CustomerController::class)->names('sale.customers');
-    Route::get('/customers/{id}/detail', [CustomerController::class, 'detail'])->name('sale.customers.detail');
-    Route::post('/customers/{id}/quick-order', [CustomerController::class, 'createQuickOrder'])
-        ->name('sale.customers.quick-order');
-    Route::apiResource('orders', SalesOrderController::class)->names('sale.orders');
-});
-Route::prefix('accountant')->group(function () {
+Route::middleware(['auth:sanctum', 'audit'])->group(function () {
 
-    // currency
-    Route::apiResource('currencies', CurrencyController::class);
-    Route::get('/currencies/all', [CurrencyController::class, 'all']);
-    Route::get('currencies/{currency}/rates', [CurrencyController::class, 'rates']);
-    Route::post('currencies/{currency}/rates', [CurrencyController::class, 'storeRate']);
-    Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus']);
+    /*
+    |--------------------------------------------------------------------------
+    | USER, ROLE, PERMISSION & COMPANY MODULES
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(UserController::class)->prefix('users')->group(function () {
+        Route::get('/user', 'index')->middleware('permission:user.view');
+        Route::get('/user/{id}', 'show')->middleware('permission:user.view');
+        Route::post('/user', 'store')->middleware('permission:user.create');
+        Route::put('/user/{id}', 'update')->middleware('permission:user.update');
+        Route::delete('/user/{id}', 'destroy')->middleware('permission:user.delete');
+        Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:user.lock');
+    });
 
-    // bank
-    Route::apiResource('banks', BankController::class);
-    Route::patch('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus']);
+    Route::controller(RoleController::class)->prefix('roles')->group(function () {
+        Route::get('/', 'index')->middleware('permission:role.view');
+        Route::post('/', 'store')->middleware('permission:role.create');
+        Route::put('/{id}', 'update')->middleware('permission:role.update');
+        Route::delete('/{id}', 'destroy')->middleware('permission:role.delete');
+    });
 
-    // account
-    Route::get('accounts/all', [AccountController::class, 'all']);
-    Route::apiResource('accounts', AccountController::class);
-    Route::patch('accounts/{account}/toggle-status', [AccountController::class, 'toggleStatus']);
-    Route::get('/accounts/{account}/ledger', [AccountLedgerController::class, 'accountLedger']);
+    Route::get('/permissions/all', [RoleController::class, 'permissions'])->middleware('permission:permission.view');
 
-    // debt monitoring
-    Route::get('/customers-debt', [CustomerController::class, 'index'])
-        ->name('accountant.customers-debt.index');
-    Route::get('/customers-debt/{id}/detail', [CustomerController::class, 'detail'])
-        ->name('accountant.customers-debt.detail');
-    Route::get('/suppliers-debt', [SupplierController::class, 'index'])
-        ->name('accountant.suppliers-debt.index');
-    Route::get('/suppliers-debt/{id}/detail', [SupplierController::class, 'detail'])
-        ->name('accountant.suppliers-debt.detail');
+    Route::controller(PermissionController::class)->prefix('permissions')->group(function () {
+        Route::get('/', 'index')->middleware('permission:permission.view');
+        Route::post('/', 'store')->middleware('permission:permission.create');
+        Route::put('/{id}', 'update')->middleware('permission:permission.update');
+    });
 
-    // transaction types
-    Route::get('/transaction-categories', [TransactionCategoryController::class, 'index']);
+    Route::get('/company/create', [CompanyController::class, 'create']);
+    Route::controller(AuditLogController::class)->prefix('audit-logs')->group(function () {
+        Route::get('/', 'index')->middleware('permission:auditlog.view');
+        Route::get('/trace', 'trace')->middleware('permission:auditlog.view');
+        Route::get('/{auditLog}', 'show')->middleware('permission:auditlog.view');
+    });
+    /*
+    |--------------------------------------------------------------------------
+    | WAREHOUSES & SLIPS (WAREHOUSE MODULE)
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(WarehouseController::class)->prefix('warehouses')->group(function () {
+        Route::get('/', 'index')->middleware('permission:warehouse.view');
+        Route::get('/all', 'all')->middleware('permission:warehouse.view');
+        Route::get('/{warehouse}/detail', 'detail')->middleware('permission:warehouse.view');
+        Route::get('/{warehouse}', 'show')->middleware('permission:warehouse.view');
+        Route::post('/', 'store')->middleware('permission:warehouse.create');
+        Route::put('/{warehouse}', 'update')->middleware('permission:warehouse.update');
+        Route::delete('/{warehouse}', 'destroy')->middleware('permission:warehouse.delete');
+        Route::patch('/{warehouse}/status', 'toggleStatus')->middleware('permission:warehouse.lock');
+    });
 
-    Route::get('/transaction-categories/active', [TransactionCategoryController::class, 'active']);
+    // Singletone-style status toggle back-compatibility
+    Route::patch('/warehouse/{id}/status', [WarehouseController::class, 'toggleStatus'])->middleware('permission:warehouse.lock');
 
-    Route::post('/transaction-categories', [TransactionCategoryController::class, 'store']);
+    Route::prefix('warehouse')->group(function () {
+        Route::controller(ProductController::class)->prefix('products')->group(function () {
+            Route::get('/', 'index')->middleware('permission:warehouse_product.view');
+            Route::post('/', 'store')->middleware('permission:warehouse_product.create');
+            Route::get('/{product}', 'show')->middleware('permission:warehouse_product.view');
+            Route::put('/{product}', 'update')->middleware('permission:warehouse_product.update');
+            Route::delete('/{product}', 'destroy')->middleware('permission:warehouse_product.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_product.lock');
+        });
 
-    Route::get('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'show']);
+        Route::controller(CategoryController::class)->prefix('categories')->group(function () {
+            Route::get('/', 'index')->middleware('permission:warehouse_category.view');
+            Route::get('/select', 'select')->middleware('permission:warehouse_category.view');
+            Route::post('/', 'store')->middleware('permission:warehouse_category.create');
+            Route::get('/{category}', 'show')->middleware('permission:warehouse_category.view');
+            Route::put('/{category}', 'update')->middleware('permission:warehouse_category.update');
+            Route::delete('/{category}', 'destroy')->middleware('permission:warehouse_category.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_category.lock');
+        });
 
-    Route::put('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'update']);
+        Route::controller(UnitController::class)->prefix('units')->group(function () {
+            Route::get('/', 'index')->middleware('permission:warehouse_unit.view');
+            Route::get('/select', 'select')->middleware('permission:warehouse_unit.view');
+            Route::post('/', 'store')->middleware('permission:warehouse_unit.create');
+            Route::get('/{unit}', 'show')->middleware('permission:warehouse_unit.view');
+            Route::put('/{unit}', 'update')->middleware('permission:warehouse_unit.update');
+            Route::delete('/{unit}', 'destroy')->middleware('permission:warehouse_unit.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_unit.lock');
+        });
 
-    Route::delete('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'destroy']);
+        Route::controller(WarehouseSlipController::class)->prefix('slips')->group(function () {
+            Route::get('/', 'index')->middleware('permission:warehouse_slip.view');
+            Route::post('/', 'store')->middleware('permission:warehouse_slip.create');
+            Route::get('/{slip}', 'show')->middleware('permission:warehouse_slip.detail');
+            Route::put('/{slip}', 'update')->middleware('permission:warehouse_slip.update');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:warehouse_slip.approve');
+            Route::post('/{id}/reject', 'reject')->middleware('permission:warehouse_slip.reject');
+        });
 
-    // transactions
-    Route::get('/transactions', [TransactionController::class, 'index']);
+        Route::get('/inventory', [WarehouseInventoryController::class, 'index'])->middleware('permission:warehouse.view');
+        Route::get('/stocks', [WarehouseController::class, 'getStocks'])->middleware('permission:warehouse.view');
+    });
 
-    Route::post('/transactions', [TransactionController::class, 'store']);
+    /*
+    |--------------------------------------------------------------------------
+    | PURCHASE MODULE
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('purchase')->group(function () {
+        Route::controller(SupplierController::class)->prefix('suppliers')->group(function () {
+            Route::get('/', 'index')->middleware('permission:supplier.view');
+            Route::get('/all', 'all')->middleware('permission:supplier.view');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:supplier.detail');
+            Route::post('/', 'store')->middleware('permission:supplier.create');
+            Route::get('/{supplier}', 'show')->middleware('permission:supplier.view');
+            Route::put('/{supplier}', 'update')->middleware('permission:supplier.update');
+            Route::delete('/{supplier}', 'destroy')->middleware('permission:supplier.delete');
+        });
 
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+        Route::controller(CategoryController::class)->prefix('categories')->group(function () {
+            Route::get('/', 'index')->middleware('permission:purchase_category.view');
+            Route::get('/select', 'select')->middleware('permission:purchase_category.view');
+            Route::post('/', 'store')->middleware('permission:purchase_category.create');
+            Route::get('/{category}', 'show')->middleware('permission:purchase_category.view');
+            Route::put('/{category}', 'update')->middleware('permission:purchase_category.update');
+            Route::delete('/{category}', 'destroy')->middleware('permission:purchase_category.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:purchase_category.lock');
+        });
 
-    Route::put('/transactions/{transaction}', [TransactionController::class, 'update']);
+        Route::controller(UnitController::class)->prefix('units')->group(function () {
+            Route::get('/', 'index')->middleware('permission:purchase_unit.view');
+            Route::get('/select', 'select')->middleware('permission:purchase_unit.view');
+            Route::post('/', 'store')->middleware('permission:purchase_unit.create');
+            Route::get('/{unit}', 'show')->middleware('permission:purchase_unit.view');
+            Route::put('/{unit}', 'update')->middleware('permission:purchase_unit.update');
+            Route::delete('/{unit}', 'destroy')->middleware('permission:purchase_unit.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:purchase_unit.lock');
+        });
 
-    Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy']);
+        Route::controller(ProductController::class)->prefix('products')->group(function () {
+            Route::get('/', 'index')->middleware('permission:product.view');
+            Route::post('/', 'store')->middleware('permission:product.create');
+            Route::get('/{product}', 'show')->middleware('permission:product.view');
+            Route::put('/{product}', 'update')->middleware('permission:product.update');
+            Route::delete('/{product}', 'destroy')->middleware('permission:product.delete');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:product.lock');
+        });
 
-    Route::post('/transactions/{transaction}/cancel', [TransactionController::class, 'cancel']);
+        Route::controller(PurchaseOrderController::class)->prefix('orders')->group(function () {
+            Route::get('/', 'index')->middleware('permission:purchase_order.view');
+            Route::post('/', 'store')->middleware('permission:purchase_order.create');
+            Route::get('/{order}', 'show')->middleware('permission:purchase_order.detail');
+            Route::put('/{order}', 'update')->middleware('permission:purchase_order.update');
+            Route::delete('/{order}', 'destroy')->middleware('permission:purchase_order.delete');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:purchase_order.approve');
+            Route::get('/{id}/stock-in-data', 'stockInData')->middleware('permission:purchase_order.detail');
+        });
+    });
 
-    Route::post('/accounts/{id}/rebuild-balance', [AccountController::class, 'rebuildBalance']);
-    Route::get('/account-ledgers', [AccountLedgerController::class, 'index']);
-});
-Route::get(
-    '/warehouse/orders/{id}/stock-in',
-    [PurchaseOrderController::class, 'stockInData']
-);
-Route::get(
-    '/warehouse/orders/{id}/stock-out',
-    [SalesOrderController::class, 'stockOutData']
-);
-Route::get(
-    '/available-for-export',
-    [SalesOrderController::class, 'availableForExport']
-);
-Route::get(
-    '/saleorders/warehouse',
-    [SalesOrderController::class, 'warehouseIndex']
-);
-Route::get(
-    '/warehouse/orders',
-    [PurchaseOrderController::class, 'warehouseIndex']
-);
+    /*
+    |--------------------------------------------------------------------------
+    | SALE MODULE
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('sale')->group(function () {
+        Route::controller(CustomerController::class)->prefix('customers')->group(function () {
+            Route::get('/', 'index')->middleware('permission:sale_customer.view');
+            Route::get('/all', 'all')->middleware('permission:sale_customer.view');
+            Route::get('/next-code', 'nextCode')->middleware('permission:sale_customer.view');
+            Route::post('/', 'store')->middleware('permission:sale_customer.create');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:customer_debt.detail');
+            Route::get('/{customer}', 'show')->middleware('permission:sale_customer.view');
+            Route::put('/{customer}', 'update')->middleware('permission:sale_customer.update');
+            Route::delete('/{customer}', 'destroy')->middleware('permission:sale_customer.delete');
+            Route::patch('/{customer}/status', 'toggleStatus')->middleware('permission:sale_customer.lock');
+            Route::patch('/{customer}/status', 'toggleStatus')->middleware('permission:sale_customer.unlock');
+            Route::post('/{id}/quick-order', 'createQuickOrder')->middleware('permission:sale_order.create');
+        });
 
-Route::post('/sale/orders/{id}/approve', [SalesOrderController::class, 'approve']);
-Route::post('/warehouse/slips/{id}/reject', [WarehouseSlipController::class, 'reject']);
+        Route::controller(SalesOrderController::class)->prefix('orders')->group(function () {
+            Route::get('/', 'index')->middleware('permission:sale_order.view');
+            Route::post('/', 'store')->middleware('permission:sale_order.create');
+            Route::get('/{order}', 'show')->middleware('permission:sale_order.detail');
+            Route::put('/{order}', 'update')->middleware('permission:sale_order.update');
+            Route::delete('/{order}', 'destroy')->middleware('permission:sale_order.delete');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:sale_order.approve');
+        });
+    });
 
-Route::get('/products/for-select', [ProductController::class, 'forSelect']);
-Route::get('/categories', [CategoryController::class, 'index']);
-Route::get('/units', [UnitController::class, 'index']);
+    /*
+    |--------------------------------------------------------------------------
+    | ACCOUNTANT MODULE
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('accountant')->group(function () {
+        Route::controller(CurrencyController::class)->prefix('currencies')->group(function () {
+            Route::get('/', 'index')->middleware('permission:currency.view');
+            Route::get('/all', 'all')->middleware('permission:currency.view');
+            Route::post('/', 'store')->middleware('permission:currency.create');
 
-//
+            Route::get('/{currency}', 'show')->middleware('permission:currency.view');
+            Route::put('/{currency}', 'update')->middleware('permission:currency.update');
+            Route::delete('/{currency}', 'destroy')->middleware('permission:currency.delete');
+            Route::patch('/{currency}/toggle-status', 'toggleStatus')->middleware('permission:currency.lock');
+            Route::get('/{currency}/rates', 'rates')->middleware('permission:currency.history');
+            Route::post('/{currency}/rates', 'storeRate')->middleware('permission:currency.update');
+        });
 
-Route::middleware('permission:role.view')->group(function () {
-    Route::get('/roles', [RoleController::class, 'index']);
-});
-Route::get('/permissions/all', [RoleController::class, 'permissions']);
+        Route::controller(BankController::class)->prefix('banks')->group(function () {
+            Route::get('/', 'index')->middleware('permission:bank.view');
+            Route::post('/', 'store')->middleware('permission:bank.create');
+            Route::get('/{bank}', 'show')->middleware('permission:bank.view');
+            Route::put('/{bank}', 'update')->middleware('permission:bank.update');
+            Route::delete('/{bank}', 'destroy')->middleware('permission:bank.delete');
+            Route::patch('/{bank}/toggle-status', 'toggleStatus')->middleware('permission:bank.lock');
+        });
 
-Route::middleware('permission:role.create')->group(function () {
-    Route::post('/roles', [RoleController::class, 'store']);
-});
+        Route::controller(AccountController::class)->prefix('accounts')->group(function () {
+            Route::get('/', 'index')->middleware('permission:account.view');
+            Route::get('/all', 'all')->middleware('permission:account.view');
+            Route::post('/', 'store')->middleware('permission:account.create');
+            Route::get('/{account}', 'show')->middleware('permission:account.view');
+            Route::put('/{account}', 'update')->middleware('permission:account.update');
+            Route::delete('/{account}', 'destroy')->middleware('permission:account.delete');
+            Route::patch('/{account}/toggle-status', 'toggleStatus')->middleware('permission:account.lock');
+            Route::post('/{id}/rebuild-balance', 'rebuildBalance')->middleware('permission:account.update');
+        });
 
-Route::middleware('permission:role.update')->group(function () {
-    Route::put('/roles/{id}', [RoleController::class, 'update']);
-});
+        Route::controller(AccountLedgerController::class)->group(function () {
+            Route::get('/account-ledgers', 'index')->middleware('permission:transaction.view');
+            Route::get('/accounts/{account}/ledger', 'accountLedger')->middleware('permission:transaction.view');
+        });
 
-Route::middleware('permission:role.delete')->group(function () {
-    Route::delete('/roles/{id}', [RoleController::class, 'destroy']);
-});
+        Route::controller(CustomerController::class)->prefix('customers-debt')->group(function () {
+            Route::get('/', 'index')->middleware('permission:customer_debt.view');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:customer_debt.detail');
+        });
 
-Route::middleware('permission:user.view')->group(function () {
+        Route::controller(SupplierController::class)->prefix('suppliers-debt')->group(function () {
+            Route::get('/', 'index')->middleware('permission:supplier_debt.view');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:supplier_debt.detail');
+        });
 
-    Route::get('/users/user', [UserController::class, 'index']);
-});
-Route::middleware('permission:user.view')->group(function () {
-    Route::get('/users/user/{id}', [UserController::class, 'show']);
-});
-Route::middleware('permission:user.create')->group(function () {
-    Route::post('/users/user', [UserController::class, 'store']);
-});
-Route::middleware('permission:user.update')->group(function () {
-    Route::put('/users/user/{id}', [UserController::class, 'update']);
-});
+        Route::controller(TransactionCategoryController::class)->prefix('transaction-categories')->group(function () {
+            Route::get('/', 'index')->middleware('permission:transaction_category.view');
+            Route::get('/active', 'active')->middleware('permission:transaction_category.view');
+            Route::post('/', 'store')->middleware('permission:transaction_category.create');
+            Route::get('/{transactionCategory}', 'show')->middleware('permission:transaction_category.view');
+            Route::put('/{transactionCategory}', 'update')->middleware('permission:transaction_category.update');
+            Route::delete('/{transactionCategory}', 'destroy')->middleware('permission:transaction_category.delete');
+        
+        });
 
-Route::middleware('permission:user.delete')->group(function () {
-    Route::delete('/users/user/{id}', [UserController::class, 'destroy']);
-});
+        Route::controller(TransactionController::class)->prefix('transactions')->group(function () {
+            Route::get('/', 'index')->middleware('permission:transaction.view');
+            Route::post('/', 'store')->middleware('permission:transaction.create');
+            Route::get('/{transaction}', 'show')->middleware('permission:transaction.view');
+            Route::put('/{transaction}', 'update')->middleware('permission:transaction.update');
+            Route::delete('/{transaction}', 'destroy')->middleware('permission:transaction.delete');
+              Route::post('/{transaction}/approve', 'approve')->middleware('permission:transaction.approve'); // MỚI
+            Route::post('/{transaction}/reject', 'reject')->middleware('permission:transaction.reject');
+        });
+    });
 
-Route::middleware('permission:permission.view')->group(function () {
-    Route::get('/permissions', [PermissionController::class, 'index']);
-});
-Route::middleware('permission:permission.create')->group(function () {
-    Route::post('/permissions', [PermissionController::class, 'store']);
-});
-Route::middleware('permission:permission.update')->group(function () {
-    Route::put('/permissions/{id}', [PermissionController::class, 'update']);
-});
-Route::patch(
-    '/users/{user}/status',
-    [UserController::class, 'toggleStatus']
-);
-Route::patch(
-    '/warehouse/categories/{id}/status',
-    [CategoryController::class, 'toggleStatus']
-);
-Route::patch(
-    'units/{id}/status',
-    [UnitController::class, 'toggleStatus']
-);
-Route::patch(
-    '/warehouse/products/{id}/status',
-    [ProductController::class, 'toggleStatus']
-);
-Route::patch(
-    'currencies/{currency}/toggle-status',
-    [CurrencyController::class, 'toggleStatus']
-);
+    /*
+    |--------------------------------------------------------------------------
+    | WAREHOUSE ORDER APIS (SHARED)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/warehouse/orders', [PurchaseOrderController::class, 'warehouseIndex'])->middleware('permission:warehouse_slip.view');
+    Route::get('/warehouse/orders/{id}/stock-in', [PurchaseOrderController::class, 'stockInData'])->middleware('permission:warehouse_slip.create');
+    Route::get('/warehouse/orders/{id}/stock-out', [SalesOrderController::class, 'stockOutData'])->middleware('permission:warehouse_slip.create');
+    Route::get('/saleorders/warehouse', [SalesOrderController::class, 'warehouseIndex'])->middleware('permission:warehouse_slip.view');
+    Route::get('/available-for-export', [SalesOrderController::class, 'availableForExport'])->middleware('permission:warehouse_slip.view');
 
-Route::get(
-    '/company/create',
-    [CompanyController::class, 'create']
-);
+    /*
+    |--------------------------------------------------------------------------
+    | SELECTORS & SHARED ENDPOINTS AT ROOT
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/products/for-select', [ProductController::class, 'forSelect'])->middleware('permission:purchase_product.view');
+    Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:purchase_category.view');
+    Route::get('/units', [UnitController::class, 'index'])->middleware('permission:purchase_unit.view');
 
-//update tt kho
-Route::patch('/warehouse/{id}/status', [WarehouseController::class, 'toggleStatus']);
-//API lấy tỉnh
-Route::get(
-    '/provinces',
-    [AddressController::class, 'provinces']
-);
+    Route::patch('units/{id}/status', [UnitController::class, 'toggleStatus'])->middleware('permission:warehouse_unit.lock');
+    Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus'])->middleware('permission:currency.lock');
 
-Route::get(
-    '/provinces/{province}/wards',
-    [AddressController::class, 'wards']
-);
+    /*
+    |--------------------------------------------------------------------------
+    | ADDRESS & NOTIFICATION APIS
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(AddressController::class)->prefix('provinces')->group(function () {
+        Route::get('/', 'provinces');
+        Route::get('/{province}/wards', 'wards');
+    });
 
-Route::get(
-    '/notifications',
-    [NotificationController::class, 'index']
-);
+    Route::controller(NotificationController::class)->prefix('notifications')->group(function () {
+        Route::get('/', 'index');
+        Route::get('/unread-count', 'unreadCount');
+    });
 
-Route::get(
-    '/notifications/unread-count',
-    [NotificationController::class, 'unreadCount']
-);
+    /*
+    |--------------------------------------------------------------------------
+    | DASHBOARD & CURRENT USER
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/overview', [DashboardController::class, 'overview']);
 });

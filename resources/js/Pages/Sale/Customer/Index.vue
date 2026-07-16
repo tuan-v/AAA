@@ -11,6 +11,7 @@
             <h2 class="text-2xl font-bold">Danh sách khách hàng</h2>
 
             <button
+                v-if="can('sale_customer.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -102,7 +103,7 @@
 
 <script setup>
 import { Head } from "@inertiajs/vue3";
-import { ref, onMounted, h, watch } from "vue";
+import { ref, onMounted, h, watch, computed } from "vue";
 import axios from "axios";
 import { formatMoney, removeMoneyFormat } from "@/config/helpers";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -118,9 +119,10 @@ import CustomerForm from "./CustomerForm.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CustomerDetail from "./CustomerDetail.vue";
 import SaleOrderForm from "../Order/SaleOrderForm.vue";
+import { usePermission } from "@/composables/usePermission";
 /* ================= STATE ================= */
 const filterParams = ref({});
-
+const { can, canAny } = usePermission();
 const filters = [
     {
         name: "search",
@@ -242,25 +244,34 @@ const columns = [
 ];
 
 /* ================= ACTIONS (FIX GIỐNG PRODUCT STYLE) ================= */
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("sale_customer.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: Unlock, // FIX: KHÔNG dùng function để tránh lỗi '0'
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("sale_customer.lock")
+                : !can("sale_customer.unlock"),
         onClick: (item) => toggleStatus(item),
     },
     {
-        icon: DetailButtonIcon, // Nút xem chi tiết
+        icon: DetailButtonIcon,
         type: "view",
+        hidden: () => !can("sale_customer.detail"),
         onClick: (item) => openDetail(item),
         tooltip: "Xem chi tiết",
     },
-];
-
+]);
 /* ================= METHODS ================= */
 function openCreate() {
     selectedCustomer.value = null;

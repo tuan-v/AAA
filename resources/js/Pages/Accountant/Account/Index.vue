@@ -17,6 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách tài khoản</h2>
 
             <button
+                v-if="can('account.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -67,22 +68,20 @@
 <script setup>
 import { Head } from "@inertiajs/vue3";
 import { ref, h, onMounted } from "vue";
-
 import axios from "axios";
-
 import { toast } from "vue3-toastify";
-
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
-
 import AccountForm from "./AccountForm.vue";
-
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 const perPage = ref(10);
 const accounts = ref({
     data: [],
@@ -183,13 +182,6 @@ const columns = [
                 }[row.type],
             ),
     },
-
-    {
-        label: "Tiền tệ",
-
-        render: (row) => h("span", {}, row.currency?.code ?? "-"),
-    },
-
     {
         label: "Số dư đầu kỳ",
 
@@ -217,6 +209,11 @@ const columns = [
 
                 Number(row.current_balance ?? 0).toLocaleString("vi-VN"),
             ),
+    },
+    {
+        label: "Tiền tệ",
+
+        render: (row) => h("span", {}, row.currency?.code ?? "-"),
     },
 
     {

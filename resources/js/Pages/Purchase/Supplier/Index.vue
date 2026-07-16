@@ -21,6 +21,7 @@
             <h2 class="text-2xl font-bold">Danh sách nhà cung cấp</h2>
 
             <button
+                v-if="can('supplier.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -89,7 +90,7 @@
 
 <script setup>
 import { Head } from "@inertiajs/vue3";
-import { ref, onMounted, h, watch } from "vue";
+import { ref, onMounted, h, watch, computed } from "vue";
 import axios from "axios";
 import { formatMoney, removeMoneyFormat } from "@/config/helpers";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -105,9 +106,10 @@ import Unlock from "@/icons/Unlock.vue";
 import SearchPage from "../../../components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { getStatusLabel } from "@/config/status";
+import { usePermission } from "@/composables/usePermission";
 /* ================= STATE ================= */
 const filterParams = ref({});
-
+const { can, canAny } = usePermission();
 const filters = [
     {
         name: "search",
@@ -217,23 +219,34 @@ const columns = [
 ];
 
 /* ================= ACTIONS (FIX GIỐNG PRODUCT STYLE) ================= */
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("supplier.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: Unlock,
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("supplier.lock")
+                : !can("supplier.unlock"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
         type: "view",
+        hidden: () => !can("supplier.detail"),
         onClick: (item) => openDebtDetail(item),
+        tooltip: "Xem chi tiết",
     },
-];
+]);
 
 /* ================= METHODS ================= */
 function openCreate() {

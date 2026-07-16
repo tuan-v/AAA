@@ -28,38 +28,40 @@ class CompanyController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'tax_code' => 'required',
-            'phone' => 'required|regex:/^(0)[0-9]{9,10}$/|numeric',
-            'email' => 'required|email',
-            'currency_id' => 'required|exists:currencies,id',
-            'address_detail' => 'required|string|max:255',
-            'province_id' => 'required|exists:provinces,id',
-            'ward_id' => 'required|exists:wards,id',
-            'logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ],
-        [
-            'name.required' => 'Tên công ty không được để trống',
-            'tax_code.required' => 'Mã số thuế không được để trống',
-            'phone.required' => 'Số điện thoại không được để trống',
-            'phone.regex' => 'Số điện thoại không hợp lệ',
-            'phone.numeric' => 'Số điện thoại không hợp lệ',
-            'email.required' => 'Email không được để trống',
-            'email.email' => 'Email không hợp lệ',
-            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
-            'currency_id.exists' => 'Đơn vị tiền tệ không hợp lệ',
-            'address_detail.required' => 'Địa chỉ không được để trống',
-            'address_detail.string' => 'Địa chỉ không hợp lệ',
-            'address_detail.max' => 'Địa chỉ không được vượt quá 255 ký tự',
-            'province_id.required' => 'Tỉnh/Thành phố không được để trống',
-            'province_id.exists' => 'Tỉnh/Thành phố không hợp lệ',
-            'ward_id.required' => 'Phường/Xã không được để trống',
-            'ward_id.exists' => 'Phường/Xã không hợp lệ',
-            'logo.image' => 'Ảnh đại diện phải là định dạng ảnh',
-            'logo.mimes' => 'Ảnh đại diện phải có định dạng jpg, jpeg, hoặc png',
-            'logo.max' => 'Ảnh đại diện không được vượt quá 2MB',
-        ]);
+        $request->validate(
+            [
+                'name' => 'required',
+                'tax_code' => 'required',
+                'phone' => 'required|regex:/^(0)[0-9]{9,10}$/|numeric',
+                'email' => 'required|email',
+                'currency_id' => 'required|exists:currencies,id',
+                'address_detail' => 'required|string|max:255',
+                'province_id' => 'required|exists:provinces,id',
+                'ward_id' => 'required|exists:wards,id',
+                'logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            ],
+            [
+                'name.required' => 'Tên công ty không được để trống',
+                'tax_code.required' => 'Mã số thuế không được để trống',
+                'phone.required' => 'Số điện thoại không được để trống',
+                'phone.regex' => 'Số điện thoại không hợp lệ',
+                'phone.numeric' => 'Số điện thoại không hợp lệ',
+                'email.required' => 'Email không được để trống',
+                'email.email' => 'Email không hợp lệ',
+                'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+                'currency_id.exists' => 'Đơn vị tiền tệ không hợp lệ',
+                'address_detail.required' => 'Địa chỉ không được để trống',
+                'address_detail.string' => 'Địa chỉ không hợp lệ',
+                'address_detail.max' => 'Địa chỉ không được vượt quá 255 ký tự',
+                'province_id.required' => 'Tỉnh/Thành phố không được để trống',
+                'province_id.exists' => 'Tỉnh/Thành phố không hợp lệ',
+                'ward_id.required' => 'Phường/Xã không được để trống',
+                'ward_id.exists' => 'Phường/Xã không hợp lệ',
+                'logo.image' => 'Ảnh đại diện phải là định dạng ảnh',
+                'logo.mimes' => 'Ảnh đại diện phải có định dạng jpg, jpeg, hoặc png',
+                'logo.max' => 'Ảnh đại diện không được vượt quá 2MB',
+            ]
+        );
 
         return DB::transaction(function () use ($request) {
 
@@ -130,8 +132,8 @@ class CompanyController extends Controller
                 'status' => User::STATUS_ACTIVE,
             ]);
 
-            if (!$user->hasRole('admin')) {
-                $user->assignRole('admin');
+            if (!$user->hasRole('Giám đốc')) {
+                $user->assignRole('Giám đốc');
             }
 
             return response()->json([

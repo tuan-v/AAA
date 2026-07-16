@@ -8,6 +8,7 @@
             <h2 class="text-2xl font-bold">Danh sách kho hàng</h2>
 
             <button
+                v-if="can('warehouse.create')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -54,7 +55,7 @@
 
 <script setup>
 import { Head, usePage } from "@inertiajs/vue3";
-import { ref, onMounted, h } from "vue";
+import { ref, onMounted, h, computed } from "vue";
 import axios from "axios";
 import Pagination from "@/components/Pagination.vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -69,6 +70,9 @@ import { get } from "lodash";
 import { formatMoney } from "@/config/helpers";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import WarehouseDetail from "./WarehouseDetail.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 const handlePageChange = (page) => {
     getData(page);
 };
@@ -126,23 +130,34 @@ const columns = [
             ),
     },
 ];
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("warehouse.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("warehouse.lock")
+                : !can("warehouse.unlock"),
         onClick: (item) => toggleStatus(item),
     },
     {
-        title: "Chi tiết",
         icon: DetailButtonIcon,
-        onClick: openDetail,
+        type: "view",
+        hidden: () => !can("warehouse.detail"),
+        onClick: (item) => openDetail(item),
+        tooltip: "Xem chi tiết",
     },
-];
+]);
 
 function openCreate() {
     selectedWarehouse.value = null;

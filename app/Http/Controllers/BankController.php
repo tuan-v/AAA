@@ -64,7 +64,6 @@ class BankController extends Controller
      */
     public function store(Request $request)
     {
-        $company = auth()->user()->companies()->first();
 
         $validated = $request->validate([
             'name' => 'required',
@@ -72,7 +71,7 @@ class BankController extends Controller
             'logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        return DB::transaction(function () use ($request, $validated, $company) {
+        return DB::transaction(function () use ($request, $validated) {
 
             $lastBank = Bank::orderBy('id', 'desc')->first();
 
@@ -81,7 +80,7 @@ class BankController extends Controller
                 : 1;
 
             $validated['code'] = 'NH' . str_pad($number, 3, '0', STR_PAD_LEFT);
-            $validated['company_id'] = $company->id;
+
             $validated['status'] = 1;
 
             if ($request->hasFile('logo')) {

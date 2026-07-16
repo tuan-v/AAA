@@ -77,8 +77,9 @@
                     </label>
 
                     <input
-                        v-model="form.opening_balance"
-                        type="number"
+                        :value="formatMoneyInput(form.opening_balance)"
+                        @input="handleOpeningBalance"
+                        type="text"
                         class="w-full border rounded-lg px-3 py-2"
                     />
                 </div>
@@ -165,9 +166,11 @@
 import axios from "axios";
 import { ref, watch, computed, onMounted } from "vue";
 import { toast } from "vue3-toastify";
-
 import FormSelect from "@/components/FormSelect.vue";
-
+import { formatMoneyInput, unformatMoney } from "@/config/helpers";
+const handleOpeningBalance = (e) => {
+    form.value.opening_balance = unformatMoney(e.target.value);
+};
 const props = defineProps({
     account: {
         type: Object,

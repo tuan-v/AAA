@@ -5,10 +5,10 @@
         <PageBreadcrumb title="" :items="[{ text: 'Sản phẩm', link: null }]" />
         <div class="flex items-center border-b mb-5 gap-2">
             <Link
-                href="/purchase/products"
+                href="/warehouse/products"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/purchase/products')
+                    $page.url.startsWith('/warehouse/products')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
@@ -17,10 +17,10 @@
             </Link>
 
             <Link
-                href="/purchase/categories"
+                href="/warehouse/categories"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/purchase/categories')
+                    $page.url.startsWith('/warehouse/categories')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
@@ -29,10 +29,10 @@
             </Link>
 
             <Link
-                href="/purchase/units"
+                href="/warehouse/units"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
                 :class="
-                    $page.url.startsWith('/purchase/units')
+                    $page.url.startsWith('/warehouse/units')
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-blue-500'
                 "
@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách sản phẩm</h2>
 
             <button
-                v-if="can('product.create')"
+                v-if="can('purchase_product.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -108,7 +108,7 @@
 
 <script setup>
 import { Head, usePage } from "@inertiajs/vue3";
-import { ref, onMounted, h, watch } from "vue";
+import { ref, onMounted, h, watch, computed } from "vue";
 import axios from "axios";
 import { Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -125,7 +125,8 @@ import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 const warehouse = ref([]);
-const filters = [
+
+const filters = computed(() => [
     {
         name: "search",
         type: "text",
@@ -135,7 +136,7 @@ const filters = [
         name: "warehouse_id",
         type: "select",
         placeholder: "Chọn kho",
-        options: [],
+        options: warehouse.value,
     },
     {
         name: "stock",
@@ -148,7 +149,7 @@ const filters = [
             { value: "out_stock", label: "Hết hàng" },
         ],
     },
-];
+]);
 
 const permissions = usePage().props.auth.permissions || [];
 
@@ -260,18 +261,34 @@ const columns = [
     },
 ];
 
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("warehouse_product.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("warehouse_product.lock")
+                : !can("warehouse_product.unlock"),
         onClick: (item) => toggleStatus(item),
     },
-];
+    // {
+    //     icon: DetailButtonIcon,
+    //     type: "view",
+    //     hidden: () => !can("warehouse_product.detail"),
+    //     onClick: (item) => openDetail(item),
+    //     tooltip: "Xem chi tiết",
+    // },
+]);
 function debounce(fn, delay = 300) {
     let timeout;
     return (...args) => {
@@ -371,7 +388,7 @@ async function toggleStatus(product) {
 async function fetchWarehouses() {
     const res = await axios.get("/api/warehouses/all");
 
-    warehouse.value = res.data.map((w) => ({
+    warehouse.value = res.data.data.map((w) => ({
         value: w.id,
         label: w.name,
     }));

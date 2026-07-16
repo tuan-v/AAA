@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Services\AccountBalanceService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
@@ -75,30 +76,25 @@ class AccountController extends Controller
 
     public function store(Request $request)
     {
-        $company = auth()
-            ->user()
-            ->companies()
-            ->first();
+        $company = auth()->user()->companies()->first();
 
         $validated = $request->validate([
             'name' => 'required',
-
-            'type' => [
-                'required',
-                'in:cash,bank,ewallet,other'
+            'type' => ['required', 'in:cash,bank,ewallet,other'],
+            'currency_id' => 'required|exists:currencies,id',
+            'opening_balance' => 'required|numeric',
+            'bank_id' => 'nullable|exists:banks,id',
+            'bank_account_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('accounts', 'bank_account_no')
+                    ->where(function ($query) use ($request, $company) {
+                        return $query
+                            ->where('company_id', $company->id)
+                            ->where('bank_id', $request->bank_id);
+                    }),
             ],
-
-            'currency_id' =>
-            'required|exists:currencies,id',
-
-            'opening_balance' =>
-            'required|numeric',
-
-            'bank_id' =>
-            'nullable|exists:banks,id',
-
-            'bank_account_no' =>
-            'nullable|string|max:255',
         ], [
             'name.required' => 'Tên tài khoản không được để trống',
             'type.required' => 'Loại tài khoản không được để trống',
@@ -108,39 +104,29 @@ class AccountController extends Controller
             'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
             'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
             'bank_id.exists' => 'Ngân hàng không hợp lệ',
-            'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
             'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
             'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
+            'bank_account_no.unique' => 'Số tài khoản này đã tồn tại trong ngân hàng đã chọn',
         ]);
 
-        if (
-            $validated['type'] === 'bank'
-        ) {
-
+        if ($validated['type'] === 'bank') {
             $request->validate([
-                'bank_id' =>
-                'required|exists:banks,id',
-
-                'bank_account_no' =>
-                'required'
+                'bank_id' => 'required|exists:banks,id',
+                'bank_account_no' => 'required',
+            ], [
+                'bank_id.required' => 'Vui lòng chọn ngân hàng',
+                'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
             ]);
         }
 
-        $validated['company_id']
-            = $company->id;
+        $validated['company_id'] = $company->id;
+        $validated['current_balance'] = $validated['opening_balance'];
 
-        $validated['current_balance']
-            = $validated['opening_balance'];
-
-        $account = Account::create(
-            $validated
-        );
+        $account = Account::create($validated);
 
         return response()->json([
-            'message' =>
-            'Thêm tài khoản thành công',
-
-            'data' => $account
+            'message' => 'Thêm tài khoản thành công',
+            'data' => $account,
         ]);
     }
 
@@ -152,38 +138,34 @@ class AccountController extends Controller
         ]);
     }
 
-    public function update(
-        Request $request,
-        Account $account
-    ) {
-
+    public function update(Request $request, Account $account)
+    {
         if ($account->isUsed()) {
-
             return response()->json([
-                'message' =>
-                'Tài khoản đã phát sinh giao dịch, không thể chỉnh sửa.'
+                'message' => 'Tài khoản đã phát sinh giao dịch, không thể chỉnh sửa.',
             ], 422);
         }
 
+        $company = auth()->user()->companies()->first();
+
         $validated = $request->validate([
             'name' => 'required',
-
-            'type' => [
-                'required',
-                'in:cash,bank,ewallet,other'
+            'type' => ['required', 'in:cash,bank,ewallet,other'],
+            'currency_id' => 'required|exists:currencies,id',
+            'opening_balance' => 'required|numeric',
+            'bank_id' => 'nullable|exists:banks,id',
+            'bank_account_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('accounts', 'bank_account_no')
+                    ->where(function ($query) use ($request, $company) {
+                        return $query
+                            ->where('company_id', $company->id)
+                            ->where('bank_id', $request->bank_id);
+                    })
+                    ->ignore($account->id),
             ],
-
-            'currency_id' =>
-            'required|exists:currencies,id',
-
-            'opening_balance' =>
-            'required|numeric',
-
-            'bank_id' =>
-            'nullable|exists:banks,id',
-
-            'bank_account_no' =>
-            'nullable|string|max:255',
         ], [
             'name.required' => 'Tên tài khoản không được để trống',
             'type.required' => 'Loại tài khoản không được để trống',
@@ -193,35 +175,28 @@ class AccountController extends Controller
             'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
             'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
             'bank_id.exists' => 'Ngân hàng không hợp lệ',
-            'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
             'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
             'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
+            'bank_account_no.unique' => 'Số tài khoản này đã tồn tại trong ngân hàng đã chọn',
         ]);
 
-        if (
-            $validated['type'] === 'bank'
-        ) {
-
+        if ($validated['type'] === 'bank') {
             $request->validate([
-                'bank_id' =>
-                'required|exists:banks,id',
-
-                'bank_account_no' =>
-                'required'
+                'bank_id' => 'required|exists:banks,id',
+                'bank_account_no' => 'required',
+            ], [
+                'bank_id.required' => 'Vui lòng chọn ngân hàng',
+                'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
             ]);
         }
 
         $account->update([
             ...$validated,
-
-            // đồng bộ lại khi chưa có giao dịch
-            'current_balance'
-            => $validated['opening_balance']
+            'current_balance' => $validated['opening_balance'],
         ]);
 
         return response()->json([
-            'message' =>
-            'Cập nhật thành công'
+            'message' => 'Cập nhật thành công',
         ]);
     }
 

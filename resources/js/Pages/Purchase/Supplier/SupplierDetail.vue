@@ -272,49 +272,81 @@
                             <table class="min-w-full text-sm">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="text-left p-2">Mã đơn</th>
-                                        <th class="text-left p-2">Ngày</th>
-                                        <th class="text-left p-2">Tổng tiền</th>
-                                        <th class="text-left p-2">
+                                        <th class="text-left p-3">Mã đơn</th>
+                                        <th class="text-left p-3">Ngày</th>
+                                        <th class="text-left p-3">Tổng tiền</th>
+                                        <th class="text-left p-3">
                                             Trạng thái
                                         </th>
+                                        <th class="text-right p-3">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr
                                         v-for="order in recentOrders"
                                         :key="order.id"
-                                        class="border-t"
+                                        class="border-t hover:bg-gray-50 transition"
                                     >
+                                        <!-- Mã đơn -->
                                         <td
-                                            class="p-2 font-medium text-gray-700"
+                                            class="p-3 font-semibold text-gray-700"
                                         >
-                                            {{ order.code || "-" }}
+                                            {{ order.code }}
                                         </td>
-                                        <td class="p-2">
+
+                                        <!-- Ngày -->
+                                        <td class="p-3 text-gray-600">
+                                            {{ formatDate(order.order_date) }}
+                                        </td>
+
+                                        <!-- Tổng tiền -->
+                                        <td
+                                            class="p-3 font-medium text-orange-600"
+                                        >
                                             {{
-                                                order.order_date
-                                                    ? new Date(
-                                                          order.order_date,
-                                                      ).toLocaleDateString(
-                                                          "vi-VN",
-                                                      )
-                                                    : "-"
+                                                formatMoney(
+                                                    order.total_amount,
+                                                    supplier.currency,
+                                                )
                                             }}
                                         </td>
-                                        {{
-                                            Number(
-                                                order.total_amount,
-                                            ).toLocaleString("vi-VN")
-                                        }}
-                                        {{
-                                            supplier.currency?.symbol
-                                        }}
-                                        <td class="p-2">
-                                            {{
-                                                getStatusLabel(order.status) ||
-                                                "-"
-                                            }}
+
+                                        <!-- Trạng thái -->
+                                        <td class="p-3">
+                                            <span
+                                                class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                                                :class="
+                                                    statusClass(order.status)
+                                                "
+                                            >
+                                                {{
+                                                    getStatusLabel(order.status)
+                                                }}
+                                            </span>
+                                        </td>
+
+                                        <!-- Thao tác -->
+                                        <td class="p-3 text-right">
+                                            <button
+                                                @click="viewOrder(order.id)"
+                                                class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-indigo-600 hover:bg-indigo-100 transition"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M15 12H9m12 0A9 9 0 113 12a9 9 0 0118 0z"
+                                                    />
+                                                </svg>
+
+                                                Xem
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -468,17 +500,26 @@
             </div>
         </div>
     </div>
+    <PurchaseOrderDetail
+        v-if="showOrderDetail"
+        :purchase-order-id="selectedOrderId"
+        @close="showOrderDetail = false"
+    />
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { getStatusLabel } from "@/config/status";
+import { formatMoney, formatDate } from "@/config/helpers";
+import { router } from "@inertiajs/vue3";
+import PurchaseOrderDetail from "../Order/PurchaseOrderDetail.vue";
 const supplier = ref({});
 const debtSummary = ref({});
 const recentOrders = ref([]);
 const debtHistory = ref([]);
-
+const showOrderDetail = ref(false);
+const selectedOrderId = ref(null);
 const props = defineProps({
     supplierId: {
         type: Number,
@@ -488,7 +529,10 @@ const props = defineProps({
 
 const emit = defineEmits(["saved", "close", "create-order"]);
 const loading = ref(true);
-
+const viewOrder = (id) => {
+    selectedOrderId.value = id;
+    showOrderDetail.value = true;
+};
 onMounted(async () => {
     try {
         const res = await axios.get(
@@ -530,7 +574,24 @@ const formatCurrency = (amount) => {
 const createQuickOrder = () => {
     emit("create-order", supplier.value.id);
 };
+const statusClass = (status) => {
+    switch (status) {
+        case "pending":
+            return "bg-yellow-100 text-yellow-700";
 
+        case "approved":
+            return "bg-green-100 text-green-700";
+
+        case "rejected":
+            return "bg-red-100 text-red-700";
+
+        case "draft":
+            return "bg-gray-100 text-gray-700";
+
+        default:
+            return "bg-blue-100 text-blue-700";
+    }
+};
 const editSupplier = () => {
     // Điều hướng đến trang edit
 };

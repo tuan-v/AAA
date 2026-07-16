@@ -12,6 +12,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn bán hàng</h2>
 
             <button
+                v-if="can('sale_order.create')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
@@ -160,7 +161,7 @@
 </template>
 
 <script setup>
-import { h, ref, onMounted } from "vue";
+import { h, ref, onMounted, computed } from "vue";
 import { Head } from "@inertiajs/vue3";
 import axios from "axios";
 import SaleOrderForm from "./SaleOrderForm.vue"; // ← Đúng tên
@@ -170,7 +171,7 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
-
+import { usePermission } from "../../../composables/usePermission.js";
 import { formatMoney } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
@@ -181,7 +182,7 @@ import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 const showSaleDetailModal = ref(false);
 const detailOrder = ref(null);
-
+const { can } = usePermission();
 const filters = [
     { name: "search", type: "text", placeholder: "Mã đơn / Tên khách hàng" },
     {
@@ -296,28 +297,58 @@ const columns = [
 const actions = [
     {
         icon: EditButtonIcon,
-        title: "Sửa",
-        hidden: (row) => row.status !== "pending",
-        onClick: openEdit,
+        type: "edit",
+        title: "Chỉnh sửa",
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
+        onClick: (item) => {
+            if (item.status === "approved") return;
+            openEdit(item);
+        },
+        hidden: (item) =>
+            !can("sale_order.update") ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: CheckIcon,
+        type: "approve",
         title: "Duyệt đơn",
-        hidden: (row) => row.status !== "pending",
-        onClick: openApproveConfirm,
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
+        onClick: (item) => {
+            if (item.status === "approved") return;
+            openApproveConfirm(item);
+        },
+        // gộp luôn điều kiện "cancelled" vào đây vì action.visible không được DataTable đọc
+        hidden: (item) =>
+            !can("sale_order.approve") ||
+            item.status === "cancelled" ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DeleteIcon,
         title: "Hủy đơn",
-        hidden: (row) => row.status !== "pending",
+        disabled: (row) => isLocked(row),
+        class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
+        // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
+        onClick: (item) => cancelOrder(item),
+        hidden: (item) =>
+            !can("sale_order.cancel") ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
-        title: "Chi tiết",
         icon: DetailButtonIcon,
-        onClick: openDetail,
+        title: "Chi tiết",
+        onClick: (item) => openDetail(item), // sửa từ showDetail -> openDetail
+        hidden: () => !can("sale_order.detail"),
     },
 ];
+const HIDDEN_EDIT_STATUSES = ["approved", "completed","partial", "cancelled"];
+const LOCKED_STATUSES = ["approved", "partial", "completed"];
 
+function isLocked(row) {
+    return LOCKED_STATUSES.includes(row.status);
+}
 // Filter
 function handleFilter(params) {
     search.value = params.search || "";
@@ -416,10 +447,6 @@ async function confirmApprove() {
         toast.error("Duyệt đơn thất bại");
         console.error(err);
     }
-}
-
-function showDetail(item) {
-    window.location.href = `/sale/orders/${item.id}`;
 }
 
 function reloadData() {

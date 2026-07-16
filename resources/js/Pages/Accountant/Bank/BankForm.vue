@@ -77,7 +77,8 @@
 <script setup>
 import { reactive, watch, ref } from "vue";
 import axios from "axios";
-
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const props = defineProps({
     bank: Object,
 });
@@ -148,7 +149,10 @@ async function submit() {
             },
         });
     }
-
+    toast.success("Lưu ngân hàng thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+    });
     emit("saved");
 }
 </script>

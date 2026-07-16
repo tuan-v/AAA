@@ -14,8 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up'
 
     )
-    ->withMiddleware(function ($middleware) {
-        $middleware->append(\App\Http\Middleware\LogUserActivity::class);
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->alias([
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class, // giả định bạn đang dùng
+            'audit' => \App\Http\Middleware\LogPermissionAction::class,
+        ]);
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

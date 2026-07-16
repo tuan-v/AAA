@@ -15,7 +15,11 @@
                 + Thêm quyền
             </button>
         </div>
-
+        <div
+            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6"
+        >
+            <SearchPage :filters="filters" @filter="handleFilter" />
+        </div>
         <DataTable
             :columns="columns"
             :data="permissions.data"
@@ -45,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import Pagination from "@/components/Pagination.vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -55,8 +59,26 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import PermissionForm from "./PermissionForm.vue";
 import { Head, usePage } from "@inertiajs/vue3";
 import DeleteIcon from "../../icons/DeleteIcon.vue";
+import SearchPage from "@/components/SearchPage.vue";
+const filters = [
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm theo tên quyền, nhóm hoặc mô tả...",
+    },
+    {
+        name: "group",
+        type: "text",
+        placeholder: "Lọc theo nhóm (ví dụ: user, role, permission...)",
+    },
+];
+const filterParams = ref({});
+const handleFilter = (params) => {
+    filterParams.value = params;
+    getData(1);
+};
 const page = ref(1);
-const perPage = ref(10);
+const perPage = ref(50);
 const handlePageChange = (page) => {
     getData(page);
 };
@@ -67,7 +89,7 @@ const handlePerPageChange = (value) => {
 const permissions = ref({
     data: [],
     total: 0,
-    per_page: 10,
+    per_page: 50,
     current_page: 1,
     last_page: 1,
 });
@@ -124,6 +146,7 @@ const getData = async (page = 1) => {
             params: {
                 page,
                 per_page: perPage.value,
+                ...filterParams.value, // ← Thêm dòng này
             },
         });
 
@@ -132,7 +155,6 @@ const getData = async (page = 1) => {
         console.error(error);
     }
 };
-
 async function deletePermission(id) {
     await axios.delete(`/api/permissions/${id}`);
 

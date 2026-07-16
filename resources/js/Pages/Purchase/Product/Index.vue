@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách sản phẩm</h2>
 
             <button
-                v-if="can('product.create')"
+                v-if="can('purchase_product.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -261,18 +261,34 @@ const columns = [
     },
 ];
 
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("purchase_product.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("purchase_product.lock")
+                : !can("purchase_product.unlock"),
         onClick: (item) => toggleStatus(item),
     },
-];
+    // {
+    //     icon: DetailButtonIcon,
+    //     type: "view",
+    //     hidden: () => !can("purchase_product.detail"),
+    //     onClick: (item) => openDetail(item),
+    //     tooltip: "Xem chi tiết",
+    // },
+]);
 function debounce(fn, delay = 300) {
     let timeout;
     return (...args) => {

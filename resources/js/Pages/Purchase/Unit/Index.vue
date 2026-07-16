@@ -44,6 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn vị</h2>
 
             <button
+                v-if="can('purchase_unit.create')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -91,7 +92,7 @@
 
 <script setup>
 import { Head } from "@inertiajs/vue3";
-import { ref, onMounted, watch, h } from "vue";
+import { ref, onMounted, watch, h, computed } from "vue";
 import axios from "axios";
 import { Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -103,7 +104,8 @@ import UnitForm from "./UnitForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
-
+import { usePermission } from "@/composables/usePermission";
+const { can, canAny } = usePermission();
 const search = ref("");
 const units = ref({
     data: [],
@@ -163,18 +165,34 @@ const getData = debounce(() => {
 watch(search, () => {
     getData();
 });
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("purchase_unit.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("purchase_unit.lock")
+                : !can("purchase_unit.unlock"),
         onClick: (item) => toggleStatus(item),
     },
-];
+    // {
+    //     icon: DetailButtonIcon,
+    //     type: "view",
+    //     hidden: () => !can("purchase_unit.detail"),
+    //     onClick: (item) => openDetail(item),
+    //     tooltip: "Xem chi tiết",
+    // },
+]);
 
 function openCreate() {
     selectedUnit.value = null;

@@ -11,12 +11,43 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('roles')
-            ->visibleFor(auth()->user())
-            ->orderBy('id', 'desc')
-            ->paginate(5);
+        $query = User::query()
+            ->with('roles:id,name')                    // load vai trò
+            ->visibleFor(auth()->user());              // giữ scope quyền xem
+
+        // Lọc theo công ty
+        if ($request->filled('company_id')) {
+            $query->where('company_id', $request->company_id);
+        }
+
+        // Tìm kiếm chung
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Lọc theo trạng thái
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Lọc theo vai trò
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('name', $request->role);
+            });
+        }
+
+        $perPage = min((int) $request->get('per_page', 10), 100);
+
+        $users = $query->orderBy('id', 'desc')->paginate($perPage);
 
         return response()->json($users);
     }
@@ -99,17 +130,6 @@ class UserController extends Controller
         ]);
 
         $user->syncRoles($validated['role']);
-        ActivityLogService::log(
-            $user,
-            'create',
-            'Tạo user',
-            null,
-            [
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $validated['role'],
-            ]
-        );
         return response()->json([
             'message' => 'Thêm tài khoản thành công',
             'user' => $user
@@ -161,13 +181,6 @@ class UserController extends Controller
         if (!empty($validated['password'])) {
             $data['password'] = bcrypt($validated['password']);
         }
-        ActivityLogService::log(
-            $user,
-            'update',
-            'Cập nhật user',
-            $user->getOriginal(),
-            $user->getChanges()
-        );
         $user->update($data);
 
         // 🔥 đảm bảo vẫn thuộc company hiện tại
@@ -199,13 +212,7 @@ class UserController extends Controller
                 ])
             ]
         ]);
-        ActivityLogService::log(
-            $user,
-            'update',
-            'Đổi trạng thái user',
-            ['status' => $user->getOriginal('status')],
-            ['status' => $request->status]
-        );
+
         $user->update([
             'status' => $request->status
         ]);

@@ -17,6 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách tiền tệ</h2>
 
             <button
+                v-if="can('currency.create')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -72,21 +73,21 @@
 import { Head } from "@inertiajs/vue3";
 import { ref, onMounted, h } from "vue";
 import axios from "axios";
-
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
-
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import CurrencyForm from "./CurrencyForm.vue";
+import { usePermission } from "@/composables/usePermission";
 
+const { can } = usePermission();
 /* ================= STATE ================= */
 const perPage = ref(10);
 const filterParams = ref({});

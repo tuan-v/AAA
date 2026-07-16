@@ -301,4 +301,3 @@ const progressPercent = computed(() => {
     return Math.round((receivedQty / totalQty) * 100);
 });
 </script>
-```

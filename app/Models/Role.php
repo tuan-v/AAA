@@ -2,26 +2,38 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Permission;
 use Spatie\Permission\Models\Role as SpatieRole;
 
-class Role extends Model
+class Role extends SpatieRole
 {
-    protected $table = 'roles';
     protected $fillable = [
         'name',
         'guard_name',
-        'description',
+        'type',
+        'is_protected',
+        'company_id',
+        'description', // CHỈ thêm dòng này nếu bảng roles đã có cột description thật
     ];
 
-    public function users()
+    protected $casts = [
+        'is_protected' => 'boolean',
+    ];
+
+    public function isSystem(): bool
     {
-        return $this->belongsToMany(User::class, 'model_has_roles', 'role_id', 'model_id');
+        return $this->type === 'system';
     }
 
-    public function permissions()
+    public function isUserCreated(): bool
     {
-        return $this->belongsToMany(Permission::class, 'role_has_permissions', 'role_id', 'permission_id');
+        return $this->type === 'user';
     }
+
+    // KHÔNG tự viết lại users()/permissions() ở đây nữa.
+    // SpatieRole (class cha) đã có sẵn:
+    //   - permissions() -> quan hệ đúng chuẩn tới Spatie\Permission\Models\Permission
+    //     qua bảng role_has_permissions
+    //   - Quan hệ tới User thông qua model_has_roles được Spatie xử lý nội bộ,
+    //     dùng User::role('TenVaiTro')->get() để lấy user theo role thay vì
+    //     tự viết belongsToMany.
 }

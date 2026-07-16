@@ -122,13 +122,10 @@
                                     class="border-b hover:bg-gray-50 transition"
                                 >
                                     <th class="p-3 text-left">Sản phẩm</th>
-                                    <th class="p-3 text-center">Đơn vị</th>
                                     <th class="p-3 text-center">Số lượng</th>
+                                    <th class="p-3 text-center">Đơn vị</th>
                                     <th class="p-3 text-right">Đơn giá</th>
                                     <th class="p-3 text-right">Thành tiền</th>
-                                    <th class="p-3 text-center">
-                                        Tồn ảnh hưởng
-                                    </th>
                                 </tr>
                             </thead>
 
@@ -142,14 +139,12 @@
                                         {{ i.product?.name }}
                                     </td>
 
-                                    <td class="p-3 text-center text-gray-600">
-                                        {{ i.product?.unit?.name || "-" }}
-                                    </td>
-
                                     <td class="p-3 text-center">
                                         {{ i.quantity }}
                                     </td>
-
+                                    <td class="p-3 text-center text-gray-600">
+                                        {{ i.product?.unit?.name || "-" }}
+                                    </td>
                                     <td
                                         class="p-3 text-right font-medium text-gray-900"
                                     >
@@ -169,81 +164,10 @@
                                                 ? 'text-red-500'
                                                 : 'text-green-600'
                                         "
-                                    >
-                                        {{ slip.type === "export" ? "-" : "+" }}
-                                        {{ i.quantity }}
-                                    </td>
+                                    ></td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-
-                <!-- SUMMARY -->
-                <div class="flex justify-end mb-8">
-                    <div
-                        class="bg-white border rounded-xl px-6 py-4 shadow-sm text-right"
-                    >
-                        <p class="text-xs text-gray-400 uppercase">
-                            Tổng số lượng
-                        </p>
-                        <p class="text-3xl font-bold text-gray-900">
-                            {{ totalQuantity }}
-                        </p>
-                    </div>
-                </div>
-
-                <!-- ERP TIMELINE -->
-                <div class="bg-white border rounded-xl p-4 shadow-sm">
-                    <h3 class="font-bold mb-3">ERP Timeline</h3>
-
-                    <div class="border-l-2 pl-4 space-y-4">
-                        <div
-                            v-for="log in slip.logs"
-                            :key="log.id"
-                            class="flex gap-3 mb-4"
-                        >
-                            <div
-                                class="w-2.5 h-2.5 mt-2 rounded-full bg-blue-500"
-                            ></div>
-
-                            <div>
-                                <p class="font-semibold">
-                                    {{ log.user?.name }}
-                                </p>
-
-                                <p class="text-sm">
-                                    <span class="font-bold">{{
-                                        log.action
-                                    }}</span>
-                                    - {{ log.description }}
-                                </p>
-
-                                <div v-if="log.new_values?.stock_impact">
-                                    <p class="text-xs text-gray-500">
-                                        Stock impact:
-                                    </p>
-
-                                    <div
-                                        v-for="item in log.new_values
-                                            .stock_impact"
-                                        :key="item.product_id"
-                                        class="text-xs"
-                                    >
-                                        Product #{{ item.product_id }}:
-                                        <span
-                                            :class="
-                                                item.qty_change > 0
-                                                    ? 'text-green-600'
-                                                    : 'text-red-600'
-                                            "
-                                        >
-                                            {{ item.qty_change }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

@@ -84,8 +84,13 @@ import SearchPage from "@/components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import TransactionForm from "./TransactionForm.vue";
 import TransactionDetail from "./TransactionDetail.vue";
+import CheckIcon from "@/icons/CheckIcon.vue";
+import DeleteIcon from "@/icons/DeleteIcon.vue";
+import { usePermission } from "@/composables/usePermission";
 
-/* ================= STATE ================= */
+const { can } = usePermission();
+const showConfirm = ref(false);
+const pendingItem = ref(null);
 
 const transactions = ref({
     data: [],
@@ -134,7 +139,6 @@ const filters = [
 ];
 
 /* ================= TABLE COLUMNS ================= */
-
 const columns = [
     {
         key: "code",
@@ -208,17 +212,81 @@ const columns = [
         render: (row) =>
             h("span", new Date(row.transaction_date).toLocaleString()),
     },
+    {
+        label: "Trạng thái",
+        render: (row) => {
+            const config = {
+                pending: {
+                    text: "Chờ duyệt",
+                    class: "bg-yellow-100 text-yellow-700",
+                },
+                approve: {
+                    text: "Đã duyệt",
+                    class: "bg-green-100 text-green-700",
+                },
+                reject: { text: "Từ chối", class: "bg-red-100 text-red-700" },
+            };
+            const status = config[row.status] ?? config.pending;
+            return h(
+                "span",
+                {
+                    class: `${status.class} px-3 py-1 rounded-full text-xs font-medium`,
+                },
+                status.text,
+            );
+        },
+    },
 ];
 
 /* ================= ACTIONS ================= */
 
 const actions = [
     {
+        icon: CheckIcon,
+        title: "Duyệt",
+        hidden: (row) =>
+            !can("transaction.approve") || row.status !== "pending",
+        onClick: (item) => {
+            pendingItem.value = item;
+            showConfirm.value = true;
+        },
+    },
+    {
+        icon: DeleteIcon,
+        title: "Từ chối",
+        hidden: (row) => !can("transaction.reject") || row.status !== "pending",
+        onClick: async (item) => {
+            try {
+                await axios.post(
+                    `/api/accountant/transactions/${item.id}/reject`,
+                );
+                toast.success("Từ chối giao dịch thành công");
+                getData(transactions.value.current_page);
+            } catch (err) {
+                toast.error(err.response?.data?.message ?? "Từ chối thất bại");
+            }
+        },
+    },
+    {
         icon: DetailButtonIcon,
         type: "view",
         onClick: (item) => openDetail(item),
     },
 ];
+
+async function confirmApprove() {
+    if (!pendingItem.value) return;
+    try {
+        await axios.post(
+            `/api/accountant/transactions/${pendingItem.value.id}/approve`,
+        );
+        toast.success("Duyệt giao dịch thành công");
+        showConfirm.value = false;
+        getData(transactions.value.current_page);
+    } catch (err) {
+        toast.error(err.response?.data?.message ?? "Duyệt thất bại");
+    }
+}
 
 /* ================= METHODS ================= */
 

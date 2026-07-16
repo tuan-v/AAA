@@ -18,14 +18,18 @@
                 + Thêm nhân sự
             </button>
         </div>
-
+        <div
+            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6"
+        >
+            <SearchPage :filters="filters" @filter="handleFilter" />
+        </div>
         <DataTable
             :columns="columns"
             :data="users.data"
             :showIndex="true"
             :actions="actions"
             @toggle-status="toggleStatus"
-            :startIndex="(permissions.current_page - 1) * permissions.per_page"
+            :startIndex="(users.current_page - 1) * users.per_page"
             emptyMessage="Không có nhân sự"
         />
         <Pagination
@@ -65,9 +69,37 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
-import { ref, reactive, onMounted, h } from "vue";
+import { ref, reactive, onMounted, h, computed } from "vue";
 import axios from "axios";
-
+import SearchPage from "@/components/SearchPage.vue";
+const filters = ref([
+    // ← đổi thành ref
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm theo tên, email, username, số điện thoại...",
+    },
+    {
+        name: "role",
+        type: "select",
+        placeholder: "Lọc theo vai trò",
+        options: [],
+    },
+    {
+        name: "status",
+        type: "select",
+        placeholder: "Trạng thái",
+        options: [
+            { value: "active", label: "Đang hoạt động" },
+            { value: "blocked", label: "Đã khóa" },
+        ],
+    },
+]);
+const filterParams = ref({});
+const handleFilter = (params) => {
+    filterParams.value = params;
+    getData(1);
+};
 const handlePageChange = (page) => {
     getData(page);
 };
@@ -87,6 +119,7 @@ const permissions = usePage().props.auth.permissions;
 const can = (permission) => {
     return permissions.includes(permission);
 };
+const rolesForFilter = ref([]);
 
 const columns = [
     {
@@ -131,24 +164,32 @@ const columns = [
     },
 ];
 
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("user.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active" ? !can("user.lock") : !can("user.unlock"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
-        onClick: (item) => {
-            show(item.id);
-        },
+        type: "view",
+        hidden: () => !can("user.detail"),
+        onClick: (item) => openDetail(item),
+        tooltip: "Xem chi tiết",
     },
-];
+]);
 
 function openCreate() {
     selectedUser.value = null;
@@ -163,9 +204,33 @@ const reloadData = () => {
     getData();
     showModal.value = false;
 };
+const loadRoles = async () => {
+    try {
+        const res = await axios.get("/api/roles");
+        const data = res.data.data || res.data || [];
 
+        const roleFilter = filters.value.find((f) => f.name === "role");
+        if (roleFilter) {
+            roleFilter.options = [
+                { value: "", label: "Tất cả vai trò" },
+                ...data.map((role) => ({
+                    value: role.name,
+                    label: role.name,
+                })),
+            ];
+        }
+    } catch (error) {
+        console.error("Không load được vai trò", error);
+    }
+};
 const getData = async (page = 1) => {
-    const response = await axios.get(`/api/users/user?page=${page}`);
+    const response = await axios.get(`/api/users/user`, {
+        params: {
+            page,
+            per_page: users.value.per_page,
+            ...filterParams.value,
+        },
+    });
     users.value = response.data;
 };
 
@@ -201,6 +266,7 @@ function show(id) {
 }
 
 onMounted(() => {
+    loadRoles();
     reloadData();
 });
 </script>

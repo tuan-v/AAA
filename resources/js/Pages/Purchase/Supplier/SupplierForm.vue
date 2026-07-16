@@ -38,7 +38,7 @@
                 type="button"
                 class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                <i class="ti ti-x text-xl"></i>
+                <i class="ti ti-x text-xl">X</i>
             </button>
         </div>
 
@@ -299,7 +299,7 @@
                 class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
                 <i class="ti ti-device-floppy text-base"></i>
-                {{ form.id ? "Cập nhật ngay" : "Thêm nhà cung cấp" }}
+                {{ form.id ? "Cập nhật" : "+ Nhà cung cấp" }}
             </button>
         </div>
     </div>

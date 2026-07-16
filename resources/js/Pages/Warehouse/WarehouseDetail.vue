@@ -15,7 +15,7 @@
                 </p>
             </div>
             <button class="wh-modal__close" @click="$emit('close')">
-                <i class="ti ti-x"></i>
+                <i class="ti ti-x">X</i>
             </button>
         </div>
 

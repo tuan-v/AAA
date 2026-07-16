@@ -11,12 +11,26 @@ class PermissionController extends Controller
 {
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 10);
+        $query = Permission::query();
 
-        return response()->json(
-            Permission::orderBy('id', 'desc')
-                ->paginate($perPage)
-        );
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('group', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('group')) {
+            $query->where('group', 'like', "%{$request->group}%");
+        }
+
+        $perPage = min((int)$request->get('per_page', 50), 100);
+
+        return $query->orderBy('group')
+            ->orderBy('name')
+            ->paginate($perPage);
     }
     public function store(Request $request)
     {

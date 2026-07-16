@@ -55,6 +55,11 @@ Route::prefix('purchase')->group(function () {
     Route::get('/orders', function () {
         return Inertia::render('Purchase/Order/Index');
     });
+    Route::get('/orders/{id}', function ($id) {
+        return Inertia::render('Purchase/Order/PurchaseOrderDetail', [
+            'id' => (int) $id,
+        ]);
+    });
     Route::get('/products', function () {
         return Inertia::render('Purchase/Product/Index');
     });
@@ -114,7 +119,9 @@ Route::get('/permission', function () {
 Route::get('/role', function () {
     return Inertia::render('Manage/Role');
 });
-
+Route::get('/audit-logs', function () {
+    return Inertia::render('AuditLog/Index');
+});
 
 Route::get('/user', function () {
     return Inertia::render('Manage/User');

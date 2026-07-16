@@ -87,7 +87,7 @@
                                 <input
                                     v-model="form.sku"
                                     type="text"
-                                    placeholder="Nhập mã hàng (SKU)"
+                                    placeholder="Nhập mã hàng"
                                     class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                     :class="errors.sku ? 'border-red-300' : ''"
                                 />

@@ -17,6 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn mua hàng</h2>
 
             <button
+                v-if="can('purchase_order.create')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
             >
@@ -163,7 +164,7 @@
 </template>
 
 <script setup>
-import { h, ref, onMounted, watch } from "vue";
+import { h, ref, onMounted, watch, computed } from "vue";
 import { Head } from "@inertiajs/vue3";
 import axios from "axios";
 import PurchaseOrderForm from "./PurchaseOrderForm.vue";
@@ -181,6 +182,9 @@ import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import PurchaseOrderDetail from "./PurchaseOrderDetail.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 const filters = [
     {
         name: "search",
@@ -351,34 +355,42 @@ const actions = [
             if (item.status === "approved") return;
             openEdit(item);
         },
-        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
+        hidden: (item) =>
+            !can("purchase_order.update") ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: CheckIcon,
         type: "approve",
         title: "Duyệt đơn",
-        visible: (row) => row.status !== "cancelled",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => {
             if (item.status === "approved") return;
             openApproveConfirm(item);
         },
-        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
+        // gộp luôn điều kiện "cancelled" vào đây vì action.visible không được DataTable đọc
+        hidden: (item) =>
+            !can("purchase_order.approve") ||
+            item.status === "cancelled" ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
-
     {
         icon: DeleteIcon,
         title: "Hủy đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
-        onClick: (item) => showDetail(item),
-        hidden: (item) => HIDDEN_EDIT_STATUSES.includes(item.status),
+        // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
+        onClick: (item) => cancelOrder(item),
+        hidden: (item) =>
+            !can("purchase_order.cancel") ||
+            HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
         onClick: openPurchaseDetail,
+        hidden: () => !can("purchase_order.detail"),
     },
 ];
 const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed"];
@@ -452,7 +464,15 @@ function openCreate() {
     selectedOrder.value = null;
     showModal.value = true;
 }
-
+async function cancelOrder(item) {
+    try {
+        await axios.post(`/api/purchase/orders/${item.id}/cancel`);
+        toast.success("Hủy đơn thành công");
+        getData();
+    } catch (err) {
+        toast.error("Hủy đơn thất bại");
+    }
+}
 async function openEdit(item) {
     if (item.status === "approved") {
         toast.warning("Đơn này đã được duyệt rồi, không thể sửa.");

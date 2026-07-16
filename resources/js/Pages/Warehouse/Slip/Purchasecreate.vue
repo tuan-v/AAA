@@ -169,6 +169,9 @@ import "vue3-toastify/dist/index.css";
 import FormSelect from "@/components/FormSelect.vue";
 import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
 import SlipDetail from "./SlipDetail.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 const showDetailModal = ref(false);
 const selectedSlip = ref(null);
 const slipColumns = [
@@ -228,10 +231,8 @@ const slipActions = [
     {
         title: "Duyệt phiếu",
         icon: CheckIcon,
-        visible: (row) => row.status === "pending",
-        disabled: (row) => row.status === "approved",
-        class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        hidden: (row) =>
+            !can("warehouse_slip.approve") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -241,12 +242,9 @@ const slipActions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-
-                await loadSlips();
-                await loadOrder(); // Cập nhật lại số lượng nhập trong đơn hàng
+                await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
-
                 toast.error("Không thể duyệt phiếu", {
                     position: "top-right",
                     autoClose: 3000,
@@ -259,10 +257,8 @@ const slipActions = [
     {
         title: "Từ chối",
         icon: DeleteIcon,
-        visible: (row) => row.status === "pending",
-        disabled: (row) => row.status === "approved",
-        class: (row) =>
-            row.status === "approved" ? "opacity-40 cursor-not-allowed" : "",
+        hidden: (row) =>
+            !can("warehouse_slip.reject") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -272,12 +268,9 @@ const slipActions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-
-                await loadSlips();
-                await loadOrder(); // Cập nhật lại số lượng nhập trong đơn hàng
+                await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
-
                 toast.error("Không thể từ chối phiếu", {
                     position: "top-right",
                     autoClose: 3000,

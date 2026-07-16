@@ -116,10 +116,13 @@ import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 const warehouseFilter = ref("all");
 const search = ref("");
 const activeTab = ref("import");
-const can = (permission) => permissions.includes(permission);
+
 const showDetailModal = ref(false);
 const showModal = ref(false);
 const selectedSlip = ref(null);
@@ -224,13 +227,8 @@ const actions = [
     {
         title: "Duyệt phiếu",
         icon: CheckIcon,
-        visible: (row) => row.status === "pending",
-        disabled: (row) =>
-            row.status === "approved" || row.status === "rejected",
-        class: (row) =>
-            row.status === "approved" || row.status === "rejected"
-                ? "opacity-40 cursor-not-allowed"
-                : "",
+        hidden: (row) =>
+            !can("warehouse_slip.approve") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -243,7 +241,6 @@ const actions = [
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
-
                 toast.error("Không thể duyệt phiếu", {
                     position: "top-right",
                     autoClose: 3000,
@@ -252,17 +249,11 @@ const actions = [
             }
         },
     },
-
     {
         title: "Từ chối",
         icon: DeleteIcon,
-        visible: (row) => row.status === "pending",
-        disabled: (row) =>
-            row.status === "rejected" || row.status === "approved",
-        class: (row) =>
-            row.status === "rejected" || row.status === "approved"
-                ? "opacity-40 cursor-not-allowed"
-                : "",
+        hidden: (row) =>
+            !can("warehouse_slip.reject") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -272,11 +263,9 @@ const actions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
-
                 toast.error("Không thể từ chối phiếu", {
                     position: "top-right",
                     autoClose: 3000,
@@ -288,6 +277,7 @@ const actions = [
     {
         title: "Chi tiết",
         icon: DetailButtonIcon,
+        hidden: () => !can("warehouse_slip.detail"),
         onClick: openDetail,
     },
 ];

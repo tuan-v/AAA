@@ -320,6 +320,8 @@
 import { ref, reactive, watch, onMounted } from "vue";
 import axios from "axios";
 import { usePage } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const page = usePage();
 const company = page.props.auths?.user?.company;
 const errors = ref({});
@@ -396,7 +398,10 @@ async function saveUser() {
         } else {
             await axios.post("/api/users/user", form);
         }
-
+        toast.success("Lưu nhân sự thành công!", {
+            position: "top-right",
+            autoClose: 3000,
+        });
         emit("saved");
         emit("close");
     } catch (error) {

@@ -7,24 +7,31 @@ export const vat = 10;
  * Ví dụ: 1000000 => 1,000,000
  */
 export function formatMoney(value, currency = null) {
-    if (value === null || value === undefined || value === "") return "";
+    if (value === null || value === undefined || value === "") {
+        return "";
+    }
 
-    let str = value.toString().trim();
-    const num = Number(value);
-    if (isNaN(num)) return "";
+    const number = Number(String(value).replace(/[^\d.-]/g, ""));
 
-    const formatted = new Intl.NumberFormat("vi-VN").format(num);
+    if (isNaN(number)) {
+        return "";
+    }
 
-    if (!currency) return formatted;
+    const formatted = new Intl.NumberFormat("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(number);
+
+    if (!currency) {
+        return formatted;
+    }
 
     const symbol = currency.symbol || currency.code || "";
 
-    // VND thì symbol để sau, ngoại tệ để trước
-    if (currency.code === "VND") {
-        return `${formatted} ${symbol}`.trim();
-    } else {
-        return `${symbol} ${formatted}`.trim();
-    }
+    return currency.code === "VND"
+        ? `${formatted} ${symbol}`.trim()
+        : `${symbol} ${formatted}`.trim();
+
     // Nếu có nhiều dấu . → coi là phân cách hàng nghìn (VD: 4.500.000)
     const dotCount = (str.match(/\./g) || []).length;
     if (dotCount > 1) {
@@ -60,12 +67,7 @@ export function formatMoney(value, currency = null) {
 
     return `${integer}.${fraction}`;
 }
-
 // helpers.js
-export function unformatMoney(str) {
-    if (!str) return 0;
-    return Number(String(str).replace(/[^\d.-]/g, "")) || 0;
-}
 
 /**Hàm có tác dụng format tiền từ input và trả dữ liệu về input
  * <input type="text" @input="handleMoneyInput">
@@ -380,4 +382,14 @@ export function numberToMoneyText(value) {
     words = words.charAt(0).toUpperCase() + words.slice(1) + " đồng.";
 
     return words;
+}
+export function formatMoneyInput(value) {
+    if (value === null || value === undefined || value === "") {
+        return "";
+    }
+
+    return new Intl.NumberFormat("vi-VN").format(Number(value));
+}
+export function unformatMoney(value) {
+    return String(value).replace(/\D/g, "");
 }

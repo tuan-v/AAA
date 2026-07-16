@@ -58,7 +58,7 @@
                 />
 
                 <p v-if="form.errors.symbol" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.symbol }}
+                    {{ form.errors.symbol[0] }}
                 </p>
             </div>
 
@@ -73,32 +73,6 @@
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-blue-500"
                 />
             </div> -->
-
-            <!-- Trạng thái -->
-            <div>
-                <label class="block text-sm font-medium mb-2">
-                    Trạng thái
-                    <span class="text-red-500">*</span>
-                </label>
-
-                <select
-                    v-model="form.status"
-                    :class="[
-                        'w-full rounded-lg border px-4 py-2.5 outline-none',
-                        form.errors.status
-                            ? 'border-red-500'
-                            : 'border-gray-300 focus:border-blue-500',
-                    ]"
-                >
-                    <option value="active">Hoạt động</option>
-
-                    <option value="inactive">Ngừng hoạt động</option>
-                </select>
-
-                <p v-if="form.errors.status" class="text-red-500 text-xs mt-2">
-                    {{ form.errors.status }}
-                </p>
-            </div>
 
             <!-- Footer -->
             <div class="flex justify-end gap-3 pt-4 border-t">
@@ -125,6 +99,8 @@
 import axios from "axios";
 import { watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 
 const props = defineProps({
     unit: {

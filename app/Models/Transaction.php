@@ -9,6 +9,7 @@ use App\Models\TransactionCategory;
 use App\Models\Currency;
 use App\Services\CodeGeneratorService;
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
@@ -35,6 +36,9 @@ class Transaction extends Model
         'purchase_order_id',
         'description',
         'created_by',
+        'status',
+        'approved_by',
+        'approved_at',
     ];
 
     protected $casts = [
@@ -42,6 +46,7 @@ class Transaction extends Model
         'amount' => 'decimal:2',
         'exchange_rate' => 'decimal:6',
         'amount_base' => 'decimal:2',
+        'approved_at'    => 'datetime',
     ];
 
     // RELATIONS
@@ -84,7 +89,14 @@ class Transaction extends Model
     {
         return $this->belongsTo(PurchaseOrder::class);
     }
-
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
     // SCOPES
     public function scopeCompany($query, $companyId)
     {
@@ -106,7 +118,20 @@ class Transaction extends Model
     {
         return $this->type === 'transfer';
     }
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
 
+    public function isApproved(): bool
+    {
+        return $this->status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
     // ACCESSORS
     public function getFormattedAmountAttribute()
     {

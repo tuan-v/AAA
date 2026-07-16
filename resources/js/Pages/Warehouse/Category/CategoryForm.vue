@@ -102,6 +102,8 @@
 import axios from "axios";
 import { watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 
 const props = defineProps({
     category: {
@@ -141,9 +143,6 @@ async function save() {
     try {
         form.clearErrors();
 
-        // FIX: trước đây thiếu khai báo "res" nên emit("saved", res.data) ném
-        // ReferenceError, bị catch nuốt mất -> lưu thành công dưới DB nhưng
-        // modal không đóng và ProductForm không nhận được category vừa tạo.
         let res;
 
         if (form.id) {
@@ -151,18 +150,20 @@ async function save() {
                 `/api/warehouse/categories/${form.id}`,
                 form.data(),
             );
+
+            toast.success("Cập nhật danh mục thành công");
         } else {
             res = await axios.post("/api/warehouse/categories", form.data());
+
             toast.success("Thêm danh mục thành công");
         }
-
-        // API chuẩn của dự án trả về { success, message, data, meta }
-        // -> object danh mục vừa tạo/sửa nằm ở res.data.data
-        emit("saved", res.data);
+        emit("saved", res.data); // hoặc res.data nếu API trả trực tiếp object
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
             form.setError(error.response.data.errors);
+        } else {
+            toast.error("Có lỗi xảy ra");
         }
     }
 }

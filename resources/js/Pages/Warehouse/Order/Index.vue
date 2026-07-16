@@ -218,7 +218,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, h } from "vue";
+import { ref, onMounted, h, computed } from "vue";
 import { Head } from "@inertiajs/vue3";
 import axios from "axios";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -238,6 +238,10 @@ import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import SaleOrderDetail from "../../Sale/Order/SaleOrderDetail.vue";
 import PurchaseOrderDetail from "../../Purchase/Order/PurchaseOrderDetail.vue";
+import { usePermission } from "@/composables/usePermission";
+
+const canViewPage = computed(() => can("warehouse_slip.view"));
+const { can } = usePermission();
 const activeTab = ref("purchase");
 const showModal = ref(false);
 const modalKey = ref(0);
@@ -381,13 +385,12 @@ const purchaseActions = [
     {
         icon: ImportIcon,
         title: "Nhập kho",
-        visible: (row) => {
-            return row.status === "approved" || row.status === "partial";
-        },
+        hidden: (row) =>
+            !can("warehouse_slip.create") ||
+            !["approved", "partial"].includes(row.status),
         disabled: (row) => row.status === "completed",
         class: (row) =>
             row.status === "completed" ? "opacity-40 cursor-not-allowed" : "",
-
         onClick: (item) => {
             if (item.status === "completed") {
                 toast.warning("Đơn hàng đã được nhập kho đầy đủ", {
@@ -395,16 +398,15 @@ const purchaseActions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-
                 return;
             }
-
             openStockIn(item);
         },
     },
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
+        hidden: () => !can("purchase_order.detail"),
         onClick: openPurchaseDetail,
     },
 ];
@@ -507,13 +509,16 @@ const saleActions = [
     {
         icon: ImportIcon,
         title: "Xuất kho",
-        visible: (row) => ["approved", "partial"].includes(row.status),
+        hidden: (row) =>
+            !can("warehouse_slip.create") ||
+            !["approved", "partial"].includes(row.status),
         onClick: (item) =>
             (window.location.href = `/warehouse/slips/salecreate?order_id=${item.id}&type=sale`),
     },
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
+        hidden: () => !can("sale_order.detail"),
         onClick: openDetail,
     },
 ];

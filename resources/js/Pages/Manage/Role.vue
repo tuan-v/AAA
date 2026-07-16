@@ -15,10 +15,15 @@
                 @click="openCreate"
                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow"
             >
-                + Thêm vai trò
+                + Vai trò
             </button>
         </div>
-
+        <!-- ================= SEARCH PAGE ================= -->
+        <div
+            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
+        >
+            <SearchPage :filters="filters" @filter="handleFilter" />
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <div
                 v-for="role in roles.data"
@@ -36,7 +41,7 @@
                         </span>
 
                         <span class="text-xs text-gray-400">
-                            #{{ role.id }}
+                            #{{ role.description || "Không có mô tả" }}
                         </span>
                     </div>
 
@@ -123,18 +128,31 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Pagination from "@/components/Pagination.vue";
 import RoleForm from "./RoleForm.vue";
 import { icons } from "lucide-vue-next";
+import SearchPage from "@/components/SearchPage.vue";
 
-console.log(usePage().props.auth);
+const filters = [
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm theo tên vai trò hoặc mô tả...",
+    },
+    // Bạn có thể thêm filter khác sau này
+];
 const handlePageChange = (page) => {
     getData(page);
 };
 const roles = ref({
     data: [],
     total: 0,
-    per_page: 10,
+    per_page: 50,
     current_page: 1,
     last_page: 1,
 });
+const handleFilter = (params) => {
+    filterParams.value = params;
+    getData(1);
+};
+const filterParams = ref({});
 const permissions = usePage().props.auth.permissions;
 const can = (permission) => {
     return permissions.includes(permission);
@@ -172,9 +190,14 @@ const reloadData = () => {
     showModal.value = false;
 };
 const getData = async (page = 1) => {
-    const response = await axios.get(`/api/roles?page=${page}`);
-
-    roles.value = response.data;
+    const res = await axios.get("/api/roles", {
+        params: {
+            page,
+            per_page: 50,
+            ...filterParams.value,
+        },
+    });
+    roles.value.data = [...res.data.data.system, ...res.data.data.user];
 };
 
 async function deleteRole(id) {

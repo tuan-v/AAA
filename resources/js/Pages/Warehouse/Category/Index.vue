@@ -44,6 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách danh mục</h2>
 
             <button
+                v-if="can('purchase_category.create')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -92,7 +93,7 @@
 
 <script setup>
 import { Head } from "@inertiajs/vue3";
-import { ref, onMounted, watch, h } from "vue";
+import { ref, onMounted, watch, h, computed } from "vue";
 import axios from "axios";
 import { Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
@@ -104,6 +105,8 @@ import CategoryForm from "./CategoryForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
+import { usePermission } from "@/composables/usePermission";
+const { can, canAny } = usePermission();
 const page = ref(1);
 const search = ref("");
 const categories = ref({
@@ -146,18 +149,34 @@ const columns = [
     },
 ];
 
-const actions = [
+const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
+        hidden: () => !can("purchase_category.update"),
         onClick: (item) => openEdit(item),
     },
     {
-        icon: (item) => (item.status === "active" ? Lock : Unlock),
         type: "status",
+        // icon đổi theo trạng thái của từng dòng
+        icon: (item) => (item.status === "active" ? Lock : Unlock),
+        // quyền cũng đổi theo trạng thái của từng dòng:
+        // đang active (sắp bị khóa) -> cần quyền lock
+        // đang inactive (sắp được mở) -> cần quyền unlock
+        hidden: (item) =>
+            item.status === "active"
+                ? !can("purchase_category.lock")
+                : !can("purchase_category.unlock"),
         onClick: (item) => toggleStatus(item),
     },
-];
+    // {
+    //     icon: DetailButtonIcon,
+    //     type: "view",
+    //     hidden: () => !can("purchase_category.detail"),
+    //     onClick: (item) => openDetail(item),
+    //     tooltip: "Xem chi tiết",
+    // },
+]);
 
 function openCreate() {
     selectedCategory.value = null;

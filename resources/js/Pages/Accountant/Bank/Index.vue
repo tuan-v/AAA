@@ -17,6 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách ngân hàng</h2>
 
             <button
+                v-if="can('bank.create')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
             >
@@ -68,18 +69,19 @@
 import { Head } from "@inertiajs/vue3";
 import { ref, h, onMounted } from "vue";
 import axios from "axios";
-
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import Modal from "@/components/Modal.vue";
-
 import BankForm from "./BankForm.vue";
-
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
+import { usePermission } from "@/composables/usePermission";
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
+const { can } = usePermission();
 const perPage = ref(10);
 const banks = ref({
     data: [],

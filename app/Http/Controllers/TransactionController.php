@@ -117,4 +117,31 @@ class TransactionController extends Controller
             'purchaseOrder',
         ]);
     }
+    public function approve(int $id, TransactionService $service)
+    {
+        try {
+            $transaction = $service->approve($id);
+
+            return response()->json([
+                'message' => 'Duyệt giao dịch thành công',
+                'data' => $transaction,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function reject(int $id, TransactionService $service)
+    {
+        try {
+            $transaction = $service->reject($id);
+
+            return response()->json([
+                'message' => 'Từ chối giao dịch thành công',
+                'data' => $transaction,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
 }

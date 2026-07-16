@@ -4,14 +4,14 @@
             <h2 class="text-xl font-bold mb-5">
                 {{ props.permission ? "Sửa quyền" : "Thêm quyền" }}
             </h2>
-            <button @click="$emit('close')">✕</button>
+            <button @click="emit('close')">✕</button>
         </div>
 
         <form @submit.prevent="save">
             <div class="mb-3">
                 <label class="block mb-1">Tên quyền</label>
                 <input v-model="form.name" class="border p-2 w-full" />
-                <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">
+                <p v-if="form.errors?.name" class="text-red-500 text-xs mt-1">
                     {{ form.errors.name[0] }}
                 </p>
             </div>
@@ -19,15 +19,16 @@
             <div class="mb-5">
                 <label class="block mb-1">Nhóm</label>
                 <input v-model="form.group" class="border p-2 w-full" />
-                <p v-if="form.errors.group" class="text-red-500 text-xs mt-1">
+                <p v-if="form.errors?.group" class="text-red-500 text-xs mt-1">
                     {{ form.errors.group[0] }}
                 </p>
             </div>
+
             <div class="mb-5">
                 <label class="block mb-1">Mô tả</label>
                 <input v-model="form.description" class="border p-2 w-full" />
                 <p
-                    v-if="form.errors.description"
+                    v-if="form.errors?.description"
                     class="text-red-500 text-xs mt-1"
                 >
                     {{ form.errors.description[0] }}
@@ -52,9 +53,10 @@
 </template>
 
 <script setup>
-import { reactive, watch, computed, onMounted } from "vue";
+import { reactive, watch, defineProps, defineEmits } from "vue";
 import axios from "axios";
-
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const props = defineProps({
     permission: {
         type: Object,
@@ -67,37 +69,66 @@ const emit = defineEmits(["saved", "close"]);
 const form = reactive({
     name: "",
     group: "",
+    description: "",
+    errors: {}, // ← Đã thêm để tránh lỗi
 });
 
-// ✅ QUAN TRỌNG: watch để cập nhật form khi mở modal
+// Watch để cập nhật form khi mở modal sửa
 watch(
     () => props.permission,
     (permission) => {
         if (permission) {
-            form.name = permission.name;
-            form.group = permission.group;
+            form.name = permission.name || "";
+            form.group = permission.group || "";
+            form.description = permission.description || "";
+            form.errors = {};
         } else {
             form.name = "";
             form.group = "";
+            form.description = "";
+            form.errors = {};
         }
     },
     { immediate: true },
 );
 
 function save() {
+    form.errors = {}; // Reset lỗi trước khi submit
+
     if (props.permission?.id) {
-        axios.put(`/api/permissions/${props.permission.id}`, form).then(() => {
-            emit("saved");
-            emit("close");
-        });
+        // Sửa quyền
+        axios
+            .put(`/api/permissions/${props.permission.id}`, form)
+            .then(() => {
+                toast.success("Cập nhật quyền thành công!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                });
+                emit("saved");
+                emit("close");
+            })
+            .catch((err) => {
+                if (err.response?.data?.errors) {
+                    form.errors = err.response.data.errors;
+                }
+            });
     } else {
-        axios.post("/api/permissions", form).then(() => {
-            emit("saved");
-            emit("close");
-        });
+        // Thêm mới quyền
+        axios
+            .post("/api/permissions", form)
+            .then(() => {
+                toast.success("Thêm quyền thành công!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                });
+                emit("saved");
+                emit("close");
+            })
+            .catch((err) => {
+                if (err.response?.data?.errors) {
+                    form.errors = err.response.data.errors;
+                }
+            });
     }
 }
-// onMounted(() => {
-//     get;
-// });
 </script>
