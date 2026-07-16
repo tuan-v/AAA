@@ -2,12 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\CategoryProducts;
-use App\Models\Products;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use PermissionSeeder;
 
 class DatabaseSeeder extends Seeder
 {

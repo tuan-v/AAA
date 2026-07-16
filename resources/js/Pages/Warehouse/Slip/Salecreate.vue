@@ -163,7 +163,9 @@ import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
 import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
+import { usePermission } from "@/composables/usePermission";
 
+const { can } = usePermission();
 // ===================== STATE
 const slips = ref([]);
 const order = ref(null);
@@ -360,34 +362,65 @@ const slipColumns = [
 
 const slipActions = [
     {
-        title: "Duyệt",
+        title: "Duyệt phiếu",
         icon: CheckIcon,
-        visible: (r) => r.status === "pending",
+        hidden: (row) => row.status !== "pending",
         onClick: async (row) => {
-            await axios.post(`/api/warehouse/slips/${row.id}/approve`);
-            toast.success("Duyệt phiếu thành công", {
-                position: "top-right",
-                autoClose: 3000,
-                theme: "colored",
-            });
-            await loadSlips();
+            try {
+                await axios.post(`/api/warehouse/slips/${row.id}/approve`);
+
+                toast.success("Duyệt phiếu thành công", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+
+                // Load lại dữ liệu giống trang nhập
+                await loadOrder();
+                await loadSlips();
+            } catch (e) {
+                toast.error(
+                    e.response?.data?.message || "Không thể duyệt phiếu",
+                    {
+                        position: "top-right",
+                        autoClose: 3000,
+                        theme: "colored",
+                    },
+                );
+            }
         },
     },
+
     {
         title: "Từ chối",
         icon: DeleteIcon,
-        visible: (r) => r.status === "pending",
+        hidden: (row) => row.status !== "pending",
         onClick: async (row) => {
-            await axios.post(`/api/warehouse/slips/${row.id}/reject`);
-            toast.success("Hủy phiếu thành công", {
-                position: "top-right",
-                autoClose: 3000,
-                theme: "colored",
-            });
-            await loadSlips();
-            await loadOrder();
+            try {
+                await axios.post(`/api/warehouse/slips/${row.id}/reject`);
+
+                toast.success("Từ chối phiếu thành công", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+                });
+
+                // Load lại dữ liệu giống trang nhập
+                await loadOrder();
+                await loadSlips();
+            } catch (e) {
+                toast.error(
+                    e.response?.data?.message || "Không thể từ chối phiếu",
+                    {
+                        position: "top-right",
+                        autoClose: 3000,
+                        theme: "colored",
+                    },
+                );
+            }
         },
     },
+
     {
         title: "Chi tiết",
         icon: DetailButtonIcon,

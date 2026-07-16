@@ -242,9 +242,9 @@ const slipActions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-                await getData(slips.value.current_page);
+                await loadOrder();
+                await loadSlips();
             } catch (e) {
-                console.error(e);
                 toast.error("Không thể duyệt phiếu", {
                     position: "top-right",
                     autoClose: 3000,
@@ -268,9 +268,10 @@ const slipActions = [
                     autoClose: 3000,
                     theme: "colored",
                 });
-                await getData(slips.value.current_page);
+                await loadOrder();
+await loadSlips();
             } catch (e) {
-                console.error(e);
+            
                 toast.error("Không thể từ chối phiếu", {
                     position: "top-right",
                     autoClose: 3000,

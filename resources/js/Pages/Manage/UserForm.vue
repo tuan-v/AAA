@@ -7,11 +7,7 @@
             class="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-                <div
-                    class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"
-                >
-                    <i class="ti ti-user-square-rounded text-2xl"></i>
-                </div>
+               
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
@@ -31,7 +27,7 @@
                 type="button"
                 class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-                <i class="ti ti-x text-xl"></i>
+                <i class="ti ti-x text-xl">X</i>
             </button>
         </div>
 
@@ -386,8 +382,16 @@ watch(
     { immediate: true },
 );
 const getRoles = async () => {
-    const res = await axios.get("/api/roles");
-    roles.value = res.data.data ?? res.data;
+    try {
+        const res = await axios.get("/api/roles");
+
+        roles.value = [
+            ...(res.data.data.system || []),
+            ...(res.data.data.user || []),
+        ];
+    } catch (error) {
+        console.error("Không load được vai trò", error);
+    }
 };
 async function saveUser() {
     errors.value = {};

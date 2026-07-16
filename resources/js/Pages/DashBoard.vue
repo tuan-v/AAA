@@ -746,13 +746,7 @@ const state = reactive({
             bgColor: "bg-warning-50 dark:bg-warning-500/10",
             textColor: "text-warning-600",
         },
-        {
-            title: "Sản phẩm",
-            value: "0",
-            icon: "ti-box",
-            bgColor: "bg-teal-50 dark:bg-teal-500/10",
-            textColor: "text-teal-600",
-        },
+     
         {
             title: "Kho hàng",
             value: "0",
@@ -998,13 +992,7 @@ async function loadDashboard() {
                 bgColor: "bg-warning-50 dark:bg-warning-500/10",
                 textColor: "text-warning-600",
             },
-            {
-                title: "Sản phẩm",
-                value: String(d.operations.products),
-                icon: "ti-box",
-                bgColor: "bg-teal-50 dark:bg-teal-500/10",
-                textColor: "text-teal-600",
-            },
+       
             {
                 title: "Kho hàng",
                 value: String(d.operations.warehouses),

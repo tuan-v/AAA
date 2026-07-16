@@ -205,18 +205,6 @@ const filters = [
                 value: "approved",
                 label: "Đã duyệt",
             },
-            {
-                value: "partial",
-                label: "Đã duyệt",
-            },
-            {
-                value: "completed",
-                label: "Đã duyệt",
-            },
-            {
-                value: "cancelled",
-                label: "Đã hủy",
-            },
         ],
     },
 ];

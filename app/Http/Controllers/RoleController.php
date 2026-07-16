@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
@@ -14,7 +15,19 @@ class RoleController extends Controller
         $currentUser = $request->user();
         $isSuperAdmin = $currentUser->hasRole('Super Admin');
 
-        $query = Role::query();
+        $query = Role::query()
+    ->where(function ($q) use ($currentUser) {
+
+        // Role hệ thống
+        $q->where('type', 'system')
+
+        // Role của công ty hiện tại
+        ->orWhere(function ($q) use ($currentUser) {
+            $q->where('type', 'user')
+              ->where('company_id', $currentUser->company_id);
+        });
+
+    });
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
@@ -49,13 +62,23 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
+       
         $validated = $request->validate([
-            'name' => 'required|string|unique:roles,name',
-            'permissions' => 'array',
-            'permissions.*' => 'string|exists:permissions,name',
-        ]);
+    'name' => [
+        'required',
+        Rule::unique('roles')->where(function ($q) {
+            return $q->where(
+                'company_id',
+                auth()->user()->company_id
+            );
+        }),
+    ],
+    'permissions' => 'array',
+    'permissions.*' => 'string|exists:permissions,name',
+]);
 
         $role = Role::create([
+            'company_id' => auth()->user()->company_id,
             'name' => $validated['name'],
             'guard_name' => 'web',
             'type' => 'user',
@@ -74,12 +97,33 @@ class RoleController extends Controller
 
     public function update(Request $request, int $id)
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where(function ($q) {
+
+    $q->where('type', 'system')
+
+      ->orWhere(function ($q) {
+
+            $q->where('company_id', auth()->user()->company_id)
+              ->where('type','user');
+
+      });
+
+})->findOrFail($id);
 
         $this->guardAgainstProtectedRole($request, $role, 'chỉnh sửa');
 
         $validated = $request->validate([
-            'name' => 'required|string|unique:roles,name,' . $role->id,
+            'name' => [
+        'required',
+        Rule::unique('roles')
+        ->ignore($role->id)
+        ->where(function ($q) {
+            return $q->where(
+                'company_id',
+                auth()->user()->company_id
+            );
+        }),
+],
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
         ]);

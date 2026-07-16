@@ -60,6 +60,8 @@ import PermissionForm from "./PermissionForm.vue";
 import { Head, usePage } from "@inertiajs/vue3";
 import DeleteIcon from "../../icons/DeleteIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
+import { toast } from "vue3-toastify";
+
 const filters = [
     {
         name: "search",
@@ -119,15 +121,33 @@ const columns = [
 
 const actions = [
     {
+        title: "Chỉnh sửa",
         icon: EditButtonIcon,
-        type: "edit",
-        onClick: (item) => openEdit(item),
+        hidden: () => !can("permission.update"),
+        onClick: openEdit,
     },
     {
+        title: "Xóa",
         icon: DeleteIcon,
         class: "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700",
-        onClick: (item) => {
-            deletePermission(item.id);
+        hidden: () => !can("permission.delete"),
+        onClick: async (item) => {
+            if (!confirm(`Bạn có chắc muốn xóa quyền "${item.name}"?`)) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/api/permissions/${item.id}`);
+
+                reloadData();
+            } catch (e) {
+                console.error(e);
+
+                toast.error(
+                    e.response?.data?.message ??
+                        "Không thể xóa quyền.",
+                );
+            }
         },
     },
 ];
