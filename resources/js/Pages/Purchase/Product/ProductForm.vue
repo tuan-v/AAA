@@ -446,6 +446,7 @@ async function saveProduct() {
     errors.value = {};
 
     const data = new FormData();
+
     Object.keys(form.value).forEach((key) => {
         if (form.value[key] !== null && form.value[key] !== undefined) {
             data.append(key, form.value[key]);
@@ -453,11 +454,17 @@ async function saveProduct() {
     });
 
     try {
+        let response;
+
         if (form.value.id) {
             data.append("_method", "PUT");
-            await axios.post(`/api/warehouse/products/${form.value.id}`, data);
+
+            response = await axios.post(
+                `/api/warehouse/products/${form.value.id}`,
+                data,
+            );
         } else {
-            await axios.post("/api/warehouse/products", data);
+            response = await axios.post("/api/warehouse/products", data);
         }
 
         toast.success(
@@ -465,7 +472,9 @@ async function saveProduct() {
                 ? "Cập nhật sản phẩm thành công"
                 : "Thêm sản phẩm thành công",
         );
-        emit("saved");
+
+        emit("saved", response.data.data); // hoặc response.data tùy API
+
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
