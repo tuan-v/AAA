@@ -11,10 +11,13 @@ use Illuminate\Validation\ValidationException;
 
 class TransactionCategoryService extends BaseService
 {
+    // Các giá trị type hợp lệ, khớp với transaction.type (receipt/payment/transfer)
+    // qua bảng ánh xạ ở TransactionService::validateCategoryType()
+    private const VALID_TYPES = ['income', 'expense', 'transfer'];
+
     public function __construct(
         protected TransactionCategoryRepositoryInterface $repository
-    ) {
-    }
+    ) {}
 
     /**
      * Danh sách phân trang.
@@ -44,9 +47,13 @@ class TransactionCategoryService extends BaseService
 
     /**
      * Tạo mới. Mã được sinh tự động, không nhận từ client.
+     * 'type' bắt buộc phải có ngay từ lúc tạo, vì đây là căn cứ để lọc
+     * category theo loại giao dịch (thu/chi/chuyển khoản) ở form giao dịch.
      */
     public function create(array $data): TransactionCategory
     {
+        $this->validateType($data['type'] ?? null);
+
         return DB::transaction(function () use ($data) {
             $data['company_id'] = $this->companyId();
             $data['code'] = $this->generateCode();
@@ -59,7 +66,11 @@ class TransactionCategoryService extends BaseService
     /**
      * Cập nhật.
      * Nếu category đã được dùng ở >=1 giao dịch: chỉ cho phép đổi 'status',
-     * không cho sửa 'name'/'note' để giữ toàn vẹn dữ liệu lịch sử.
+     * không cho sửa 'name'/'note'/'type' để giữ toàn vẹn dữ liệu lịch sử.
+     *
+     * Lý do 'type' cũng bị khoá khi đã dùng: đổi type giữa chừng sẽ làm các
+     * giao dịch cũ (đã gắn category này) không còn khớp với type mới, phá vỡ
+     * logic lọc category theo loại giao dịch (thu/chi/chuyển khoản).
      */
     public function update(TransactionCategory $category, array $data): TransactionCategory
     {
@@ -72,6 +83,11 @@ class TransactionCategoryService extends BaseService
                 throw ValidationException::withMessages([
                     'category' => 'Loại giao dịch đã được sử dụng, chỉ có thể khóa/mở, không thể chỉnh sửa thông tin.',
                 ]);
+            }
+        } else {
+            // Chưa dùng: cho phép đổi type nhưng vẫn phải hợp lệ
+            if (array_key_exists('type', $data)) {
+                $this->validateType($data['type']);
             }
         }
 
@@ -93,6 +109,18 @@ class TransactionCategoryService extends BaseService
         }
 
         return $this->repository->delete($category);
+    }
+
+    /**
+     * Kiểm tra type hợp lệ (income/expense/transfer).
+     */
+    private function validateType(?string $type): void
+    {
+        if (empty($type) || !in_array($type, self::VALID_TYPES, true)) {
+            throw ValidationException::withMessages([
+                'type' => 'Loại thanh toán không hợp lệ. Chỉ chấp nhận: income, expense, transfer.',
+            ]);
+        }
     }
 
     /**

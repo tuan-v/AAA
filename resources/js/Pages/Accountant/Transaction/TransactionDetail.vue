@@ -30,6 +30,13 @@
                     <component :is="typeIcon" class="w-3.5 h-3.5" />
                     {{ typeLabel }}
                 </span>
+                <button
+                    @click="$emit('close')"
+                    type="button"
+                    class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                    <i class="ti ti-x text-xl">X</i>
+                </button>
             </div>
         </div>
 
@@ -60,7 +67,7 @@
             </div>
         </div>
 
-        <!-- Tài khoản -->
+        <!-- Thông tin tài khoản -->
         <div class="py-4 border-b border-gray-200">
             <p
                 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3"
@@ -110,6 +117,58 @@
             </div>
         </div>
 
+        <!-- Người tạo - Người duyệt - Phương thức thanh toán -->
+        <div class="py-4 border-b border-gray-200">
+            <p
+                class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3"
+            >
+                Thông tin bổ sung
+            </p>
+            <div class="grid grid-cols-3 gap-4">
+                <!-- Người tạo -->
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500 mb-1">Người tạo</p>
+                    <p class="text-sm font-medium">
+                        {{
+                            transaction.created_by?.name ||
+                            transaction.creator?.name ||
+                            "—"
+                        }}
+                    </p>
+                    <p
+                        v-if="
+                            transaction.created_by?.email ||
+                            transaction.creator?.email
+                        "
+                        class="text-xs text-gray-400"
+                    >
+                        {{
+                            transaction.created_by?.email ||
+                            transaction.creator?.email
+                        }}
+                    </p>
+                </div>
+
+                <!-- Người duyệt -->
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500 mb-1">Người duyệt</p>
+                    <p class="text-sm font-medium">
+                        {{
+                            transaction.approved_by?.name ||
+                            transaction.approver?.name ||
+                            "Chưa duyệt"
+                        }}
+                    </p>
+                    <p
+                        v-if="transaction.approved_at"
+                        class="text-xs text-gray-400"
+                    >
+                        {{ formatDate(transaction.approved_at) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Nội dung -->
         <div
             v-if="transaction.description"
@@ -127,28 +186,14 @@
             </p>
         </div>
 
-        <!-- Footer: timestamps + actions -->
+        <!-- Footer -->
         <div class="pt-3 flex items-center justify-between flex-wrap gap-2">
             <p class="text-xs text-gray-400">
                 Tạo lúc: {{ formatDate(transaction.created_at) }}
                 <span v-if="transaction.updated_at">
-                    · Cập nhật: {{ formatDate(transaction.updated_at) }}</span
-                >
+                    · Cập nhật: {{ formatDate(transaction.updated_at) }}
+                </span>
             </p>
-            <div class="flex gap-2">
-                <button
-                    @click="$emit('print', transaction)"
-                    class="text-xs px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
-                >
-                    <PrinterIcon class="w-3.5 h-3.5" /> In phiếu
-                </button>
-                <button
-                    @click="$emit('edit', transaction)"
-                    class="text-xs px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
-                >
-                    <PencilIcon class="w-3.5 h-3.5" /> Chỉnh sửa
-                </button>
-            </div>
         </div>
     </div>
 </template>
@@ -206,8 +251,33 @@ const typeBadgeClass = computed(
         "bg-gray-100 text-gray-600",
 );
 
-const statusBadgeClass = computed(() => "bg-green-50 text-green-700");
-const statusLabel = computed(() => "Đã xác nhận");
+const STATUS_MAP = {
+    pending: {
+        label: "Chờ duyệt",
+        badgeClass: "bg-yellow-50 text-yellow-700",
+    },
+    approve: {
+        label: "Đã duyệt",
+        badgeClass: "bg-green-50 text-green-700",
+    },
+    reject: {
+        label: "Từ chối",
+        badgeClass: "bg-red-50 text-red-700",
+    },
+};
+
+const statusLabel = computed(
+    () =>
+        STATUS_MAP[transaction.value?.status]?.label ??
+        transaction.value?.status ??
+        "—",
+);
+
+const statusBadgeClass = computed(
+    () =>
+        STATUS_MAP[transaction.value?.status]?.badgeClass ??
+        "bg-gray-100 text-gray-600",
+);
 
 const amountClass = computed(() => {
     if (transaction.value?.type === "receipt") return "text-green-600";

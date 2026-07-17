@@ -130,7 +130,7 @@ class CustomerController extends Controller
                 'ward_id.required' => 'Vui lòng chọn xã/phường.',
 
                 'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
-                'adress_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
+                'address_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
 
                 'total_debts.numeric' => 'Công nợ phải là số.',
                 'total_debts.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',

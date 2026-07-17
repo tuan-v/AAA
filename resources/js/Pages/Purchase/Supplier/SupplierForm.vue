@@ -7,11 +7,6 @@
             class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-                <div
-                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
-                >
-                    <i class="ti ti-truck-delivery text-2xl"></i>
-                </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{
@@ -69,7 +64,7 @@
                                 v-model="form.name"
                                 type="text"
                                 placeholder="Nhập tên nhà cung cấp"
-                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                 :class="errors.name ? 'border-red-300' : ''"
                             />
                         </div>
@@ -97,7 +92,7 @@
                                 v-model="form.code"
                                 type="text"
                                 disabled
-                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
                                 placeholder="Mã tự động khi lưu"
                             />
                         </div>
@@ -115,7 +110,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Số điện thoại
+                            Số điện thoại <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <i
@@ -125,7 +120,7 @@
                                 v-model="form.phone"
                                 type="text"
                                 placeholder="Nhập số điện thoại"
-                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                 :class="errors.phone ? 'border-red-300' : ''"
                             />
                         </div>
@@ -143,7 +138,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Email
+                            Email <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <i
@@ -153,7 +148,7 @@
                                 v-model="form.email"
                                 type="email"
                                 placeholder="ten@congty.com"
-                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                 :class="errors.email ? 'border-red-300' : ''"
                             />
                         </div>
@@ -171,7 +166,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Tiền tệ mặc định
+                            Tiền tệ mặc định <span class="text-red-500">*</span>
                         </label>
                         <FormSelect
                             v-model="form.currency_id"
@@ -205,7 +200,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Tỉnh / Thành phố
+                            Tỉnh / Thành phố <span class="text-red-500">*</span>
                         </label>
                         <FormSelect
                             v-model="selectedProvince"
@@ -228,7 +223,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Phường / Xã
+                            Phường / Xã <span class="text-red-500">*</span>
                         </label>
                         <FormSelect
                             v-model="selectedWard"
@@ -251,7 +246,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Địa chỉ chi tiết
+                            Địa chỉ chi tiết <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <i
@@ -261,8 +256,15 @@
                                 v-model="addressDetail"
                                 type="text"
                                 placeholder="Số nhà, ngõ, tên đường..."
-                                class="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                             />
+                            <p
+                                v-if="errors.address_detail"
+                                class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                            >
+                                <i class="ti ti-alert-circle"></i
+                                >{{ errors.address_detail[0] }}
+                            </p>
                         </div>
                     </div>
                 </div>

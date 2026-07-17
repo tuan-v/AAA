@@ -194,6 +194,7 @@ class PurchaseOrderController extends Controller
         $request->validate([
             'supplier_id' => 'required',
             'currency_id' => 'required',
+            'expected_received_date' => 'required',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
@@ -201,6 +202,7 @@ class PurchaseOrderController extends Controller
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'expected_received_date' => 'Ngày nhận hàng không được để trống',
             'items.required' => 'Sản phẩm không được để trống',
             'items.array' => 'Sản phẩm không hợp lệ',
             'items.min' => 'Sản phẩm không được để trống',
@@ -300,6 +302,7 @@ class PurchaseOrderController extends Controller
         $request->validate([
             'supplier_id' => 'required',
             'currency_id' => 'required',
+            'expected_received_date' => 'required',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
@@ -307,6 +310,7 @@ class PurchaseOrderController extends Controller
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'expected_received_date' => 'Ngày nhận hàng không được để trống',
             'items.required' => 'Sản phẩm không được để trống',
             'items.array' => 'Sản phẩm không hợp lệ',
             'items.min' => 'Sản phẩm không được để trống',

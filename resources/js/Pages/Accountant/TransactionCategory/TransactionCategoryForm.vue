@@ -4,7 +4,11 @@
         <div class="tx-header">
             <div>
                 <h2 class="tx-title">
-                    {{ isEdit ? "Cập nhật loại giao dịch" : "Thêm loại giao dịch" }}
+                    {{
+                        isEdit
+                            ? "Cập nhật loại giao dịch"
+                            : "Thêm loại giao dịch"
+                    }}
                 </h2>
                 <p v-if="form.code" class="tx-code">
                     <i class="ti ti-hash"></i> {{ form.code }}
@@ -35,7 +39,8 @@
         <!-- USED WARNING -->
         <div v-if="isUsed" class="used-banner">
             <i class="ti ti-alert-triangle"></i>
-            Loại giao dịch này đã phát sinh giao dịch — chỉ có thể khóa/mở, không thể chỉnh sửa tên và ghi chú.
+            Loại giao dịch này đã phát sinh giao dịch — chỉ có thể khóa/mở,
+            không thể chỉnh sửa tên, loại thanh toán và ghi chú.
         </div>
 
         <!-- FORM BODY -->
@@ -55,16 +60,44 @@
                     :disabled="isUsed"
                     placeholder="VD: Thanh toán lương, Thu tiền bán hàng..."
                 />
-                <p v-if="errors.name" class="error-text">{{ errors.name[0] }}</p>
+                <p v-if="errors.name" class="error-text">
+                    {{ errors.name[0] }}
+                </p>
+            </div>
+
+            <div class="field">
+                <label class="label">
+                    <i class="ti ti-transfer-in"></i>Loại thanh toán
+                    <span class="required">*</span>
+                </label>
+                <div class="type-tabs">
+                    <button
+                        v-for="t in typeOptions"
+                        :key="t.value"
+                        type="button"
+                        class="tab"
+                        :class="{ active: form.type === t.value }"
+                        :disabled="isUsed"
+                        @click="!isUsed && (form.type = t.value)"
+                    >
+                        <i :class="t.icon"></i>
+                        {{ t.label }}
+                    </button>
+                </div>
+                <p v-if="errors.type" class="error-text">
+                    {{ errors.type[0] }}
+                </p>
+                <p class="hint-text">
+                    Dùng để lọc loại thanh toán phù hợp khi tạo giao dịch
+                    Thu/Chi/Chuyển khoản.
+                </p>
             </div>
 
             <div class="divider"></div>
 
             <div class="section-label">Ghi chú</div>
             <div class="field">
-                <label class="label">
-                    <i class="ti ti-notes"></i>Mô tả
-                </label>
+                <label class="label"> <i class="ti ti-notes"></i>Mô tả </label>
                 <textarea
                     v-model="form.description"
                     class="input"
@@ -80,7 +113,13 @@
             <button class="btn" @click="$emit('close')">Đóng</button>
             <button class="btn btn-primary" :disabled="saving" @click="save">
                 <i class="ti ti-check"></i>
-                {{ saving ? "Đang lưu..." : isEdit ? "Cập nhật" : "Lưu loại giao dịch" }}
+                {{
+                    saving
+                        ? "Đang lưu..."
+                        : isEdit
+                          ? "Cập nhật"
+                          : "Lưu loại giao dịch"
+                }}
             </button>
         </div>
     </div>
@@ -89,6 +128,7 @@
 <script setup>
 import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
+import { toast } from "vue3-toastify";
 
 const props = defineProps({
     category: { type: Object, default: null },
@@ -102,11 +142,19 @@ const isUsed = computed(() => !!props.category?.is_used);
 const saving = ref(false);
 const errors = ref({});
 
+// 3 loại thanh toán khớp đúng giá trị đang lưu trong DB (income/expense/transfer)
+const typeOptions = [
+    { value: "income", label: "Thu tiền", icon: "ti ti-arrow-down-circle" },
+    { value: "expense", label: "Chi tiền", icon: "ti ti-arrow-up-circle" },
+    { value: "transfer", label: "Chuyển khoản", icon: "ti ti-arrows-exchange" },
+];
+
 const form = reactive({
     id: null,
     code: "",
     name: "",
     description: "",
+    type: "income",
     status: 1,
 });
 
@@ -116,6 +164,7 @@ function resetForm() {
         code: "",
         name: "",
         description: "",
+        type: "income",
         status: 1,
     });
 }
@@ -133,6 +182,7 @@ watch(
             code: val.code ?? "",
             name: val.name ?? "",
             description: val.description ?? "",
+            type: val.type ?? "income",
             status: val.status ?? 1,
         });
     },
@@ -143,23 +193,34 @@ async function save() {
     saving.value = true;
     errors.value = {};
 
-    // Nếu đã dùng, chỉ gửi status - tránh gửi nhầm name/note bị backend từ chối
+    // Nếu đã dùng, chỉ gửi status - tránh gửi nhầm name/type/note bị backend từ chối
     const payload = isUsed.value
         ? { status: form.status }
-        : { name: form.name, description: form.description, status: form.status };
+        : {
+              name: form.name,
+              description: form.description,
+              type: form.type,
+              status: form.status,
+          };
 
     try {
         if (isEdit.value) {
-            await axios.put(`/api/accountant/transaction-categories/${form.id}`, payload);
+            await axios.put(
+                `/api/accountant/transaction-categories/${form.id}`,
+                payload,
+            );
         } else {
             await axios.post(`/api/accountant/transaction-categories`, payload);
         }
+        toast.success("Thêm loại giao dịch thành công");
         emit("saved");
     } catch (e) {
         if (e.response?.status === 422) {
             errors.value = e.response.data.errors ?? {};
         } else {
-            alert(e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.");
+            alert(
+                e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.",
+            );
         }
     } finally {
         saving.value = false;
@@ -202,8 +263,9 @@ async function save() {
     gap: 3px;
 }
 
-/* ── Status toggle (giống type-tabs) ── */
-.status-toggle {
+/* ── Status toggle & type tabs (dùng chung style) ── */
+.status-toggle,
+.type-tabs {
     display: flex;
     gap: 4px;
     padding: 4px;
@@ -224,11 +286,16 @@ async function save() {
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
+    font-family: inherit;
 }
 .tab.active {
     background: #fff;
     color: #185fa5;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+.tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ── Used warning ── */
@@ -279,6 +346,11 @@ async function save() {
 }
 .required {
     color: #dc2626;
+}
+.hint-text {
+    font-size: 11.5px;
+    color: #9ca3af;
+    margin-top: 2px;
 }
 
 /* ── Inputs ── */

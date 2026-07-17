@@ -9,6 +9,7 @@ use App\Models\SalesOrder;
 use App\Models\PurchaseOrder;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Models\CurrencyRate;
 
 class Currency extends Model
 {
@@ -33,5 +34,10 @@ class Currency extends Model
             || PurchaseOrder::where('currency_id', $this->id)->exists();
         // || Account::where('currency_id', $this->id)->exists()
         // || Transaction::where('currency_id', $this->id)->exists();
+    }
+    public function rates()
+    {
+        return $this->hasMany(CurrencyRate::class)
+            ->orderByDesc('effective_date');
     }
 }

@@ -91,14 +91,73 @@ class TransactionController extends Controller
             'exchange_rate.numeric' => 'Tỷ giá phải là số',
         ]);
 
-        $transaction = $this->service->create([
-            ...$request->all(),
-            'company_id' => auth()->user()->company_id,
-            'created_by' => auth()->id(),
+        // MỚI: bọc try/catch để bắt các lỗi nghiệp vụ ném từ Service
+        // (vd category không khớp loại giao dịch, số dư không đủ, v.v.)
+        // Nếu không bọc, các \InvalidArgumentException / \RuntimeException từ
+        // Service sẽ rơi thành lỗi 500 chung chung thay vì message rõ ràng.
+        try {
+            $transaction = $this->service->create([
+                ...$request->all(),
+                'company_id' => auth()->user()->company_id,
+                'created_by' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'message' => 'Tạo giao dịch thành công',
+                'data' => $transaction,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    // 📌 Cập nhật giao dịch (MỚI)
+    // Chỉ cho sửa khi giao dịch đang ở trạng thái "pending" — giữ đúng
+    // nguyên tắc: đã duyệt thì khoá, không cho sửa lại (giống PO/SO).
+    public function update(Request $request, int $id)
+    {
+        $request->validate([
+            'type' => 'required|in:receipt,payment,transfer',
+            'amount' => 'required|numeric|min:0',
+            'currency_id' => 'required',
+            'category_id' => 'required',
+
+            'from_account_id' => 'nullable|exists:accounts,id',
+            'to_account_id' => 'nullable|exists:accounts,id',
+            'customer_id' => 'nullable|exists:customers,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'sales_order_id' => 'nullable|exists:sales_orders,id',
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
+            'exchange_rate' => 'nullable|numeric',
+        ], [
+            'type.required' => 'Loại giao dịch không được để trống',
+            'type.in' => 'Loại giao dịch không hợp lệ',
+            'amount.required' => 'Số tiền không được để trống',
+            'amount.numeric' => 'Số tiền phải là số',
+            'amount.min' => 'Số tiền phải lớn hơn hoặc bằng 0',
+            'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
+            'category_id.required' => 'Danh mục không được để trống',
+            'from_account_id.exists' => 'Tài khoản không tồn tại',
+            'to_account_id.exists' => 'Tài khoản không tồn tại',
+            'customer_id.exists' => 'Khách hàng không tồn tại',
+            'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
+            'sales_order_id.exists' => 'Đơn hàng không tồn tại',
+            'purchase_order_id.exists' => 'Đơn hàng không tồn tại',
+            'exchange_rate.numeric' => 'Tỷ giá phải là số',
         ]);
 
-        return response()->json($transaction);
+        try {
+            $transaction = $this->service->update($id, $request->all());
+
+            return response()->json([
+                'message' => 'Cập nhật giao dịch thành công',
+                'data' => $transaction,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
+
     public function ledger(Account $account)
     {
         return $account->ledgers()
@@ -106,6 +165,7 @@ class TransactionController extends Controller
             ->orderBy('ledger_date')
             ->paginate(50);
     }
+
     public function show(Transaction $transaction)
     {
         return $transaction->load([
@@ -115,8 +175,11 @@ class TransactionController extends Controller
             'category',
             'salesOrder',
             'purchaseOrder',
+            'createdBy',      // ← Thêm
+            'approvedBy',
         ]);
     }
+
     public function approve(int $id, TransactionService $service)
     {
         try {

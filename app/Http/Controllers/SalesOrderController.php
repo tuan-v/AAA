@@ -218,8 +218,8 @@ class SalesOrderController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_id' => 'nullable',
-            'ward_id' => 'nullable',
+            'province_id' => 'required',
+            'ward_id' => 'required',
             'address_detail' => 'nullable|string|max:500',
             'note' => 'nullable|string',
 
@@ -230,7 +230,7 @@ class SalesOrderController extends Controller
             'items.*.vat_percent' => 'nullable|numeric|min:0|max:100',
             'items.*.amount' => 'required|numeric|min:0',
 
-            'expected_delivery_date' => 'nullable|date',
+            'expected_delivery_date' => 'required|date',
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
@@ -239,15 +239,16 @@ class SalesOrderController extends Controller
             'customer_id.exists' => 'Khách hàng không tồn tại',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
             'currency_id.exists' => 'Đơn vị tiền tệ không tồn tại',
-
+            'province_id' => 'Tỉnh không được để trống',
+            'ward_id' => 'Xã/phường không được để trống',
             'address_detail.string' => 'Địa chỉ phải là chuỗi',
             'address_detail.max' => 'Địa chỉ không được vượt quá 500 ký tự',
-
+            'expected_delivery_date' => 'Ngày nhận dự kiến không được để trống',
             'note.string' => 'Ghi chú phải là chuỗi',
 
             'items.required' => 'Sản phẩm không được để trống',
             'items.array' => 'Sản phẩm không hợp lệ',
-            'items.min' => 'Sản phẩm không được để trống',
+            'items.min' => 'Sản phẩm đã hết tồn kho',
 
             'items.*.product_id.required' => 'Sản phẩm không được để trống',
             'items.*.product_id.exists' => 'Sản phẩm không tồn tại',

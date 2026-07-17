@@ -1,25 +1,29 @@
 <template>
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl relative z-50">
+    <div
+        class="bg-white rounded-2xl shadow-xl w-full max-w-6xl relative z-50 max-h-[90vh] flex flex-col overflow-hidden"
+    >
+        <!-- Header (cố định) -->
         <div
-            class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl px-6 py-5 flex justify-between items-center"
+            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl shrink-0"
         >
             <div>
-                <h2 class="text-xl font-bold text-white">
+                <h2 class="text-xl font-bold text-gray-800 leading-tight">
                     {{ form.id ? "Cập nhật đơn bán hàng" : "Tạo đơn bán hàng" }}
                 </h2>
-                <p class="text-sm text-blue-200 mt-0.5">
+                <p class="text-sm text-gray-400 mt-0.5">
                     Quản lý đơn bán hàng doanh nghiệp
                 </p>
             </div>
             <button
                 @click="$emit('close')"
-                class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
+                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
                 ✕
             </button>
         </div>
 
-        <div class="p-6 space-y-5">
+        <!-- Body (phần duy nhất cuộn) -->
+        <div class="p-6 space-y-5 flex-1 overflow-y-auto">
             <div class="border border-gray-100 rounded-xl p-5 bg-gray-50/60">
                 <h3
                     class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"
@@ -88,14 +92,10 @@
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-600 mb-1"
-                            >Tỉnh / Thành phố</label
+                            >Tỉnh / Thành phố
+                            <span class="text-red-500">*</span></label
                         >
-                        <div
-                            :class="{
-                                'rounded-lg border border-red-500 p-0.5':
-                                    errors.province_id,
-                            }"
-                        >
+                        <div>
                             <FormSelect
                                 v-model="form.province_id"
                                 :options="provinceOptions"
@@ -115,14 +115,10 @@
                     <div>
                         <label
                             class="block text-sm font-medium text-gray-600 mb-1"
-                            >Phường / Xã</label
+                            >Phường / Xã
+                            <span class="text-red-500">*</span></label
                         >
-                        <div
-                            :class="{
-                                'rounded-lg border border-red-500 p-0.5':
-                                    errors.ward_id,
-                            }"
-                        >
+                        <div>
                             <FormSelect
                                 v-model="form.ward_id"
                                 :options="wardOptions"
@@ -212,7 +208,7 @@
                 </p>
 
                 <div
-                    class="overflow-x-auto rounded-lg border border-gray-100 style-scroll-visible pb-36 -mb-36"
+                    class="overflow-x-auto rounded-lg border border-gray-100 style-scroll-visible pb-16 -mb-16"
                 >
                     <table
                         class="w-full table-auto min-w-[950px] text-sm table-layout-fixed"
@@ -401,7 +397,7 @@
                     </table>
                 </div>
 
-                <div class="flex justify-end mt-44 relative z-10">
+                <div class="flex justify-end mt-6 relative z-0">
                     <div
                         class="bg-blue-50 border border-blue-100 rounded-xl p-5 min-w-[340px] space-y-2.5"
                     >
@@ -428,48 +424,51 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="flex justify-end gap-3 pt-1">
-                <button
-                    @click="$emit('close')"
-                    class="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
+        <!-- Footer (cố định) -->
+        <div
+            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl shrink-0"
+        >
+            <button
+                @click="$emit('close')"
+                class="px-5 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
+            >
+                Hủy
+            </button>
+            <button
+                @click="submit"
+                :disabled="loading"
+                class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-sm font-medium rounded-lg disabled:opacity-50 transition"
+            >
+                <svg
+                    v-if="loading"
+                    class="w-4 h-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
                 >
-                    Hủy
-                </button>
-                <button
-                    @click="submit"
-                    :disabled="loading"
-                    class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-sm font-medium rounded-lg disabled:opacity-50 transition"
-                >
-                    <svg
-                        v-if="loading"
-                        class="w-4 h-4 animate-spin"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                    >
-                        <circle
-                            class="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            stroke-width="4"
-                        />
-                        <path
-                            class="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8z"
-                        />
-                    </svg>
-                    {{
-                        loading
-                            ? "Đang lưu..."
-                            : form.id
-                              ? "Cập nhật đơn"
-                              : "Tạo đơn hàng"
-                    }}
-                </button>
-            </div>
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    />
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                    />
+                </svg>
+                {{
+                    loading
+                        ? "Đang lưu..."
+                        : form.id
+                          ? "Cập nhật đơn"
+                          : "Tạo đơn hàng"
+                }}
+            </button>
         </div>
     </div>
 
@@ -528,11 +527,10 @@ const customerOptions = computed(() =>
         label: c.code ? `${c.code} - ${c.name}` : c.name,
     })),
 );
-// Thêm computed này vào vùng COMPUTED trong file của bạn
 const currencyOptions = computed(() =>
     props.currencies.map((c) => ({
         value: c.id,
-        label: `${c.code} - ${c.name}`, // Hiển thị định dạng: "VND - Việt Nam Đồng" hoặc "USD - Đô la Mỹ"
+        label: `${c.code} - ${c.name}`,
     })),
 );
 
@@ -562,6 +560,10 @@ const vatAmount = computed(() =>
     }, 0),
 );
 const totalAmount = computed(() => subtotal.value + vatAmount.value);
+
+const currentCurrency = computed(
+    () => props.currencies.find((c) => c.id == form.currency_id) || null,
+);
 
 // ==================== DATA METHODS ====================
 async function loadWards(provinceId) {
@@ -849,7 +851,6 @@ async function submit() {
 </script>
 
 <style scoped>
-/* Trick CSS giải quyết bài toán Dropdown bị cắt bởi overflow-x-auto trên table */
 .style-scroll-visible {
     overflow-x: auto;
     overflow-y: visible !important;

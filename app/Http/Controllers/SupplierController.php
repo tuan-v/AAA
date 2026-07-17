@@ -110,8 +110,8 @@ class SupplierController extends Controller
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_code' => 'required',
-            'ward_code' => 'required',
+            'province_id' => 'required',
+            'ward_id' => 'required',
 
             'address_detail' => 'required|string|max:500',
 
@@ -133,8 +133,8 @@ class SupplierController extends Controller
 
             // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
             // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
-            'province_code.required' => 'Vui lòng chọn tỉnh',
-            'ward_code.required' => 'Vui lòng chọn xã/phường.',
+            'province_id.required' => 'Vui lòng chọn tỉnh',
+            'ward_id.required' => 'Vui lòng chọn xã/phường.',
             // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
 
             'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',

@@ -1,10 +1,10 @@
 <template>
     <div
-        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-6xl relative z-50"
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-6xl relative z-50 max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <!-- Header -->
+        <!-- Header (cố định, không cuộn) -->
         <div
-            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl"
+            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl shrink-0"
         >
             <div class="flex items-center gap-3">
                 <div>
@@ -30,7 +30,8 @@
             </button>
         </div>
 
-        <div class="p-6 space-y-6">
+        <!-- Body (phần duy nhất cuộn) -->
+        <div class="p-6 space-y-6 flex-1 overflow-y-auto">
             <!-- SECTION: THÔNG TIN ĐƠN MUA -->
             <div>
                 <h3
@@ -87,7 +88,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Dự kiến nhận<span class="text-red-500">*</span>
+                            Dự kiến nhận <span class="text-red-500">*</span>
                         </label>
                         <InputDate
                             v-model="form.expected_received_date"
@@ -158,7 +159,7 @@
                 </p>
 
                 <div
-                    class="overflow-x-auto rounded-lg border border-gray-200 style-scroll-visible pb-32 -mb-32"
+                    class="overflow-x-auto rounded-lg border border-gray-200 style-scroll-visible pb-16 -mb-16"
                 >
                     <table
                         class="w-full table-auto min-w-[800px] text-sm table-layout-fixed"
@@ -213,10 +214,13 @@
                                             :options="productOptions"
                                             placeholder="Chọn sản phẩm..."
                                             searchable
+                                            allow-create
+                                            add-new-text="Thêm sản phẩm mới"
                                             class="w-full"
                                             @update:modelValue="
                                                 () => onSelectProduct(item)
                                             "
+                                            @add-new="openProductModal(item)"
                                         />
                                     </div>
                                     <p
@@ -302,9 +306,9 @@
                     </table>
                 </div>
 
-                <div class="flex justify-end mt-40">
+                <div class="flex justify-end mt-6">
                     <div
-                        class="bg-blue-50 border border-blue-100 rounded-xl p-4 min-w-[280px] flex justify-between items-center relative z-10"
+                        class="bg-blue-50 border border-blue-100 rounded-xl p-4 min-w-[280px] flex justify-between items-center relative z-0"
                     >
                         <span class="text-sm font-medium text-gray-600"
                             >Tổng tiền:</span
@@ -317,9 +321,9 @@
             </div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer (cố định, không cuộn) -->
         <div
-            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl"
+            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl shrink-0"
         >
             <button
                 @click="$emit('close')"
@@ -359,6 +363,16 @@
             />
         </template>
     </Modal>
+
+    <!-- TODO: chỉnh lại đường dẫn import + props cho đúng ProductForm thật của bạn -->
+    <Modal v-if="showProductModal" @close="showProductModal = false">
+        <template #body>
+            <ProductForm
+                @saved="onProductCreated"
+                @close="showProductModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -367,6 +381,8 @@ import { reactive, computed, watch, ref, onMounted } from "vue";
 import { formatMoney } from "@/config/helpers";
 import FormSelect from "@/components/FormSelect.vue";
 import SupplierForm from "@/Pages/Purchase/Supplier/SupplierForm.vue";
+// TODO: sửa lại đường dẫn cho đúng component ProductForm thật của bạn
+import ProductForm from "@/Pages/Purchase/Product/ProductForm.vue";
 import Modal from "@/components/Modal.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import InputDate from "@/components/InputDate.vue";
@@ -382,6 +398,9 @@ const props = defineProps({
 const emit = defineEmits(["saved", "close"]);
 
 const showSupplierModal = ref(false);
+const showProductModal = ref(false);
+// Dòng sản phẩm đang được thao tác "Thêm sản phẩm mới" (để biết điền kết quả vào đúng dòng nào)
+const activeProductItem = ref(null);
 const loading = ref(false);
 const productOptions = ref([]);
 
@@ -401,11 +420,10 @@ const supplierOptions = computed(() =>
     props.suppliers.map((s) => ({ value: s.id, label: s.name })),
 );
 
-// Thêm computed này vào vùng COMPUTED trong file của bạn
 const currencyOptions = computed(() =>
     props.currencies.map((c) => ({
         value: c.id,
-        label: `${c.code} - ${c.name}`, // Hiển thị định dạng: "VND - Việt Nam Đồng" hoặc "USD - Đô la Mỹ"
+        label: `${c.code} - ${c.name}`,
     })),
 );
 
@@ -417,9 +435,6 @@ const totalAmount = computed(() =>
     ),
 );
 
-// FIX: "currentCurrency" được dùng trong template (formatMoney(..., currentCurrency))
-// nhưng trước đây chưa từng được khai báo -> luôn là undefined -> formatMoney
-// không có tiền tệ để lấy symbol -> mất ký hiệu tiền tệ ở cột Đơn giá/Thành tiền.
 const currentCurrency = computed(
     () => props.currencies.find((c) => c.id == form.currency_id) || null,
 );
@@ -439,11 +454,6 @@ const fetchAllProducts = async () => {
 };
 
 // ==================== METHODS ====================
-// FIX: "onSelectProduct" được gọi trong template khi chọn sản phẩm ở bảng
-// (@update:modelValue="() => onSelectProduct(item)") nhưng trước đây chưa
-// từng được khai báo -> chọn sản phẩm không tự điền đơn giá.
-// Tự động điền đơn giá từ productOptions khi người dùng chọn sản phẩm,
-// chỉ điền khi ô giá đang trống để không ghi đè giá người dùng đã tự sửa tay.
 function onSelectProduct(item) {
     const product = productOptions.value.find(
         (p) => p.value === String(item.product_id),
@@ -464,6 +474,42 @@ const onSupplierCreated = (newSupplier) => {
     form.supplier_id = newSupplier.id;
 };
 
+// Mở modal "Thêm sản phẩm mới", ghi nhớ dòng đang thao tác để điền kết quả đúng chỗ
+function openProductModal(item) {
+    activeProductItem.value = item;
+    showProductModal.value = true;
+}
+
+// Sau khi tạo sản phẩm mới thành công: thêm vào danh sách option
+// và tự động chọn + điền giá vào đúng dòng vừa bấm "Thêm sản phẩm mới"
+function onProductCreated(newProduct) {
+    showProductModal.value = false;
+    if (!newProduct) return;
+
+    const option = {
+        value: String(newProduct.id),
+        label: newProduct.code
+            ? `${newProduct.code} - ${newProduct.name}`
+            : newProduct.name,
+        price: Number(newProduct.price || 0),
+    };
+
+    if (!productOptions.value.some((p) => p.value === option.value)) {
+        productOptions.value.push(option);
+    }
+
+    if (activeProductItem.value) {
+        activeProductItem.value.product_id = option.value;
+        if (
+            activeProductItem.value.price === "" ||
+            activeProductItem.value.price === null
+        ) {
+            activeProductItem.value.price = option.price;
+        }
+        activeProductItem.value = null;
+    }
+}
+
 function formatNumber(value) {
     if (value === 0) return "0";
     if (!value) return "";
@@ -474,7 +520,6 @@ function updatePrice(item, event) {
     item.price = parseNumber(event.target.value);
 }
 
-// Giữ lại fix chuỗi rỗng gửi lên Backend bắt validate
 function parseNumber(value) {
     if (!value && value !== 0) return "";
     return Number(String(value).replace(/[^\d]/g, ""));
@@ -484,10 +529,6 @@ function addItem() {
     form.items.push({ product_id: "", quantity: 1, price: "" });
 }
 
-// FIX: "removeItem" được gọi trong template (nút xóa dòng sản phẩm)
-// nhưng trước đây chưa từng được khai báo -> bấm nút xóa không có tác dụng gì.
-// Giữ lại tối thiểu 1 dòng sản phẩm trong bảng: nếu chỉ còn 1 dòng thì reset
-// dòng đó về rỗng thay vì xóa hẳn, để form luôn có ít nhất 1 hàng để nhập.
 function removeItem(index) {
     if (form.items.length > 1) {
         form.items.splice(index, 1);
@@ -496,7 +537,6 @@ function removeItem(index) {
     }
 }
 
-// Khắc phục lỗi watch khởi tạo sai cú pháp bằng việc dùng hàm ẩn danh theo dõi chuẩn Vue 3
 function resetForm() {
     form.id = null;
     form.supplier_id = "";
@@ -598,7 +638,6 @@ async function submit() {
 </script>
 
 <style scoped>
-/* Trick CSS hoàn hảo giải quyết bài toán Dropdown bị cắt bởi overflow-x-auto trên table */
 .style-scroll-visible {
     overflow-x: auto;
     overflow-y: visible !important;

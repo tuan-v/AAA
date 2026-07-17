@@ -15,7 +15,7 @@ class StoreTransactionCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            // 'type' => 'required|in:income,expense,transfer',
+            'type' => 'required|in:income,expense,transfer',
             'description' => 'nullable|string',
             'status' => 'nullable|in:1,0',
         ];
@@ -25,7 +25,7 @@ class StoreTransactionCategoryRequest extends FormRequest
     {
         return [
             'name' => 'tên loại giao dịch',
-            // 'type' => 'loại giao dịch',
+            'type' => 'loại giao dịch',
             'description' => 'mô tả',
             'status' => 'trạng thái',
         ];

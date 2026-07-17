@@ -7,11 +7,6 @@
             class="flex justify-between items-start px-7 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-                <div
-                    class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
-                >
-                    <i class="ti ti-user-circle text-2xl"></i>
-                </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{
@@ -147,7 +142,7 @@
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
-                            Tiền tệ mặc định
+                            Tiền tệ mặc định <span class="text-red-500">*</span>
                         </label>
 
                         <FormSelect
@@ -238,6 +233,13 @@
                             placeholder="Số nhà, tên đường, khu vực..."
                             class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                         />
+                        <p
+                            v-if="errors.address_detail"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.address_detail[0] }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -254,24 +256,16 @@
                 <div class="grid grid-cols-2 gap-4">
                     <!-- CÔNG NỢ -->
                     <div>
-                        <label
-                            class="block text-sm font-medium text-gray-700 mb-1.5"
-                        >
-                            Công nợ đầu kỳ
+                        <label class="block text-sm font-medium mb-1">
+                            Công nợ đầu kì
                         </label>
 
-                        <div class="relative">
-                            <i
-                                class="ti ti-coin absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
-                            ></i>
-                            <input
-                                v-model="form.opening_debt"
-                                type="number"
-                                min="0"
-                                placeholder="0"
-                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
-                            />
-                        </div>
+                        <input
+                            :value="formatMoneyInput(form.opening_debt)"
+                            @input="handleOpeningBalance"
+                            type="text"
+                            class="w-full border rounded-lg px-3 py-2"
+                        />
                     </div>
                 </div>
             </div>
@@ -310,6 +304,10 @@ import { computed } from "vue";
 import FormSelect from "@/components/FormSelect.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import { formatMoneyInput, unformatMoney } from "@/config/helpers";
+const handleOpeningBalance = (e) => {
+    form.opening_debt = unformatMoney(e.target.value);
+};
 const props = defineProps({
     customer: {
         type: Object,

@@ -7,7 +7,6 @@
             class="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
-               
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 leading-tight">
                         {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}

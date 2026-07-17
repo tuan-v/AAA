@@ -69,6 +69,33 @@
             />
         </template>
     </Modal>
+    <Modal v-if="showConfirm" @close="showConfirm = false">
+        <template #body>
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                <h3 class="text-lg font-semibold">Xác nhận duyệt giao dịch</h3>
+
+                <p class="mt-2 text-gray-600">
+                    Bạn có chắc chắn muốn duyệt giao dịch này không?
+                </p>
+
+                <div class="mt-6 flex justify-end gap-2">
+                    <button
+                        class="px-4 py-2 border rounded-lg"
+                        @click="showConfirm = false"
+                    >
+                        Hủy
+                    </button>
+
+                    <button
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg"
+                        @click="confirmApprove"
+                    >
+                        Duyệt
+                    </button>
+                </div>
+            </div>
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -87,7 +114,7 @@ import TransactionDetail from "./TransactionDetail.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { usePermission } from "@/composables/usePermission";
-
+import { toast } from "vue3-toastify";
 const { can } = usePermission();
 const showConfirm = ref(false);
 const pendingItem = ref(null);

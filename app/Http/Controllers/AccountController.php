@@ -83,8 +83,10 @@ class AccountController extends Controller
             'type' => ['required', 'in:cash,bank,ewallet,other'],
             'currency_id' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
-            'bank_id' => 'nullable|exists:banks,id',
+            'bank_id' => 'required_if:type,bank|nullable|exists:banks,id',
+
             'bank_account_no' => [
+                'required_if:type,bank',
                 'nullable',
                 'string',
                 'max:255',
@@ -104,20 +106,12 @@ class AccountController extends Controller
             'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
             'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
             'bank_id.exists' => 'Ngân hàng không hợp lệ',
+            'bank_id.required' => 'Vui lòng chọn ngân hàng',
+            'bank_account_no.required' => 'Số tài khoản không được để trống',
             'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
             'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
             'bank_account_no.unique' => 'Số tài khoản này đã tồn tại trong ngân hàng đã chọn',
         ]);
-
-        if ($validated['type'] === 'bank') {
-            $request->validate([
-                'bank_id' => 'required|exists:banks,id',
-                'bank_account_no' => 'required',
-            ], [
-                'bank_id.required' => 'Vui lòng chọn ngân hàng',
-                'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
-            ]);
-        }
 
         $validated['company_id'] = $company->id;
         $validated['current_balance'] = $validated['opening_balance'];
@@ -153,8 +147,10 @@ class AccountController extends Controller
             'type' => ['required', 'in:cash,bank,ewallet,other'],
             'currency_id' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
-            'bank_id' => 'nullable|exists:banks,id',
+            'bank_id' => 'required_if:type,bank|nullable|exists:banks,id',
+
             'bank_account_no' => [
+                'required_if:type,bank',
                 'nullable',
                 'string',
                 'max:255',
@@ -174,21 +170,14 @@ class AccountController extends Controller
             'currency_id.exists' => 'Đơn vị tiền tệ không hợp lệ',
             'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
             'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
+            'bank_id.required' => 'Vui lòng chọn ngân hàng',
             'bank_id.exists' => 'Ngân hàng không hợp lệ',
             'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
             'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
             'bank_account_no.unique' => 'Số tài khoản này đã tồn tại trong ngân hàng đã chọn',
         ]);
 
-        if ($validated['type'] === 'bank') {
-            $request->validate([
-                'bank_id' => 'required|exists:banks,id',
-                'bank_account_no' => 'required',
-            ], [
-                'bank_id.required' => 'Vui lòng chọn ngân hàng',
-                'bank_account_no.required' => 'Số tài khoản ngân hàng không được để trống',
-            ]);
-        }
+
 
         $account->update([
             ...$validated,

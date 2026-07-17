@@ -16,18 +16,17 @@ class RoleController extends Controller
         $isSuperAdmin = $currentUser->hasRole('Super Admin');
 
         $query = Role::query()
-    ->where(function ($q) use ($currentUser) {
+            ->where(function ($q) use ($currentUser) {
 
-        // Role hệ thống
-        $q->where('type', 'system')
+                // Role hệ thống
+                $q->where('type', 'system')
 
-        // Role của công ty hiện tại
-        ->orWhere(function ($q) use ($currentUser) {
-            $q->where('type', 'user')
-              ->where('company_id', $currentUser->company_id);
-        });
-
-    });
+                    // Role của công ty hiện tại
+                    ->orWhere(function ($q) use ($currentUser) {
+                        $q->where('type', 'user')
+                            ->where('company_id', $currentUser->company_id);
+                    });
+            });
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
@@ -62,28 +61,31 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
-       
-        $validated = $request->validate([
-    'name' => [
-        'required',
-        Rule::unique('roles')->where(function ($q) {
-            return $q->where(
-                'company_id',
-                auth()->user()->company_id
-            );
-        }),
-    ],
-    'permissions' => 'array',
-    'permissions.*' => 'string|exists:permissions,name',
-]);
 
-        $role = Role::create([
-            'company_id' => auth()->user()->company_id,
-            'name' => $validated['name'],
-            'guard_name' => 'web',
-            'type' => 'user',
-            'is_protected' => false,
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                Rule::unique('roles')->where(function ($q) {
+                    return $q->where(
+                        'company_id',
+                        auth()->user()->company_id
+                    );
+                }),
+            ],
+            'permissions' => 'array',
+            'permissions.*' => 'string|exists:permissions,name',
         ]);
+
+        $role = Role::create(
+            [
+                'company_id' => auth()->user()->company_id,
+                'name' => $validated['name'],
+                'guard_name' => 'web',
+                'type' => 'user',
+                'is_protected' => false,
+            ]
+
+        );
 
         if (! empty($validated['permissions'])) {
             $role->syncPermissions($validated['permissions']);
@@ -99,31 +101,29 @@ class RoleController extends Controller
     {
         $role = Role::where(function ($q) {
 
-    $q->where('type', 'system')
+            $q->where('type', 'system')
 
-      ->orWhere(function ($q) {
+                ->orWhere(function ($q) {
 
-            $q->where('company_id', auth()->user()->company_id)
-              ->where('type','user');
-
-      });
-
-})->findOrFail($id);
+                    $q->where('company_id', auth()->user()->company_id)
+                        ->where('type', 'user');
+                });
+        })->findOrFail($id);
 
         $this->guardAgainstProtectedRole($request, $role, 'chỉnh sửa');
 
         $validated = $request->validate([
             'name' => [
-        'required',
-        Rule::unique('roles')
-        ->ignore($role->id)
-        ->where(function ($q) {
-            return $q->where(
-                'company_id',
-                auth()->user()->company_id
-            );
-        }),
-],
+                'required',
+                Rule::unique('roles')
+                    ->ignore($role->id)
+                    ->where(function ($q) {
+                        return $q->where(
+                            'company_id',
+                            auth()->user()->company_id
+                        );
+                    }),
+            ],
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
         ]);

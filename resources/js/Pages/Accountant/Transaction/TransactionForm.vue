@@ -28,124 +28,6 @@
 
         <!-- FORM BODY -->
         <div class="tx-body">
-            <!-- AMOUNT + CURRENCY -->
-            <div class="section-label">Số tiền</div>
-            <div class="grid2">
-                <div class="field">
-                    <label class="label">
-                        <i class="ti ti-currency-dong"></i>Số tiền
-                    </label>
-                    <div class="amount-wrap">
-                        <input
-                            :value="formatMoney(form.amount)"
-                            @input="handleAmountInput"
-                            type="text"
-                            class="input"
-                            placeholder="0"
-                        />
-                        <span class="currency-badge">
-                            {{ selectedCurrencyLabel }}
-                        </span>
-                    </div>
-                </div>
-                <div class="field">
-                    <label class="label">
-                        <i class="ti ti-world"></i>Tiền tệ
-                    </label>
-                    <select
-                        v-model="form.currency_id"
-                        class="input"
-                        @change="onCurrencyChange"
-                    >
-                        <option value="">Chọn tiền tệ</option>
-                        <option
-                            v-for="c in normalizedCurrencies"
-                            :key="c.id"
-                            :value="c.id"
-                        >
-                            {{ c.code }}
-                        </option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <!-- ACCOUNTS -->
-            <div class="section-label">Tài khoản</div>
-
-            <div class="grid2">
-                <!-- RECEIPT: to_account -->
-                <div v-if="form.type === 'receipt'" class="field">
-                    <label class="label">
-                        <i class="ti ti-building-bank"></i>Tài khoản nhận
-                    </label>
-                    <select v-model="form.to_account_id" class="input">
-                        <option value="">Chọn tài khoản</option>
-                        <option
-                            v-for="a in accounts || []"
-                            :key="a.id"
-                            :value="a.id"
-                        >
-                            {{ a.name }}
-                        </option>
-                    </select>
-                </div>
-
-                <!-- PAYMENT: from_account -->
-                <div v-if="form.type === 'payment'" class="field">
-                    <label class="label">
-                        <i class="ti ti-building-bank"></i>Tài khoản chi
-                    </label>
-                    <select v-model="form.from_account_id" class="input">
-                        <option value="">Chọn tài khoản</option>
-                        <option
-                            v-for="a in accounts || []"
-                            :key="a.id"
-                            :value="a.id"
-                        >
-                            {{ a.name }}
-                        </option>
-                    </select>
-                </div>
-
-                <!-- TRANSFER: both -->
-                <template v-if="form.type === 'transfer'">
-                    <div class="field">
-                        <label class="label">
-                            <i class="ti ti-building-bank"></i>Từ tài khoản
-                        </label>
-                        <select v-model="form.from_account_id" class="input">
-                            <option value="">Chọn tài khoản</option>
-                            <option
-                                v-for="a in accounts || []"
-                                :key="a.id"
-                                :value="a.id"
-                            >
-                                {{ a.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label class="label">
-                            <i class="ti ti-building-bank"></i>Đến tài khoản
-                        </label>
-                        <select v-model="form.to_account_id" class="input">
-                            <option value="">Chọn tài khoản</option>
-                            <option
-                                v-for="a in accounts || []"
-                                :key="a.id"
-                                :value="a.id"
-                            >
-                                {{ a.name }}
-                            </option>
-                        </select>
-                    </div>
-                </template>
-            </div>
-
-            <div class="divider"></div>
-
             <!-- RELATED ORDER -->
             <div class="section-label">Đơn hàng liên quan</div>
             <div v-if="form.type === 'receipt'" class="grid2">
@@ -251,15 +133,135 @@
                 <select v-model="form.category_id" class="input">
                     <option value="">Chọn loại</option>
                     <option
-                        v-for="c in categories || []"
+                        v-for="c in filteredCategories"
                         :key="c.id"
                         :value="c.id"
                     >
                         {{ c.name }}
                     </option>
                 </select>
+                <p v-if="categoryMismatchMessage" class="category-error">
+                    <i class="ti ti-alert-circle"></i>
+                    {{ categoryMismatchMessage }}
+                </p>
+            </div>
+            <div class="divider"></div>
+
+            <!-- ACCOUNTS -->
+            <div class="section-label">Tài khoản</div>
+
+            <div class="grid2">
+                <!-- RECEIPT: to_account -->
+                <div v-if="form.type === 'receipt'" class="field">
+                    <label class="label">
+                        <i class="ti ti-building-bank"></i>Tài khoản nhận
+                    </label>
+                    <select v-model="form.to_account_id" class="input">
+                        <option value="">Chọn tài khoản</option>
+                        <option
+                            v-for="a in accounts || []"
+                            :key="a.id"
+                            :value="a.id"
+                        >
+                            {{ a.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- PAYMENT: from_account -->
+                <div v-if="form.type === 'payment'" class="field">
+                    <label class="label">
+                        <i class="ti ti-building-bank"></i>Tài khoản chi
+                    </label>
+                    <select v-model="form.from_account_id" class="input">
+                        <option value="">Chọn tài khoản</option>
+                        <option
+                            v-for="a in accounts || []"
+                            :key="a.id"
+                            :value="a.id"
+                        >
+                            {{ a.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- TRANSFER: both -->
+                <template v-if="form.type === 'transfer'">
+                    <div class="field">
+                        <label class="label">
+                            <i class="ti ti-building-bank"></i>Từ tài khoản
+                        </label>
+                        <select v-model="form.from_account_id" class="input">
+                            <option value="">Chọn tài khoản</option>
+                            <option
+                                v-for="a in accounts || []"
+                                :key="a.id"
+                                :value="a.id"
+                            >
+                                {{ a.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label class="label">
+                            <i class="ti ti-building-bank"></i>Đến tài khoản
+                        </label>
+                        <select v-model="form.to_account_id" class="input">
+                            <option value="">Chọn tài khoản</option>
+                            <option
+                                v-for="a in accounts || []"
+                                :key="a.id"
+                                :value="a.id"
+                            >
+                                {{ a.name }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
             </div>
 
+            <div class="divider"></div>
+
+            <!-- AMOUNT + CURRENCY -->
+            <div class="section-label">Số tiền</div>
+            <div class="grid2">
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-currency-dong"></i>Số tiền
+                    </label>
+                    <div class="amount-wrap">
+                        <input
+                            :value="formatMoney(form.amount)"
+                            @input="handleAmountInput"
+                            type="text"
+                            class="input"
+                            placeholder="0"
+                        />
+                        <span class="currency-badge">
+                            {{ selectedCurrencyLabel }}
+                        </span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-world"></i>Tiền tệ
+                    </label>
+                    <select
+                        v-model="form.currency_id"
+                        class="input"
+                        @change="onCurrencyChange"
+                    >
+                        <option value="">Chọn tiền tệ</option>
+                        <option
+                            v-for="c in normalizedCurrencies"
+                            :key="c.id"
+                            :value="c.id"
+                        >
+                            {{ c.code }}
+                        </option>
+                    </select>
+                </div>
+            </div>
             <div class="divider"></div>
 
             <!-- DESCRIPTION -->
@@ -280,9 +282,15 @@
         <!-- ACTIONS -->
         <div class="tx-footer">
             <button class="btn" @click="$emit('close')">Đóng</button>
-            <button class="btn btn-primary" @click="save">
+            <button class="btn btn-primary" @click="save" :disabled="saving">
                 <i class="ti ti-check"></i>
-                {{ isEdit ? "Cập nhật" : "Lưu giao dịch" }}
+                {{
+                    saving
+                        ? "Đang lưu..."
+                        : isEdit
+                          ? "Cập nhật"
+                          : "Lưu giao dịch"
+                }}
             </button>
         </div>
     </div>
@@ -292,6 +300,8 @@
 import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
 import { formatMoney } from "@/config/helpers";
+import { toast } from "vue3-toastify";
+
 const props = defineProps({
     transaction: { type: Object, default: null },
     accounts: { type: Array, default: () => [] },
@@ -300,12 +310,15 @@ const props = defineProps({
     customers: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
 });
+
+const emit = defineEmits(["saved", "close"]);
+
+const saving = ref(false);
+
 function handleAmountInput(e) {
     const raw = e.target.value.replace(/[^\d]/g, "");
-
     form.amount = raw ? Number(raw) : 0;
 }
-const emit = defineEmits(["saved", "close"]);
 
 const isEdit = computed(() => !!props.transaction?.id);
 
@@ -342,17 +355,74 @@ const orderOptions = ref([]);
 
 const currencyHintMessage = computed(() => {
     if (!selectedOrderCurrency.value) return "";
-    return `Đơn hàng đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Giao dịch sẽ tự động khớp theo đơn hàng.`;
+    return;
+    `Đơn hàng đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Giao dịch sẽ tự động khớp theo đơn hàng.`;
 });
 
 const currencyMismatchMessage = computed(() => {
     if (!selectedOrderCurrency.value || !form.currency_id) return "";
     if (Number(form.currency_id) !== Number(selectedOrderCurrency.value.id)) {
-        return `Đơn hàng này đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Vui lòng chọn cùng tiền tệ với đơn hàng hoặc tạo giao dịch quy đổi.`;
+        return;
+        `Đơn hàng này đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Vui lòng chọn cùng tiền tệ với đơn hàng hoặc tạo giao dịch quy đổi.`;
     }
     return "";
 });
 
+// ==================== CATEGORY TYPE VALIDATION ====================
+
+// Ánh xạ transaction.type (receipt/payment/transfer) sang category.type
+// (income/expense/transfer) — 2 bảng dùng tên khác nhau nên cần map qua lại.
+const TYPE_TO_CATEGORY_TYPE = {
+    receipt: "income",
+    payment: "expense",
+    transfer: "transfer",
+};
+
+const CATEGORY_TYPE_LABELS = {
+    income: "Thu tiền",
+    expense: "Chi tiền",
+    transfer: "Chuyển khoản",
+};
+
+// Chuẩn hoá danh sách category (phòng trường hợp API trả về dạng {data: [...]})
+const normalizedCategories = computed(() =>
+    Array.isArray(props.categories)
+        ? props.categories
+        : props.categories?.data || [],
+);
+
+// Chỉ hiển thị category phù hợp với loại giao dịch đang chọn.
+// Category có type rỗng/NULL vẫn hiển thị (coi như dùng chung).
+const filteredCategories = computed(() => {
+    const expectedType = TYPE_TO_CATEGORY_TYPE[form.type];
+    return normalizedCategories.value.filter(
+        (c) => !c.type || c.type === expectedType,
+    );
+});
+
+const selectedCategory = computed(() => {
+    if (!form.category_id) return null;
+    return (
+        normalizedCategories.value.find(
+            (c) => Number(c.id) === Number(form.category_id),
+        ) || null
+    );
+});
+
+// Thông báo lỗi khi category đã chọn không khớp loại giao dịch hiện tại
+// (phòng trường hợp dữ liệu cũ khi sửa giao dịch, hoặc select chưa lọc kịp)
+const categoryMismatchMessage = computed(() => {
+    const cat = selectedCategory.value;
+    if (!cat || !cat.type) return "";
+    const expectedType = TYPE_TO_CATEGORY_TYPE[form.type];
+    if (cat.type !== expectedType) {
+        const catLabel = CATEGORY_TYPE_LABELS[cat.type] || cat.type;
+        return toast.error(
+            `Loại thanh toán "${cat.name}" chỉ dùng cho giao dịch ${catLabel}, không phù hợp với giao dịch bạn đang tạo.`,
+        );
+    }
+    return "";
+});
 const form = reactive({
     id: null,
     code: "",
@@ -429,6 +499,8 @@ watch(
     { immediate: true },
 );
 
+// Khi đổi loại giao dịch (receipt/payment/transfer): reset các field liên quan
+// gồm cả category_id, vì category cũ có thể không còn phù hợp với loại mới.
 watch(
     () => form.type,
     () => {
@@ -436,6 +508,7 @@ watch(
         form.purchase_order_id = "";
         form.customer_id = "";
         form.supplier_id = "";
+        form.category_id = "";
         orderOptions.value = [];
         selectedOrderCurrency.value = null;
     },
@@ -566,20 +639,38 @@ function onPurchaseOrderChange() {
 }
 
 async function save() {
+    // Chặn lưu ngay tại FE nếu category không khớp loại giao dịch
+    if (categoryMismatchMessage.value) {
+        window.alert(categoryMismatchMessage.value);
+        return;
+    }
+
     if (currencyMismatchMessage.value) {
         window.alert(currencyMismatchMessage.value);
         return;
     }
 
-    const payload = {
-        ...form,
-    };
-    if (isEdit.value) {
-        await axios.put(`/api/accountant/transactions/${form.id}`, payload);
-    } else {
-        await axios.post(`/api/accountant/transactions`, payload);
+    saving.value = true;
+    try {
+        const payload = {
+            ...form,
+        };
+        if (isEdit.value) {
+            await axios.put(`/api/accountant/transactions/${form.id}`, payload);
+        } else {
+            await axios.post(`/api/accountant/transactions`, payload);
+        }
+        emit("saved");
+    } catch (error) {
+        console.error(error);
+        // Bắt lỗi nghiệp vụ từ BE (vd category không khớp loại giao dịch) trả về qua message
+        const msg =
+            error.response?.data?.message ||
+            "Có lỗi xảy ra khi lưu giao dịch, vui lòng kiểm tra lại.";
+        window.alert(msg);
+    } finally {
+        saving.value = false;
     }
-    emit("saved");
 }
 </script>
 
@@ -726,6 +817,40 @@ textarea.input {
     pointer-events: none;
 }
 
+/* ── Category error ── */
+.category-error {
+    font-size: 12px;
+    color: #c0392b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+/* ── Currency hint / warning ── */
+.currency-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #185fa5;
+    background: #eef5fc;
+    border: 1px solid #d3e6f7;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+.currency-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #c0392b;
+    background: #fdecea;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
 /* ── Footer ── */
 .tx-footer {
     display: flex;
@@ -760,5 +885,9 @@ textarea.input {
 .btn-primary:hover {
     background: #0c447c;
     border-color: #0c447c;
+}
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 </style>

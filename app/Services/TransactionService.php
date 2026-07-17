@@ -117,7 +117,7 @@ class TransactionService extends BaseService
             $this->syncDebt($transaction);
 
             $transaction->update([
-                'status'      => 'approved',
+                'status'      => 'approve',
                 'approved_by' => $this->user()?->id,
                 'approved_at' => now(),
             ]);
@@ -157,7 +157,7 @@ class TransactionService extends BaseService
         }
 
         $transaction->update([
-            'status'      => 'rejected',
+            'status'      => 'reject',
             'approved_by' => $this->user()?->id,
             'approved_at' => now(),
         ]);
@@ -228,6 +228,64 @@ class TransactionService extends BaseService
         if (!empty($data['purchase_order_id']) && empty($data['supplier_id'])) {
             throw new \InvalidArgumentException(
                 'Giao dịch gắn đơn mua (purchase_order_id) phải có supplier_id tương ứng.'
+            );
+        }
+
+        // MỚI: chặn category không khớp loại giao dịch (thu/chi/chuyển khoản)
+        $this->validateCategoryType($type, $data['category_id'] ?? null);
+    }
+
+    /**
+     * Đảm bảo loại thanh toán (category) được chọn phù hợp với loại giao dịch.
+     * Lưu ý: transaction.type dùng receipt/payment/transfer,
+     * còn transaction_categories.type dùng income/expense/transfer,
+     * nên cần ánh xạ (map) qua lại thay vì so sánh trực tiếp.
+     */
+    private function validateCategoryType(string $transactionType, ?int $categoryId): void
+    {
+        if (!$categoryId) {
+            return;
+        }
+
+        $category = \App\Models\TransactionCategory::where('id', $categoryId)
+            ->where('company_id', $this->companyId())
+            ->first();
+
+        if (!$category) {
+            throw new \InvalidArgumentException('Loại thanh toán không hợp lệ hoặc không thuộc công ty hiện tại.');
+        }
+
+        // Ánh xạ transaction.type -> category.type tương ứng
+        $expectedCategoryType = match ($transactionType) {
+            'receipt'  => 'income',
+            'payment'  => 'expense',
+            'transfer' => 'transfer',
+            default    => null,
+        };
+
+        // Nếu category không gắn type (NULL) thì coi như dùng chung, không chặn
+        if (empty($category->type) || $expectedCategoryType === null) {
+            return;
+        }
+
+        if ($category->type !== $expectedCategoryType) {
+            $transactionLabels = [
+                'receipt'  => 'Thu tiền',
+                'payment'  => 'Chi tiền',
+                'transfer' => 'Chuyển khoản',
+            ];
+
+            $categoryLabels = [
+                'income'   => 'Thu tiền',
+                'expense'  => 'Chi tiền',
+                'transfer' => 'Chuyển khoản',
+            ];
+
+            $categoryLabel = $categoryLabels[$category->type] ?? $category->type;
+            $transactionLabel = $transactionLabels[$transactionType] ?? $transactionType;
+
+            throw new \InvalidArgumentException(
+                "Loại thanh toán \"{$category->name}\" ({$category->code}) chỉ dùng cho giao dịch {$categoryLabel}, không phù hợp với giao dịch {$transactionLabel} bạn đang tạo."
             );
         }
     }

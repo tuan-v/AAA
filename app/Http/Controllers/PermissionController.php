@@ -63,11 +63,17 @@ class PermissionController extends Controller
     {
         $permission = Permission::findOrFail($id);
 
-        $permission->update([
-            'name' => $request->name,
-            'group' => $request->group,
-            'description' => $request->description,
-        ]);
+        $permission->update(
+            [
+                'name' => $request->name,
+                'group' => $request->group,
+                'description' => $request->description,
+            ],
+            [
+                'name' => 'tên quyền không được để trống',
+                'description' => 'mô tả không được để trống'
+            ]
+        );
 
         return response()->json([
             'success' => true

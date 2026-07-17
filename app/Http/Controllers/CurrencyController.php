@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use Illuminate\Http\Request;
+use App\Models\CurrencyRate;
 
 class CurrencyController extends Controller
 {
@@ -128,12 +129,16 @@ class CurrencyController extends Controller
             'effective_date' => 'required|date',
         ]);
 
-        $rate = CurrencyRate::create([
-            'currency_id' => $currency->id,
-            'rate' => $validated['rate'],
-            'effective_date' => $validated['effective_date'],
-            'created_by' => auth()->id(),
-        ]);
+        $rate = CurrencyRate::updateOrCreate(
+            [
+                'currency_id' => $currency->id,
+                'effective_date' => $validated['effective_date'],
+            ],
+            [
+                'rate' => $validated['rate'],
+                'created_by' => auth()->id(),
+            ]
+        );
 
         $currency->update([
             'exchange_rate' => $validated['rate']

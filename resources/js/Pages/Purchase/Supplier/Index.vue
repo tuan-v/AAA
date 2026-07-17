@@ -160,15 +160,15 @@ const columns = [
     { key: "phone", label: "SĐT", align: "text-center" },
     { key: "email", label: "Email", align: "text-center" },
 
-    {
-        label: "Tiền tệ",
-        render: (row) =>
-            h(
-                "span",
-                { class: "font-medium text-gray-700" },
-                row.currency?.code ?? "-",
-            ),
-    },
+    // {
+    //     label: "Tiền tệ",
+    //     render: (row) =>
+    //         h(
+    //             "span",
+    //             { class: "font-medium text-gray-700" },
+    //             row.currency?.code ?? "-",
+    //         ),
+    // },
     {
         label: "Công nợ đầu kỳ",
         render: (row) =>

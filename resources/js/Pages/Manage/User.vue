@@ -207,9 +207,14 @@ const reloadData = () => {
 const loadRoles = async () => {
     try {
         const res = await axios.get("/api/roles");
-        const data = res.data.data || res.data || [];
+
+        const data = [
+            ...(res.data.data.system || []),
+            ...(res.data.data.user || []),
+        ];
 
         const roleFilter = filters.value.find((f) => f.name === "role");
+
         if (roleFilter) {
             roleFilter.options = [
                 { value: "", label: "Tất cả vai trò" },

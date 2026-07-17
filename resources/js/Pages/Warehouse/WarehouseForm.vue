@@ -25,7 +25,7 @@
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
                 <p v-if="errors.name" class="text-red-500 text-sm mt-1">
-                    {{ errors.name }}
+                    {{ errors.name[0] }}
                 </p>
             </div>
 
@@ -49,7 +49,7 @@
                         v-if="errors.province_code"
                         class="text-red-500 text-sm mt-1"
                     >
-                        {{ errors.province_code }}
+                        {{ errors.province_code[0] }}
                     </p>
                 </div>
 
@@ -70,7 +70,7 @@
                         v-if="errors.ward_code"
                         class="text-red-500 text-sm mt-1"
                     >
-                        {{ errors.ward_code }}
+                        {{ errors.ward_code[0] }}
                     </p>
                 </div>
             </div>
@@ -91,7 +91,7 @@
                     v-if="errors.address_detail"
                     class="text-red-500 text-sm mt-1"
                 >
-                    {{ errors.address_detail }}
+                    {{ errors.address_detail[0] }}
                 </p>
             </div>
 
