@@ -43,6 +43,12 @@
             <div>
                 <label class="block text-sm font-medium mb-2"> Mô tả </label>
 
+                <select v-model="form.parent_id" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-blue-500 mb-3">
+                    <option :value="null">Không có danh mục cha</option>
+                    <option v-for="item in parentOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <p v-if="form.errors.parent_id" class="text-red-500 text-xs mb-2">{{ form.errors.parent_id[0] }}</p>
+
                 <textarea
                     v-model="form.description"
                     rows="3"
@@ -100,12 +106,16 @@
 
 <script setup>
 import axios from "axios";
-import { watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 
 const props = defineProps({
+    apiBase: {
+        type: String,
+        default: "/api/purchase/categories",
+    },
     category: {
         type: Object,
         default: null,
@@ -113,11 +123,13 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["saved", "close"]);
+const parentOptions = ref([]);
 
 const form = useForm({
     name: "",
     code: "",
     description: "",
+    parent_id: null,
     status: "active",
 });
 
@@ -134,10 +146,18 @@ watch(
         form.name = category.name;
         form.code = category.code;
         form.description = category.description;
+        form.parent_id = category.parent_id ?? null;
         form.status = category.status;
     },
     { immediate: true },
 );
+
+async function loadParents() {
+    const response = await axios.get(`${props.apiBase}/select`);
+    parentOptions.value = (response.data || []).filter((item) => item.id !== form.id);
+}
+
+onMounted(loadParents);
 
 async function save() {
     try {
@@ -147,13 +167,13 @@ async function save() {
 
         if (form.id) {
             res = await axios.put(
-                `/api/warehouse/categories/${form.id}`,
+                `${props.apiBase}/${form.id}`,
                 form.data(),
             );
 
             toast.success("Cập nhật danh mục thành công");
         } else {
-            res = await axios.post("/api/warehouse/categories", form.data());
+            res = await axios.post(props.apiBase, form.data());
 
             toast.success("Thêm danh mục thành công");
         }

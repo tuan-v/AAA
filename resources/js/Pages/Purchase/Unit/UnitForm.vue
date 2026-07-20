@@ -74,6 +74,14 @@
                 />
             </div> -->
 
+            <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer">
+                <input v-model="form.allow_decimal" type="checkbox" class="mt-1 h-4 w-4" />
+                <span>
+                    <span class="block text-sm font-medium">Cho phép nhập số lượng lẻ</span>
+                    <span class="block text-xs text-gray-500">Ví dụ: kg, lít có thể nhập 1,5. Bỏ chọn với cái, hộp, chiếc.</span>
+                </span>
+            </label>
+
             <!-- Footer -->
             <div class="flex justify-end gap-3 pt-4 border-t">
                 <button
@@ -101,8 +109,13 @@ import { watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import { getValidationMessage } from "@/config/helpers";
 
 const props = defineProps({
+    apiBase: {
+        type: String,
+        default: "/api/purchase/units",
+    },
     unit: {
         type: Object,
         default: null,
@@ -114,6 +127,7 @@ const emit = defineEmits(["saved", "close"]);
 const form = useForm({
     name: "",
     symbol: "",
+    allow_decimal: false,
     status: "active",
 });
 
@@ -128,6 +142,7 @@ watch(
         form.id = unit.id;
         form.name = unit.name;
         form.symbol = unit.symbol;
+        form.allow_decimal = Boolean(unit.allow_decimal);
         form.status = unit.status;
     },
     { immediate: true },
@@ -144,11 +159,11 @@ async function save() {
 
         if (form.id) {
             res = await axios.put(
-                `/api/warehouse/units/${form.id}`,
+                `${props.apiBase}/${form.id}`,
                 form.data(),
             );
         } else {
-            res = await axios.post("/api/warehouse/units", form.data());
+            res = await axios.post(props.apiBase, form.data());
             toast.success("Thêm đơn vị thành công");
         }
 
@@ -159,6 +174,9 @@ async function save() {
     } catch (error) {
         if (error.response?.status === 422) {
             form.setError(error.response.data.errors);
+            toast.error(getValidationMessage(error));
+        } else {
+            toast.error(getValidationMessage(error, "Không thể lưu đơn vị tính."));
         }
     }
 }

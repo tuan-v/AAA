@@ -1,109 +1,214 @@
 <template>
-    <head title="Quản lý vai trò" />
+    <Head title="Quản lý vai trò" />
     <AdminLayout>
         <PageBreadcrumb
             title="Vai trò"
             :items="[{ text: 'Vai trò', link: null }]"
         />
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">
-                Danh sách vai trò
-            </h2>
 
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white">
+                    Danh sách vai trò
+                </h2>
+            </div>
             <button
-                v-if="can('role.create')"
+                v-if="can('vai_tro.them')"
                 @click="openCreate"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-                + Vai trò
+                + Thêm vai trò
             </button>
         </div>
-        <!-- ================= SEARCH PAGE ================= -->
+
         <div
-            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
+            class="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
         >
             <SearchPage :filters="filters" @filter="handleFilter" />
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+        <div
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        >
             <div
-                v-for="role in roles.data"
-                :key="role.id"
-                class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition p-5"
+                class="hidden grid-cols-[minmax(240px,1fr)_110px_240px_48px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:grid dark:border-gray-700 dark:bg-gray-900/30"
             >
-                <!-- HEADER ROLE -->
-                <div class="flex justify-between items-start mb-4">
-                    <!-- ROLE BADGE -->
-                    <div class="flex items-center gap-2">
-                        <span
-                            class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 border border-blue-200"
+                <span>Vai trò</span><span class="text-center">Người dùng</span
+                ><span>Quyền truy cập</span><span></span>
+            </div>
+            <div v-if="loading" class="p-8 text-center text-sm text-gray-500">
+                Đang tải danh sách...
+            </div>
+            <div v-else-if="!roles.length" class="p-10 text-center">
+                <p class="font-medium text-gray-700 dark:text-gray-200">
+                    Không có vai trò nào
+                </p>
+                <p class="mt-1 text-sm text-gray-500">
+                    Hãy thay đổi bộ lọc hoặc tạo vai trò mới.
+                </p>
+            </div>
+
+            <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div
+                    v-for="role in roles"
+                    :key="role.id"
+                    class="hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                >
+                    <div class="flex items-center gap-4 px-4 py-3">
+                        <div
+                            :class="
+                                role.type === 'system'
+                                    ? 'bg-slate-100 text-slate-600'
+                                    : 'bg-blue-50 text-blue-600'
+                            "
+                            class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:flex"
                         >
-                            {{ role.name }}
-                        </span>
+                            <ShieldCheck
+                                v-if="role.type === 'system'"
+                                class="h-4 w-4"
+                            />
+                            <UserRound v-else class="h-4 w-4" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="truncate font-semibold text-gray-800 dark:text-white"
+                                    >{{ role.name }}</span
+                                >
+                                <span
+                                    :class="
+                                        role.type === 'system'
+                                            ? 'bg-slate-100 text-slate-600'
+                                            : 'bg-blue-50 text-blue-600'
+                                    "
+                                    class="rounded px-2 py-0.5 text-[11px] font-medium"
+                                >
+                                    {{
+                                        role.type === "system"
+                                            ? "Hệ thống"
+                                            : "Công ty"
+                                    }}
+                                </span>
+                                <span
+                                    v-if="role.is_protected"
+                                    class="rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-600"
+                                    >Bảo vệ</span
+                                >
+                            </div>
+                            <p class="mt-0.5 truncate text-xs text-gray-500">
+                                {{ role.description || "Không có mô tả" }}
+                            </p>
+                        </div>
 
-                        <span class="text-xs text-gray-400">
-                            #{{ role.description || "Không có mô tả" }}
-                        </span>
+                        <div class="hidden w-24 shrink-0 text-center sm:block">
+                            <div
+                                class="text-sm font-semibold text-gray-700 dark:text-gray-200"
+                            >
+                                {{ role.users_count || 0 }}
+                            </div>
+                            <div class="text-[11px] text-gray-400">
+                                người dùng
+                            </div>
+                        </div>
+
+                        <div class="hidden w-56 shrink-0 md:block">
+                            <div
+                                class="flex items-center gap-1.5 overflow-hidden"
+                            >
+                                <span
+                                    v-for="permission in permissionNames(
+                                        role,
+                                    ).slice(0, 2)"
+                                    :key="permission"
+                                    class="max-w-[85px] truncate rounded bg-purple-50 px-2 py-1 text-[11px] text-purple-600"
+                                    :title="permission"
+                                    >{{ permissionLabel(role, permission) }}</span
+                                >
+                                <button
+                                    v-if="permissionNames(role).length > 2"
+                                    type="button"
+                                    @click="togglePermissions(role.id)"
+                                    class="whitespace-nowrap rounded px-1.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                                >
+                                    {{
+                                        expandedRoleId === role.id
+                                            ? "Thu gọn"
+                                            : `+${permissionNames(role).length - 2} quyền`
+                                    }}
+                                </button>
+                                <span
+                                    v-if="!permissionNames(role).length"
+                                    class="text-xs italic text-gray-400"
+                                    >Chưa có quyền</span
+                                >
+                            </div>
+                        </div>
+
+                        <button
+                            v-if="permissionNames(role).length"
+                            type="button"
+                            @click="togglePermissions(role.id)"
+                            class="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 md:hidden"
+                        >
+                            {{ permissionNames(role).length }} quyền
+                        </button>
+
+                        <button
+                            v-if="can('vai_tro.sua') && !role.is_protected"
+                            @click="openEdit(role)"
+                            class="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                            title="Chỉnh sửa vai trò"
+                        >
+                            <EditButtonIcon class="h-4 w-4" />
+                        </button>
                     </div>
 
-                    <!-- ACTION -->
-                    <button
-                        v-if="can('role.update')"
-                        @click="
-                            selectedRole = role;
-                            showModal = true;
-                        "
-                        class="p-2 rounded-md hover:bg-blue-50 text-blue-600 transition"
-                        title="Chỉnh sửa"
-                    >
-                        <EditButtonIcon class="w-5 h-5" />
-                    </button>
-                </div>
-
-                <!-- PERMISSIONS TITLE -->
-                <div class="text-xs font-semibold text-gray-500 mb-2 uppercase">
-                    Danh sách quyền
-                </div>
-
-                <!-- PERMISSIONS BADGE -->
-                <div class="flex flex-wrap gap-2">
-                    <span
-                        v-for="permission in role.permissions"
-                        :key="permission.id"
-                        class="px-2 py-1 text-xs rounded-full font-medium border bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200 transition"
-                    >
-                        {{ permission.name }}
-                    </span>
-
-                    <!-- empty state -->
                     <div
-                        v-if="!roles.data.length"
-                        class="text-center py-12 text-gray-500"
+                        v-if="expandedRoleId === role.id"
+                        class="border-t border-gray-100 bg-gray-50/70 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/20"
                     >
-                        <div class="text-lg font-medium">
-                            Không có vai trò nào
+                        <div class="mb-2 flex items-center justify-between">
+                            <span
+                                class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                                >Toàn bộ
+                                {{ permissionNames(role).length }} quyền</span
+                            >
+                            <button
+                                type="button"
+                                @click="togglePermissions(role.id)"
+                                class="text-xs text-blue-600 hover:underline"
+                            >
+                                Thu gọn
+                            </button>
                         </div>
-                        <div class="text-sm">
-                            Hãy tạo vai trò mới để bắt đầu
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            <div
+                                v-for="(
+                                    group, moduleName
+                                ) in groupedPermissions(role)"
+                                :key="moduleName"
+                                class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
+                            >
+                                <div
+                                    class="mb-2 text-xs font-semibold capitalize text-gray-700 dark:text-gray-200"
+                                >
+                                    {{ moduleLabel(moduleName) }}
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <span
+                                        v-for="permission in group"
+                                        :key="permission"
+                                        class="rounded-md bg-purple-50 px-2 py-1 text-[11px] text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+                                        :title="permission"
+                                        >{{ permissionLabel(role, permission) }}</span
+                                    >
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <span
-                        v-if="
-                            !role.permissions || role.permissions.length === 0
-                        "
-                        class="text-xs text-gray-400 italic"
-                    >
-                        Không có quyền
-                    </span>
                 </div>
             </div>
         </div>
-        <Pagination
-            :totalItems="roles.total"
-            :itemsPerPage="roles.per_page"
-            :currentPage="roles.current_page"
-            :doingShow="roles.data.length"
-            @page-change="handlePageChange"
-        />
 
         <Modal v-if="showModal" @close="showModal = false">
             <template #body>
@@ -119,94 +224,95 @@
 
 <script setup>
 import axios from "axios";
-import { ref, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { ShieldCheck, UserRound } from "lucide-vue-next";
 import { Head, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import DataTable from "@/components/DataTable.vue";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import Modal from "@/components/Modal.vue";
-import EditButtonIcon from "@/icons/EditButtonIcon.vue";
-import Pagination from "@/components/Pagination.vue";
-import RoleForm from "./RoleForm.vue";
-import { icons } from "lucide-vue-next";
 import SearchPage from "@/components/SearchPage.vue";
+import EditButtonIcon from "@/icons/EditButtonIcon.vue";
+import RoleForm from "./RoleForm.vue";
 
 const filters = [
-    {
-        name: "search",
-        type: "text",
-        placeholder: "Tìm theo tên vai trò hoặc mô tả...",
-    },
-    // Bạn có thể thêm filter khác sau này
+    { name: "search", type: "text", placeholder: "Tìm tên vai trò..." },
 ];
-const handlePageChange = (page) => {
-    getData(page);
-};
-const roles = ref({
-    data: [],
-    total: 0,
-    per_page: 50,
-    current_page: 1,
-    last_page: 1,
-});
-const handleFilter = (params) => {
-    filterParams.value = params;
-    getData(1);
-};
+const roles = ref([]);
+const loading = ref(false);
 const filterParams = ref({});
-const permissions = usePage().props.auth.permissions;
-const can = (permission) => {
-    return permissions.includes(permission);
-};
-const form = ref({});
-const showModal = ref(false);
-
 const selectedRole = ref(null);
+const showModal = ref(false);
+const expandedRoleId = ref(null);
+const permissions = usePage().props.auth.permissions;
+const can = (permission) => permissions.includes(permission);
 
-const columns = [
-    {
-        key: "name",
-        label: "Tên vai trò",
-    },
-];
+const permissionNames = (role) =>
+    role.permissions_list || role.permissions?.map((item) => item.name) || [];
+const permissionLabel = (role, name) =>
+    role.permissions?.find((item) => item.name === name)?.description || name;
+const moduleLabel = (name) => ({
+    nhan_su: 'Nhân sự', vai_tro: 'Vai trò', quyen: 'Quyền', nhat_ky: 'Nhật ký hoạt động',
+    tai_khoan: 'Tài khoản', ngan_hang: 'Ngân hàng', tien_te: 'Tiền tệ',
+    cong_no_khach_hang: 'Công nợ khách hàng', cong_no_nha_cung_cap: 'Công nợ nhà cung cấp',
+    danh_muc_mua_hang: 'Danh mục mua hàng', don_mua: 'Đơn mua', san_pham_mua_hang: 'Sản phẩm mua hàng',
+    don_vi_mua_hang: 'Đơn vị tính mua hàng', khach_hang: 'Khách hàng', don_ban: 'Đơn bán',
+    nha_cung_cap: 'Nhà cung cấp', giao_dich: 'Giao dịch', loai_giao_dich: 'Loại giao dịch',
+    kho: 'Kho', danh_muc_kho: 'Danh mục kho', san_pham_kho: 'Sản phẩm kho', phieu_kho: 'Phiếu kho',
+    chuyen_kho: 'Chuyển kho', don_vi_kho: 'Đơn vị tính kho',
+}[name] || name.replaceAll('_', ' '));
+const totalUsers = computed(() =>
+    roles.value.reduce(
+        (total, role) => total + Number(role.users_count || 0),
+        0,
+    ),
+);
 
-const actions = [
-    {
-        icon: EditButtonIcon,
-        onClick: (item) => {
-            selectedRole.value = item;
-            showModal.value = true;
-        },
-    },
-];
+function groupedPermissions(role) {
+    return permissionNames(role).reduce((groups, permission) => {
+        const moduleName = permission.split(".")[0].replaceAll("_", " ");
+        (groups[moduleName] ||= []).push(permission);
+        return groups;
+    }, {});
+}
+
+function togglePermissions(roleId) {
+    expandedRoleId.value = expandedRoleId.value === roleId ? null : roleId;
+}
 
 function openCreate() {
     selectedRole.value = null;
-
     showModal.value = true;
 }
 
-const reloadData = () => {
-    getData();
-    showModal.value = false;
-};
-const getData = async (page = 1) => {
-    const res = await axios.get("/api/roles", {
-        params: {
-            page,
-            per_page: 50,
-            ...filterParams.value,
-        },
-    });
-    roles.value.data = [...res.data.data.system, ...res.data.data.user];
-};
-
-async function deleteRole(id) {
-    await axios.delete(`/api/roles/${id}`);
-
-    reloadData();
+function openEdit(role) {
+    selectedRole.value = role;
+    showModal.value = true;
 }
 
-onMounted(() => {
+function handleFilter(params) {
+    filterParams.value = params;
     getData();
-});
+}
+
+async function getData() {
+    loading.value = true;
+    try {
+        const { data } = await axios.get("/api/roles", {
+            params: filterParams.value,
+        });
+        roles.value = [
+            ...(data.data?.system || []),
+            ...(data.data?.user || []),
+        ];
+    } finally {
+        loading.value = false;
+    }
+}
+
+function reloadData() {
+    showModal.value = false;
+    getData();
+}
+
+onMounted(getData);
 </script>

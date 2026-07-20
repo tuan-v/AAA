@@ -11,6 +11,7 @@ use App\Services\ActivityLogService;
 use App\Services\SupplierDebtService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Services\OrderQuantityValidationService;
 use Illuminate\Support\Facades\DB;
 use App\Services\CodeGeneratorService;
 use App\Services\CurrencyService;
@@ -27,6 +28,16 @@ class PurchaseOrderController extends Controller
         return $company ? $company->default_currency : null;
     }
 
+    private function companyId(): int
+    {
+        $companyId = auth()->user()->company_id
+            ?? auth()->user()->companies()->value('companies.id');
+
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        return (int) $companyId;
+    }
+
     // =========================
     // INDEX
     // =========================
@@ -41,7 +52,8 @@ class PurchaseOrderController extends Controller
             'pending',
             'approved',
             'partial',
-            'completed'
+            'completed',
+            'cancelled'
         ]);
 
         if ($request->filled('status')) {
@@ -69,7 +81,11 @@ class PurchaseOrderController extends Controller
                 $i->price = round($displayPrice, 2);
                 $i->amount = round($displayPrice * $i->quantity, 2);
             }
-            $total = $item->items->sum('amount');
+            $subtotal = $item->items->sum('amount');
+            $vatAmount = $item->items->sum(fn ($line) =>
+                (float) $line->amount * ((float) ($line->vat_percent ?? 0) / 100)
+            );
+            $total = $subtotal + $vatAmount;
 
             return [
                 'id' => $item->id,
@@ -77,7 +93,11 @@ class PurchaseOrderController extends Controller
                 'status' => $item->status,
                 'supplier' => $item->supplier,
                 'currency' => $companyCurrency ?: $item->currency,
+                'order_currency' => $item->currency,
+                'currency_id' => $item->currency_id,
                 'items' => $item->items,
+                'subtotal' => round($subtotal, 2),
+                'vat_amount' => round($vatAmount, 2),
                 'total_amount' => round($total, 2),
                 'expected_received_date' => $item->expected_received_date
                     ? $item->expected_received_date->format('d/m/Y')
@@ -124,7 +144,11 @@ class PurchaseOrderController extends Controller
                 $i->price = round($displayPrice, 2);
                 $i->amount = round($displayPrice * $i->quantity, 2);
             }
-            $total = $item->items->sum('amount');
+            $subtotal = $item->items->sum('amount');
+            $vatAmount = $item->items->sum(fn ($line) =>
+                (float) $line->amount * ((float) ($line->vat_percent ?? 0) / 100)
+            );
+            $total = $subtotal + $vatAmount;
 
             return [
                 'id' => $item->id,
@@ -133,6 +157,8 @@ class PurchaseOrderController extends Controller
                 'supplier' => $item->supplier,
                 'currency' => $companyCurrency ?: $item->currency,
                 'items' => $item->items,
+                'subtotal' => round($subtotal, 2),
+                'vat_amount' => round($vatAmount, 2),
                 'total_amount' => round($total, 2),
                 'expected_received_date' => $item->expected_received_date
                     ? $item->expected_received_date->format('d/m/Y')
@@ -180,7 +206,11 @@ class PurchaseOrderController extends Controller
             $item->amount = $item->price * $item->quantity;
         }
 
-        $order->total_amount = $order->items->sum('amount');
+        $order->subtotal = $order->items->sum('amount');
+        $order->vat_amount = $order->items->sum(fn ($line) =>
+            (float) $line->amount * ((float) ($line->vat_percent ?? 0) / 100)
+        );
+        $order->total_amount = $order->subtotal + $order->vat_amount;
 
         // Giữ nguyên currency của đơn hàng
         // KHÔNG setRelation thành companyCurrency
@@ -191,7 +221,7 @@ class PurchaseOrderController extends Controller
     // =========================
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'supplier_id' => 'required',
             'currency_id' => 'required',
             'expected_received_date' => 'required',
@@ -199,6 +229,7 @@ class PurchaseOrderController extends Controller
             'items.*.product_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.vat_percent' => 'nullable|numeric|min:0|max:10',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
@@ -213,7 +244,12 @@ class PurchaseOrderController extends Controller
             'items.*.price.required' => 'Giá không được để trống',
             'items.*.price.numeric' => 'Giá phải là số',
             'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
+            'items.*.vat_percent.numeric' => 'VAT phải là số',
+            'items.*.vat_percent.min' => 'VAT không được nhỏ hơn 0%',
+            'items.*.vat_percent.max' => 'VAT không được vượt quá 10%',
         ]);
+
+        app(OrderQuantityValidationService::class)->validate($validated['items']);
 
         try {
 
@@ -255,9 +291,12 @@ class PurchaseOrderController extends Controller
                 'exchange_rate' => $orderCurrency->exchange_rate,
                 'created_by' => auth()->id(),
             ]);
+            $subtotal = 0;
+            $vatAmount = 0;
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
+                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 0) / 100);
 
                 $companyPrice =
                     $item['price']
@@ -269,13 +308,18 @@ class PurchaseOrderController extends Controller
                     'price'        => $item['price'], // giá NCC
                     'company_price' => round($companyPrice, 2),  // giá quy đổi
                     'amount'       => $amount,
+                    'vat_percent'  => $item['vat_percent'] ?? 0,
                 ]);
 
-                $total += $amount;
+                $subtotal += $amount;
+                $vatAmount += $itemVat;
+                $total += $amount + $itemVat;
             }
 
             $order->update([
-                'total_amount' => $total
+                'subtotal' => round($subtotal, 2),
+                'vat_amount' => round($vatAmount, 2),
+                'total_amount' => round($total, 2),
             ]);
 
             DB::commit();
@@ -299,7 +343,15 @@ class PurchaseOrderController extends Controller
     // =========================
     public function update(Request $request, $id)
     {
-        $request->validate([
+        $order = PurchaseOrder::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Chỉ được chỉnh sửa đơn mua đang chờ duyệt.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
             'supplier_id' => 'required',
             'currency_id' => 'required',
             'expected_received_date' => 'required',
@@ -307,6 +359,7 @@ class PurchaseOrderController extends Controller
             'items.*.product_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.vat_percent' => 'nullable|numeric|min:0|max:10',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
@@ -321,11 +374,16 @@ class PurchaseOrderController extends Controller
             'items.*.price.required' => 'Giá không được để trống',
             'items.*.price.numeric' => 'Giá phải là số',
             'items.*.price.min' => 'Giá phải lớn hơn hoặc bằng 0',
+            'items.*.vat_percent.numeric' => 'VAT phải là số',
+            'items.*.vat_percent.min' => 'VAT không được nhỏ hơn 0%',
+            'items.*.vat_percent.max' => 'VAT không được vượt quá 10%',
         ]);
 
-        DB::transaction(function () use ($request, $id) {
+        app(OrderQuantityValidationService::class)->validate($validated['items']);
 
-            $order = PurchaseOrder::with('items')->findOrFail($id);
+        DB::transaction(function () use ($request, $order) {
+
+            $order->load('items');
 
             $total = 0;
             $orderCurrency = Currency::findOrFail(
@@ -359,9 +417,12 @@ class PurchaseOrderController extends Controller
 
             $order->items()->delete();
 
+            $subtotal = 0;
+            $vatAmount = 0;
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
+                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 0) / 100);
 
                 $companyPrice =
                     $item['price']
@@ -374,13 +435,18 @@ class PurchaseOrderController extends Controller
                     'price'         => $item['price'],
                     'company_price' =>  round($companyPrice, 2),
                     'amount'        => $amount,
+                    'vat_percent'   => $item['vat_percent'] ?? 0,
                 ]);
 
-                $total += $amount;
+                $subtotal += $amount;
+                $vatAmount += $itemVat;
+                $total += $amount + $itemVat;
             }
 
             $order->update([
-                'total_amount' => $total,
+                'subtotal' => round($subtotal, 2),
+                'vat_amount' => round($vatAmount, 2),
+                'total_amount' => round($total, 2),
                 'status' => 'pending'
             ]);
         });
@@ -395,7 +461,9 @@ class PurchaseOrderController extends Controller
     // =========================
     public function approve($id, SupplierDebtService $supplierDebtService)
     {
-        $order = PurchaseOrder::with('items')->findOrFail($id);
+        $order = PurchaseOrder::with('items')
+            ->where('company_id', $this->companyId())
+            ->findOrFail($id);
 
         if ($order->status !== 'pending') {
             return response()->json([
@@ -411,12 +479,54 @@ class PurchaseOrderController extends Controller
             ]);
 
             // Tự động phát sinh công nợ phải trả NCC khi đơn mua được duyệt
-            $supplierDebtService->createFromPurchaseOrder($order);
         });
 
         return response()->json([
             'message' => 'Duyệt đơn thành công'
         ]);
+    }
+
+    public function cancel($id)
+    {
+        $order = PurchaseOrder::withCount('warehouseSlips')
+            ->where('company_id', $this->companyId())
+            ->findOrFail($id);
+
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Chỉ được hủy đơn mua đang chờ duyệt.',
+            ], 422);
+        }
+
+        if ($order->warehouse_slips_count > 0) {
+            return response()->json([
+                'message' => 'Không thể hủy đơn mua đã phát sinh phiếu nhập warehouse.',
+            ], 422);
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        return response()->json(['message' => 'Hủy đơn mua thành công.']);
+    }
+
+    public function destroy($id)
+    {
+        $order = PurchaseOrder::withCount('warehouseSlips')
+            ->where('company_id', $this->companyId())
+            ->findOrFail($id);
+
+        if ($order->status !== 'pending' || $order->warehouse_slips_count > 0) {
+            return response()->json([
+                'message' => 'Chỉ được xóa đơn mua đang chờ duyệt và chưa phát sinh phiếu warehouse.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->items()->delete();
+            $order->delete();
+        });
+
+        return response()->json(['message' => 'Xóa đơn mua thành công.']);
     }
 
     // =========================
@@ -451,7 +561,11 @@ class PurchaseOrderController extends Controller
             $item->amount = round($displayPrice * $item->quantity, 2);
         }
 
-        $order->total_amount = round($order->items->sum('amount'), 2);
+        $order->subtotal = round($order->items->sum('amount'), 2);
+        $order->vat_amount = round($order->items->sum(fn ($line) =>
+            (float) $line->amount * ((float) ($line->vat_percent ?? 0) / 100)
+        ), 2);
+        $order->total_amount = round($order->subtotal + $order->vat_amount, 2);
         $order->setRelation('currency', $companyCurrency ?: $order->currency);
         $receivedMap = WarehouseSlipItem::query()
             ->selectRaw('product_id, SUM(quantity) as total')

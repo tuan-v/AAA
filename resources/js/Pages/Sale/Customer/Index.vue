@@ -11,7 +11,7 @@
             <h2 class="text-2xl font-bold">Danh sách khách hàng</h2>
 
             <button
-                v-if="can('sale_customer.create')"
+                v-if="can('khach_hang.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -146,7 +146,6 @@ const filters = [
     },
 ];
 function handleFilter(params) {
-    console.log("FILTER:", params);
     filterParams.value = params;
     getData(1);
 }
@@ -206,7 +205,7 @@ const columns = [
             h(
                 "span",
                 {},
-                `${Number(row.opening_debt ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`,
+                formatMoney(row.opening_debt ?? 0, row.currency),
             ),
     },
     {
@@ -221,7 +220,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                `${Number(row.current_debt ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`,
+                formatMoney(row.current_debt ?? 0, row.currency),
             ),
     },
 
@@ -248,7 +247,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("sale_customer.update"),
+        hidden: () => !can("khach_hang.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -260,14 +259,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("sale_customer.lock")
-                : !can("sale_customer.unlock"),
+                ? !can("khach_hang.khoa")
+                : !can("khach_hang.mo_khoa"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
         type: "view",
-        hidden: () => !can("sale_customer.detail"),
+        hidden: () => !can("khach_hang.xem"),
         onClick: (item) => openDetail(item),
         tooltip: "Xem chi tiết",
     },

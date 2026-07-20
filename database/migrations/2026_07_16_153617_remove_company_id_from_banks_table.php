@@ -12,8 +12,12 @@ return new class extends Migration
     public function up()
     {
         Schema::table('banks', function (Blueprint $table) {
-            $table->dropForeign(['company_id']); // xóa foreign key trước
+            $table->dropForeign(['company_id']);
+        });
+        Schema::table('banks', function (Blueprint $table) {
+            $table->dropUnique('banks_company_code_unique');
             $table->dropColumn('company_id');
+            $table->unique('code', 'banks_code_unique');
         });
     }
 

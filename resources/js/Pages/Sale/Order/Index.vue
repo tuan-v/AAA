@@ -12,7 +12,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn bán hàng</h2>
 
             <button
-                v-if="can('sale_order.create')"
+                v-if="can('don_ban.them')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
@@ -306,7 +306,7 @@ const actions = [
             openEdit(item);
         },
         hidden: (item) =>
-            !can("sale_order.update") ||
+            !can("don_ban.sua") ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
@@ -321,7 +321,7 @@ const actions = [
         },
         // gộp luôn điều kiện "cancelled" vào đây vì action.visible không được DataTable đọc
         hidden: (item) =>
-            !can("sale_order.approve") ||
+            !can("don_ban.duyet") ||
             item.status === "cancelled" ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
@@ -333,14 +333,14 @@ const actions = [
         // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("sale_order.cancel") ||
+            !can("don_ban.huy") ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
         onClick: (item) => openDetail(item), // sửa từ showDetail -> openDetail
-        hidden: () => !can("sale_order.detail"),
+        hidden: () => !can("don_ban.xem_chi_tiet"),
     },
 ];
 const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"];

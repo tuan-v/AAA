@@ -104,6 +104,7 @@
 import { ref, watch } from "vue";
 import axios from "axios";
 import Modal from "@/components/Modal.vue";
+import { formatMoney as formatMoneyHelper } from "@/config/helpers";
 
 const props = defineProps({
     modelValue: {
@@ -152,6 +153,6 @@ function closeModal() {
 }
 
 function formatMoney(value) {
-    return Number(value ?? 0).toLocaleString("vi-VN");
+    return formatMoneyHelper(value ?? 0);
 }
 </script>

@@ -39,6 +39,9 @@ class Transaction extends Model
         'status',
         'approved_by',
         'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -47,6 +50,7 @@ class Transaction extends Model
         'exchange_rate' => 'decimal:6',
         'amount_base' => 'decimal:2',
         'approved_at'    => 'datetime',
+        'rejected_at'    => 'datetime',
     ];
 
     // RELATIONS
@@ -96,6 +100,10 @@ class Transaction extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
     // SCOPES
     public function scopeCompany($query, $companyId)

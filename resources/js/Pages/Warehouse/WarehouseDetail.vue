@@ -20,7 +20,7 @@
         </div>
 
         <div v-if="loading" class="wh-modal__loading">
-            <i class="ti ti-loader-2"></i> Đang tải dữ liệu kho...
+            <i class="ti ti-loader-2"></i> Đang tải dữ liệu warehouse...
         </div>
 
         <template v-else>
@@ -325,6 +325,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import axios from "axios";
+import { formatMoney } from "@/config/helpers";
 
 const props = defineProps({
     warehouseId: {
@@ -439,9 +440,9 @@ const maxMovementQty = computed(() =>
 
 const barWidth = (qty) => Math.round((qty / maxMovementQty.value) * 100);
 
-const formatNumber = (n) => new Intl.NumberFormat("vi-VN").format(n ?? 0);
+const formatNumber = (n) => formatMoney(n ?? 0);
 const formatMoneyLocal = (amount, symbol = "₫") =>
-    `${new Intl.NumberFormat("vi-VN").format(Math.round(amount ?? 0))} ${symbol}`;
+    formatMoney(Math.round(amount ?? 0), { code: "VND", symbol });
 const formatDate = (date) => {
     if (!date) return "-";
     return new Intl.DateTimeFormat("vi-VN", {

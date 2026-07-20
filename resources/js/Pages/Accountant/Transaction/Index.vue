@@ -49,6 +49,7 @@
     <Modal v-if="showModal" @close="showModal = false">
         <template #body>
             <TransactionForm
+                :transaction="selectedTransaction"
                 :accounts="accounts"
                 :categories="categories"
                 :currencies="currencies"
@@ -113,7 +114,10 @@ import TransactionForm from "./TransactionForm.vue";
 import TransactionDetail from "./TransactionDetail.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
+import EditButtonIcon from "@/icons/EditButtonIcon.vue";
+import { XCircle } from "lucide-vue-next";
 import { usePermission } from "@/composables/usePermission";
+import { formatMoney, formatDateTime } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 const { can } = usePermission();
 const showConfirm = ref(false);
@@ -136,6 +140,7 @@ const suppliers = ref([]);
 const showModal = ref(false);
 const showDetail = ref(false);
 const selectedId = ref(null);
+const selectedTransaction = ref(null);
 
 const filterParams = ref({});
 
@@ -162,6 +167,18 @@ const filters = [
         type: "select",
         placeholder: "Loại thanh toán",
         options: [],
+    },
+    {
+        name: "currency_id",
+        type: "select",
+        placeholder: "Tiền tệ",
+        options: [],
+    },
+    {
+        name: "date_range",
+        type: "date_range",
+        placeholder: "Khoảng ngày giao dịch",
+        useDefaultValue: false,
     },
 ];
 
@@ -207,7 +224,7 @@ const columns = [
             h(
                 "span",
                 { class: "font-semibold" },
-                ` ${Number(row.amount ?? 0).toLocaleString("vi-VN")} ${row.currency?.symbol ?? ""}`.trim(),
+                formatMoney(row.amount ?? 0, row.currency),
             ),
     },
     // {
@@ -237,7 +254,7 @@ const columns = [
     {
         label: "Ngày",
         render: (row) =>
-            h("span", new Date(row.transaction_date).toLocaleString()),
+            h("span", formatDateTime(row.transaction_date)),
     },
     {
         label: "Trạng thái",
@@ -247,11 +264,11 @@ const columns = [
                     text: "Chờ duyệt",
                     class: "bg-yellow-100 text-yellow-700",
                 },
-                approve: {
+                approved: {
                     text: "Đã duyệt",
                     class: "bg-green-100 text-green-700",
                 },
-                reject: { text: "Từ chối", class: "bg-red-100 text-red-700" },
+                rejected: { text: "Từ chối", class: "bg-red-100 text-red-700" },
             };
             const status = config[row.status] ?? config.pending;
             return h(
@@ -269,28 +286,58 @@ const columns = [
 
 const actions = [
     {
+        icon: EditButtonIcon,
+        title: "Chỉnh sửa",
+        hidden: (row) => !can("giao_dich.sua") || row.status !== "pending",
+        onClick: (item) => {
+            selectedTransaction.value = item;
+            showModal.value = true;
+        },
+    },
+    {
         icon: CheckIcon,
         title: "Duyệt",
         hidden: (row) =>
-            !can("transaction.approve") || row.status !== "pending",
+            !can("giao_dich.duyet") || row.status !== "pending",
         onClick: (item) => {
             pendingItem.value = item;
             showConfirm.value = true;
         },
     },
     {
-        icon: DeleteIcon,
+        icon: XCircle,
         title: "Từ chối",
-        hidden: (row) => !can("transaction.reject") || row.status !== "pending",
+        hidden: (row) => !can("giao_dich.tu_choi") || row.status !== "pending",
         onClick: async (item) => {
+            const reason = window.prompt("Vui lòng nhập lý do từ chối giao dịch:");
+            if (!reason?.trim()) {
+                toast.warning("Cần nhập lý do từ chối giao dịch");
+                return;
+            }
             try {
                 await axios.post(
                     `/api/accountant/transactions/${item.id}/reject`,
+                    { rejection_reason: reason.trim() },
                 );
                 toast.success("Từ chối giao dịch thành công");
                 getData(transactions.value.current_page);
             } catch (err) {
                 toast.error(err.response?.data?.message ?? "Từ chối thất bại");
+            }
+        },
+    },
+    {
+        icon: DeleteIcon,
+        title: "Xóa giao dịch chờ duyệt",
+        hidden: (row) => !can("giao_dich.xoa") || row.status !== "pending",
+        onClick: async (item) => {
+            if (!window.confirm(`Xóa giao dịch ${item.code}? Thao tác này không thể hoàn tác.`)) return;
+            try {
+                await axios.delete(`/api/accountant/transactions/${item.id}`);
+                toast.success("Xóa giao dịch chờ duyệt thành công");
+                getData(transactions.value.current_page);
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Không thể xóa giao dịch");
             }
         },
     },
@@ -318,6 +365,7 @@ async function confirmApprove() {
 /* ================= METHODS ================= */
 
 function openCreate() {
+    selectedTransaction.value = null;
     showModal.value = true;
 }
 
@@ -395,6 +443,14 @@ onMounted(async () => {
     }));
 
     currencies.value = curRes.data;
+    const currencyRows = Array.isArray(curRes.data)
+        ? curRes.data
+        : curRes.data?.data || [];
+    currencies.value = currencyRows;
+    filters[3].options = currencyRows.map((currency) => ({
+        value: currency.id,
+        label: `${currency.code}${currency.name ? ` - ${currency.name}` : ""}`,
+    }));
 
     getData(1);
 });

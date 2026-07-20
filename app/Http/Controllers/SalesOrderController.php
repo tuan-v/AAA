@@ -11,10 +11,21 @@ use App\Services\ActivityLogService;
 use App\Services\CustomerDebtService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Services\OrderQuantityValidationService;
 use Illuminate\Support\Facades\DB;
 
 class SalesOrderController extends Controller
 {
+    private function companyId(): int
+    {
+        $companyId = auth()->user()->company_id
+            ?? auth()->user()->companies()->value('companies.id');
+
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        return (int) $companyId;
+    }
+
     private function getCompanyCurrency()
     {
         $company = auth()->user()->company ?? auth()->user()->companies()->first();
@@ -33,7 +44,8 @@ class SalesOrderController extends Controller
             'pending',
             'approved',
             'partial',
-            'completed'
+            'completed',
+            'cancelled'
         ]);
 
         if ($request->filled('status')) {
@@ -82,6 +94,9 @@ class SalesOrderController extends Controller
                 'status' => $item->status,
                 'customer' => $item->customer,
                 'currency' => $companyCurrency ?: $item->currency,
+                'order_currency' => $item->currency,
+                'currency_id' => $item->currency_id,
+                'exchange_rate' => $item->exchange_rate,
                 'items' => $item->items,
                 'vat_amount' => round($vatAmount, 2),
                 'total_amount' => round($total, 2),
@@ -227,7 +242,7 @@ class SalesOrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.vat_percent' => 'nullable|numeric|min:0|max:100',
+            'items.*.vat_percent' => 'nullable|numeric|min:0|max:10',
             'items.*.amount' => 'required|numeric|min:0',
 
             'expected_delivery_date' => 'required|date',
@@ -264,7 +279,7 @@ class SalesOrderController extends Controller
             'items.*.vat_percent.required' => 'VAT phải là số',
             'items.*.vat_percent.numeric' => 'VAT phải là số',
             'items.*.vat_percent.min' => 'VAT phải lớn hơn hoặc bằng 0',
-            'items.*.vat_percent.max' => 'VAT không được vượt quá 100',
+            'items.*.vat_percent.max' => 'VAT không được vượt quá 10%',
 
             'items.*.amount.required' => 'Thành tiền không được để trống',
             'items.*.amount.numeric' => 'Thành tiền phải là số',
@@ -281,6 +296,7 @@ class SalesOrderController extends Controller
             'total_amount.numeric' => 'Tổng tiền phải là số',
             'total_amount.min' => 'Tổng tiền phải lớn hơn hoặc bằng 0',
         ]);
+        app(OrderQuantityValidationService::class)->validate($validated['items']);
         DB::beginTransaction();
 
         try {
@@ -319,6 +335,7 @@ class SalesOrderController extends Controller
 
             $total = 0;
             $subtotal = 0;
+            $vatAmountTotal = 0;
             foreach ($validated['items'] as $item) {
                 $amount = $item['quantity'] * $item['unit_price'];
                 $vatPercent = $item['vat_percent'] ?? 0;
@@ -344,12 +361,13 @@ class SalesOrderController extends Controller
                     'company_amount'      => $companyAmount,
                 ]);
                 $subtotal += $amount;
+                $vatAmountTotal += $vatAmount;
                 $total += $amount + $vatAmount;
             }
 
             $order->update([
                 'subtotal'     => $subtotal,
-                'vat_amount'   => $validated['vat_amount'],
+                'vat_amount'   => round($vatAmountTotal, 2),
                 'total_amount' => $total
             ]);
 
@@ -365,7 +383,7 @@ class SalesOrderController extends Controller
     }
     public function update(Request $request, $id)
     {
-        $order = SalesOrder::findOrFail($id);
+        $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
         $old = $order->toArray();
         if ($order->status !== 'pending') {
 
@@ -389,7 +407,7 @@ class SalesOrderController extends Controller
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
-            'items.*.vat_percent' => ['nullable', 'numeric', 'min:0'],
+            'items.*.vat_percent' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'items.*.amount' => ['required', 'numeric', 'min:0'],
         ], [
             'customer_id.required' => 'Vui lòng chọn khách hàng.',
@@ -416,9 +434,11 @@ class SalesOrderController extends Controller
             'items.*.unit_price.min' => 'Đơn giá phải lớn hơn 0.',
             'items.*.vat_percent.numeric' => 'Phần trăm VAT phải là số.',
             'items.*.vat_percent.min' => 'Phần trăm VAT không âm.',
+            'items.*.vat_percent.max' => 'VAT không được vượt quá 10%.',
             'items.*.amount.required' => 'Vui lòng nhập thành tiền.',
             'items.*.amount.numeric' => 'Thành tiền phải là số.',
         ]);
+        app(OrderQuantityValidationService::class)->validate($validated['items']);
         DB::beginTransaction();
 
         try {
@@ -449,6 +469,10 @@ class SalesOrderController extends Controller
 
             SalesOrderItem::where('sales_order_id', $order->id)->delete();
 
+            $subtotal = 0;
+            $vatAmountTotal = 0;
+            $total = 0;
+
             foreach ($validated['items'] as $item) {
                 // Quy đổi đúng: giá khách hàng × tỉ_giá_đơn ÷ tỉ_giá_công_ty
                 $companyUnitPrice = round(
@@ -470,7 +494,19 @@ class SalesOrderController extends Controller
                     'amount'             => $item['amount'],
                     'company_amount'     => $companyAmount,
                 ]);
+
+                $lineAmount = (float) $item['quantity'] * (float) $item['unit_price'];
+                $lineVat = $lineAmount * ((float) ($item['vat_percent'] ?? 0) / 100);
+                $subtotal += $lineAmount;
+                $vatAmountTotal += $lineVat;
+                $total += $lineAmount + $lineVat;
             }
+
+            $order->update([
+                'subtotal' => round($subtotal, 2),
+                'vat_amount' => round($vatAmountTotal, 2),
+                'total_amount' => round($total, 2),
+            ]);
             DB::commit();
 
             return response()->json(['message' => 'Cập nhật đơn hàng thành công.']);
@@ -481,7 +517,7 @@ class SalesOrderController extends Controller
     }
     public function approve($id, CustomerDebtService $customerDebtService)
     {
-        $order = SalesOrder::findOrFail($id);
+        $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
 
         if ($order->status !== 'pending') {
             return response()->json([
@@ -495,14 +531,55 @@ class SalesOrderController extends Controller
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
-
-            // Tự động phát sinh công nợ phải thu KH khi đơn bán được duyệt
-            $customerDebtService->createFromSalesOrder($order);
         });
 
         return response()->json([
             'message' => 'Duyệt đơn bán thành công'
         ]);
+    }
+
+
+    public function cancel($id)
+    {
+        $order = SalesOrder::withCount('warehouseSlips')
+            ->where('company_id', $this->companyId())
+            ->findOrFail($id);
+
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Chỉ được hủy đơn bán đang chờ duyệt.',
+            ], 422);
+        }
+
+        if ($order->warehouse_slips_count > 0) {
+            return response()->json([
+                'message' => 'Không thể hủy đơn bán đã phát sinh phiếu xuất warehouse.',
+            ], 422);
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        return response()->json(['message' => 'Hủy đơn bán thành công.']);
+    }
+
+    public function destroy($id)
+    {
+        $order = SalesOrder::withCount('warehouseSlips')
+            ->where('company_id', $this->companyId())
+            ->findOrFail($id);
+
+        if ($order->status !== 'pending' || $order->warehouse_slips_count > 0) {
+            return response()->json([
+                'message' => 'Chỉ được xóa đơn bán đang chờ duyệt và chưa phát sinh phiếu warehouse.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->items()->delete();
+            $order->delete();
+        });
+
+        return response()->json(['message' => 'Xóa đơn bán thành công.']);
     }
     public function stockOutData($id)
     {

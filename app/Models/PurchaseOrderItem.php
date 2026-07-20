@@ -14,6 +14,7 @@ class PurchaseOrderItem extends Model
         'price',
         'company_price',
         'amount',
+        'vat_percent',
     ];
 
     public function product()

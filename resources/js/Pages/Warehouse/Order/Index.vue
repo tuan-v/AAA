@@ -240,7 +240,7 @@ import SaleOrderDetail from "../../Sale/Order/SaleOrderDetail.vue";
 import PurchaseOrderDetail from "../../Purchase/Order/PurchaseOrderDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 
-const canViewPage = computed(() => can("warehouse_slip.view"));
+const canViewPage = computed(() => can("phieu_kho.xem"));
 const { can } = usePermission();
 const activeTab = ref("purchase");
 const showModal = ref(false);
@@ -386,7 +386,7 @@ const purchaseActions = [
         icon: ImportIcon,
         title: "Nhập kho",
         hidden: (row) =>
-            !can("warehouse_slip.create") ||
+            !can("phieu_kho.them") ||
             !["approved", "partial"].includes(row.status),
         disabled: (row) => row.status === "completed",
         class: (row) =>
@@ -406,7 +406,7 @@ const purchaseActions = [
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
-        hidden: () => !can("purchase_order.detail"),
+        hidden: () => !can("don_mua.xem_chi_tiet"),
         onClick: openPurchaseDetail,
     },
 ];
@@ -510,7 +510,7 @@ const saleActions = [
         icon: ImportIcon,
         title: "Xuất kho",
         hidden: (row) =>
-            !can("warehouse_slip.create") ||
+            !can("phieu_kho.them") ||
             !["approved", "partial"].includes(row.status),
         onClick: (item) =>
             (window.location.href = `/warehouse/slips/salecreate?order_id=${item.id}&type=sale`),
@@ -518,7 +518,7 @@ const saleActions = [
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
-        hidden: () => !can("sale_order.detail"),
+        hidden: () => !can("don_ban.xem_chi_tiet"),
         onClick: openDetail,
     },
 ];

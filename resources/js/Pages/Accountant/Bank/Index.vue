@@ -17,7 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách ngân hàng</h2>
 
             <button
-                v-if="can('bank.create')"
+                v-if="can('ngan_hang.them')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
             >

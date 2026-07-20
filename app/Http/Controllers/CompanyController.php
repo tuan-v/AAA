@@ -17,7 +17,10 @@ class CompanyController extends Controller
     public function create()
     {
         $currencies = Currency::all();
-        $defaultCurrency = Currency::where('is_default', 1)->first();
+        // is_default thuộc bảng pivot companies_has_currencies, không thuộc currencies.
+        // Khi chưa tạo công ty, ưu tiên VND làm lựa chọn ban đầu.
+        $defaultCurrency = Currency::where('code', 'VND')->first()
+            ?? $currencies->first();
 
         return Inertia::render('Company/Create', [
             'currencies' => $currencies,
@@ -112,6 +115,16 @@ class CompanyController extends Controller
                     'name' => 'Chuyển khoản',
                     'type' => 'transfer',
                 ],
+                [
+                    'code' => 'TAM_UNG_NCC',
+                    'name' => 'Tạm ứng nhà cung cấp',
+                    'type' => 'expense'
+                ],
+                [
+                    'code' => 'HOAN_TAM_UNG_NCC',
+                    'name' => 'Nhà cung cấp hoàn tạm ứng',
+                    'type' => 'income'
+                ]
             ]);
 
             // 2. attach currency

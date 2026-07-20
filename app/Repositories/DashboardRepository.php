@@ -119,13 +119,13 @@ class DashboardRepository implements DashboardRepositoryInterface
 
             $in = (float) Transaction::where('company_id', $companyId)
                 ->where('type', 'receipt')
-                ->where('status', 'posted')
+                ->where('status', 'approved')
                 ->whereBetween('transaction_date', [$from, $to])
                 ->sum('amount_base');
 
             $out = (float) Transaction::where('company_id', $companyId)
                 ->where('type', 'payment')
-                ->where('status', 'posted')
+                ->where('status', 'approved')
                 ->whereBetween('transaction_date', [$from, $to])
                 ->sum('amount_base');
 

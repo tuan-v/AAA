@@ -460,11 +460,11 @@ async function saveProduct() {
             data.append("_method", "PUT");
 
             response = await axios.post(
-                `/api/warehouse/products/${form.value.id}`,
+                `/api/purchase/products/${form.value.id}`,
                 data,
             );
         } else {
-            response = await axios.post("/api/warehouse/products", data);
+            response = await axios.post("/api/purchase/products", data);
         }
 
         toast.success(

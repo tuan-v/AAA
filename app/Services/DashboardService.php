@@ -53,6 +53,59 @@ class DashboardService
         ];
     }
 
+    public function getModuleOverview(int $companyId, string $module): array
+    {
+        $overview = $this->getOverview($companyId);
+
+        return match ($module) {
+            'purchase' => [
+                'metrics' => [
+                    ['label' => 'Giá trị mua tháng này', 'value' => $overview['finance']['purchase_this_month'], 'type' => 'money'],
+                    ['label' => 'Công nợ phải trả', 'value' => $overview['finance']['payable_debt'], 'type' => 'money'],
+                    ['label' => 'Nhà cung cấp hoạt động', 'value' => $overview['operations']['suppliers'], 'type' => 'number'],
+                    ['label' => 'Sản phẩm hoạt động', 'value' => $overview['operations']['products'], 'type' => 'number'],
+                ],
+                'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['purchase'], 'secondary' => 0], $overview['monthly_finance']),
+                'recent' => $overview['recent_purchase_orders'],
+                'ranking' => $overview['top_suppliers'],
+            ],
+            'sale' => [
+                'metrics' => [
+                    ['label' => 'Doanh thu tháng này', 'value' => $overview['finance']['revenue_this_month'], 'type' => 'money'],
+                    ['label' => 'Công nợ phải thu', 'value' => $overview['finance']['receivable_debt'], 'type' => 'money'],
+                    ['label' => 'Khách hàng hoạt động', 'value' => $overview['operations']['customers'], 'type' => 'number'],
+                    ['label' => 'Đơn tháng này', 'value' => $overview['operations']['orders_this_month'], 'type' => 'number'],
+                ],
+                'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['revenue'], 'secondary' => 0], $overview['monthly_finance']),
+                'recent' => $overview['recent_sales_orders'],
+                'ranking' => $overview['top_customers'],
+            ],
+            'warehouse' => [
+                'metrics' => [
+                    ['label' => 'Kho hoạt động', 'value' => $overview['operations']['warehouses'], 'type' => 'number'],
+                    ['label' => 'Sản phẩm hoạt động', 'value' => $overview['operations']['products'], 'type' => 'number'],
+                    ['label' => 'Sản phẩm sắp hết', 'value' => count($overview['low_stock_products']), 'type' => 'number'],
+                    ['label' => 'Đơn tháng này', 'value' => $overview['operations']['orders_this_month'], 'type' => 'number'],
+                ],
+                'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['import'], 'secondary' => $row['export']], $overview['warehouse_flow']),
+                'recent' => $overview['low_stock_products'],
+                'ranking' => [],
+            ],
+            'accountant' => [
+                'metrics' => [
+                    ['label' => 'Doanh thu tháng này', 'value' => $overview['finance']['revenue_this_month'], 'type' => 'money'],
+                    ['label' => 'Chi mua tháng này', 'value' => $overview['finance']['purchase_this_month'], 'type' => 'money'],
+                    ['label' => 'Công nợ phải thu', 'value' => $overview['finance']['receivable_debt'], 'type' => 'money'],
+                    ['label' => 'Công nợ phải trả', 'value' => $overview['finance']['payable_debt'], 'type' => 'money'],
+                ],
+                'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['in'], 'secondary' => $row['out']], $overview['cash_flow']),
+                'recent' => $overview['recent_transactions'],
+                'ranking' => [],
+            ],
+            default => throw new \InvalidArgumentException('Phân hệ dashboard không hợp lệ.'),
+        };
+    }
+
     private function percentChange(float $previous, float $current): float
     {
         if ($previous == 0.0) {

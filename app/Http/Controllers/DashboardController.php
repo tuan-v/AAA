@@ -37,4 +37,31 @@ class DashboardController extends Controller
             'meta' => null,
         ]);
     }
+
+    public function module(Request $request, string $module)
+    {
+        if (!in_array($module, ['purchase', 'sale', 'warehouse', 'accountant'], true)) {
+            return response()->json(['message' => 'Phân hệ dashboard không hợp lệ.'], 404);
+        }
+
+        $companyId = $request->user()->company_id
+            ?? $request->user()->companies()->value('companies.id');
+
+        if (!$companyId) {
+            return response()->json(['message' => 'Tài khoản chưa thuộc công ty nào.'], 422);
+        }
+
+        $data = $this->dashboardService->getModuleOverview((int) $companyId, $module);
+        $company = $request->user()->company ?? $request->user()->companies()->first();
+        $currency = $company?->default_currency;
+        $data['currency'] = $currency ? [
+            'code' => $currency->code,
+            'symbol' => $currency->symbol,
+        ] : ['code' => 'VND', 'symbol' => '₫'];
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
 }

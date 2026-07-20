@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\CustomerDebt;
 use App\Models\Transaction;
 use App\Models\SalesOrder;
+use App\Models\WarehouseSlip;
+use App\Models\Customer;
 
 class CustomerDebtService
 {
@@ -35,7 +37,56 @@ class CustomerDebtService
             'note'           => "Phát sinh công nợ từ đơn bán {$salesOrder->code}",
         ]);
     }
+    public function createFromWarehouseSlip(WarehouseSlip $slip): CustomerDebt
+    {
+        $slip->load(['salesOrder.items', 'items']);
 
+        if ($slip->type !== 'export' || ! $slip->salesOrder) {
+            throw new \RuntimeException('Phiếu xuất không gắn với đơn bán hợp lệ.');
+        }
+        $exists = CustomerDebt::where(
+            'reference_type',
+            WarehouseSlip::class
+        )
+            ->where('reference_id', $slip->id)
+            ->exists();
+
+        if ($exists) {
+            throw new \Exception('Phiếu xuất này đã phát sinh công nợ.');
+        }
+        $totalAmount = 0;
+
+        foreach ($slip->items as $item) {
+            $saleItem = $slip->salesOrder
+                ->items
+                ->firstWhere('product_id', $item->product_id);
+
+            if (!$saleItem) {
+                throw new \RuntimeException("Sản phẩm #{$item->product_id} không thuộc đơn bán.");
+            }
+
+            $unitPrice = (float) $saleItem->company_unit_price;
+            $vatPercent = (float) ($item->vat_percent ?? $saleItem->vat_percent ?? 0);
+            $totalAmount += (float) $item->quantity
+                * $unitPrice
+                * (1 + $vatPercent / 100);
+        }
+
+        $amountBase = round($totalAmount, 2);
+        return $this->createDebt(
+
+            customerId: $slip->salesOrder->customer_id,
+
+            amount: $amountBase,
+
+            referenceType: WarehouseSlip::class,
+
+            referenceId: $slip->id,
+
+            note: "Phát sinh công nợ từ phiếu xuất {$slip->code}"
+
+        );
+    }
     /**
      * Phát sinh công nợ thủ công (dùng khi tạo từ invoice/hóa đơn riêng).
      *
@@ -127,7 +178,10 @@ class CustomerDebtService
      */
     public function getBalance(int $customerId): float
     {
-        return (float) CustomerDebt::where('customer_id', $customerId)->sum('amount');
+        $openingDebt = (float) (Customer::find($customerId)?->opening_debt ?? 0);
+
+        return $openingDebt
+            + (float) CustomerDebt::where('customer_id', $customerId)->sum('amount');
     }
 
     /**

@@ -27,6 +27,7 @@ class TransactionController extends Controller
             'currency',
             'salesOrder',
             'purchaseOrder'
+            ,'customer', 'supplier', 'createdBy', 'approvedBy', 'rejectedBy'
         ]);
 
         // 🔥 FILTER theo yêu cầu nghiệp vụ
@@ -38,10 +39,12 @@ class TransactionController extends Controller
             $query->where('currency_id', $request->currency_id);
         }
 
-        if ($request->date_from && $request->date_to) {
+        $dateFrom = $request->input('date_from', $request->input('from_date'));
+        $dateTo = $request->input('date_to', $request->input('to_date'));
+        if ($dateFrom && $dateTo) {
             $query->whereBetween('transaction_date', [
-                $request->date_from,
-                $request->date_to
+                $dateFrom,
+                $dateTo
             ]);
         }
 
@@ -49,8 +52,12 @@ class TransactionController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->keyword) {
-            $query->where('description', 'like', "%{$request->keyword}%");
+        $keyword = $request->input('search', $request->input('keyword'));
+        if ($keyword) {
+            $query->where(function ($subQuery) use ($keyword) {
+                $subQuery->where('description', 'like', "%{$keyword}%")
+                    ->orWhere('code', 'like', "%{$keyword}%");
+            });
         }
         $perPage = min((int) $request->input('per_page', 10), 100);
         $transactions = $query->latest()->paginate($perPage);
@@ -61,11 +68,13 @@ class TransactionController extends Controller
     // 📌 Tạo giao dịch
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'type' => 'required|in:receipt,payment,transfer',
-            'amount' => 'required|numeric|min:0',
-            'currency_id' => 'required',
+            'amount' => 'required|numeric|gt:0',
+            'currency_id' => 'nullable|exists:currencies,id',
             'category_id' => 'required',
+            'transaction_date' => 'required|date',
+            'description' => 'nullable|string|max:2000',
 
             'from_account_id' => 'nullable|exists:accounts,id',
             'to_account_id' => 'nullable|exists:accounts,id',
@@ -80,6 +89,9 @@ class TransactionController extends Controller
             'amount.required' => 'Số tiền không được để trống',
             'amount.numeric' => 'Số tiền phải là số',
             'amount.min' => 'Số tiền phải lớn hơn hoặc bằng 0',
+            'amount.gt' => 'Số tiền giao dịch phải lớn hơn 0',
+            'transaction_date.required' => 'Ngày giao dịch không được để trống',
+            'transaction_date.date' => 'Ngày giao dịch không hợp lệ',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
             'category_id.required' => 'Danh mục không được để trống',
             'from_account_id.exists' => 'Tài khoản không tồn tại',
@@ -97,7 +109,7 @@ class TransactionController extends Controller
         // Service sẽ rơi thành lỗi 500 chung chung thay vì message rõ ràng.
         try {
             $transaction = $this->service->create([
-                ...$request->all(),
+                ...$validated,
                 'company_id' => auth()->user()->company_id,
                 'created_by' => auth()->id(),
             ]);
@@ -116,11 +128,13 @@ class TransactionController extends Controller
     // nguyên tắc: đã duyệt thì khoá, không cho sửa lại (giống PO/SO).
     public function update(Request $request, int $id)
     {
-        $request->validate([
+        $validated = $request->validate([
             'type' => 'required|in:receipt,payment,transfer',
-            'amount' => 'required|numeric|min:0',
-            'currency_id' => 'required',
+            'amount' => 'required|numeric|gt:0',
+            'currency_id' => 'nullable|exists:currencies,id',
             'category_id' => 'required',
+            'transaction_date' => 'required|date',
+            'description' => 'nullable|string|max:2000',
 
             'from_account_id' => 'nullable|exists:accounts,id',
             'to_account_id' => 'nullable|exists:accounts,id',
@@ -135,6 +149,9 @@ class TransactionController extends Controller
             'amount.required' => 'Số tiền không được để trống',
             'amount.numeric' => 'Số tiền phải là số',
             'amount.min' => 'Số tiền phải lớn hơn hoặc bằng 0',
+            'amount.gt' => 'Số tiền giao dịch phải lớn hơn 0',
+            'transaction_date.required' => 'Ngày giao dịch không được để trống',
+            'transaction_date.date' => 'Ngày giao dịch không hợp lệ',
             'currency_id.required' => 'Đơn vị tiền tệ không được để trống',
             'category_id.required' => 'Danh mục không được để trống',
             'from_account_id.exists' => 'Tài khoản không tồn tại',
@@ -147,7 +164,7 @@ class TransactionController extends Controller
         ]);
 
         try {
-            $transaction = $this->service->update($id, $request->all());
+            $transaction = $this->service->update($id, $validated);
 
             return response()->json([
                 'message' => 'Cập nhật giao dịch thành công',
@@ -177,6 +194,9 @@ class TransactionController extends Controller
             'purchaseOrder',
             'createdBy',      // ← Thêm
             'approvedBy',
+            'rejectedBy',
+            'customer',
+            'supplier',
         ]);
     }
 
@@ -194,15 +214,54 @@ class TransactionController extends Controller
         }
     }
 
-    public function reject(int $id, TransactionService $service)
+    public function reject(Request $request, int $id, TransactionService $service)
     {
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|max:500',
+        ], [
+            'rejection_reason.required' => 'Vui lòng nhập lý do từ chối giao dịch.',
+            'rejection_reason.max' => 'Lý do từ chối không được vượt quá 500 ký tự.',
+        ]);
         try {
-            $transaction = $service->reject($id);
+            $transaction = $service->reject($id, $validated['rejection_reason']);
 
             return response()->json([
                 'message' => 'Từ chối giao dịch thành công',
                 'data' => $transaction,
             ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function orderOutstanding(Request $request)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:sale,purchase',
+            'order_id' => 'required|integer',
+        ]);
+
+        if ($validated['type'] === 'sale') {
+            $order = \App\Models\SalesOrder::whereKey($validated['order_id'])->firstOrFail();
+            $baseAmount = $this->service->salesOrderOutstanding($order->id);
+        } else {
+            $order = \App\Models\PurchaseOrder::whereKey($validated['order_id'])->firstOrFail();
+            $baseAmount = $this->service->purchaseOrderOutstanding($order->id);
+        }
+
+        $rate = (float) ($order->exchange_rate ?: 1);
+        return response()->json([
+            'remaining_base' => round($baseAmount, 2),
+            'remaining_amount' => round($baseAmount / $rate, 2),
+            'currency_id' => $order->currency_id,
+        ]);
+    }
+
+    public function destroy(int $id)
+    {
+        try {
+            $this->service->delete($id);
+            return response()->json(['message' => 'Xóa giao dịch chờ duyệt thành công']);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

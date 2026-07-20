@@ -25,9 +25,10 @@ class Supplier extends Model
         'ward_name',
 
         'address_detail',
-
+        'opening_debt',
         'total_debts',
         'total_advance',
+        'opening_advance',
 
         'status',
     ];

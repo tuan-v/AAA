@@ -57,13 +57,8 @@
                 <a
                     v-for="item in navItems"
                     :key="item.name"
-                    target="_blank"
-                    :href="
-                        item.name === 'Trang chủ' || hasCompanies
-                            ? item?.href
-                            : 'javascript:void(0)'
-                    "
-                    @click="handleNavClick(item)"
+                    :href="item.route"
+                    @click.prevent="handleNavClick(item)"
                     class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap cursor-pointer"
                     :class="[
                         activeNav === item.name
@@ -121,12 +116,8 @@
                 <a
                     v-for="item in navItems"
                     :key="item.name"
-                    :href="
-                        item.name === 'Trang chủ' || hasCompanies
-                            ? item.href
-                            : 'javascript:void(0)'
-                    "
-                    @click="handleNavClick(item)"
+                    :href="item.route"
+                    @click.prevent="handleNavClick(item)"
                     class="px-4 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 cursor-pointer"
                     :class="[
                         activeNav === item.name
@@ -157,11 +148,13 @@ import "vue3-toastify/dist/index.css";
 
 import { router } from "@inertiajs/vue3";
 import { useModule } from "@/composables/useModule.js";
+import { usePermission } from "@/composables/usePermission";
 
 const { currentModule } = useModule();
 const page = usePage();
 const { toggleSidebar, toggleMobileSidebar, isMobileOpen } = useSidebar();
 const confirmDialog = ref(null);
+const { canAny } = usePermission();
 
 const companies = computed(() => {
     return page.props.auths?.companies || [];
@@ -202,33 +195,40 @@ if (ROOT_DOMAIN == "asfy-cms.test") {
     ROOT_DOMAIN += ":8000";
 }
 
-const navItems = ref([
+const allNavItems = [
     {
         name: "TRANG CHỦ",
         module: "hr",
         route: "/dashboard",
+        permissions: ["nhan_su.xem", "vai_tro.xem", "quyen.xem", "nhat_ky.xem"],
     },
     {
         name: "MUA HÀNG",
         module: "purchase",
         route: "/purchase",
+        permissions: ["nha_cung_cap.xem", "san_pham_mua_hang.xem", "danh_muc_mua_hang.xem", "don_vi_mua_hang.xem", "don_mua.xem"],
     },
     {
         name: "BÁN HÀNG",
         module: "sale",
         route: "/sale",
+        permissions: ["khach_hang.xem", "don_ban.xem"],
     },
     {
         name: "KHO",
         module: "warehouse",
         route: "/warehouse",
+        permissions: ["kho.xem", "san_pham_kho.xem", "danh_muc_kho.xem", "don_vi_kho.xem", "phieu_kho.xem", "chuyen_kho.xem"],
     },
     {
         name: "KẾ TOÁN",
         module: "accountant",
         route: "/accountant",
+        permissions: ["tien_te.xem", "ngan_hang.xem", "tai_khoan.xem", "loai_giao_dich.xem", "giao_dich.xem", "cong_no_khach_hang.xem", "cong_no_nha_cung_cap.xem", "account_ledger.view"],
     },
-]);
+];
+
+const navItems = computed(() => allNavItems.filter((item) => canAny(item.permissions)));
 
 const activeNav = ref("Dashboard");
 

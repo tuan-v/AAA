@@ -141,6 +141,9 @@
                     Tổng giá trị đơn hàng
                 </h3>
 
+                <div class="flex justify-between py-2 text-gray-600"><span>Tạm tính</span><span>{{ formatMoney(order?.subtotal || 0, order?.currency) }}</span></div>
+                <div class="flex justify-between py-2 text-gray-600"><span>VAT</span><span>{{ formatMoney(order?.vat_amount || 0, order?.currency) }}</span></div>
+
                 <div
                     class="flex justify-between border-t pt-4 text-2xl font-bold text-blue-700"
                 >
@@ -195,6 +198,8 @@
 
                             <th class="border p-3 text-right">Đơn giá</th>
 
+                            <th class="border p-3 text-center">VAT</th>
+
                             <th class="border p-3 text-right">Thành tiền</th>
                         </tr>
                     </thead>
@@ -225,8 +230,10 @@
                                 {{ formatMoney(item.price, order?.currency) }}
                             </td>
 
+                            <td class="border p-3 text-center">{{ item.vat_percent || 0 }}%</td>
+
                             <td class="border p-3 text-right font-semibold">
-                                {{ formatMoney(item.amount, order?.currency) }}
+                                {{ formatMoney(Number(item.amount || 0) * (1 + Number(item.vat_percent || 0) / 100), order?.currency) }}
                             </td>
                         </tr>
                     </tbody>

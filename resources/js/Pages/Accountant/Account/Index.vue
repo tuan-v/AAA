@@ -17,7 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách tài khoản</h2>
 
             <button
-                v-if="can('account.create')"
+                v-if="can('tai_khoan.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -80,6 +80,7 @@ import AccountForm from "./AccountForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import { usePermission } from "@/composables/usePermission";
+import { formatMoney } from "@/config/helpers";
 
 const { can } = usePermission();
 const perPage = ref(10);
@@ -191,7 +192,7 @@ const columns = [
             h(
                 "span",
                 {},
-                Number(row.opening_balance ?? 0).toLocaleString("vi-VN"),
+                formatMoney(row.opening_balance ?? 0, row.currency),
             ),
     },
 
@@ -207,7 +208,7 @@ const columns = [
                     class: "font-semibold text-blue-600",
                 },
 
-                Number(row.current_balance ?? 0).toLocaleString("vi-VN"),
+                formatMoney(row.current_balance ?? 0, row.currency),
             ),
     },
     {

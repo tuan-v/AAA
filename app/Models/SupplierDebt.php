@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class SupplierDebt extends Model
 {
+    public const TYPE_INVOICE = 'invoice';
+    public const TYPE_PAYMENT = 'payment';
+    public const TYPE_REFUND = 'refund';
+    public const TYPE_ADVANCE = 'advance';
+    public const TYPE_ADVANCE_REFUND = 'advance_refund';
+    public const TYPE_ADJUSTMENT = 'adjustment';
+    public const TYPE_ADVANCE_OFFSET = 'advance_offset';
     protected $fillable = [
         'supplier_id',
         'type',
@@ -53,7 +60,7 @@ class SupplierDebt extends Model
      */
     public function scopeInvoice($query)
     {
-        return $query->where('type', 'invoice');
+        return $query->where('type', self::TYPE_INVOICE);
     }
 
     /**
@@ -61,14 +68,25 @@ class SupplierDebt extends Model
      */
     public function scopePayment($query)
     {
-        return $query->where('type', 'payment');
+        return $query->where('type', self::TYPE_PAYMENT);
     }
-
+    public function scopeAdvance($query)
+    {
+        return $query->where('type', self::TYPE_ADVANCE);
+    }
+    public function scopeRefund($query)
+    {
+        return $query->where('type', self::TYPE_REFUND);
+    }
+    public function scopeAdvanceRefund($query)
+    {
+        return $query->where('type', self::TYPE_ADVANCE_REFUND);
+    }
     /**
      * Scope điều chỉnh công nợ.
      */
     public function scopeAdjustment($query)
     {
-        return $query->where('type', 'adjustment');
+        return $query->where('type', self::TYPE_ADJUSTMENT);
     }
 }

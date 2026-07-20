@@ -31,41 +31,6 @@ export function formatMoney(value, currency = null) {
     return currency.code === "VND"
         ? `${formatted} ${symbol}`.trim()
         : `${symbol} ${formatted}`.trim();
-
-    // Nếu có nhiều dấu . → coi là phân cách hàng nghìn (VD: 4.500.000)
-    const dotCount = (str.match(/\./g) || []).length;
-    if (dotCount > 1) {
-        str = str.replace(/\./g, "");
-    }
-
-    // Chỉ giữ số, dấu - và dấu .
-    str = str.replace(/[^0-9.-]/g, "");
-
-    // Chỉ cho phép 1 dấu .
-    const parts = str.split(".");
-    if (parts.length > 2) {
-        str = parts[0] + "." + parts.slice(1).join("");
-    }
-
-    let [integer, fraction] = str.split(".");
-
-    // Format phần nguyên
-    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-    // Không có phần thập phân
-    if (fraction === undefined) {
-        return integer;
-    }
-
-    // Giới hạn số chữ số thập phân
-    fraction = fraction.slice(0, decimal);
-
-    // Nếu .00 thì bỏ
-    if (/^0+$/.test(fraction)) {
-        return integer;
-    }
-
-    return `${integer}.${fraction}`;
 }
 // helpers.js
 
@@ -392,4 +357,16 @@ export function formatMoneyInput(value) {
 }
 export function unformatMoney(value) {
     return String(value).replace(/\D/g, "");
+}
+
+export function getValidationMessage(error, fallback = "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.") {
+    const data = error?.response?.data;
+    const errors = data?.errors;
+
+    if (errors && typeof errors === "object") {
+        const first = Object.values(errors).flat(Infinity).find(Boolean);
+        if (first) return String(first);
+    }
+
+    return data?.message || fallback;
 }

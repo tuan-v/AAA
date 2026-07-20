@@ -21,16 +21,13 @@ class PurchaseOrder extends Model
         'created_by',
         'approved_by',
         'approved_at',
+        'subtotal',
+        'vat_amount',
+        'total_amount',
     ];
     protected $casts = [
         'expected_received_date' => 'date:Y-m-d',
     ];
-    protected $appends = ['total_amount'];
-    public function getTotalAmountAttribute()
-    {
-        return $this->items->sum('amount');
-    }
-
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);

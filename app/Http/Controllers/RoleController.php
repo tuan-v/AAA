@@ -32,6 +32,14 @@ class RoleController extends Controller
             $query->where('type', $request->type);
         }
 
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
         if (! $isSuperAdmin) {
             $query->where('is_protected', false);
         }
@@ -74,6 +82,7 @@ class RoleController extends Controller
             ],
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
+            'description' => 'nullable|string|max:255',
         ]);
 
         $role = Role::create(
@@ -83,6 +92,7 @@ class RoleController extends Controller
                 'guard_name' => 'web',
                 'type' => 'user',
                 'is_protected' => false,
+                'description' => $validated['description'] ?? null,
             ]
 
         );
@@ -126,9 +136,13 @@ class RoleController extends Controller
             ],
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
+            'description' => 'nullable|string|max:255',
         ]);
 
-        $role->update(['name' => $validated['name']]);
+        $role->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
 
         if (isset($validated['permissions'])) {
             $role->syncPermissions($validated['permissions']);

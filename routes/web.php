@@ -1,16 +1,19 @@
 <?php
 
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::middleware(['auth'])->group(function () {
 Route::prefix('/warehouse')->group(function () {
     Route::get('/', function () {
-        return Inertia::render('Warehouse/Index');
+        return Inertia::render('Warehouse/Dashboard');
     });
+    Route::get('/list', fn() => Inertia::render('Warehouse/Index'));
     Route::get('/{id}/detail', function ($id) {
         return Inertia::render('Warehouse/WarehouseDetail', [
             'id' => (int) $id,
@@ -45,7 +48,7 @@ Route::get(
 Route::prefix('purchase')->group(function () {
 
     Route::get('/', function () {
-        return Inertia::render('Purchase/Order/Index');
+        return Inertia::render('Purchase/Dashboard');
     });
     Route::get('/suppliers', function () {
         return Inertia::render('Purchase/Supplier/Index');
@@ -66,7 +69,7 @@ Route::prefix('purchase')->group(function () {
 });
 Route::prefix('/sale')->group(function () {
     Route::get('/', function () {
-        return Inertia::render('Sale/Customer/Index');
+        return Inertia::render('Sale/Dashboard');
     });
     Route::get('/customers', function () {
         return Inertia::render('Sale/Customer/Index');
@@ -77,7 +80,7 @@ Route::prefix('/sale')->group(function () {
 });
 Route::prefix('/accountant')->group(function () {
     Route::get('/', function () {
-        return Inertia::render('Accountant/Account/Index');
+        return Inertia::render('Accountant/Dashboard');
     });
     Route::get('/accounts', function () {
         return Inertia::render('Accountant/Account/Index');
@@ -131,31 +134,30 @@ Route::get('/user/{id}', function ($id) {
         'id' => $id
     ]);
 });
+});
 
 
 
 // ─── Setup routes (chỉ cho phép ở môi trường local/staging) ──────────────────
 if (app()->isLocal() || app()->environment('staging')) {
-    Route::get('/setup', function () {
-        $request = request();
-        if ($request->get('fresh')) {
-            Artisan::call('migrate:fresh');
-            Artisan::call('db:seed');
-        } else {
-            Artisan::call('migrate');
-        }
-        return 'Database migrated and seeded!';
-    });
+    Route::post('/setup', function () {
+        Artisan::call('migrate', ['--force' => true]);
+        return 'Database migrated!';
+    })->middleware('auth');
 
-    Route::get('/setup-s', function () {
+    Route::post('/setup-s', function () {
         Artisan::call('storage:link');
         return 'Storage linked!';
-    });
+    })->middleware('auth');
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
 
 Route::middleware(['auth'])->group(function () {
+
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get(
         '/company/create',
@@ -190,6 +192,6 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('/users', function () {
     return Inertia::render('User/Index');
-})->middleware('permission:user.view');
+})->middleware('permission:nhan_su.xem');
 
 require __DIR__ . '/auth.php';

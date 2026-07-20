@@ -15,6 +15,14 @@ class SupplierController extends Controller
         protected CurrencyService $currencyService,
         protected CodeGeneratorService $codeGenerator
     ) {}
+
+    private function companyId(): int
+    {
+        $companyId = auth()->user()->company_id
+            ?? auth()->user()->companies()->value('companies.id');
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+        return (int) $companyId;
+    }
     public function index(Request $request)
     {
         $query = Supplier::with('currency');
@@ -39,7 +47,7 @@ class SupplierController extends Controller
                 $debtEntries = $supplier->debts()->latest()->get();
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
                 $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
-                $currentDebt = (float) $supplier->total_debts + $totalReceivable - $totalPaid;
+                $currentDebt = (float) $supplier->total_debts;
                 $companyCurrency = $this->currencyService
                     ->getCompanyCurrency(auth()->user()->company);
 
@@ -67,10 +75,10 @@ class SupplierController extends Controller
                         $supplier->province_name,
                     ])->filter()->implode(', '),
 
-                    'total_debts' => $supplier->total_debts,
+                    'opening_debt' => $supplier->opening_debt,
                     'current_debt' => $currentDebt,
                     'total_advance' => $supplier->total_advance,
-
+                    'opening_advance' => $supplier->opening_advance,
                     'status' => $supplier->status,
                     'created_at' => $supplier->created_at,
                     'company_currency' => [
@@ -110,12 +118,12 @@ class SupplierController extends Controller
 
             'currency_id' => 'required|exists:currencies,id',
 
-            'province_id' => 'required',
-            'ward_id' => 'required',
+            'province_code' => 'required',
+            'ward_code' => 'required',
 
             'address_detail' => 'required|string|max:500',
 
-            'total_debts' => 'nullable|numeric|min:0',
+            'opening_debt' => 'nullable|numeric|min:0',
             'total_advance' => 'nullable|numeric|min:0',
         ], [
             'name.required' => 'Tên nhà cung cấp không được để trống.',
@@ -131,20 +139,17 @@ class SupplierController extends Controller
             'currency_id.required' => 'Vui lòng chọn tiền tệ.',
             'currency_id.exists' => 'Tiền tệ không tồn tại.',
 
-            // 'province_code.max' => 'Mã tỉnh/thành không hợp lệ.',
-            // 'province_name.max' => 'Tên tỉnh/thành tối đa 255 ký tự.',
-            'province_id.required' => 'Vui lòng chọn tỉnh',
-            'ward_id.required' => 'Vui lòng chọn xã/phường.',
-            // 'ward_name.max' => 'Tên phường/xã tối đa 255 ký tự.',
+            'province_code.required' => 'Vui lòng chọn tỉnh',
+            'ward_code.required' => 'Vui lòng chọn xã/phường.',
 
             'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
             'address_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
 
-            'total_debts.numeric' => 'Công nợ phải là số.',
-            'total_debts.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
+            'opening_debt.numeric' => 'Công nợ phải là số.',
+            'opening_debt.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
 
-            'total_advance.numeric' => 'Tiền ứng trước phải là số.',
-            'total_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
+            'opening_advance.numeric' => 'Tiền ứng trước phải là số.',
+            'openings_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
         ]);
 
 
@@ -168,7 +173,7 @@ class SupplierController extends Controller
             },
         ])->findOrFail($id);
 
-        $openingDebt = (float) ($supplier->total_debts ?? 0);
+        $openingDebt = (float) ($supplier->opening_debt ?? 0);
 
         $debtEntries = $supplier->debts;
 
@@ -270,7 +275,13 @@ class SupplierController extends Controller
 
     public function update(Request $request, $id)
     {
-        $supplier = Supplier::findOrFail($id);
+        $supplier = Supplier::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($supplier->purchaseOrders()->exists()) {
+            return response()->json([
+                'message' => 'Nhà cung cấp đã phát sinh đơn mua, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'name' => 'required|max:255',
@@ -278,7 +289,7 @@ class SupplierController extends Controller
                 'required',
                 'regex:/^(0|\+84)[0-9]{9,10}$/'
             ],
-            'email' => 'required|email|unique:suppliers,email',
+            'email' => 'required|email|',
 
             'currency_id' => 'required|exists:currencies,id',
 
@@ -290,10 +301,9 @@ class SupplierController extends Controller
 
             'address_detail' => 'required|string|max:500',
 
-            'total_debts' => 'nullable|numeric|min:0',
-            'total_advance' => 'nullable|numeric|min:0',
+            'opening_debt' => 'nullable|numeric|min:0',
+            'opening_advance' => 'nullable|numeric|min:0',
 
-            'status' => 'required|in:active,inactive',
         ], [
             'name.required' => 'Tên nhà cung cấp không được để trống.',
             'name.max' => 'Tên nhà cung cấp tối đa 255 ký tự.',
@@ -316,14 +326,12 @@ class SupplierController extends Controller
             'address_detail.max' => 'Địa chỉ chi tiết tối đa 500 ký tự.',
             'adress_detail.required' => 'Địa chỉ chi tiết không được bỏ trống',
 
-            'total_debts.numeric' => 'Công nợ phải là số.',
-            'total_debts.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
+            'opening_debt.numeric' => 'Công nợ phải là số.',
+            'opening_debt.min' => 'Công nợ phải lớn hơn hoặc bằng 0.',
 
-            'total_advance.numeric' => 'Tiền ứng trước phải là số.',
-            'total_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
+            'opening_advance.numeric' => 'Tiền ứng trước phải là số.',
+            'opening_advance.min' => 'Tiền ứng trước phải lớn hơn hoặc bằng 0.',
 
-            'status.required' => 'Vui lòng chọn trạng thái.',
-            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
 
         $supplier->update($validated);
@@ -333,9 +341,24 @@ class SupplierController extends Controller
         ]);
     }
 
+    public function destroy($id)
+    {
+        $supplier = Supplier::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($supplier->purchaseOrders()->exists()) {
+            return response()->json([
+                'message' => 'Nhà cung cấp đã phát sinh đơn mua, không thể xóa. Bạn có thể chuyển sang trạng thái khóa.',
+            ], 422);
+        }
+
+        $supplier->delete();
+
+        return response()->json(['message' => 'Xóa nhà cung cấp thành công.']);
+    }
+
     public function toggleStatus($id)
     {
-        $supplier = Supplier::findOrFail($id);
+        $supplier = Supplier::where('company_id', $this->companyId())->findOrFail($id);
 
         $supplier->status =
             $supplier->status === 'active'

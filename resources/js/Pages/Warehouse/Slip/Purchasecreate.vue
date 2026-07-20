@@ -37,7 +37,7 @@
                     v-model="warehouseId"
                     :options="warehouseOptions"
                     label=""
-                    placeholder="Tìm hoặc chọn kho..."
+                    placeholder="Tìm hoặc chọn warehouse..."
                     searchable
                     allow-create
                     add-new-text="Thêm kho mới"
@@ -96,6 +96,7 @@
                             <input
                                 type="number"
                                 min="0"
+                                :step="item.product?.unit?.allow_decimal ? '0.01' : '1'"
                                 :max="
                                     item.quantity -
                                     (item.received_quantity || 0)
@@ -104,6 +105,7 @@
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                             />
+                            <p class="mt-1 text-xs text-gray-500 text-center">{{ item.product?.unit?.allow_decimal ? 'Cho phép số lẻ' : 'Chỉ được nhập số nguyên' }}</p>
                         </td>
                     </tr>
                 </tbody>
@@ -170,6 +172,7 @@ import FormSelect from "@/components/FormSelect.vue";
 import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
 import SlipDetail from "./SlipDetail.vue";
 import { usePermission } from "@/composables/usePermission";
+import { getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
 const showDetailModal = ref(false);
@@ -232,7 +235,7 @@ const slipActions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         hidden: (row) =>
-            !can("warehouse_slip.approve") || row.status !== "pending",
+            !can("phieu_kho.duyet") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -258,7 +261,7 @@ const slipActions = [
         title: "Từ chối",
         icon: DeleteIcon,
         hidden: (row) =>
-            !can("warehouse_slip.reject") || row.status !== "pending",
+            !can("phieu_kho.tu_choi") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -431,7 +434,6 @@ async function submit() {
             note: "", // thêm tạm nếu cần
         };
 
-        console.log("Payload gửi lên:", payload); // ← Quan trọng để debug
 
         const res = await axios.post("/api/warehouse/slips", payload);
 
@@ -446,11 +448,9 @@ async function submit() {
 
         if (error.response?.data?.errors) {
             console.table(error.response.data.errors);
-            toast.error(
-                Object.values(error.response.data.errors).flat().join(", "),
-            );
+            toast.error(getValidationMessage(error));
         } else {
-            toast.error(error.response?.data?.message || "Lỗi không xác định");
+            toast.error(getValidationMessage(error, "Không thể tạo phiếu nhập warehouse."));
         }
     } finally {
         loading.value = false;

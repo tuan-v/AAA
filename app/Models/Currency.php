@@ -14,7 +14,6 @@ use App\Models\CurrencyRate;
 class Currency extends Model
 {
     protected $fillable = [
-        'company_id',
         'code',
         'name',
         'symbol',

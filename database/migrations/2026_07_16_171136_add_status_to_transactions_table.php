@@ -23,22 +23,34 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('transactions')->where('status', 'draft')->update(['status' => 'pending']);
+            DB::table('transactions')->where('status', 'posted')->update(['status' => 'approved']);
+            DB::table('transactions')->where('status', 'cancelled')->update(['status' => 'rejected']);
+
+            Schema::table('transactions', function (Blueprint $table) {
+                $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+                $table->timestamp('approved_at')->nullable();
+            });
+            return;
+        }
+
         // BƯỚC 1: mở rộng enum, giữ cả cũ lẫn mới
         DB::statement("
             ALTER TABLE transactions
-            MODIFY status ENUM('draft','posted','cancelled','pending','approve','reject')
+            MODIFY status ENUM('draft','posted','cancelled','pending','approved','rejected')
             NOT NULL DEFAULT 'draft'
         ");
 
         // BƯỚC 2: map dữ liệu cũ sang tên mới
         DB::table('transactions')->where('status', 'draft')->update(['status' => 'pending']);
-        DB::table('transactions')->where('status', 'posted')->update(['status' => 'approve']);
-        DB::table('transactions')->where('status', 'cancelled')->update(['status' => 'reject']);
+        DB::table('transactions')->where('status', 'posted')->update(['status' => 'approved']);
+        DB::table('transactions')->where('status', 'cancelled')->update(['status' => 'rejected']);
 
         // BƯỚC 3: thu gọn enum, chỉ còn 3 giá trị mới, default = pending
         DB::statement("
             ALTER TABLE transactions
-            MODIFY status ENUM('pending','approve','reject')
+            MODIFY status ENUM('pending','approved','rejected')
             NOT NULL DEFAULT 'pending'
         ");
 
@@ -61,7 +73,7 @@ return new class extends Migration
         // coi như đã "duyệt" ngay tại thời điểm tạo, vì code cũ tác động
         // số liệu ngay lúc create(). Gán approved_by/approved_at cho nhất quán.
         DB::table('transactions')
-            ->where('status', 'approve')
+            ->where('status', 'approved')
             ->whereNull('approved_at')
             ->update([
                 'approved_by' => DB::raw('created_by'),
@@ -71,16 +83,23 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('transactions', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('approved_by');
+                $table->dropColumn('approved_at');
+            });
+            return;
+        }
         // Mở rộng lại để map ngược
         DB::statement("
             ALTER TABLE transactions
-            MODIFY status ENUM('draft','posted','cancelled','pending','approve','reject')
+            MODIFY status ENUM('draft','posted','cancelled','pending','approved','rejected')
             NOT NULL DEFAULT 'pending'
         ");
 
         DB::table('transactions')->where('status', 'pending')->update(['status' => 'draft']);
-        DB::table('transactions')->where('status', 'approve')->update(['status' => 'posted']);
-        DB::table('transactions')->where('status', 'reject')->update(['status' => 'cancelled']);
+        DB::table('transactions')->where('status', 'approved')->update(['status' => 'posted']);
+        DB::table('transactions')->where('status', 'rejected')->update(['status' => 'cancelled']);
 
         DB::statement("
             ALTER TABLE transactions

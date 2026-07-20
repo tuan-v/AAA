@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn vị</h2>
 
             <button
-                v-if="can('purchase_unit.create')"
+                v-if="can('don_vi_mua_hang.them')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -169,7 +169,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("purchase_unit.update"),
+        hidden: () => !can("don_vi_mua_hang.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -181,14 +181,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("purchase_unit.lock")
-                : !can("purchase_unit.unlock"),
+                ? !can("don_vi_mua_hang.khoa")
+                : !can("don_vi_kho.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     // {
     //     icon: DetailButtonIcon,
     //     type: "view",
-    //     hidden: () => !can("purchase_unit.detail"),
+    //     hidden: () => !can("don_vi_kho.xem"),
     //     onClick: (item) => openDetail(item),
     //     tooltip: "Xem chi tiết",
     // },

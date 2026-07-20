@@ -11,7 +11,7 @@
             <h2 class="text-2xl font-bold">Danh sách nhân sự</h2>
 
             <button
-                v-if="can('user.create')"
+                v-if="can('nhan_su.them')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded"
             >
@@ -168,7 +168,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("user.update"),
+        hidden: () => !can("nhan_su.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -179,13 +179,13 @@ const actions = computed(() => [
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
-            item.status === "active" ? !can("user.lock") : !can("user.unlock"),
+            !can("nhan_su.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
         type: "view",
-        hidden: () => !can("user.detail"),
+        hidden: () => !can("nhan_su.xem"),
         onClick: (item) => openDetail(item),
         tooltip: "Xem chi tiết",
     },
@@ -261,7 +261,6 @@ async function toggleStatus(user) {
             users.value.data[index].status = newStatus;
         }
     } catch (error) {
-        console.log(error.response?.data || error);
         alert("Cập nhật thất bại");
     }
 }

@@ -8,7 +8,7 @@
             <h2 class="text-2xl font-bold">Danh sách kho hàng</h2>
 
             <button
-                v-if="can('warehouse.create')"
+                v-if="can('kho.them')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -134,7 +134,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("warehouse.update"),
+        hidden: () => !can("kho.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -146,14 +146,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("warehouse.lock")
-                : !can("warehouse.unlock"),
+                ? !can("kho.khoa")
+                : !can("kho.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
         type: "view",
-        hidden: () => !can("warehouse.detail"),
+        hidden: () => !can("kho.xem"),
         onClick: (item) => openDetail(item),
         tooltip: "Xem chi tiết",
     },
@@ -165,7 +165,6 @@ function openCreate() {
 }
 
 function openEdit(warehouse) {
-    console.log(warehouse.id); // debug đúng
 
     selectedWarehouse.value = { ...warehouse };
 

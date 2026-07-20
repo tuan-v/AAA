@@ -9,6 +9,9 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use App\Services\CurrencyService;
 use App\Services\CodeGeneratorService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
+
         Inertia::share([
             'routeName' => fn() => Route::currentRouteName(),
             'auth' => function () {
@@ -93,10 +100,10 @@ class AppServiceProvider extends ServiceProvider
     private function managementMenuItems(): array
     {
         $canSeeManagement =
-            $this->can('user.view') ||
-            $this->can('role.view') ||
-            $this->can('permission.view') ||
-            $this->can('auditlog.view');
+            $this->can('nhan_su.xem') ||
+            $this->can('vai_tro.xem') ||
+            $this->can('quyen.xem') ||
+            $this->can('nhat_ky.xem');
 
         if (! $canSeeManagement) {
             return [];
@@ -112,22 +119,22 @@ class AppServiceProvider extends ServiceProvider
                 'icon' => 'GridIcon',
                 'name' => 'Quản lí',
                 'subItems' => array_values(array_filter([
-                    $this->can('user.view') ? [
+                    $this->can('nhan_su.xem') ? [
                         'name' => 'Nhân sự',
                         'path' => '/user',
                     ] : null,
 
-                    $this->can('permission.view') ? [
+                    $this->can('quyen.xem') ? [
                         'name' => 'Quyền',
                         'path' => '/permission',
                     ] : null,
 
-                    $this->can('role.view') ? [
+                    $this->can('vai_tro.xem') ? [
                         'name' => 'Vai trò',
                         'path' => '/role',
                     ] : null,
 
-                    $this->can('auditlog.view') ? [
+                    $this->can('nhat_ky.xem') ? [
                         'name' => 'Lịch sử hoạt động',
                         'path' => '/audit-logs',
                     ] : null,
@@ -147,25 +154,27 @@ class AppServiceProvider extends ServiceProvider
     {
         return match ($segment) {
             'warehouse' => array_values(array_filter([
-                $this->can('warehouse.view') ? [
+                ($this->can('kho.xem') || $this->can('san_pham_kho.xem') || $this->can('phieu_kho.xem') || $this->can('chuyen_kho.xem'))
+                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/warehouse'] : null,
+                $this->can('kho.xem') ? [
                     'icon' => 'WarehouseIcon',
                     'name' => 'Kho hàng',
-                    'path' => '/warehouse',
+                    'path' => '/warehouse/list',
                 ] : null,
 
-                $this->can('warehouse_product.view') ? [
+                $this->can('san_pham_kho.xem') ? [
                     'icon' => 'BoxIcon',
                     'name' => 'Sản phẩm',
                     'path' => '/warehouse/products',
                 ] : null,
 
-                $this->can('warehouse_slip.view') ? [
+                $this->can('phieu_kho.xem') ? [
                     'icon' => 'AddOder',
                     'name' => 'Đơn hàng',
                     'path' => '/warehouse/orders',
                 ] : null,
 
-                $this->can('warehouse_slip.view') ? [
+                $this->can('phieu_kho.xem') ? [
                     'icon' => 'MovetoinboxIcon',
                     'name' => 'Phiếu nhập/xuất',
                     'path' => '/warehouse/slips',
@@ -173,13 +182,15 @@ class AppServiceProvider extends ServiceProvider
             ])),
 
             'sale' => array_values(array_filter([
-                $this->can('sale_customer.view') ? [
+                ($this->can('khach_hang.xem') || $this->can('don_ban.xem'))
+                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/sale'] : null,
+                $this->can('khach_hang.xem') ? [
                     'icon' => 'UserIcon',
                     'name' => 'Khách hàng',
                     'path' => '/sale/customers',
                 ] : null,
 
-                $this->can('sale_order.view') ? [
+                $this->can('don_ban.xem') ? [
                     'icon' => 'ShoppingCartIcon',
                     'name' => 'Đơn hàng',
                     'path' => '/sale/orders',
@@ -187,19 +198,21 @@ class AppServiceProvider extends ServiceProvider
             ])),
 
             'purchase' => array_values(array_filter([
-                $this->can('supplier.view') ? [
+                ($this->can('nha_cung_cap.xem') || $this->can('san_pham_mua_hang.xem') || $this->can('don_mua.xem'))
+                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/purchase'] : null,
+                $this->can('nha_cung_cap.xem') ? [
                     'icon' => 'handpakageIcon',
                     'name' => 'Nhà cung cấp',
                     'path' => '/purchase/suppliers',
                 ] : null,
 
-                $this->can('purchase_product.view') ? [
+                $this->can('san_pham_mua_hang.xem') ? [
                     'icon' => 'BoxIcon',
                     'name' => 'Sản phẩm',
                     'path' => '/purchase/products',
                 ] : null,
 
-                $this->can('purchase_order.view') ? [
+                $this->can('don_mua.xem') ? [
                     'icon' => 'AddOder',
                     'name' => 'Đơn mua',
                     'path' => '/purchase/orders',
@@ -207,43 +220,45 @@ class AppServiceProvider extends ServiceProvider
             ])),
 
             'accountant' => array_values(array_filter([
-                $this->can('currency.view') ? [
+                ($this->can('tien_te.xem') || $this->can('ngan_hang.xem') || $this->can('tai_khoan.xem') || $this->can('giao_dich.xem') || $this->can('cong_no_khach_hang.xem') || $this->can('cong_no_nha_cung_cap.xem'))
+                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/accountant'] : null,
+                $this->can('tien_te.xem') ? [
                     'icon' => 'CurrencyIcon',
                     'name' => 'Tiền tệ',
                     'path' => '/accountant/currencies',
                 ] : null,
 
-                $this->can('bank.view') ? [
+                $this->can('ngan_hang.xem') ? [
                     'icon' => 'BankIcon',
                     'name' => 'Ngân hàng',
                     'path' => '/accountant/banks',
                 ] : null,
 
-                $this->can('account.view') ? [
+                $this->can('tai_khoan.xem') ? [
                     'icon' => 'AccountBankIcon',
                     'name' => 'Tài khoản',
                     'path' => '/accountant/accounts',
                 ] : null,
 
-                $this->can('transaction_category.view') ? [
+                $this->can('loai_giao_dich.xem') ? [
                     'icon' => 'ReceiptIcon',
                     'name' => 'Loại giao dịch',
                     'path' => '/accountant/transaction-categories',
                 ] : null,
 
-                $this->can('transaction.view') ? [
+                $this->can('giao_dich.xem') ? [
                     'icon' => 'transaction',
                     'name' => 'Giao dịch',
                     'path' => '/accountant/transactions',
                 ] : null,
 
-                $this->can('customer_debt.view') ? [
+                $this->can('cong_no_khach_hang.xem') ? [
                     'icon' => 'UserIcon',
                     'name' => 'Công nợ khách hàng',
                     'path' => '/accountant/customer-debts',
                 ] : null,
 
-                $this->can('supplier_debt.view') ? [
+                $this->can('cong_no_nha_cung_cap.xem') ? [
                     'icon' => 'TruckIcon',
                     'name' => 'Công nợ nhà cung cấp',
                     'path' => '/accountant/supplier-debts',

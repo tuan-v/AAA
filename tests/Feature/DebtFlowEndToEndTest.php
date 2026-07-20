@@ -21,7 +21,7 @@ class DebtFlowEndToEndTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_purchase_and_sales_debt_flow_with_payment_is_consistent(): void
+    public function test_approving_orders_does_not_create_debt_before_warehouse_slip_approval(): void
     {
         $user = User::create([
             'name' => 'Test User',
@@ -38,16 +38,6 @@ class DebtFlowEndToEndTest extends TestCase
             'phone' => '0123456789',
             'owner_id' => $user->id,
         ]);
-
-        Schema::create('currencies', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('code')->unique();
-            $table->string('symbol')->nullable();
-            $table->decimal('exchange_rate', 18, 2)->default(1);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
 
         $currency = Currency::create([
             'name' => 'Vietnamese Dong',
@@ -84,17 +74,6 @@ class DebtFlowEndToEndTest extends TestCase
             'status' => 'active',
         ]);
 
-        $account = Account::create([
-            'company_id' => $company->id,
-            'code' => 'CASH01',
-            'name' => 'Cash',
-            'currency_id' => $currency->id,
-            'type' => 'cash',
-            'current_balance' => 1000000,
-            'opening_balance' => 1000000,
-            'status' => 'active',
-        ]);
-
         $salesOrder = SalesOrder::create([
             'company_id' => $company->id,
             'code' => 'SO001',
@@ -103,6 +82,7 @@ class DebtFlowEndToEndTest extends TestCase
             'exchange_rate' => 1,
             'total_amount' => 500000,
             'status' => 'pending',
+            'created_by' => $user->id,
         ]);
 
         $purchaseOrder = PurchaseOrder::create([
@@ -113,6 +93,7 @@ class DebtFlowEndToEndTest extends TestCase
             'exchange_rate' => 1,
             'total_amount' => 400000,
             'status' => 'pending',
+            'created_by' => $user->id,
         ]);
 
         $salesOrder->update(['status' => 'approved']);
@@ -121,29 +102,8 @@ class DebtFlowEndToEndTest extends TestCase
         $customerDebt = CustomerDebt::where('customer_id', $customer->id)->latest()->first();
         $supplierDebt = SupplierDebt::where('supplier_id', $supplier->id)->latest()->first();
 
-        $this->assertNotNull($customerDebt);
-        $this->assertSame(500000.0, (float) $customerDebt->amount);
-        $this->assertNotNull($supplierDebt);
-        $this->assertSame(400000.0, (float) $supplierDebt->amount);
+        $this->assertNull($customerDebt, 'Duyệt đơn bán không được phát sinh công nợ.');
+        $this->assertNull($supplierDebt, 'Duyệt đơn mua không được phát sinh công nợ.');
 
-        $transaction = Transaction::create([
-            'company_id' => $company->id,
-            'code' => 'TXN-TEST-001',
-            'transaction_date' => now(),
-            'type' => 'receipt',
-            'category_id' => 1,
-            'currency_id' => $currency->id,
-            'amount' => 300000,
-            'exchange_rate' => 1,
-            'amount_base' => 300000,
-            'to_account_id' => $account->id,
-            'customer_id' => $customer->id,
-            'sales_order_id' => $salesOrder->id,
-            'description' => 'Customer payment',
-            'created_by' => $user->id,
-        ]);
-
-        $this->assertSame(200000.0, (float) CustomerDebt::where('customer_id', $customer->id)->sum('amount'));
-        $this->assertSame(400000.0, (float) SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
     }
 }

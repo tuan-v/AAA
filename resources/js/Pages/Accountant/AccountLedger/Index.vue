@@ -52,6 +52,7 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
+import { formatMoney, formatDateTime } from "@/config/helpers";
 
 /* ================= STATE ================= */
 const perPage = ref(10);
@@ -89,7 +90,7 @@ const columns = [
         label: "Ngày",
         align: "text-left",
         render: (row) =>
-            h("span", {}, new Date(row.ledger_date).toLocaleString("vi-VN")),
+            h("span", {}, formatDateTime(row.ledger_date)),
     },
 
     {
@@ -143,7 +144,7 @@ const columns = [
                 {
                     class: "font-semibold text-green-600",
                 },
-                Number(row.debit || 0).toLocaleString("vi-VN"),
+                formatMoney(row.debit || 0, row.currency),
             ),
     },
 
@@ -156,7 +157,7 @@ const columns = [
                 {
                     class: "font-semibold text-red-600",
                 },
-                Number(row.credit || 0).toLocaleString("vi-VN"),
+                formatMoney(row.credit || 0, row.currency),
             ),
     },
 
@@ -169,7 +170,7 @@ const columns = [
                 {
                     class: "font-bold text-blue-600",
                 },
-                Number(row.balance_after || 0).toLocaleString("vi-VN"),
+                formatMoney(row.balance_after || 0, row.currency),
             ),
     },
 

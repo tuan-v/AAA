@@ -130,20 +130,20 @@
                     <p class="text-xs text-gray-500 mb-1">Người tạo</p>
                     <p class="text-sm font-medium">
                         {{
-                            transaction.created_by?.name ||
+                            giao_dich.themd_by?.name ||
                             transaction.creator?.name ||
                             "—"
                         }}
                     </p>
                     <p
                         v-if="
-                            transaction.created_by?.email ||
+                            giao_dich.themd_by?.email ||
                             transaction.creator?.email
                         "
                         class="text-xs text-gray-400"
                     >
                         {{
-                            transaction.created_by?.email ||
+                            giao_dich.themd_by?.email ||
                             transaction.creator?.email
                         }}
                     </p>
@@ -154,22 +154,33 @@
                     <p class="text-xs text-gray-500 mb-1">Người duyệt</p>
                     <p class="text-sm font-medium">
                         {{
-                            transaction.approved_by?.name ||
-                            transaction.approver?.name ||
+                            giao_dich.duyetd_by?.name ||
+                            giao_dich.duyetr?.name ||
                             "Chưa duyệt"
                         }}
                     </p>
                     <p
-                        v-if="transaction.approved_at"
+                        v-if="giao_dich.duyetd_at"
                         class="text-xs text-gray-400"
                     >
-                        {{ formatDate(transaction.approved_at) }}
+                        {{ formatDate(giao_dich.duyetd_at) }}
                     </p>
                 </div>
             </div>
         </div>
 
         <!-- Nội dung -->
+        <div v-if="transaction.status === 'rejected'" class="border-b border-gray-200 py-4">
+            <p class="mb-2 text-xs font-medium uppercase tracking-wide text-red-500">Thông tin từ chối</p>
+            <div class="rounded-lg border border-red-100 bg-red-50 p-3">
+                <p class="text-sm text-red-700">{{ giao_dich.tu_choiion_reason || 'Không có lý do' }}</p>
+                <p class="mt-1 text-xs text-red-500">
+                    {{ giao_dich.tu_choied_by?.name || 'Người từ chối' }}
+                    <span v-if="giao_dich.tu_choied_at"> · {{ formatDate(giao_dich.tu_choied_at) }}</span>
+                </p>
+            </div>
+        </div>
+
         <div
             v-if="transaction.description"
             class="py-4 border-b border-gray-200"
@@ -189,9 +200,9 @@
         <!-- Footer -->
         <div class="pt-3 flex items-center justify-between flex-wrap gap-2">
             <p class="text-xs text-gray-400">
-                Tạo lúc: {{ formatDate(transaction.created_at) }}
-                <span v-if="transaction.updated_at">
-                    · Cập nhật: {{ formatDate(transaction.updated_at) }}
+                Tạo lúc: {{ formatDate(giao_dich.themd_at) }}
+                <span v-if="giao_dich.suad_at">
+                    · Cập nhật: {{ formatDate(giao_dich.suad_at) }}
                 </span>
             </p>
         </div>
@@ -201,6 +212,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
+import { formatMoney as formatMoneyHelper } from "@/config/helpers";
 import {
     CheckCircleIcon,
     ArrowUpCircleIcon,
@@ -256,11 +268,11 @@ const STATUS_MAP = {
         label: "Chờ duyệt",
         badgeClass: "bg-yellow-50 text-yellow-700",
     },
-    approve: {
+    approved: {
         label: "Đã duyệt",
         badgeClass: "bg-green-50 text-green-700",
     },
-    reject: {
+    rejected: {
         label: "Từ chối",
         badgeClass: "bg-red-50 text-red-700",
     },
@@ -286,7 +298,7 @@ const amountClass = computed(() => {
 });
 
 function formatMoney(value) {
-    return Number(value || 0).toLocaleString("vi-VN");
+    return formatMoneyHelper(value || 0);
 }
 
 function formatDate(value) {

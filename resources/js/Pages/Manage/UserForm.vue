@@ -408,7 +408,6 @@ async function saveUser() {
         emit("saved");
         emit("close");
     } catch (error) {
-        console.log(error.response?.data);
 
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {};
@@ -417,7 +416,6 @@ async function saveUser() {
         }
     }
 }
-console.log(page.props);
 onMounted(() => {
     getRoles();
 });

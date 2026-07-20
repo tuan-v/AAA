@@ -87,6 +87,7 @@
                             <input
                                 type="number"
                                 min="0"
+                                :step="item.product?.unit?.allow_decimal ? '0.01' : '1'"
                                 :max="
                                     item.quantity -
                                     (item.exported_quantity || 0)
@@ -95,6 +96,7 @@
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                             />
+                            <p class="mt-1 text-xs text-gray-500 text-center">{{ item.product?.unit?.allow_decimal ? 'Cho phép số lẻ' : 'Chỉ được nhập số nguyên' }}</p>
                         </td>
                     </tr>
                 </tbody>
@@ -164,6 +166,7 @@ import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import { usePermission } from "@/composables/usePermission";
+import { getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
 // ===================== STATE
@@ -222,7 +225,6 @@ async function loadOrder() {
         const res = await axios.get(
             `/api/warehouse/orders/${orderId}/stock-out`,
         );
-        console.log("Dữ liệu đơn hàng:", res.data); // ← Debug
 
         order.value = res.data;
         items.value = (res.data.items || []).map((i) => ({
@@ -316,7 +318,7 @@ async function submit() {
         });
         await loadSlips();
     } catch (e) {
-        toast.error(e.response?.data?.message || "Có lỗi xảy ra");
+        toast.error(getValidationMessage(e, "Không thể tạo phiếu xuất warehouse."));
     } finally {
         loading.value = false;
     }

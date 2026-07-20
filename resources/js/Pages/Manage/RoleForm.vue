@@ -99,7 +99,7 @@
                                 <span
                                     class="text-sm font-semibold text-gray-700 capitalize"
                                 >
-                                    {{ group.name }}
+                                    {{ group.label }}
                                 </span>
                                 <button
                                     type="button"
@@ -125,7 +125,7 @@
                                         :value="permission.name"
                                         v-model="form.permissions"
                                     />
-                                    {{ permission.name }}
+                                    {{ permission.description || permission.name }}
                                 </label>
                             </div>
                         </div>
@@ -203,9 +203,21 @@ const groupedPermissions = computed(() => {
 
     return Object.entries(groups).map(([name, items]) => ({
         name,
+        label: moduleLabels[name] || name.replaceAll("_", " "),
         items,
     }));
 });
+
+const moduleLabels = {
+    nhan_su: "Nhân sự", vai_tro: "Vai trò", quyen: "Quyền", nhat_ky: "Nhật ký hoạt động",
+    tai_khoan: "Tài khoản", ngan_hang: "Ngân hàng", tien_te: "Tiền tệ",
+    cong_no_khach_hang: "Công nợ khách hàng", cong_no_nha_cung_cap: "Công nợ nhà cung cấp",
+    danh_muc_mua_hang: "Danh mục mua hàng", don_mua: "Đơn mua", san_pham_mua_hang: "Sản phẩm mua hàng",
+    don_vi_mua_hang: "Đơn vị tính mua hàng", khach_hang: "Khách hàng", don_ban: "Đơn bán",
+    nha_cung_cap: "Nhà cung cấp", giao_dich: "Giao dịch", loai_giao_dich: "Loại giao dịch",
+    kho: "Kho", danh_muc_kho: "Danh mục kho", san_pham_kho: "Sản phẩm kho", phieu_kho: "Phiếu kho",
+    chuyen_kho: "Chuyển kho", don_vi_kho: "Đơn vị tính kho",
+};
 
 const filteredGroups = computed(() => {
     if (!search.value.trim()) {
@@ -218,7 +230,7 @@ const filteredGroups = computed(() => {
         .map((group) => ({
             name: group.name,
             items: group.items.filter((p) =>
-                p.name.toLowerCase().includes(keyword),
+                `${p.name} ${p.description || ""}`.toLowerCase().includes(keyword),
             ),
         }))
         .filter((group) => group.items.length > 0);

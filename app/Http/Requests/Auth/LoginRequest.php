@@ -117,7 +117,7 @@ class LoginRequest extends FormRequest
         $host = $this->getHost();
         $mainDomain = env('APP_DOMAIN');
 
-        if ($host === $mainDomain) {
+        if (!$mainDomain || $host === $mainDomain || in_array($host, ['localhost', '127.0.0.1'], true)) {
             return '/dashboard';
         }
 

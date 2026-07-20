@@ -17,7 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách đơn mua hàng</h2>
 
             <button
-                v-if="can('purchase_order.create')"
+                v-if="can('don_mua.them')"
                 @click="openCreate"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
             >
@@ -251,7 +251,6 @@ const onSupplierCreated = async (newSupplier) => {
     // Buộc cập nhật lại form (quan trọng)
     selectedOrder.value = { ...selectedOrder.value }; // trigger reactivity
 
-    console.log("✅ Đã reload suppliers:", suppliers.value.length);
 };
 const suppliers = ref([]);
 const products = ref([]);
@@ -344,7 +343,7 @@ const actions = [
             openEdit(item);
         },
         hidden: (item) =>
-            !can("purchase_order.update") ||
+            !can("don_mua.sua") ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
@@ -359,7 +358,7 @@ const actions = [
         },
         // gộp luôn điều kiện "cancelled" vào đây vì action.visible không được DataTable đọc
         hidden: (item) =>
-            !can("purchase_order.approve") ||
+            !can("don_mua.duyet") ||
             item.status === "cancelled" ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
@@ -371,14 +370,14 @@ const actions = [
         // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("purchase_order.cancel") ||
+            !can("don_mua.huy") ||
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DetailButtonIcon,
         title: "Chi tiết",
         onClick: openPurchaseDetail,
-        hidden: () => !can("purchase_order.detail"),
+        hidden: () => !can("don_mua.xem_chi_tiet"),
     },
 ];
 const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed"];

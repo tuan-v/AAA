@@ -10,7 +10,7 @@ use App\Models\AuditLog;
 class LogPermissionAction
 {
     // Các action chỉ đọc, không cần snapshot old/new (tránh log rác không cần thiết)
-    private array $readOnlyActions = ['view', 'detail', 'history', 'select'];
+    private array $readOnlyActions = ['xem', 'xem_chi_tiet', 'xem_lich_su', 'chon'];
 
     public function handle(Request $request, Closure $next)
     {
@@ -29,7 +29,7 @@ class LogPermissionAction
         $oldValues = null;
         $modelInstance = $this->resolveBoundModel($request, $modelClass);
 
-        if ($modelInstance && ! in_array($action, ['create'])) {
+        if ($modelInstance && $action !== 'them') {
             $oldValues = $modelInstance->toArray();
         }
 
@@ -43,7 +43,7 @@ class LogPermissionAction
         $newValues = null;
         $modelId = $modelInstance?->getKey();
 
-        if (in_array($action, ['create', 'store'])) {
+        if ($action === 'them') {
             // Với create, lấy id/data từ response trả về (giả định controller trả {data: model})
             $payload = json_decode($response->getContent(), true);
             $created = $payload['data'] ?? $payload;
@@ -53,6 +53,12 @@ class LogPermissionAction
             // update/approve/reject/lock/unlock... -> load lại để lấy giá trị mới
             $fresh = $modelClass::find($modelId);
             $newValues = $fresh?->toArray();
+        }
+
+        // Route danh sách không bind một model cụ thể nên không có model_id.
+        // Không được để việc ghi audit làm request nghiệp vụ thành lỗi 500.
+        if (!$modelId) {
+            return $response;
         }
 
         ActivityLog::create([
@@ -104,18 +110,26 @@ class LogPermissionAction
     private function buildDescription(string $action, string $prefix): string
     {
         $labels = [
-            'view' => 'Xem',
-            'detail' => 'Xem chi tiết',
-            'create' => 'Tạo mới',
-            'update' => 'Cập nhật',
-            'delete' => 'Xóa',
-            'approve' => 'Duyệt',
-            'reject' => 'Từ chối',
-            'lock' => 'Khóa',
-            'unlock' => 'Mở khóa',
-            'history' => 'Xem lịch sử',
+            'xem' => 'Xem', 'xem_chi_tiet' => 'Xem chi tiết', 'them' => 'Thêm',
+            'sua' => 'Cập nhật', 'xoa' => 'Xóa', 'duyet' => 'Duyệt',
+            'tu_choi' => 'Từ chối', 'khoa' => 'Khóa', 'mo_khoa' => 'Mở khóa',
+            'huy' => 'Hủy', 'xem_lich_su' => 'Xem lịch sử',
         ];
 
-        return ($labels[$action] ?? ucfirst($action)) . ' ' . str_replace('_', ' ', $prefix);
+        $modules = [
+            'nhan_su' => 'nhân sự', 'vai_tro' => 'vai trò', 'quyen' => 'quyền',
+            'nhat_ky' => 'nhật ký hoạt động', 'kho' => 'kho', 'san_pham_kho' => 'sản phẩm kho',
+            'danh_muc_kho' => 'danh mục kho', 'don_vi_kho' => 'đơn vị kho', 'phieu_kho' => 'phiếu kho',
+            'chuyen_kho' => 'chuyển kho', 'nha_cung_cap' => 'nhà cung cấp',
+            'danh_muc_mua_hang' => 'danh mục mua hàng', 'don_vi_mua_hang' => 'đơn vị mua hàng',
+            'san_pham_mua_hang' => 'sản phẩm mua hàng', 'don_mua' => 'đơn mua',
+            'khach_hang' => 'khách hàng', 'don_ban' => 'đơn bán', 'tien_te' => 'tiền tệ',
+            'ngan_hang' => 'ngân hàng', 'tai_khoan' => 'tài khoản',
+            'cong_no_khach_hang' => 'công nợ khách hàng',
+            'cong_no_nha_cung_cap' => 'công nợ nhà cung cấp',
+            'loai_giao_dich' => 'loại giao dịch', 'giao_dich' => 'giao dịch',
+        ];
+
+        return ($labels[$action] ?? ucfirst($action)).' '.($modules[$prefix] ?? str_replace('_', ' ', $prefix));
     }
 }

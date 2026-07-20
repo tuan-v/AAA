@@ -21,12 +21,24 @@ return new class extends Migration
         }
 
         // 2. Backfill company_id dựa theo warehouse_id (chỉ ảnh hưởng dòng đang NULL)
-        DB::statement('
-            UPDATE warehouse_product_stocks AS wps
-            INNER JOIN warehouses AS w ON w.id = wps.warehouse_id
-            SET wps.company_id = w.company_id
-            WHERE wps.company_id IS NULL
-        ');
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('
+                UPDATE warehouse_product_stocks
+                SET company_id = (
+                    SELECT warehouses.company_id
+                    FROM warehouses
+                    WHERE warehouses.id = warehouse_product_stocks.warehouse_id
+                )
+                WHERE company_id IS NULL
+            ');
+        } else {
+            DB::statement('
+                UPDATE warehouse_product_stocks AS wps
+                INNER JOIN warehouses AS w ON w.id = wps.warehouse_id
+                SET wps.company_id = w.company_id
+                WHERE wps.company_id IS NULL
+            ');
+        }
 
         // 3. Xóa các dòng tồn kho rác không thuộc kho nào (orphan) - vẫn còn NULL sau backfill
         DB::table('warehouse_product_stocks')
@@ -39,7 +51,10 @@ return new class extends Migration
         });
 
         // 5. Tạo index nếu chưa có
-        $indexExists = collect(DB::select("SHOW INDEX FROM warehouse_product_stocks WHERE Key_name = 'wps_company_warehouse_product_idx'"))->isNotEmpty();
+        $indexExists = DB::getDriverName() === 'sqlite'
+            ? collect(DB::select("PRAGMA index_list('warehouse_product_stocks')"))
+                ->contains(fn ($index) => $index->name === 'wps_company_warehouse_product_idx')
+            : collect(DB::select("SHOW INDEX FROM warehouse_product_stocks WHERE Key_name = 'wps_company_warehouse_product_idx'"))->isNotEmpty();
 
         if (!$indexExists) {
             Schema::table('warehouse_product_stocks', function (Blueprint $table) {

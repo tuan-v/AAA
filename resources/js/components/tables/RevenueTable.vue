@@ -176,7 +176,6 @@ const props = defineProps({
     }
 })
 
-console.log(">>> props.plannedData", props.plannedData);
 
 
 const activeTab = ref('planned')

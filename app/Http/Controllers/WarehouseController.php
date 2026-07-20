@@ -11,6 +11,14 @@ use Inertia\Inertia;
 
 class WarehouseController extends Controller
 {
+    private function companyId(): int
+    {
+        $companyId = auth()->user()->company_id
+            ?? auth()->user()->companies()->value('companies.id');
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+        return (int) $companyId;
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -113,13 +121,20 @@ class WarehouseController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => Warehouse::with(['province', 'ward'])->findOrFail($id)
+            'data' => Warehouse::with(['province', 'ward'])
+                ->where('company_id', $this->companyId())->findOrFail($id)
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        $warehouse = Warehouse::findOrFail($id);
+        $warehouse = Warehouse::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($warehouse->slips()->exists() || $warehouse->stocks()->exists()) {
+            return response()->json([
+                'message' => 'Kho đã phát sinh tồn kho hoặc phiếu kho, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'name' => 'required|max:255',
@@ -137,9 +152,24 @@ class WarehouseController extends Controller
         ]);
     }
 
+    public function destroy($id)
+    {
+        $warehouse = Warehouse::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($warehouse->slips()->exists() || $warehouse->stocks()->exists()) {
+            return response()->json([
+                'message' => 'Kho đã được sử dụng, không thể xóa. Bạn có thể chuyển sang trạng thái khóa.',
+            ], 422);
+        }
+
+        $warehouse->delete();
+
+        return response()->json(['message' => 'Xóa kho thành công.']);
+    }
+
     public function toggleStatus($id)
     {
-        $warehouse = Warehouse::findOrFail($id);
+        $warehouse = Warehouse::where('company_id', $this->companyId())->findOrFail($id);
         $warehouse->status = $warehouse->status === 'active' ? 'inactive' : 'active';
         $warehouse->save();
 

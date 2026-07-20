@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('slip_id')->constrained('warehouse_slips')->cascadeOnDelete();
 
             $table->foreignId('slip_item_id')
-                ->constrained('warehouse_slip_item')
+                ->constrained('warehouse_slip_items')
                 ->cascadeOnDelete();
 
             $table->timestamp('created_at');

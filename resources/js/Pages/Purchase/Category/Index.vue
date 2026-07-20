@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách danh mục</h2>
 
             <button
-                v-if="can('purchase_category.create')"
+                v-if="can('danh_muc_mua_hang.them')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -132,6 +132,11 @@ const columns = [
         align: "text-start",
     },
     {
+        label: "Danh mục cha",
+        render: (row) => row.parent?.name || "—",
+        align: "text-start",
+    },
+    {
         label: "Trạng thái",
         key: "status",
 
@@ -153,7 +158,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("purchase_category.update"),
+        hidden: () => !can("danh_muc_mua_hang.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -165,14 +170,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("purchase_category.lock")
-                : !can("purchase_category.unlock"),
+                ? !can("danh_muc_mua_hang.khoa")
+                : !can("danh_muc_mua_hang.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     // {
     //     icon: DetailButtonIcon,
     //     type: "view",
-    //     hidden: () => !can("purchase_category.detail"),
+    //     hidden: () => !can("danh_muc_mua_hang.xem"),
     //     onClick: (item) => openDetail(item),
     //     tooltip: "Xem chi tiết",
     // },
@@ -197,7 +202,7 @@ function debounce(fn, delay = 300) {
     };
 }
 const fetchCategories = async () => {
-    const res = await axios.get("/api/warehouse/categories", {
+    const res = await axios.get("/api/purchase/categories", {
         params: {
             page: page.value,
             search: search.value,
@@ -231,7 +236,7 @@ function reloadData() {
 
 async function toggleStatus(category) {
     try {
-        await axios.patch(`/api/warehouse/categories/${category.id}/status`);
+        await axios.patch(`/api/purchase/categories/${category.id}/status`);
 
         await getData(categories.value.current_page);
     } catch (error) {

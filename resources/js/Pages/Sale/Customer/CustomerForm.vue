@@ -483,22 +483,27 @@ async function save() {
 
             status: form.status,
         };
-
+        let customer;
         if (form.id) {
-            await axios.put(`/api/sale/customers/${form.id}`, payload);
+            const res = await axios.put(
+                `/api/sale/customers/${form.id}`,
+                payload,
+            );
             emit("saved");
             toast.success("Sửa khách hàng thành công", {
                 position: "top-right",
             });
+            customer = res.data.data ?? res.data;
         } else {
-            await axios.post("/api/sale/customers", payload);
+            const res = await axios.post("/api/sale/customers", payload);
             toast.success("Thêm khách hàng thành công", {
                 position: "top-right",
                 zIndex: 99999,
             });
+            customer = res.data.data ?? res.data;
         }
 
-        emit("saved");
+        emit("saved", customer);
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors;

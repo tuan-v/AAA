@@ -8,7 +8,7 @@
         <div class="flex justify-between mb-5">
             <h2 class="text-2xl font-bold">Danh sách quyền</h2>
             <button
-                v-if="can('permission.create')"
+                v-if="can('quyen.them')"
                 class="bg-blue-500 text-white px-4 py-2 rounded"
                 @click="openCreate"
             >
@@ -123,14 +123,14 @@ const actions = [
     {
         title: "Chỉnh sửa",
         icon: EditButtonIcon,
-        hidden: () => !can("permission.update"),
+        hidden: () => !can("quyen.sua"),
         onClick: openEdit,
     },
     {
         title: "Xóa",
         icon: DeleteIcon,
         class: "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700",
-        hidden: () => !can("permission.delete"),
+        hidden: () => !can("quyen.xoa"),
         onClick: async (item) => {
             if (!confirm(`Bạn có chắc muốn xóa quyền "${item.name}"?`)) {
                 return;

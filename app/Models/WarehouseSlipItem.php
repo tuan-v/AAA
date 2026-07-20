@@ -14,6 +14,7 @@ class WarehouseSlipItem extends Model
         'company_price',
         'cost_price',
         'cost_amount',
+        'vat_percent',
     ];
 
     public function slip()

@@ -48,7 +48,7 @@ return new class extends Migration
                     'approved',     // đã duyệt
                     'rejected'      // từ chối
                 ]
-            )->default('draft');
+            )->default('pending');
 
             $table->text('note')->nullable();
 

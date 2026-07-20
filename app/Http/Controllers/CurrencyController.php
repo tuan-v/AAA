@@ -53,9 +53,10 @@ class CurrencyController extends Controller
             'exchange_rate' => 'required|numeric|min:0',
         ]);
 
-        $validated['company_id'] = $company->id;
-
         $currency = Currency::create($validated);
+        $company->currencies()->syncWithoutDetaching([
+            $currency->id => ['is_default' => false],
+        ]);
 
         return response()->json([
             'message' => 'Thêm tiền tệ thành công',

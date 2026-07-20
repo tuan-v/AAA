@@ -17,7 +17,7 @@
             <h2 class="text-2xl font-bold">Danh sách tiền tệ</h2>
 
             <button
-                v-if="can('currency.create')"
+                v-if="can('tien_te.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >

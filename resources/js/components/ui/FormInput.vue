@@ -19,14 +19,13 @@
         </div>
 
         <p v-if="error" class="mt-1.5 text-sm text-red-600 dark:text-red-400">
-            {{ isString(error) ? error : error[0] }}
+            {{ errorMessage }}
         </p>
     </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
-import { isString } from 'lodash';
 
 const props = defineProps({
     label: String,
@@ -39,7 +38,7 @@ const props = defineProps({
     // Hỗ trợ :value
     value: [String, Number],
     placeholder: String,
-    error: Array,
+    error: [String, Array, Object],
     required: {
         type: Boolean,
         default: false
@@ -65,6 +64,13 @@ const emit = defineEmits(['update:modelValue', 'input'])
 // Ưu tiên modelValue (v-model) trước, sau đó mới đến value
 const inputValue = computed(() => {
     return props.modelValue !== undefined ? props.modelValue : props.value
+})
+
+const errorMessage = computed(() => {
+    if (!props.error) return ''
+    if (typeof props.error === 'string') return props.error
+    if (Array.isArray(props.error)) return props.error[0] || ''
+    return Object.values(props.error).flat()[0] || ''
 })
 
 // Xử lý sự kiện input

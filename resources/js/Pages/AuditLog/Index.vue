@@ -8,7 +8,7 @@
         />
 
         <div
-            v-if="!can('auditlog.view')"
+            v-if="!can('nhat_ky.xem')"
             class="p-10 text-center text-gray-500"
         >
             Bạn không có quyền truy cập trang này.
@@ -168,7 +168,7 @@ const actions = [
     {
         icon: DetailButtonIcon,
         title: "Xem chi tiết",
-        hidden: () => !can("auditlog.view"),
+        hidden: () => !can("nhat_ky.xem"),
         onClick: (row) => {
             selectedLog.value = row;
             showDetailModal.value = true;

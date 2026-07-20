@@ -6,12 +6,30 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Services\CurrencyService;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
     public function __construct(
         protected CurrencyService $currencyService
     ) {}
+
+    private function companyId(): int
+    {
+        $companyId = auth()->user()->company_id
+            ?? auth()->user()->companies()->value('companies.id');
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+        return (int) $companyId;
+    }
+
+    private function isUsed(Product $product): bool
+    {
+        return DB::table('purchase_order_items')->where('product_id', $product->id)->exists()
+            || DB::table('sales_order_items')->where('product_id', $product->id)->exists()
+            || DB::table('warehouse_slip_items')->where('product_id', $product->id)->exists()
+            || DB::table('warehouse_product_stocks')->where('product_id', $product->id)->exists();
+    }
     // Danh sách
     public function index(Request $request)
     {
@@ -82,6 +100,7 @@ class ProductController extends Controller
 
                     'unit_id' => $p->unit_id,
                     'unit_name' => $p->unit?->name,
+                    'allow_decimal' => (bool) $p->unit?->allow_decimal,
 
                     'quantity' => $p->stocks->sum('quantity'),
                     'warehouse' => $p->stocks->map(function ($s) {
@@ -114,7 +133,7 @@ class ProductController extends Controller
     // API trả về tất cả sản phẩm cho dropdown (không phân trang)
     public function forSelect()
     {
-        $products = Product::with('stocks')
+        $products = Product::with(['stocks', 'unit'])
             ->get()
             ->map(function ($p) {
                 return [
@@ -123,6 +142,8 @@ class ProductController extends Controller
                     'sku' => $p->sku,
                     'sale_price' => $p->sell_price,
                     'stock_quantity' => $p->stocks->sum('quantity'),
+                    'allow_decimal' => (bool) $p->unit?->allow_decimal,
+                    'unit_name' => $p->unit?->name,
                 ];
             });
 
@@ -132,10 +153,24 @@ class ProductController extends Controller
     // Thêm sản phẩm
     public function store(Request $request)
     {
+        $companyId = $this->companyId();
+
         $validated = $request->validate(
             [
-                'name' => 'required|max:255',
-                'sku' => 'required|max:255|unique:products,sku',
+                'name' => [
+                    'required',
+                    'max:255',
+                    Rule::unique('products', 'name')->where(
+                        fn ($query) => $query->where('company_id', $companyId)
+                    ),
+                ],
+                'sku' => [
+                    'required',
+                    'max:255',
+                    Rule::unique('products', 'sku')->where(
+                        fn ($query) => $query->where('company_id', $companyId)
+                    ),
+                ],
 
                 'category_id' => 'required|exists:categories,id',
                 'unit_id' => 'required|exists:units,id',
@@ -155,8 +190,9 @@ class ProductController extends Controller
             [
                 'name.required' => 'Tên sản phẩm không được để trống.',
                 'name.max' => 'Tên sản phẩm tối đa 255 ký tự.',
+                'name.unique' => 'Tên sản phẩm đã tồn tại trong công ty.',
                 'sku.required' => 'Vui lòng nhập mã hàng.',
-                'sku.unique' => 'Mã hàng đã tồn tại.',
+                'sku.unique' => 'Mã hàng đã tồn tại trong công ty.',
                 'sku.max' => 'Mã hàng tối đa 255 ký tự.',
 
                 'category_id.required' => 'Vui lòng chọn danh mục.',
@@ -220,13 +256,34 @@ class ProductController extends Controller
     // Cập nhật
     public function update(Request $request, $id)
     {
-        $product = Product::findOrFail($id);
+        $companyId = auth()->user()->company_id;
+
+        $product = Product::where('company_id', $companyId)
+            ->findOrFail($id);
+
+        if ($this->isUsed($product)) {
+            return response()->json([
+                'message' => 'Sản phẩm đã phát sinh giao dịch, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
+            ], 422);
+        }
 
         $validated = $request->validate(
             [
-                'name' => 'required|max:255',
+                'name' => [
+                    'required',
+                    'max:255',
+                    Rule::unique('products', 'name')
+                        ->ignore($product->id)
+                        ->where(fn ($query) => $query->where('company_id', $companyId)),
+                ],
 
-                'sku' => 'nullable|max:255|unique:products,sku,' . $id,
+                'sku' => [
+                    'nullable',
+                    'max:255',
+                    Rule::unique('products', 'sku')
+                        ->ignore($product->id)
+                        ->where(fn ($query) => $query->where('company_id', $companyId)),
+                ],
 
                 'category_id' => 'required|exists:categories,id',
                 'unit_id' => 'required|exists:units,id',
@@ -246,8 +303,9 @@ class ProductController extends Controller
             [
                 'name.required' => 'Tên sản phẩm không được để trống.',
                 'name.max' => 'Tên sản phẩm tối đa 255 ký tự.',
+                'name.unique' => 'Tên sản phẩm đã tồn tại trong công ty.',
 
-                'sku.unique' => 'Mã SKU đã tồn tại.',
+                'sku.unique' => 'Mã hàng đã tồn tại trong công ty.',
                 'sku.max' => 'SKU tối đa 255 ký tự.',
 
                 'category_id.required' => 'Vui lòng chọn danh mục.',
@@ -300,10 +358,28 @@ class ProductController extends Controller
             'message' => 'Cập nhật thành công'
         ]);
     }
+
+    public function destroy($id)
+    {
+        $product = Product::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($this->isUsed($product)) {
+            return response()->json([
+                'message' => 'Sản phẩm đã phát sinh giao dịch, không thể xóa. Bạn có thể chuyển sang trạng thái khóa.',
+            ], 422);
+        }
+
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+        $product->delete();
+
+        return response()->json(['message' => 'Xóa sản phẩm thành công.']);
+    }
     // Đổi trạng thái
     public function toggleStatus($id)
     {
-        $product = Product::findOrFail($id);
+        $product = Product::where('company_id', $this->companyId())->findOrFail($id);
 
         $product->status =
             $product->status === 'active'

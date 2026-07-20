@@ -49,7 +49,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Tên -->
-                    <div>
+                    <div class="md:col-span-2">
                         <label
                             class="block text-sm font-medium text-gray-700 mb-1.5"
                         >
@@ -74,34 +74,6 @@
                         >
                             <i class="ti ti-alert-circle"></i
                             >{{ errors.name[0] }}
-                        </p>
-                    </div>
-
-                    <!-- Mã (chỉ hiển thị, không cho sửa) -->
-                    <div>
-                        <label
-                            class="block text-sm font-medium text-gray-700 mb-1.5"
-                        >
-                            Mã nhà cung cấp
-                        </label>
-                        <div class="relative">
-                            <i
-                                class="ti ti-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
-                            ></i>
-                            <input
-                                v-model="form.code"
-                                type="text"
-                                disabled
-                                class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-                                placeholder="Mã tự động khi lưu"
-                            />
-                        </div>
-                        <p
-                            v-if="errors.code"
-                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
-                        >
-                            <i class="ti ti-alert-circle"></i
-                            >{{ errors.code[0] }}
                         </p>
                     </div>
 
@@ -158,6 +130,60 @@
                         >
                             <i class="ti ti-alert-circle"></i
                             >{{ errors.email[0] }}
+                        </p>
+                    </div>
+
+                    <!-- Công nợ đầu kỳ -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Công nợ đầu kỳ
+                        </label>
+                        <div class="relative">
+                            <i
+                                class="ti ti-file-invoice absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                :value="formatMoneyInput(form.opening_debt)"
+                                @input="handleOpeningBalance"
+                                type="text"
+                                class="w-full border rounded-lg px-3 py-2"
+                            />
+                        </div>
+                        <p
+                            v-if="errors.opening_debt"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.opening_debt[0] }}
+                        </p>
+                    </div>
+
+                    <!-- Tạm ứng -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                            Tạm ứng đầu kỳ
+                        </label>
+                        <div class="relative">
+                            <i
+                                class="ti ti-cash absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
+                            ></i>
+                            <input
+                                :value="formatMoneyInput(form.opening_advance)"
+                                @input="handleOpeningBalanceAdvance"
+                                type="text"
+                                class="w-full border rounded-lg px-3 py-2"
+                            />
+                        </div>
+                        <p
+                            v-if="errors.opening_advance"
+                            class="text-red-500 text-xs mt-1 flex items-center gap-1"
+                        >
+                            <i class="ti ti-alert-circle"></i
+                            >{{ errors.opening_advance[0] }}
                         </p>
                     </div>
 
@@ -313,7 +339,13 @@ import axios from "axios";
 import FormSelect from "@/components/FormSelect.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
-
+import { formatMoneyInput, unformatMoney } from "@/config/helpers";
+const handleOpeningBalance = (e) => {
+    form.opening_debt = unformatMoney(e.target.value);
+};
+const handleOpeningBalanceAdvance = (e) => {
+    form.opening_advance = unformatMoney(e.target.value);
+};
 const props = defineProps({
     supplier: { type: Object, default: null },
     currencies: { type: Array, default: () => [] }, // Luôn nhận danh sách từ Index.vue trang cha
@@ -332,10 +364,12 @@ const addressDetail = ref("");
 const form = reactive({
     id: null,
     name: "",
-    code: "",
+    code: "", // vẫn giữ để hiển thị ở header sau khi lưu, chỉ bỏ ô nhập trên form
     phone: "",
     email: "",
     currency_id: "", // Định dạng String giúp FormSelect tự động khớp và chọn giá trị cũ
+    opening_debt: 0, // Công nợ đầu kỳ
+    opening_advance: 0, // Tạm ứng
     note: "",
 });
 
@@ -375,6 +409,8 @@ watch(
         form.code = supplier.code;
         form.phone = supplier.phone;
         form.email = supplier.email;
+        form.opening_debt = supplier.opening_debt ?? 0;
+        form.opening_advance = supplier.opening_advance ?? 0;
         form.note = supplier.note;
 
         // FIX CHÍNH: Ép kiểu String cho dữ liệu v-model ban đầu để FormSelect hiển thị chính xác tên loại tiền tệ cũ
@@ -432,6 +468,8 @@ function resetForm() {
     form.phone = "";
     form.email = "";
     form.currency_id = "";
+    form.opening_debt = 0;
+    form.opening_advance = 0;
     form.note = "";
     selectedProvince.value = "";
     selectedWard.value = "";
@@ -442,15 +480,7 @@ function resetForm() {
 onMounted(() => {
     fetchProvinces();
 });
-watch(
-    () => props.currencies,
-    (val) => {
-        console.log("currencies", val);
-        console.log("options", currencyOptions.value);
-    },
-    { immediate: true },
-);
-console.log(currencyOptions.value);
+
 // ==================== SUBMIT GỬI DỮ LIỆU LÊN SERVER ====================
 async function submit() {
     errors.value = {};
@@ -469,6 +499,8 @@ async function submit() {
             address_detail: addressDetail.value || "",
             // Ép chuỗi ngược về Number để Database Laravel lưu trữ đúng kiểu số nguyên nguyên bản
             currency_id: form.currency_id ? Number(form.currency_id) : null,
+            opening_debt: form.opening_debt || 0,
+            opening_advance: form.opening_advance || 0,
         };
 
         let supplier;
@@ -478,6 +510,7 @@ async function submit() {
                 `/api/purchase/suppliers/${form.id}`,
                 payload,
             );
+
             supplier = res.data.data ?? res.data;
         } else {
             const res = await axios.post("/api/purchase/suppliers", payload);

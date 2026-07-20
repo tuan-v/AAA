@@ -228,7 +228,7 @@ const actions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         hidden: (row) =>
-            !can("warehouse_slip.approve") || row.status !== "pending",
+            !can("phieu_kho.duyet") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -253,7 +253,7 @@ const actions = [
         title: "Từ chối",
         icon: DeleteIcon,
         hidden: (row) =>
-            !can("warehouse_slip.reject") || row.status !== "pending",
+            !can("phieu_kho.tu_choi") || row.status !== "pending",
         onClick: async (row) => {
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -277,7 +277,7 @@ const actions = [
     {
         title: "Chi tiết",
         icon: DetailButtonIcon,
-        hidden: () => !can("warehouse_slip.detail"),
+        hidden: () => !can("phieu_kho.xem_chi_tiet"),
         onClick: openDetail,
     },
 ];

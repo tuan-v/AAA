@@ -58,6 +58,7 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
+import { formatMoney } from "@/config/helpers";
 
 // Import component chi tiết mới tách
 import CustomerDetail from "./CustomerDetail.vue"; // Điều chỉnh lại đường dẫn cho đúng cấu trúc thư mục của bạn
@@ -103,7 +104,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                Number(row.current_debt ?? 0).toLocaleString("vi-VN"),
+                formatMoney(row.current_debt ?? 0, row.currency),
             ),
     },
     {

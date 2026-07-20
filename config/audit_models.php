@@ -21,37 +21,38 @@
 return [
 
     // ==================== QUẢN LÝ ====================
-    'user' => \App\Models\User::class,
-    'role' => \Spatie\Permission\Models\Role::class,
-    'permission' => \Spatie\Permission\Models\Permission::class,
-    'auditlog' => \App\Models\ActivityLog::class,
+    'nhan_su' => \App\Models\User::class,
+    'vai_tro' => \Spatie\Permission\Models\Role::class,
+    'quyen' => \Spatie\Permission\Models\Permission::class,
+    'nhat_ky' => \App\Models\ActivityLog::class,
     'company' => \App\Models\Company::class,
 
     // ==================== KHO (WAREHOUSE) ====================
-    'warehouse' => \App\Models\Warehouse::class,
-    'warehouse_product' => \App\Models\Product::class,
-    'warehouse_category' => \App\Models\Category::class,
-    'warehouse_unit' => \App\Models\Unit::class,
-    'warehouse_slip' => \App\Models\WarehouseSlip::class,
+    'kho' => \App\Models\Warehouse::class,
+    'san_pham_kho' => \App\Models\Product::class,
+    'danh_muc_kho' => \App\Models\Category::class,
+    'don_vi_kho' => \App\Models\Unit::class,
+    'phieu_kho' => \App\Models\WarehouseSlip::class,
+    'chuyen_kho' => \App\Models\WarehouseSlip::class,
 
     // ==================== MUA HÀNG (PURCHASE) ====================
-    'supplier' => \App\Models\Supplier::class,
-    'purchase_category' => \App\Models\Category::class,
-    'purchase_unit' => \App\Models\Unit::class,
-    'product' => \App\Models\Product::class,
-    'purchase_order' => \App\Models\PurchaseOrder::class,
+    'nha_cung_cap' => \App\Models\Supplier::class,
+    'danh_muc_mua_hang' => \App\Models\Category::class,
+    'don_vi_mua_hang' => \App\Models\Unit::class,
+    'san_pham_mua_hang' => \App\Models\Product::class,
+    'don_mua' => \App\Models\PurchaseOrder::class,
 
     // ==================== BÁN HÀNG (SALE) ====================
-    'sale_customer' => \App\Models\Customer::class,
-    'sale_order' => \App\Models\SalesOrder::class,
+    'khach_hang' => \App\Models\Customer::class,
+    'don_ban' => \App\Models\SalesOrder::class,
 
     // ==================== KẾ TOÁN (ACCOUNTANT) ====================
-    'currency' => \App\Models\Currency::class,
-    'bank' => \App\Models\Bank::class,
-    'account' => \App\Models\Account::class,
-    'customer_debt' => \App\Models\Customer::class,
-    'supplier_debt' => \App\Models\Supplier::class,
-    'transaction_category' => \App\Models\TransactionCategory::class,
-    'transaction' => \App\Models\Transaction::class,
+    'tien_te' => \App\Models\Currency::class,
+    'ngan_hang' => \App\Models\Bank::class,
+    'tai_khoan' => \App\Models\Account::class,
+    'cong_no_khach_hang' => \App\Models\Customer::class,
+    'cong_no_nha_cung_cap' => \App\Models\Supplier::class,
+    'loai_giao_dich' => \App\Models\TransactionCategory::class,
+    'giao_dich' => \App\Models\Transaction::class,
 
 ];

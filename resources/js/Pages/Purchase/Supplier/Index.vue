@@ -21,7 +21,7 @@
             <h2 class="text-2xl font-bold">Danh sách nhà cung cấp</h2>
 
             <button
-                v-if="can('supplier.create')"
+                v-if="can('nha_cung_cap.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -175,7 +175,7 @@ const columns = [
             h(
                 "span",
                 {},
-                `${Number(row.total_debts ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
+                formatMoney(row.opening_debt ?? 0, row.company_currency),
             ),
     },
     {
@@ -189,7 +189,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                `${Number(row.current_debt ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
+                formatMoney(row.current_debt ?? 0, row.company_currency),
             ),
     },
     {
@@ -198,7 +198,7 @@ const columns = [
             h(
                 "span",
                 {},
-                `${Number(row.total_advance ?? 0).toLocaleString("vi-VN")} ${row.company_currency?.symbol ?? ""}`,
+                formatMoney(row.total_advance ?? 0, row.company_currency),
             ),
     },
     {
@@ -223,7 +223,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("supplier.update"),
+        hidden: () => !can("nha_cung_cap.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -235,14 +235,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("supplier.lock")
-                : !can("supplier.unlock"),
+                ? !can("nha_cung_cap.khoa")
+                : !can("nha_cung_cap.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     {
         icon: DetailButtonIcon,
         type: "view",
-        hidden: () => !can("supplier.detail"),
+        hidden: () => !can("nha_cung_cap.xem_chi_tiet"),
         onClick: (item) => openDebtDetail(item),
         tooltip: "Xem chi tiết",
     },
@@ -264,7 +264,7 @@ function openDebtDetail(item) {
 }
 
 function formatDebt(value) {
-    return Number(value ?? 0).toLocaleString("vi-VN");
+    return formatMoney(value ?? 0);
 }
 
 function handlePageChange(page) {
@@ -274,7 +274,6 @@ const getCurrencies = async () => {
     try {
         const res = await axios.get("/api/accountant/currencies");
 
-        console.log(res.data);
 
         currencies.value = res.data.data ?? res.data;
     } catch (e) {

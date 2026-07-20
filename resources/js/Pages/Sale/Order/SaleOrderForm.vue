@@ -309,9 +309,10 @@
                                     <input
                                         type="number"
                                         min="1"
+                                        :step="item.allow_decimal ? '0.01' : '1'"
                                         :max="item.stock_quantity || 999999"
                                         v-model="item.quantity"
-                                        @input="handleQuantityChange(item)"
+                                        @input="handleQuantityChange(item, index)"
                                         class="w-full border rounded-lg px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         :class="
                                             errors[`items.${index}.quantity`]
@@ -327,15 +328,17 @@
                                             errors[`items.${index}.quantity`][0]
                                         }}
                                     </p>
+                                    <p class="text-[11px] mt-1 text-center text-gray-500">{{ item.allow_decimal ? 'Cho phép số lẻ' : 'Chỉ được nhập số nguyên' }}</p>
                                 </td>
 
                                 <td class="px-3 py-2">
                                     <input
                                         type="number"
                                         min="0"
-                                        max="100"
+                                        max="10"
+                                        step="0.01"
                                         v-model="item.vat_percent"
-                                        @input="calculateItem(item)"
+                                        @input="handleVatChange(item, index)"
                                         class="w-full border rounded-lg px-2 py-1.5 text-center text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
                                     />
                                     <p
@@ -486,7 +489,7 @@
 <script setup>
 import { reactive, computed, watch, onMounted, nextTick, ref } from "vue";
 import axios from "axios";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, getValidationMessage } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 import FormSelect from "@/components/FormSelect.vue";
 import InputDate from "@/components/InputDate.vue";
@@ -514,6 +517,11 @@ const wards = ref([]);
 const errors = ref({});
 const productOptions = ref([]);
 
+// Khách hàng tạo nhanh ngay trong đơn hàng — chưa có trong props.customers
+// vì props là dữ liệu tĩnh được trang cha truyền xuống lúc mở modal, không
+// tự refetch khi có khách hàng mới.
+const locallyCreatedCustomers = ref([]);
+
 // ==================== COMPUTED ====================
 const provinceOptions = computed(() =>
     props.provinces.map((p) => ({ value: p.id, label: p.name })),
@@ -521,8 +529,12 @@ const provinceOptions = computed(() =>
 const wardOptions = computed(() =>
     wards.value.map((w) => ({ value: w.id, label: w.name })),
 );
+const allCustomers = computed(() => [
+    ...locallyCreatedCustomers.value,
+    ...props.customers,
+]);
 const customerOptions = computed(() =>
-    props.customers.map((c) => ({
+    allCustomers.value.map((c) => ({
         value: c.id,
         label: c.code ? `${c.code} - ${c.name}` : c.name,
     })),
@@ -608,6 +620,7 @@ function addItem() {
         vat_percent: 0,
         amount: 0,
         stock_quantity: 0,
+        allow_decimal: false,
     });
 }
 
@@ -617,9 +630,8 @@ function removeItem(index) {
 }
 
 function onSelectProduct(item) {
-    const product = props.products.find(
-        (p) => String(p.id) === String(item.product_id),
-    );
+    const product = props.products.find((p) => String(p.id) === String(item.product_id))
+        || productOptions.value.find((p) => String(p.value ?? p.id) === String(item.product_id));
     if (!product) return;
 
     const stock = Number(
@@ -637,17 +649,29 @@ function onSelectProduct(item) {
 
     item.unit_price = Number(product.sale_price || 0);
     item.stock_quantity = stock;
+    item.allow_decimal = Boolean(product.allow_decimal ?? product.unit?.allow_decimal);
     item.quantity = 1;
     item.vat_percent = item.vat_percent || 0;
     calculateItem(item);
 }
 
-function handleQuantityChange(item) {
+function handleQuantityChange(item, index) {
+    const key = `items.${index}.quantity`;
+    const quantity = Number(item.quantity);
+    if (!item.allow_decimal && Number.isFinite(quantity) && !Number.isInteger(quantity)) errors.value[key] = ['Đơn vị tính của sản phẩm này không cho phép nhập số lượng lẻ.'];
+    else delete errors.value[key];
     const stock = item.stock_quantity || 0;
     if (item.quantity > stock) {
         item.quantity = stock;
         toast.warning(`Số lượng tối đa trong kho chỉ còn ${stock}`);
     }
+    calculateItem(item);
+}
+
+function handleVatChange(item, index) {
+    const key = `items.${index}.vat_percent`;
+    if (Number(item.vat_percent) > 10) errors.value[key] = ['VAT không được vượt quá 10%.'];
+    else delete errors.value[key];
     calculateItem(item);
 }
 
@@ -672,7 +696,7 @@ function onProvinceChange() {
 function formatNumber(value) {
     if (value === 0) return "0";
     if (!value) return "";
-    return new Intl.NumberFormat("vi-VN").format(value);
+    return formatMoney(value);
 }
 
 function parseNumber(value) {
@@ -686,6 +710,21 @@ function openCustomerModal() {
 
 function onCustomerCreated(newCustomer) {
     showCustomerModal.value = false;
+
+    if (!newCustomer || !newCustomer.id) return;
+
+    // 1. Thêm vào list local để FormSelect có option hiển thị ngay
+    //    (tránh trùng nếu component cha cũng đã push vào props.customers)
+    const alreadyExists = allCustomers.value.some(
+        (c) => String(c.id) === String(newCustomer.id),
+    );
+    if (!alreadyExists) {
+        locallyCreatedCustomers.value.unshift(newCustomer);
+    }
+
+    // 2. Tự fill vào ô chọn khách hàng — trigger watch(form.customer_id)
+    //    bên dưới để tự đổ tiền tệ + tỉnh/phường/địa chỉ của khách hàng này
+    form.customer_id = String(newCustomer.id);
     emit("customer-created", newCustomer);
 }
 
@@ -706,6 +745,7 @@ function resetForm() {
             vat_percent: 0,
             amount: 0,
             stock_quantity: 0,
+            allow_decimal: false,
         },
     ];
     errors.value = {};
@@ -718,7 +758,7 @@ watch(
     () => form.customer_id,
     async (id) => {
         if (!id) return;
-        const customer = props.customers.find(
+        const customer = allCustomers.value.find(
             (c) => String(c.id) === String(id),
         );
         if (!customer) return;
@@ -763,6 +803,7 @@ watch(
                 vat_percent: Number(item.vat_percent || 0),
                 amount: Number(item.amount || 0),
                 stock_quantity: Number(item.product?.stock_quantity ?? 0),
+                allow_decimal: Boolean(item.product?.allow_decimal ?? item.product?.unit?.allow_decimal),
             }));
             form.items.forEach((item) => calculateItem(item));
         }
@@ -781,6 +822,7 @@ onMounted(async () => {
             label: p.name,
             sale_price: Number(p.sale_price || 0),
             stock_quantity: Number(p.stock_quantity || 0),
+            allow_decimal: Boolean(p.allow_decimal ?? p.unit?.allow_decimal),
         }));
     } else {
         try {
@@ -790,6 +832,7 @@ onMounted(async () => {
                 label: p.name,
                 sale_price: Number(p.sale_price || 0),
                 stock_quantity: Number(p.stock_quantity || 0),
+                allow_decimal: Boolean(p.allow_decimal ?? p.unit?.allow_decimal),
             }));
         } catch (e) {
             console.error("Lỗi lấy sản phẩm:", e);
@@ -840,7 +883,7 @@ async function submit() {
         console.error(error);
         if (error.response && error.response.status === 422) {
             errors.value = { ...error.response.data.errors };
-            toast.error("Dữ liệu nhập vào chưa hợp lệ, vui lòng kiểm tra lại.");
+            toast.error(getValidationMessage(error));
         } else {
             toast.error(error.response?.data?.message || "Lưu thất bại");
         }

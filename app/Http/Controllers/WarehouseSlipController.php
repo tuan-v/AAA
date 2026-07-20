@@ -13,6 +13,8 @@ use App\Services\ActivityLogService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\SupplierDebtService;
+use App\Services\CustomerDebtService;
 
 class WarehouseSlipController extends Controller
 {
@@ -146,8 +148,10 @@ class WarehouseSlipController extends Controller
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.01',
         ]);
+
+        app(\App\Services\OrderQuantityValidationService::class)->validate($validated['items']);
 
         DB::beginTransaction();
 
@@ -157,6 +161,10 @@ class WarehouseSlipController extends Controller
 
             if ($validated['type'] === 'import') {
                 $order = PurchaseOrder::with('items')->findOrFail($validated['purchase_order_id']);
+
+                if (! in_array($order->status, ['approved', 'partial'], true)) {
+                    throw new \RuntimeException('Chỉ được tạo phiếu nhập từ đơn mua đã duyệt và chưa nhập đủ.');
+                }
 
 
                 $slip = WarehouseSlip::create([
@@ -169,6 +177,10 @@ class WarehouseSlipController extends Controller
                 ]);
             } else { // EXPORT
                 $order = SalesOrder::with('items')->findOrFail($validated['sales_order_id']);
+
+                if (! in_array($order->status, ['approved', 'partial'], true)) {
+                    throw new \RuntimeException('Chỉ được tạo phiếu xuất từ đơn bán đã duyệt và chưa xuất đủ.');
+                }
 
                 $companyPrice = 0;
                 $slip = WarehouseSlip::create([
@@ -184,12 +196,29 @@ class WarehouseSlipController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $orderItem = $order->items
                     ->firstWhere('product_id', $itemData['product_id']);
-                $qty = (int)$itemData['quantity'];
+                $qty = (float) $itemData['quantity'];
                 if ($qty <= 0) continue;
                 if (!$orderItem) {
                     throw new \Exception(
                         'Sản phẩm không tồn tại trong đơn hàng'
                     );
+                }
+
+
+                $reservedQuantity = WarehouseSlipItem::query()
+                    ->where('product_id', $itemData['product_id'])
+                    ->whereHas('slip', function ($query) use ($validated, $order) {
+                        $query->whereIn('status', ['pending', 'approved']);
+                        if ($validated['type'] === 'import') {
+                            $query->where('purchase_order_id', $order->id)->where('type', 'import');
+                        } else {
+                            $query->where('sales_order_id', $order->id)->where('type', 'export');
+                        }
+                    })
+                    ->sum('quantity');
+
+                if ($reservedQuantity + $qty > (float) $orderItem->quantity) {
+                    throw new \RuntimeException('Số lượng trên phiếu vượt quá số lượng còn lại của đơn hàng.');
                 }
                 $unitPrice = $validated['type'] === 'import'
                     ? $orderItem->price
@@ -203,6 +232,7 @@ class WarehouseSlipController extends Controller
                     'quantity' => $qty,
                     'price'         => $unitPrice,
                     'company_price' => $companyPrice,
+                    'vat_percent' => (float) ($orderItem->vat_percent ?? 0),
                 ]);
             }
 
@@ -244,8 +274,14 @@ class WarehouseSlipController extends Controller
     {
         $slip = WarehouseSlip::findOrFail($id);
 
+        if ($slip->status !== 'pending') {
+            return response()->json(['message' => 'Chỉ được sửa phiếu đang chờ duyệt.'], 422);
+        }
+
+        $validated = $request->validate(['note' => 'nullable|string|max:2000']);
+
         $slip->update([
-            'note' => $request->note
+            'note' => $validated['note'] ?? null
         ]);
 
         return response()->json([
@@ -377,15 +413,24 @@ class WarehouseSlipController extends Controller
             'purchase_price' => $companyPrice,
         ]);
     }
-    public function approve($id)
-    {
-        $slip = WarehouseSlip::with(['items', 'warehouse'])->findOrFail($id);
+    public function approve(
+        $id,
+        SupplierDebtService $supplierDebtService,
+        CustomerDebtService $customerDebtService
+    ) {
 
-        if ($slip->status !== 'pending') {
-            return response()->json(['message' => 'Phiếu đã xử lý'], 422);
-        }
+        DB::transaction(function () use (
+            $id,
+            $supplierDebtService,
+            $customerDebtService
+        ) {
+            $slip = WarehouseSlip::with(['items', 'warehouse'])
+                ->lockForUpdate()
+                ->findOrFail($id);
 
-        DB::transaction(function () use ($slip) {
+            if ($slip->status !== 'pending') {
+                throw new \RuntimeException('Phiếu đã được xử lý.');
+            }
 
             foreach ($slip->items as $item) {
 
@@ -401,7 +446,7 @@ class WarehouseSlipController extends Controller
                             'stock_value' => 0,
                         ]
                     );
-                    $stock->refresh();
+                    $stock = WarehouseProductStock::whereKey($stock->id)->lockForUpdate()->firstOrFail();
 
                     $companyPrice = $item->company_price ?? 0;
 
@@ -421,6 +466,7 @@ class WarehouseSlipController extends Controller
                         'warehouse_id' => $slip->warehouse_id,
                         'product_id' => $item->product_id,
                     ]);
+                    $stock = WarehouseProductStock::whereKey($stock->id)->lockForUpdate()->firstOrFail();
                     $product = Product::find($item->product_id);
                     if ($product) {
 
@@ -468,23 +514,12 @@ class WarehouseSlipController extends Controller
                     $stock->save();
                 }
             }
-            ActivityLogService::log(
-                $slip,
-                'approve',
-                'Duyệt phiếu kho',
-                ['status' => 'pending'],
-                [
-                    'status' => 'approved',
-                    'stock_impact' => $slip->items->map(function ($i) use ($slip) {
-                        return [
-                            'product_id' => $i->product_id,
-                            'qty_change' => $slip->type === 'import'
-                                ? $i->quantity
-                                : -$i->quantity,
-                        ];
-                    }),
-                ]
-            );
+            if ($slip->type === 'import') {
+                $supplierDebtService->createFromWarehouseSlip($slip);
+            } else {
+                $customerDebtService->createFromWarehouseSlip($slip);
+            }
+
             $slip->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),

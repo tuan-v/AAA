@@ -24,6 +24,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
+use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
@@ -34,7 +35,7 @@ use App\Http\Controllers\DashboardController;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth:sanctum', 'audit'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -42,34 +43,35 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::controller(UserController::class)->prefix('users')->group(function () {
-        Route::get('/user', 'index')->middleware('permission:user.view');
-        Route::get('/user/{id}', 'show')->middleware('permission:user.view');
-        Route::post('/user', 'store')->middleware('permission:user.create');
-        Route::put('/user/{id}', 'update')->middleware('permission:user.update');
-        Route::delete('/user/{id}', 'destroy')->middleware('permission:user.delete');
-        Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:user.lock');
+        Route::get('/user', 'index')->middleware('permission:nhan_su.xem');
+        Route::get('/user/{id}', 'show')->middleware('permission:nhan_su.xem');
+        Route::post('/user', 'store')->middleware('permission:nhan_su.them');
+        Route::put('/user/{id}', 'update')->middleware('permission:nhan_su.sua');
+        Route::delete('/user/{id}', 'destroy')->middleware('permission:nhan_su.xoa');
+        Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:nhan_su.khoa');
     });
 
     Route::controller(RoleController::class)->prefix('roles')->group(function () {
-        Route::get('/', 'index')->middleware('permission:role.view');
-        Route::post('/', 'store')->middleware('permission:role.create');
-        Route::put('/{id}', 'update')->middleware('permission:role.update');
-        Route::delete('/{id}', 'destroy')->middleware('permission:role.delete');
+        Route::get('/', 'index')->middleware('permission:vai_tro.xem');
+        Route::post('/', 'store')->middleware('permission:vai_tro.them');
+        Route::put('/{id}', 'update')->middleware('permission:vai_tro.sua');
+        Route::delete('/{id}', 'destroy')->middleware('permission:vai_tro.xoa');
     });
 
-    Route::get('/permissions/all', [RoleController::class, 'permissions'])->middleware('permission:permission.view');
+    Route::get('/permissions/all', [RoleController::class, 'permissions'])->middleware('permission:quyen.xem');
 
     Route::controller(PermissionController::class)->prefix('permissions')->group(function () {
-        Route::get('/', 'index')->middleware('permission:permission.view');
-        Route::post('/', 'store')->middleware('permission:permission.create');
-        Route::put('/{id}', 'update')->middleware('permission:permission.update');
+        Route::get('/', 'index')->middleware('permission:quyen.xem');
+        Route::post('/', 'store')->middleware('permission:quyen.them');
+        Route::put('/{id}', 'update')->middleware('permission:quyen.sua');
+        Route::delete('/{id}', 'destroy')->middleware('permission:quyen.xoa');
     });
 
     Route::get('/company/create', [CompanyController::class, 'create']);
     Route::controller(AuditLogController::class)->prefix('audit-logs')->group(function () {
-        Route::get('/', 'index')->middleware('permission:auditlog.view');
-        Route::get('/trace', 'trace')->middleware('permission:auditlog.view');
-        Route::get('/{auditLog}', 'show')->middleware('permission:auditlog.view');
+        Route::get('/', 'index')->middleware('permission:nhat_ky.xem');
+        Route::get('/trace', 'trace')->middleware('permission:nhat_ky.xem');
+        Route::get('/{auditLog}', 'show')->middleware('permission:nhat_ky.xem');
     });
     /*
     |--------------------------------------------------------------------------
@@ -77,60 +79,66 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::controller(WarehouseController::class)->prefix('warehouses')->group(function () {
-        Route::get('/', 'index')->middleware('permission:warehouse.view');
-        Route::get('/all', 'all')->middleware('permission:warehouse.view');
-        Route::get('/{warehouse}/detail', 'detail')->middleware('permission:warehouse.view');
-        Route::get('/{warehouse}', 'show')->middleware('permission:warehouse.view');
-        Route::post('/', 'store')->middleware('permission:warehouse.create');
-        Route::put('/{warehouse}', 'update')->middleware('permission:warehouse.update');
-        Route::delete('/{warehouse}', 'destroy')->middleware('permission:warehouse.delete');
-        Route::patch('/{warehouse}/status', 'toggleStatus')->middleware('permission:warehouse.lock');
+        Route::get('/', 'index')->middleware('permission:kho.xem');
+        Route::get('/all', 'all')->middleware('permission:kho.xem');
+        Route::get('/{warehouse}/detail', 'detail')->middleware('permission:kho.xem');
+        Route::get('/{warehouse}', 'show')->middleware('permission:kho.xem');
+        Route::post('/', 'store')->middleware('permission:kho.them');
+        Route::put('/{warehouse}', 'update')->middleware('permission:kho.sua');
+        Route::delete('/{warehouse}', 'destroy')->middleware('permission:kho.xoa');
+        Route::patch('/{warehouse}/status', 'toggleStatus')->middleware('permission:kho.khoa');
     });
 
     // Singletone-style status toggle back-compatibility
-    Route::patch('/warehouse/{id}/status', [WarehouseController::class, 'toggleStatus'])->middleware('permission:warehouse.lock');
+    Route::patch('/warehouse/{id}/status', [WarehouseController::class, 'toggleStatus'])->middleware('permission:kho.khoa');
 
     Route::prefix('warehouse')->group(function () {
+        Route::controller(WarehouseTransferController::class)->prefix('transfers')->group(function () {
+            Route::get('/', 'index')->middleware('permission:chuyen_kho.xem');
+            Route::post('/', 'store')->middleware('permission:chuyen_kho.them');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:chuyen_kho.duyet');
+            Route::post('/{id}/cancel', 'cancel')->middleware('permission:chuyen_kho.huy');
+        });
         Route::controller(ProductController::class)->prefix('products')->group(function () {
-            Route::get('/', 'index')->middleware('permission:warehouse_product.view');
-            Route::post('/', 'store')->middleware('permission:warehouse_product.create');
-            Route::get('/{product}', 'show')->middleware('permission:warehouse_product.view');
-            Route::put('/{product}', 'update')->middleware('permission:warehouse_product.update');
-            Route::delete('/{product}', 'destroy')->middleware('permission:warehouse_product.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_product.lock');
+            Route::get('/', 'index')->middleware('permission:san_pham_kho.xem');
+            Route::post('/', 'store')->middleware('permission:san_pham_kho.them');
+            Route::get('/{product}', 'show')->middleware('permission:san_pham_kho.xem');
+            Route::put('/{product}', 'update')->middleware('permission:san_pham_kho.sua');
+            Route::delete('/{product}', 'destroy')->middleware('permission:san_pham_kho.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:san_pham_kho.khoa');
         });
 
         Route::controller(CategoryController::class)->prefix('categories')->group(function () {
-            Route::get('/', 'index')->middleware('permission:warehouse_category.view');
-            Route::get('/select', 'select')->middleware('permission:warehouse_category.view');
-            Route::post('/', 'store')->middleware('permission:warehouse_category.create');
-            Route::get('/{category}', 'show')->middleware('permission:warehouse_category.view');
-            Route::put('/{category}', 'update')->middleware('permission:warehouse_category.update');
-            Route::delete('/{category}', 'destroy')->middleware('permission:warehouse_category.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_category.lock');
+            Route::get('/', 'index')->middleware('permission:danh_muc_kho.xem');
+            Route::get('/select', 'select')->middleware('permission:danh_muc_kho.xem');
+            Route::post('/', 'store')->middleware('permission:danh_muc_kho.them');
+            Route::get('/{category}', 'show')->middleware('permission:danh_muc_kho.xem');
+            Route::put('/{category}', 'update')->middleware('permission:danh_muc_kho.sua');
+            Route::delete('/{category}', 'destroy')->middleware('permission:danh_muc_kho.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:danh_muc_kho.khoa');
         });
 
         Route::controller(UnitController::class)->prefix('units')->group(function () {
-            Route::get('/', 'index')->middleware('permission:warehouse_unit.view');
-            Route::get('/select', 'select')->middleware('permission:warehouse_unit.view');
-            Route::post('/', 'store')->middleware('permission:warehouse_unit.create');
-            Route::get('/{unit}', 'show')->middleware('permission:warehouse_unit.view');
-            Route::put('/{unit}', 'update')->middleware('permission:warehouse_unit.update');
-            Route::delete('/{unit}', 'destroy')->middleware('permission:warehouse_unit.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:warehouse_unit.lock');
+            Route::get('/', 'index')->middleware('permission:don_vi_kho.xem');
+            Route::get('/select', 'select')->middleware('permission:don_vi_kho.xem');
+            Route::post('/', 'store')->middleware('permission:don_vi_kho.them');
+            Route::get('/{unit}', 'show')->middleware('permission:don_vi_kho.xem');
+            Route::put('/{unit}', 'update')->middleware('permission:don_vi_kho.sua');
+            Route::delete('/{unit}', 'destroy')->middleware('permission:don_vi_kho.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:don_vi_kho.khoa');
         });
 
         Route::controller(WarehouseSlipController::class)->prefix('slips')->group(function () {
-            Route::get('/', 'index')->middleware('permission:warehouse_slip.view');
-            Route::post('/', 'store')->middleware('permission:warehouse_slip.create');
-            Route::get('/{slip}', 'show')->middleware('permission:warehouse_slip.detail');
-            Route::put('/{slip}', 'update')->middleware('permission:warehouse_slip.update');
-            Route::post('/{id}/approve', 'approve')->middleware('permission:warehouse_slip.approve');
-            Route::post('/{id}/reject', 'reject')->middleware('permission:warehouse_slip.reject');
+            Route::get('/', 'index')->middleware('permission:phieu_kho.xem');
+            Route::post('/', 'store')->middleware('permission:phieu_kho.them');
+            Route::get('/{slip}', 'show')->middleware('permission:phieu_kho.xem_chi_tiet');
+            Route::put('/{slip}', 'update')->middleware('permission:phieu_kho.sua');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:phieu_kho.duyet');
+            Route::post('/{id}/reject', 'reject')->middleware('permission:phieu_kho.tu_choi');
         });
 
-        Route::get('/inventory', [WarehouseInventoryController::class, 'index'])->middleware('permission:warehouse.view');
-        Route::get('/stocks', [WarehouseController::class, 'getStocks'])->middleware('permission:warehouse.view');
+        Route::get('/inventory', [WarehouseInventoryController::class, 'index'])->middleware('permission:kho.xem');
+        Route::get('/stocks', [WarehouseController::class, 'getStocks'])->middleware('permission:kho.xem');
     });
 
     /*
@@ -140,52 +148,54 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     */
     Route::prefix('purchase')->group(function () {
         Route::controller(SupplierController::class)->prefix('suppliers')->group(function () {
-            Route::get('/', 'index')->middleware('permission:supplier.view');
-            Route::get('/all', 'all')->middleware('permission:supplier.view');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:supplier.detail');
-            Route::post('/', 'store')->middleware('permission:supplier.create');
-            Route::get('/{supplier}', 'show')->middleware('permission:supplier.view');
-            Route::put('/{supplier}', 'update')->middleware('permission:supplier.update');
-            Route::delete('/{supplier}', 'destroy')->middleware('permission:supplier.delete');
+            Route::get('/', 'index')->middleware('permission:nha_cung_cap.xem');
+            Route::get('/all', 'all')->middleware('permission:nha_cung_cap.xem');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:nha_cung_cap.xem_chi_tiet');
+            Route::post('/', 'store')->middleware('permission:nha_cung_cap.them');
+            Route::get('/{supplier}', 'show')->middleware('permission:nha_cung_cap.xem');
+            Route::put('/{supplier}', 'update')->middleware('permission:nha_cung_cap.sua');
+            Route::delete('/{supplier}', 'destroy')->middleware('permission:nha_cung_cap.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:nha_cung_cap.khoa');
         });
 
         Route::controller(CategoryController::class)->prefix('categories')->group(function () {
-            Route::get('/', 'index')->middleware('permission:purchase_category.view');
-            Route::get('/select', 'select')->middleware('permission:purchase_category.view');
-            Route::post('/', 'store')->middleware('permission:purchase_category.create');
-            Route::get('/{category}', 'show')->middleware('permission:purchase_category.view');
-            Route::put('/{category}', 'update')->middleware('permission:purchase_category.update');
-            Route::delete('/{category}', 'destroy')->middleware('permission:purchase_category.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:purchase_category.lock');
+            Route::get('/', 'index')->middleware('permission:danh_muc_mua_hang.xem');
+            Route::get('/select', 'select')->middleware('permission:danh_muc_mua_hang.xem');
+            Route::post('/', 'store')->middleware('permission:danh_muc_mua_hang.them');
+            Route::get('/{category}', 'show')->middleware('permission:danh_muc_mua_hang.xem');
+            Route::put('/{category}', 'update')->middleware('permission:danh_muc_mua_hang.sua');
+            Route::delete('/{category}', 'destroy')->middleware('permission:danh_muc_mua_hang.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:danh_muc_mua_hang.khoa');
         });
 
         Route::controller(UnitController::class)->prefix('units')->group(function () {
-            Route::get('/', 'index')->middleware('permission:purchase_unit.view');
-            Route::get('/select', 'select')->middleware('permission:purchase_unit.view');
-            Route::post('/', 'store')->middleware('permission:purchase_unit.create');
-            Route::get('/{unit}', 'show')->middleware('permission:purchase_unit.view');
-            Route::put('/{unit}', 'update')->middleware('permission:purchase_unit.update');
-            Route::delete('/{unit}', 'destroy')->middleware('permission:purchase_unit.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:purchase_unit.lock');
+            Route::get('/', 'index')->middleware('permission:don_vi_mua_hang.xem');
+            Route::get('/select', 'select')->middleware('permission:don_vi_mua_hang.xem');
+            Route::post('/', 'store')->middleware('permission:don_vi_mua_hang.them');
+            Route::get('/{unit}', 'show')->middleware('permission:don_vi_mua_hang.xem');
+            Route::put('/{unit}', 'update')->middleware('permission:don_vi_mua_hang.sua');
+            Route::delete('/{unit}', 'destroy')->middleware('permission:don_vi_mua_hang.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:don_vi_mua_hang.khoa');
         });
 
         Route::controller(ProductController::class)->prefix('products')->group(function () {
-            Route::get('/', 'index')->middleware('permission:product.view');
-            Route::post('/', 'store')->middleware('permission:product.create');
-            Route::get('/{product}', 'show')->middleware('permission:product.view');
-            Route::put('/{product}', 'update')->middleware('permission:product.update');
-            Route::delete('/{product}', 'destroy')->middleware('permission:product.delete');
-            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:product.lock');
+            Route::get('/', 'index')->middleware('permission:san_pham_mua_hang.xem');
+            Route::post('/', 'store')->middleware('permission:san_pham_mua_hang.them');
+            Route::get('/{product}', 'show')->middleware('permission:san_pham_mua_hang.xem');
+            Route::put('/{product}', 'update')->middleware('permission:san_pham_mua_hang.sua');
+            Route::delete('/{product}', 'destroy')->middleware('permission:san_pham_mua_hang.xoa');
+            Route::patch('/{id}/status', 'toggleStatus')->middleware('permission:san_pham_mua_hang.khoa');
         });
 
         Route::controller(PurchaseOrderController::class)->prefix('orders')->group(function () {
-            Route::get('/', 'index')->middleware('permission:purchase_order.view');
-            Route::post('/', 'store')->middleware('permission:purchase_order.create');
-            Route::get('/{order}', 'show')->middleware('permission:purchase_order.detail');
-            Route::put('/{order}', 'update')->middleware('permission:purchase_order.update');
-            Route::delete('/{order}', 'destroy')->middleware('permission:purchase_order.delete');
-            Route::post('/{id}/approve', 'approve')->middleware('permission:purchase_order.approve');
-            Route::get('/{id}/stock-in-data', 'stockInData')->middleware('permission:purchase_order.detail');
+            Route::get('/', 'index')->middleware('permission:don_mua.xem');
+            Route::post('/', 'store')->middleware('permission:don_mua.them');
+            Route::get('/{order}', 'show')->middleware('permission:don_mua.xem_chi_tiet');
+            Route::put('/{order}', 'update')->middleware('permission:don_mua.sua');
+            Route::delete('/{order}', 'destroy')->middleware('permission:don_mua.xoa');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:don_mua.duyet');
+            Route::post('/{id}/cancel', 'cancel')->middleware('permission:don_mua.huy');
+            Route::get('/{id}/stock-in-data', 'stockInData')->middleware('permission:don_mua.xem_chi_tiet');
         });
     });
 
@@ -196,26 +206,26 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     */
     Route::prefix('sale')->group(function () {
         Route::controller(CustomerController::class)->prefix('customers')->group(function () {
-            Route::get('/', 'index')->middleware('permission:sale_customer.view');
-            Route::get('/all', 'all')->middleware('permission:sale_customer.view');
-            Route::get('/next-code', 'nextCode')->middleware('permission:sale_customer.view');
-            Route::post('/', 'store')->middleware('permission:sale_customer.create');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:customer_debt.detail');
-            Route::get('/{customer}', 'show')->middleware('permission:sale_customer.view');
-            Route::put('/{customer}', 'update')->middleware('permission:sale_customer.update');
-            Route::delete('/{customer}', 'destroy')->middleware('permission:sale_customer.delete');
-            Route::patch('/{customer}/status', 'toggleStatus')->middleware('permission:sale_customer.lock');
-            Route::patch('/{customer}/status', 'toggleStatus')->middleware('permission:sale_customer.unlock');
-            Route::post('/{id}/quick-order', 'createQuickOrder')->middleware('permission:sale_order.create');
+            Route::get('/', 'index')->middleware('permission:khach_hang.xem');
+            Route::get('/all', 'all')->middleware('permission:khach_hang.xem');
+            Route::get('/next-code', 'nextCode')->middleware('permission:khach_hang.xem');
+            Route::post('/', 'store')->middleware('permission:khach_hang.them');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:cong_no_khach_hang.xem_chi_tiet');
+            Route::get('/{customer}', 'show')->middleware('permission:khach_hang.xem');
+            Route::put('/{customer}', 'update')->middleware('permission:khach_hang.sua');
+            Route::delete('/{customer}', 'destroy')->middleware('permission:khach_hang.xoa');
+            Route::patch('/{customer}/status', 'toggleStatus')->middleware('permission:khach_hang.khoa');
+            Route::post('/{id}/quick-order', 'createQuickOrder')->middleware('permission:don_ban.them');
         });
 
         Route::controller(SalesOrderController::class)->prefix('orders')->group(function () {
-            Route::get('/', 'index')->middleware('permission:sale_order.view');
-            Route::post('/', 'store')->middleware('permission:sale_order.create');
-            Route::get('/{order}', 'show')->middleware('permission:sale_order.detail');
-            Route::put('/{order}', 'update')->middleware('permission:sale_order.update');
-            Route::delete('/{order}', 'destroy')->middleware('permission:sale_order.delete');
-            Route::post('/{id}/approve', 'approve')->middleware('permission:sale_order.approve');
+            Route::get('/', 'index')->middleware('permission:don_ban.xem');
+            Route::post('/', 'store')->middleware('permission:don_ban.them');
+            Route::get('/{order}', 'show')->middleware('permission:don_ban.xem_chi_tiet');
+            Route::put('/{order}', 'update')->middleware('permission:don_ban.sua');
+            Route::delete('/{order}', 'destroy')->middleware('permission:don_ban.xoa');
+            Route::post('/{id}/approve', 'approve')->middleware('permission:don_ban.duyet');
+            Route::post('/{id}/cancel', 'cancel')->middleware('permission:don_ban.huy');
         });
     });
 
@@ -226,71 +236,71 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     */
     Route::prefix('accountant')->group(function () {
         Route::controller(CurrencyController::class)->prefix('currencies')->group(function () {
-            Route::get('/', 'index')->middleware('permission:currency.view');
-            Route::get('/all', 'all')->middleware('permission:currency.view');
-            Route::post('/', 'store')->middleware('permission:currency.create');
+            Route::get('/', 'index')->middleware('permission:tien_te.xem');
+            Route::get('/all', 'all')->middleware('permission:tien_te.xem');
+            Route::post('/', 'store')->middleware('permission:tien_te.them');
 
-            Route::get('/{currency}', 'show')->middleware('permission:currency.view');
-            Route::put('/{currency}', 'update')->middleware('permission:currency.update');
-            Route::delete('/{currency}', 'destroy')->middleware('permission:currency.delete');
-            Route::patch('/{currency}/toggle-status', 'toggleStatus')->middleware('permission:currency.lock');
-            Route::get('/{currency}/rates', 'rates')->middleware('permission:currency.history');
-            Route::post('/{currency}/rates', 'storeRate')->middleware('permission:currency.update');
+            Route::get('/{currency}', 'show')->middleware('permission:tien_te.xem');
+            Route::put('/{currency}', 'update')->middleware('permission:tien_te.sua');
+            Route::delete('/{currency}', 'destroy')->middleware('permission:tien_te.xoa');
+            Route::patch('/{currency}/toggle-status', 'toggleStatus')->middleware('permission:tien_te.khoa');
+            Route::get('/{currency}/rates', 'rates')->middleware('permission:tien_te.xem_lich_su');
+            Route::post('/{currency}/rates', 'storeRate')->middleware('permission:tien_te.sua');
         });
 
         Route::controller(BankController::class)->prefix('banks')->group(function () {
-            Route::get('/', 'index')->middleware('permission:bank.view');
-            Route::post('/', 'store')->middleware('permission:bank.create');
-            Route::get('/{bank}', 'show')->middleware('permission:bank.view');
-            Route::put('/{bank}', 'update')->middleware('permission:bank.update');
-            Route::delete('/{bank}', 'destroy')->middleware('permission:bank.delete');
-            Route::patch('/{bank}/toggle-status', 'toggleStatus')->middleware('permission:bank.lock');
+            Route::get('/', 'index')->middleware('permission:ngan_hang.xem');
+            Route::post('/', 'store')->middleware('permission:ngan_hang.them');
+            Route::get('/{bank}', 'show')->middleware('permission:ngan_hang.xem');
+            Route::put('/{bank}', 'update')->middleware('permission:ngan_hang.sua');
+            Route::delete('/{bank}', 'destroy')->middleware('permission:ngan_hang.xoa');
+            Route::patch('/{bank}/toggle-status', 'toggleStatus')->middleware('permission:ngan_hang.khoa');
         });
 
         Route::controller(AccountController::class)->prefix('accounts')->group(function () {
-            Route::get('/', 'index')->middleware('permission:account.view');
-            Route::get('/all', 'all')->middleware('permission:account.view');
-            Route::post('/', 'store')->middleware('permission:account.create');
-            Route::get('/{account}', 'show')->middleware('permission:account.view');
-            Route::put('/{account}', 'update')->middleware('permission:account.update');
-            Route::delete('/{account}', 'destroy')->middleware('permission:account.delete');
-            Route::patch('/{account}/toggle-status', 'toggleStatus')->middleware('permission:account.lock');
-            Route::post('/{id}/rebuild-balance', 'rebuildBalance')->middleware('permission:account.update');
+            Route::get('/', 'index')->middleware('permission:tai_khoan.xem');
+            Route::get('/all', 'all')->middleware('permission:tai_khoan.xem');
+            Route::post('/', 'store')->middleware('permission:tai_khoan.them');
+            Route::get('/{account}', 'show')->middleware('permission:tai_khoan.xem');
+            Route::put('/{account}', 'update')->middleware('permission:tai_khoan.sua');
+            Route::delete('/{account}', 'destroy')->middleware('permission:tai_khoan.xoa');
+            Route::patch('/{account}/toggle-status', 'toggleStatus')->middleware('permission:tai_khoan.khoa');
+            Route::post('/{id}/rebuild-balance', 'rebuildBalance')->middleware('permission:tai_khoan.sua');
         });
 
         Route::controller(AccountLedgerController::class)->group(function () {
-            Route::get('/account-ledgers', 'index')->middleware('permission:transaction.view');
-            Route::get('/accounts/{account}/ledger', 'accountLedger')->middleware('permission:transaction.view');
+            Route::get('/account-ledgers', 'index')->middleware('permission:giao_dich.xem');
+            Route::get('/accounts/{account}/ledger', 'accountLedger')->middleware('permission:giao_dich.xem');
         });
 
         Route::controller(CustomerController::class)->prefix('customers-debt')->group(function () {
-            Route::get('/', 'index')->middleware('permission:customer_debt.view');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:customer_debt.detail');
+            Route::get('/', 'index')->middleware('permission:cong_no_khach_hang.xem')->name('accountant.customers-debt.index');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:cong_no_khach_hang.xem_chi_tiet')->name('accountant.customers-debt.detail');
         });
 
         Route::controller(SupplierController::class)->prefix('suppliers-debt')->group(function () {
-            Route::get('/', 'index')->middleware('permission:supplier_debt.view');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:supplier_debt.detail');
+            Route::get('/', 'index')->middleware('permission:cong_no_nha_cung_cap.xem')->name('accountant.suppliers-debt.index');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:cong_no_nha_cung_cap.xem_chi_tiet')->name('accountant.suppliers-debt.detail');
         });
 
         Route::controller(TransactionCategoryController::class)->prefix('transaction-categories')->group(function () {
-            Route::get('/', 'index')->middleware('permission:transaction_category.view');
-            Route::get('/active', 'active')->middleware('permission:transaction_category.view');
-            Route::post('/', 'store')->middleware('permission:transaction_category.create');
-            Route::get('/{transactionCategory}', 'show')->middleware('permission:transaction_category.view');
-            Route::put('/{transactionCategory}', 'update')->middleware('permission:transaction_category.update');
-            Route::delete('/{transactionCategory}', 'destroy')->middleware('permission:transaction_category.delete');
-        
+            Route::get('/', 'index')->middleware('permission:loai_giao_dich.xem');
+            Route::get('/active', 'active')->middleware('permission:loai_giao_dich.xem');
+            Route::post('/', 'store')->middleware('permission:loai_giao_dich.them');
+            Route::get('/{transactionCategory}', 'show')->middleware('permission:loai_giao_dich.xem');
+            Route::put('/{transactionCategory}', 'update')->middleware('permission:loai_giao_dich.sua');
+            Route::delete('/{transactionCategory}', 'destroy')->middleware('permission:loai_giao_dich.xoa');
         });
 
         Route::controller(TransactionController::class)->prefix('transactions')->group(function () {
-            Route::get('/', 'index')->middleware('permission:transaction.view');
-            Route::post('/', 'store')->middleware('permission:transaction.create');
-            Route::get('/{transaction}', 'show')->middleware('permission:transaction.view');
-            Route::put('/{transaction}', 'update')->middleware('permission:transaction.update');
-            Route::delete('/{transaction}', 'destroy')->middleware('permission:transaction.delete');
-              Route::post('/{transaction}/approve', 'approve')->middleware('permission:transaction.approve'); // MỚI
-            Route::post('/{transaction}/reject', 'reject')->middleware('permission:transaction.reject');
+            Route::get('/', 'index')->middleware('permission:giao_dich.xem');
+            Route::post('/', 'store')->middleware('permission:giao_dich.them');
+            Route::get('/order-outstanding', 'orderOutstanding')->middleware('permission:giao_dich.xem');
+            Route::get('/{transaction}', 'show')->middleware('permission:giao_dich.xem');
+            Route::put('/{transaction}', 'update')->middleware('permission:giao_dich.sua');
+            Route::delete('/{transaction}', 'destroy')->middleware('permission:giao_dich.xoa');
+            Route::post('/{transaction}/approve', 'approve')->middleware('permission:giao_dich.duyet'); // MỚI
+            Route::post('/{transaction}/reject', 'reject')->middleware('permission:giao_dich.tu_choi');
         });
     });
 
@@ -299,23 +309,23 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     | WAREHOUSE ORDER APIS (SHARED)
     |--------------------------------------------------------------------------
     */
-    Route::get('/warehouse/orders', [PurchaseOrderController::class, 'warehouseIndex'])->middleware('permission:warehouse_slip.view');
-    Route::get('/warehouse/orders/{id}/stock-in', [PurchaseOrderController::class, 'stockInData'])->middleware('permission:warehouse_slip.create');
-    Route::get('/warehouse/orders/{id}/stock-out', [SalesOrderController::class, 'stockOutData'])->middleware('permission:warehouse_slip.create');
-    Route::get('/saleorders/warehouse', [SalesOrderController::class, 'warehouseIndex'])->middleware('permission:warehouse_slip.view');
-    Route::get('/available-for-export', [SalesOrderController::class, 'availableForExport'])->middleware('permission:warehouse_slip.view');
+    Route::get('/warehouse/orders', [PurchaseOrderController::class, 'warehouseIndex'])->middleware('permission:phieu_kho.xem');
+    Route::get('/warehouse/orders/{id}/stock-in', [PurchaseOrderController::class, 'stockInData'])->middleware('permission:phieu_kho.them');
+    Route::get('/warehouse/orders/{id}/stock-out', [SalesOrderController::class, 'stockOutData'])->middleware('permission:phieu_kho.them');
+    Route::get('/saleorders/warehouse', [SalesOrderController::class, 'warehouseIndex'])->middleware('permission:phieu_kho.xem');
+    Route::get('/available-for-export', [SalesOrderController::class, 'availableForExport'])->middleware('permission:phieu_kho.xem');
 
     /*
     |--------------------------------------------------------------------------
     | SELECTORS & SHARED ENDPOINTS AT ROOT
     |--------------------------------------------------------------------------
     */
-    Route::get('/products/for-select', [ProductController::class, 'forSelect'])->middleware('permission:purchase_product.view');
-    Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:purchase_category.view');
-    Route::get('/units', [UnitController::class, 'index'])->middleware('permission:purchase_unit.view');
+    Route::get('/products/for-select', [ProductController::class, 'forSelect'])->middleware('permission:san_pham_mua_hang.xem');
+    Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:danh_muc_mua_hang.xem');
+    Route::get('/units', [UnitController::class, 'index'])->middleware('permission:don_vi_mua_hang.xem');
 
-    Route::patch('units/{id}/status', [UnitController::class, 'toggleStatus'])->middleware('permission:warehouse_unit.lock');
-    Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus'])->middleware('permission:currency.lock');
+    Route::patch('units/{id}/status', [UnitController::class, 'toggleStatus'])->middleware('permission:don_vi_kho.khoa');
+    Route::patch('currencies/{currency}/toggle-status', [CurrencyController::class, 'toggleStatus'])->middleware('permission:tien_te.khoa');
 
     /*
     |--------------------------------------------------------------------------
@@ -342,4 +352,6 @@ Route::middleware(['auth:sanctum', 'audit'])->group(function () {
     });
 
     Route::get('/dashboard/overview', [DashboardController::class, 'overview']);
+    Route::get('/dashboard/{module}', [DashboardController::class, 'module'])
+        ->whereIn('module', ['purchase', 'sale', 'warehouse', 'accountant']);
 });

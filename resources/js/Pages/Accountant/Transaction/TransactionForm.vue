@@ -117,6 +117,11 @@
                 {{ currencyHintMessage }}
             </div>
 
+            <div v-if="selectedOrderRemaining !== null" class="currency-hint">
+                <i class="ti ti-cash"></i>
+                Số tiền còn lại của đơn: <strong>{{ formatMoney(selectedOrderRemaining) }} {{ selectedCurrencyLabel }}</strong>
+            </div>
+
             <div v-if="currencyMismatchMessage" class="currency-warning">
                 <i class="ti ti-alert-triangle"></i>
                 {{ currencyMismatchMessage }}
@@ -242,25 +247,19 @@
                         </span>
                     </div>
                 </div>
-                <div class="field">
-                    <label class="label">
-                        <i class="ti ti-world"></i>Tiền tệ
-                    </label>
-                    <select
-                        v-model="form.currency_id"
-                        class="input"
-                        @change="onCurrencyChange"
-                    >
-                        <option value="">Chọn tiền tệ</option>
-                        <option
-                            v-for="c in normalizedCurrencies"
-                            :key="c.id"
-                            :value="c.id"
-                        >
-                            {{ c.code }}
-                        </option>
-                    </select>
-                </div>
+            </div>
+            <div class="divider"></div>
+
+            <div class="section-label">Thời gian</div>
+            <div class="field">
+                <label class="label"
+                    ><i class="ti ti-calendar"></i>Ngày giao dịch</label
+                >
+                <input
+                    v-model="form.transaction_date"
+                    type="date"
+                    class="input"
+                />
             </div>
             <div class="divider"></div>
 
@@ -299,7 +298,7 @@
 <script setup>
 import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, getValidationMessage } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 
 const props = defineProps({
@@ -351,20 +350,15 @@ const selectedCurrencyLabel = computed(() => {
 });
 
 const selectedOrderCurrency = ref(null);
+const selectedOrderRemaining = ref(null);
 const orderOptions = ref([]);
 
 const currencyHintMessage = computed(() => {
     if (!selectedOrderCurrency.value) return "";
-    return;
-    `Đơn hàng đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Giao dịch sẽ tự động khớp theo đơn hàng.`;
+    return `Tiền tệ tự động theo đơn hàng: ${selectedOrderCurrency.value.code}.`;
 });
 
 const currencyMismatchMessage = computed(() => {
-    if (!selectedOrderCurrency.value || !form.currency_id) return "";
-    if (Number(form.currency_id) !== Number(selectedOrderCurrency.value.id)) {
-        return;
-        `Đơn hàng này đang dùng ${selectedOrderCurrency.value.code} (${selectedOrderCurrency.value.symbol || selectedOrderCurrency.value.code || ""}). Vui lòng chọn cùng tiền tệ với đơn hàng hoặc tạo giao dịch quy đổi.`;
-    }
     return "";
 });
 
@@ -423,6 +417,12 @@ const categoryMismatchMessage = computed(() => {
     }
     return "";
 });
+function today() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
 const form = reactive({
     id: null,
     code: "",
@@ -437,7 +437,7 @@ const form = reactive({
     sales_order_id: "",
     purchase_order_id: "",
     exchange_rate: 1,
-    transaction_date: "",
+    transaction_date: today(),
     description: "",
 });
 
@@ -456,16 +456,18 @@ function resetForm() {
         sales_order_id: "",
         purchase_order_id: "",
         exchange_rate: 1,
-        transaction_date: "",
+        transaction_date: today(),
         description: "",
     });
+
     orderOptions.value = [];
     selectedOrderCurrency.value = null;
+    selectedOrderRemaining.value = null;
 }
 
 watch(
     () => props.transaction,
-    (val) => {
+    async (val) => {
         if (!val?.id) {
             resetForm();
             return;
@@ -489,11 +491,13 @@ watch(
         });
 
         if (form.type === "receipt" && form.customer_id) {
-            loadOrderOptions();
+            await loadOrderOptions();
+            if (form.sales_order_id) await onSalesOrderChange();
         }
 
         if (form.type === "payment" && form.supplier_id) {
-            loadOrderOptions();
+            await loadOrderOptions();
+            if (form.purchase_order_id) await onPurchaseOrderChange();
         }
     },
     { immediate: true },
@@ -511,6 +515,7 @@ watch(
         form.category_id = "";
         orderOptions.value = [];
         selectedOrderCurrency.value = null;
+        selectedOrderRemaining.value = null;
     },
 );
 
@@ -556,9 +561,9 @@ async function loadOrderOptions() {
                 id: order.id,
                 label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 customer_id: order.customer?.id ?? form.customer_id,
-                currency: order.currency || null,
-                currency_id: order.currency?.id ?? order.currency_id ?? null,
-                exchange_rate: order.currency?.exchange_rate ?? 1,
+                currency: order.order_currency || order.currency || null,
+                currency_id: order.currency_id ?? order.order_currency?.id ?? order.currency?.id ?? null,
+                exchange_rate: order.exchange_rate ?? order.order_currency?.exchange_rate ?? 1,
             }));
             return;
         }
@@ -577,9 +582,9 @@ async function loadOrderOptions() {
                 id: order.id,
                 label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 supplier_id: order.supplier?.id ?? form.supplier_id,
-                currency: order.currency || null,
-                currency_id: order.currency?.id ?? order.currency_id ?? null,
-                exchange_rate: order.currency?.exchange_rate ?? 1,
+                currency: order.order_currency || order.currency || null,
+                currency_id: order.currency_id ?? order.order_currency?.id ?? order.currency?.id ?? null,
+                exchange_rate: order.exchange_rate ?? order.order_currency?.exchange_rate ?? 1,
             }));
             return;
         }
@@ -594,12 +599,14 @@ async function loadOrderOptions() {
 function onCustomerChange() {
     form.sales_order_id = "";
     selectedOrderCurrency.value = null;
+    selectedOrderRemaining.value = null;
     loadOrderOptions();
 }
 
 function onSupplierChange() {
     form.purchase_order_id = "";
     selectedOrderCurrency.value = null;
+    selectedOrderRemaining.value = null;
     loadOrderOptions();
 }
 
@@ -610,7 +617,7 @@ function onCurrencyChange() {
     }
 }
 
-function onSalesOrderChange() {
+async function onSalesOrderChange() {
     const selected = orderOptions.value.find(
         (order) => Number(order.id) === Number(form.sales_order_id),
     );
@@ -621,10 +628,11 @@ function onSalesOrderChange() {
         form.currency_id = selected.currency_id;
         form.exchange_rate = Number(selected.exchange_rate) || 1;
         selectedOrderCurrency.value = selected.currency || null;
+        await loadOrderOutstanding('sale', selected.id);
     }
 }
 
-function onPurchaseOrderChange() {
+async function onPurchaseOrderChange() {
     const selected = orderOptions.value.find(
         (order) => Number(order.id) === Number(form.purchase_order_id),
     );
@@ -635,18 +643,49 @@ function onPurchaseOrderChange() {
         form.currency_id = selected.currency_id;
         form.exchange_rate = Number(selected.exchange_rate) || 1;
         selectedOrderCurrency.value = selected.currency || null;
+        await loadOrderOutstanding('purchase', selected.id);
     }
 }
+
+async function loadOrderOutstanding(type, orderId) {
+    selectedOrderRemaining.value = null;
+    if (!orderId) return;
+    try {
+        const { data } = await axios.get('/api/accountant/transactions/order-outstanding', { params: { type, order_id: orderId } });
+        selectedOrderRemaining.value = Number(data.remaining_amount || 0);
+    } catch (error) {
+        toast.error(getValidationMessage(error, 'Không thể tải số tiền còn lại của đơn hàng.'));
+    }
+}
+
+watch(
+    [() => form.type, () => form.from_account_id, () => form.to_account_id, () => props.accounts],
+    () => {
+        if (form.sales_order_id || form.purchase_order_id) return;
+        const accountId = form.type === 'receipt' ? form.to_account_id : form.from_account_id;
+        const account = (props.accounts || []).find((item) => Number(item.id) === Number(accountId));
+        if (!account) return;
+        form.currency_id = account.currency_id || account.currency?.id || '';
+        const currency = normalizedCurrencies.value.find((item) => Number(item.id) === Number(form.currency_id));
+        form.exchange_rate = Number(currency?.exchange_rate || 1);
+    },
+    { immediate: true },
+);
 
 async function save() {
     // Chặn lưu ngay tại FE nếu category không khớp loại giao dịch
     if (categoryMismatchMessage.value) {
-        window.alert(categoryMismatchMessage.value);
+        toast.error(categoryMismatchMessage.value);
         return;
     }
 
     if (currencyMismatchMessage.value) {
-        window.alert(currencyMismatchMessage.value);
+        toast.error(currencyMismatchMessage.value);
+        return;
+    }
+
+    if ((form.sales_order_id || form.purchase_order_id) && selectedOrderRemaining.value !== null && Number(form.amount) > selectedOrderRemaining.value) {
+        toast.error(`Số tiền thanh toán không được vượt quá ${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}.`);
         return;
     }
 
@@ -660,14 +699,16 @@ async function save() {
         } else {
             await axios.post(`/api/accountant/transactions`, payload);
         }
+        toast.success(
+            isEdit.value
+                ? "Cập nhật giao dịch thành công"
+                : "Tạo giao dịch thành công",
+        );
         emit("saved");
     } catch (error) {
         console.error(error);
         // Bắt lỗi nghiệp vụ từ BE (vd category không khớp loại giao dịch) trả về qua message
-        const msg =
-            error.response?.data?.message ||
-            "Có lỗi xảy ra khi lưu giao dịch, vui lòng kiểm tra lại.";
-        window.alert(msg);
+        toast.error(getValidationMessage(error, "Không thể lưu giao dịch."));
     } finally {
         saving.value = false;
     }

@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách sản phẩm</h2>
 
             <button
-                v-if="can('purchase_product.create')"
+                v-if="can('san_pham_kho.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -265,7 +265,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("warehouse_product.update"),
+        hidden: () => !can("san_pham_kho.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -277,14 +277,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("warehouse_product.lock")
-                : !can("warehouse_product.unlock"),
+                ? !can("san_pham_kho.khoa")
+                : !can("san_pham_kho.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     // {
     //     icon: DetailButtonIcon,
     //     type: "view",
-    //     hidden: () => !can("warehouse_product.detail"),
+    //     hidden: () => !can("san_pham_kho.xem"),
     //     onClick: (item) => openDetail(item),
     //     tooltip: "Xem chi tiết",
     // },

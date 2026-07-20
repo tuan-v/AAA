@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách sản phẩm</h2>
 
             <button
-                v-if="can('purchase_product.create')"
+                v-if="can('san_pham_mua_hang.them')"
                 @click="openCreate"
                 class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition"
             >
@@ -265,7 +265,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("purchase_product.update"),
+        hidden: () => !can("san_pham_mua_hang.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -277,14 +277,14 @@ const actions = computed(() => [
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("purchase_product.lock")
-                : !can("purchase_product.unlock"),
+                ? !can("san_pham_mua_hang.khoa")
+                : !can("san_pham_mua_hang.khoa"),
         onClick: (item) => toggleStatus(item),
     },
     // {
     //     icon: DetailButtonIcon,
     //     type: "view",
-    //     hidden: () => !can("purchase_product.detail"),
+    //     hidden: () => !can("san_pham_mua_hang.xem"),
     //     onClick: (item) => openDetail(item),
     //     tooltip: "Xem chi tiết",
     // },
@@ -298,7 +298,7 @@ function debounce(fn, delay = 300) {
 }
 const fetchData = async (page = 1, params = {}) => {
     try {
-        const response = await axios.get(`/api/warehouse/products`, {
+        const response = await axios.get(`/api/purchase/products`, {
             params: {
                 page,
                 per_page: perPage.value,
@@ -362,7 +362,7 @@ async function deleteProduct(id) {
     }
 
     try {
-        await axios.delete(`/api/warehouse/products/${id}`);
+        await axios.delete(`/api/purchase/products/${id}`);
 
         fetchData(products.value.current_page, currentFilters.value);
     } catch (error) {
@@ -374,7 +374,7 @@ async function toggleStatus(product) {
     const newStatus = product.status === "active" ? "inactive" : "active";
 
     try {
-        await axios.patch(`/api/warehouse/products/${product.id}/status`);
+        await axios.patch(`/api/purchase/products/${product.id}/status`);
 
         const index = products.value.data.findIndex((p) => p.id === product.id);
 

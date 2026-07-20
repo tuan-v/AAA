@@ -182,6 +182,11 @@
                                     Đơn giá
                                 </th>
                                 <th
+                                    class="border-b border-gray-100 px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-24"
+                                >
+                                    VAT (%)
+                                </th>
+                                <th
                                     class="border-b border-gray-100 px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide w-44"
                                 >
                                     Thành tiền
@@ -242,7 +247,9 @@
                                     <input
                                         type="number"
                                         min="1"
+                                        :step="item.allow_decimal ? '0.01' : '1'"
                                         v-model="item.quantity"
+                                        @input="handleQuantityChange(item, index)"
                                         class="w-full border rounded-lg px-2 py-1.5 text-center text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                         :class="
                                             errors[`items.${index}.quantity`]
@@ -258,6 +265,7 @@
                                             errors[`items.${index}.quantity`][0]
                                         }}
                                     </p>
+                                    <p class="text-[11px] mt-1 text-center text-gray-500">{{ item.allow_decimal ? 'Cho phép số lẻ' : 'Chỉ được nhập số nguyên' }}</p>
                                 </td>
 
                                 <td class="px-3 py-2">
@@ -279,13 +287,25 @@
                                     </p>
                                 </td>
 
+                                <td class="px-3 py-2">
+                                    <input
+                                        v-model.number="item.vat_percent"
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        step="0.01"
+                                        @input="handleVatChange(item, index)"
+                                        class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm"
+                                    />
+                                    <p v-if="errors[`items.${index}.vat_percent`]" class="text-red-500 text-xs mt-1 text-center">{{ errors[`items.${index}.vat_percent`][0] }}</p>
+                                </td>
+
                                 <td
                                     class="px-3 py-2 text-right font-semibold text-blue-600"
                                 >
                                     {{
                                         formatMoney(
-                                            (Number(item.price) || 0) *
-                                                (Number(item.quantity) || 0),
+                                            lineTotal(item),
                                             currentCurrency,
                                         )
                                     }}
@@ -307,15 +327,10 @@
                 </div>
 
                 <div class="flex justify-end mt-6">
-                    <div
-                        class="bg-blue-50 border border-blue-100 rounded-xl p-4 min-w-[280px] flex justify-between items-center relative z-0"
-                    >
-                        <span class="text-sm font-medium text-gray-600"
-                            >Tổng tiền:</span
-                        >
-                        <span class="font-bold text-xl text-blue-700">
-                            {{ formatMoney(totalAmount, currentCurrency) }}
-                        </span>
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 min-w-[320px] space-y-2 relative z-0">
+                        <div class="flex justify-between text-sm"><span>Tạm tính:</span><span>{{ formatMoney(subtotal, currentCurrency) }}</span></div>
+                        <div class="flex justify-between text-sm"><span>VAT:</span><span>{{ formatMoney(vatAmount, currentCurrency) }}</span></div>
+                        <div class="flex justify-between border-t pt-2 font-bold text-xl text-blue-700"><span>Tổng tiền:</span><span>{{ formatMoney(totalAmount, currentCurrency) }}</span></div>
                     </div>
                 </div>
             </div>
@@ -378,7 +393,7 @@
 <script setup>
 import axios from "axios";
 import { reactive, computed, watch, ref, onMounted } from "vue";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, getValidationMessage } from "@/config/helpers";
 import FormSelect from "@/components/FormSelect.vue";
 import SupplierForm from "@/Pages/Purchase/Supplier/SupplierForm.vue";
 // TODO: sửa lại đường dẫn cho đúng component ProductForm thật của bạn
@@ -427,13 +442,24 @@ const currencyOptions = computed(() =>
     })),
 );
 
-const totalAmount = computed(() =>
+const subtotal = computed(() =>
     form.items.reduce(
         (sum, item) =>
             sum + Number(item.quantity || 0) * Number(item.price || 0),
         0,
     ),
 );
+const vatAmount = computed(() =>
+    form.items.reduce((sum, item) => {
+        const base = Number(item.quantity || 0) * Number(item.price || 0);
+        return sum + base * (Number(item.vat_percent || 0) / 100);
+    }, 0),
+);
+const totalAmount = computed(() => subtotal.value + vatAmount.value);
+const lineTotal = (item) => {
+    const base = Number(item.quantity || 0) * Number(item.price || 0);
+    return base * (1 + Number(item.vat_percent || 0) / 100);
+};
 
 const currentCurrency = computed(
     () => props.currencies.find((c) => c.id == form.currency_id) || null,
@@ -447,6 +473,8 @@ const fetchAllProducts = async () => {
             value: String(p.id),
             label: p.code ? `${p.code} - ${p.name}` : p.name,
             price: Number(p.price || 0),
+            allow_decimal: Boolean(p.allow_decimal),
+            unit_name: p.unit_name || '',
         }));
     } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
@@ -461,6 +489,20 @@ function onSelectProduct(item) {
     if (product && (item.price === "" || item.price === null)) {
         item.price = product.price;
     }
+    if (product) item.allow_decimal = product.allow_decimal;
+}
+
+function handleQuantityChange(item, index) {
+    const value = Number(item.quantity);
+    const key = `items.${index}.quantity`;
+    if (!item.allow_decimal && Number.isFinite(value) && !Number.isInteger(value)) errors.value[key] = ['Đơn vị tính của sản phẩm này không cho phép nhập số lượng lẻ.'];
+    else delete errors.value[key];
+}
+
+function handleVatChange(item, index) {
+    const key = `items.${index}.vat_percent`;
+    if (Number(item.vat_percent) > 10) errors.value[key] = ['VAT không được vượt quá 10%.'];
+    else delete errors.value[key];
 }
 
 const openSupplierModal = () => (showSupplierModal.value = true);
@@ -513,7 +555,7 @@ function onProductCreated(newProduct) {
 function formatNumber(value) {
     if (value === 0) return "0";
     if (!value) return "";
-    return new Intl.NumberFormat("vi-VN").format(value);
+    return formatMoney(value);
 }
 
 function updatePrice(item, event) {
@@ -526,14 +568,14 @@ function parseNumber(value) {
 }
 
 function addItem() {
-    form.items.push({ product_id: "", quantity: 1, price: "" });
+    form.items.push({ product_id: "", quantity: 1, price: "", vat_percent: 0 });
 }
 
 function removeItem(index) {
     if (form.items.length > 1) {
         form.items.splice(index, 1);
     } else {
-        form.items[0] = { product_id: "", quantity: 1, price: "" };
+        form.items[0] = { product_id: "", quantity: 1, price: "", vat_percent: 0 };
     }
 }
 
@@ -543,7 +585,7 @@ function resetForm() {
     form.currency_id = "";
     form.expected_received_date = "";
     form.note = "";
-    form.items = [{ product_id: "", quantity: 1, price: "" }];
+    form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 0 }];
     errors.value = {};
 }
 
@@ -569,9 +611,10 @@ watch(
                 product_id: String(item.product_id || item.product?.id || ""),
                 quantity: Number(item.quantity || 1),
                 price: item.price === 0 || item.price ? Number(item.price) : "",
+                vat_percent: Number(item.vat_percent || 0),
             }));
         } else {
-            form.items = [{ product_id: "", quantity: 1, price: "" }];
+            form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 0 }];
         }
         errors.value = {};
     },
@@ -603,6 +646,7 @@ async function submit() {
             product_id: item.product_id ? String(item.product_id) : null,
             quantity: item.quantity === "" ? null : Number(item.quantity),
             price: item.price === "" ? null : Number(item.price),
+            vat_percent: Number(item.vat_percent || 0),
         }));
 
         const payload = {
@@ -627,7 +671,7 @@ async function submit() {
         console.error(error);
         if (error.response && error.response.status === 422) {
             errors.value = { ...error.response.data.errors };
-            toast.error("Dữ liệu nhập vào chưa hợp lệ, vui lòng kiểm tra lại.");
+            toast.error(getValidationMessage(error));
         } else {
             toast.error(error.response?.data?.message || "Có lỗi xảy ra");
         }

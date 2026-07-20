@@ -457,7 +457,7 @@ async function saveProduct() {
     try {
         if (form.value.id) {
             data.append("_method", "PUT");
-            await axios.post(`/api/warehouse/products/${form.value.id}`, data);
+            await axios.put(`/api/warehouse/products/${form.value.id}`, data);
         } else {
             await axios.post("/api/warehouse/products", data);
         }

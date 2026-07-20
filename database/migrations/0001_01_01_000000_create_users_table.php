@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('username')->unique();
             $table->string('phone', 15)->nullable()->unique();
             $table->string('password');
+            $table->rememberToken();
             $table->bigInteger('company_id')->nullable();
             $table->bigInteger('department_id')->nullable();
             $table->text('address')->nullable();
