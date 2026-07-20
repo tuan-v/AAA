@@ -45,7 +45,11 @@
         />
     </AdminLayout>
 
-    <CustomerDetail v-model="showDetail" :customer="selectedCustomer" />
+    <CustomerDetail
+        v-if="showDetail && selectedCustomer?.id"
+        :customer-id="selectedCustomer.id"
+        @close="closeDetail"
+    />
 </template>
 
 <script setup>
@@ -61,7 +65,7 @@ import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { formatMoney } from "@/config/helpers";
 
 // Import component chi tiết mới tách
-import CustomerDetail from "./CustomerDetail.vue"; // Điều chỉnh lại đường dẫn cho đúng cấu trúc thư mục của bạn
+import CustomerDetail from "@/Pages/Sale/Customer/CustomerDetail.vue";
 
 const perPage = ref(10);
 const customers = ref({
@@ -177,6 +181,11 @@ const getData = debounce(fetchData, 300);
 function openDetail(item) {
     selectedCustomer.value = item;
     showDetail.value = true;
+}
+
+function closeDetail() {
+    showDetail.value = false;
+    selectedCustomer.value = null;
 }
 
 onMounted(() => {

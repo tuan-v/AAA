@@ -276,6 +276,7 @@
                                         <th class="text-left p-2">
                                             Trạng thái
                                         </th>
+                                        <th class="text-right p-2">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -312,6 +313,14 @@
                                                 getStatusLabel(order.status) ||
                                                 "-"
                                             }}
+                                        </td>
+                                        <td class="p-2 text-right">
+                                            <button
+                                                @click="viewOrder(order.id)"
+                                                class="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-1.5 text-indigo-600 hover:bg-indigo-100 transition"
+                                            >
+                                                Xem
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -465,16 +474,33 @@
             </div>
         </div>
     </div>
+    <div
+        v-if="showOrderDetail"
+        class="fixed inset-0 z-[1000] bg-black/40 flex items-center justify-center p-4"
+        @click.self="closeOrderDetail"
+    >
+        <SaleOrderDetail
+            v-if="selectedOrder"
+            :order="selectedOrder"
+            @close="closeOrderDetail"
+        />
+        <div v-else class="rounded-xl bg-white px-8 py-6 shadow-xl">
+            Đang tải chi tiết đơn bán hàng...
+        </div>
+    </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { getStatusLabel } from "@/config/status";
+import SaleOrderDetail from "../Order/SaleOrderDetail.vue";
 const customer = ref({});
 const debtSummary = ref({});
 const recentOrders = ref([]);
 const debtHistory = ref([]);
+const showOrderDetail = ref(false);
+const selectedOrder = ref(null);
 
 const props = defineProps({
     customerId: {
@@ -485,6 +511,26 @@ const props = defineProps({
 
 const emit = defineEmits(["saved", "close", "create-order"]);
 const loading = ref(true);
+
+const viewOrder = async (id) => {
+    selectedOrder.value = null;
+    showOrderDetail.value = true;
+    try {
+        const response = await axios.get(`/api/sale/orders/${id}`);
+        selectedOrder.value = response.data?.data ?? response.data;
+    } catch (error) {
+        showOrderDetail.value = false;
+        window.alert(
+            error.response?.data?.message ||
+                "Không tải được chi tiết đơn bán hàng.",
+        );
+    }
+};
+
+const closeOrderDetail = () => {
+    showOrderDetail.value = false;
+    selectedOrder.value = null;
+};
 
 onMounted(async () => {
     try {

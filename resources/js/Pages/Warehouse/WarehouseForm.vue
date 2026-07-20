@@ -24,7 +24,7 @@
                     placeholder="Nhập tên kho"
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
-                <p v-if="errors.name" class="text-red-500 text-sm mt-1">
+                <p v-if="errors?.name?.length" class="text-red-500 text-sm mt-1">
                     {{ errors.name[0] }}
                 </p>
             </div>
@@ -46,7 +46,7 @@
                     />
 
                     <p
-                        v-if="errors.province_code"
+                        v-if="errors?.province_code?.length"
                         class="text-red-500 text-sm mt-1"
                     >
                         {{ errors.province_code[0] }}
@@ -67,7 +67,7 @@
                     />
 
                     <p
-                        v-if="errors.ward_code"
+                        v-if="errors?.ward_code?.length"
                         class="text-red-500 text-sm mt-1"
                     >
                         {{ errors.ward_code[0] }}
@@ -88,7 +88,7 @@
                     class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                 />
                 <p
-                    v-if="errors.address_detail"
+                    v-if="errors?.address_detail?.length"
                     class="text-red-500 text-sm mt-1"
                 >
                     {{ errors.address_detail[0] }}
@@ -120,21 +120,21 @@
 
 <script setup>
 import axios from "axios";
-import { ref, reactive, watch, onMounted, computed } from "vue";
+import { ref, reactive, watch, onMounted, computed, nextTick } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import FormSelect from "../../components/FormSelect.vue";
 const provinceOptions = computed(() =>
-    provinces.value.map((item) => ({
+    (Array.isArray(provinces.value) ? provinces.value : []).filter(Boolean).map((item) => ({
         value: item.id,
-        label: item.name,
+        label: item.name ?? "",
     })),
 );
 const wardOptions = computed(() =>
-    wards.value.map((item) => ({
+    (Array.isArray(wards.value) ? wards.value : []).filter(Boolean).map((item) => ({
         value: item.id,
-        label: item.name,
+        label: item.name ?? "",
     })),
 );
 const provinces = ref([]);
@@ -146,6 +146,7 @@ const props = defineProps({
     },
 });
 const loading = ref(false);
+const hydratingWarehouse = ref(false);
 const emit = defineEmits(["saved", "close"]);
 const errors = ref({});
 const form = reactive({
@@ -160,6 +161,7 @@ const form = reactive({
 watch(
     () => props.warehouse,
     async (warehouse) => {
+        hydratingWarehouse.value = true;
         if (!warehouse) {
             form.name = "";
             form.province_code = "";
@@ -167,6 +169,8 @@ watch(
             form.address_detail = "";
             form.total_inventory_value = 0;
             wards.value = [];
+            await nextTick();
+            hydratingWarehouse.value = false;
             return;
         }
         form.id = warehouse.id;
@@ -182,6 +186,8 @@ watch(
             );
             wards.value = res.data;
         }
+        await nextTick();
+        hydratingWarehouse.value = false;
     },
     { immediate: true },
 );
@@ -221,7 +227,7 @@ async function saveWarehouse() {
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
-            errors.value = error.response.data.errors;
+            errors.value = error.response?.data?.errors ?? {};
 
             toast.error("Vui lòng kiểm tra lại dữ liệu");
         } else {
@@ -237,7 +243,7 @@ async function getProvinces() {
     try {
         const res = await axios.get("/api/provinces");
 
-        provinces.value = res.data;
+        provinces.value = Array.isArray(res.data) ? res.data : [];
     } catch (error) {
         console.error(error);
     }
@@ -251,7 +257,7 @@ async function getWards(provinceId) {
     try {
         const res = await axios.get(`/api/provinces/${provinceId}/wards`);
 
-        wards.value = res.data;
+        wards.value = Array.isArray(res.data) ? res.data : [];
     } catch (error) {
         console.error(error);
     }
@@ -259,6 +265,9 @@ async function getWards(provinceId) {
 watch(
     () => form.province_code,
     async (value) => {
+        if (hydratingWarehouse.value) {
+            return;
+        }
         if (!value) {
             form.ward_code = "";
             wards.value = [];

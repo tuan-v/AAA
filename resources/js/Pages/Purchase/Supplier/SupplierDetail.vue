@@ -500,11 +500,20 @@
             </div>
         </div>
     </div>
-    <PurchaseOrderDetail
+    <div
         v-if="showOrderDetail"
-        :purchase-order-id="selectedOrderId"
-        @close="showOrderDetail = false"
-    />
+        class="fixed inset-0 z-[1000] bg-black/40 flex items-center justify-center p-4"
+        @click.self="closeOrderDetail"
+    >
+        <PurchaseOrderDetail
+            v-if="selectedOrder"
+            :order="selectedOrder"
+            @close="closeOrderDetail"
+        />
+        <div v-else class="rounded-xl bg-white px-8 py-6 shadow-xl">
+            Đang tải chi tiết đơn mua hàng...
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -519,7 +528,7 @@ const debtSummary = ref({});
 const recentOrders = ref([]);
 const debtHistory = ref([]);
 const showOrderDetail = ref(false);
-const selectedOrderId = ref(null);
+const selectedOrder = ref(null);
 const props = defineProps({
     supplierId: {
         type: Number,
@@ -529,9 +538,23 @@ const props = defineProps({
 
 const emit = defineEmits(["saved", "close", "create-order"]);
 const loading = ref(true);
-const viewOrder = (id) => {
-    selectedOrderId.value = id;
+const viewOrder = async (id) => {
+    selectedOrder.value = null;
     showOrderDetail.value = true;
+    try {
+        const response = await axios.get(`/api/purchase/orders/${id}`);
+        selectedOrder.value = response.data?.data ?? response.data;
+    } catch (error) {
+        showOrderDetail.value = false;
+        window.alert(
+            error.response?.data?.message ||
+                "Không tải được chi tiết đơn mua hàng.",
+        );
+    }
+};
+const closeOrderDetail = () => {
+    showOrderDetail.value = false;
+    selectedOrder.value = null;
 };
 onMounted(async () => {
     try {

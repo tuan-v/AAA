@@ -11,7 +11,7 @@ class UserRoleSeeder extends Seeder
     {
         $admin = User::find(1);
 
-        $admin?->assignRole('Admin');
+        $admin?->assignRole('Supper Admin');
 
         $hr = User::find(2);
 

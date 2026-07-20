@@ -150,7 +150,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::controller(SupplierController::class)->prefix('suppliers')->group(function () {
             Route::get('/', 'index')->middleware('permission:nha_cung_cap.xem');
             Route::get('/all', 'all')->middleware('permission:nha_cung_cap.xem');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:nha_cung_cap.xem_chi_tiet');
+            Route::get('/{id}/detail', 'detail')->middleware('permission:nha_cung_cap.xem_chi_tiet|cong_no_nha_cung_cap.xem_chi_tiet');
             Route::post('/', 'store')->middleware('permission:nha_cung_cap.them');
             Route::get('/{supplier}', 'show')->middleware('permission:nha_cung_cap.xem');
             Route::put('/{supplier}', 'update')->middleware('permission:nha_cung_cap.sua');
@@ -190,7 +190,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::controller(PurchaseOrderController::class)->prefix('orders')->group(function () {
             Route::get('/', 'index')->middleware('permission:don_mua.xem');
             Route::post('/', 'store')->middleware('permission:don_mua.them');
-            Route::get('/{order}', 'show')->middleware('permission:don_mua.xem_chi_tiet');
+            Route::get('/{order}', 'show')->middleware('permission:don_mua.xem_chi_tiet|cong_no_nha_cung_cap.xem_chi_tiet');
             Route::put('/{order}', 'update')->middleware('permission:don_mua.sua');
             Route::delete('/{order}', 'destroy')->middleware('permission:don_mua.xoa');
             Route::post('/{id}/approve', 'approve')->middleware('permission:don_mua.duyet');
@@ -221,7 +221,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::controller(SalesOrderController::class)->prefix('orders')->group(function () {
             Route::get('/', 'index')->middleware('permission:don_ban.xem');
             Route::post('/', 'store')->middleware('permission:don_ban.them');
-            Route::get('/{order}', 'show')->middleware('permission:don_ban.xem_chi_tiet');
+            Route::get('/{order}', 'show')->middleware('permission:don_ban.xem_chi_tiet|cong_no_khach_hang.xem_chi_tiet');
             Route::put('/{order}', 'update')->middleware('permission:don_ban.sua');
             Route::delete('/{order}', 'destroy')->middleware('permission:don_ban.xoa');
             Route::post('/{id}/approve', 'approve')->middleware('permission:don_ban.duyet');

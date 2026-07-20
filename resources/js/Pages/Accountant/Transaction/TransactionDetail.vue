@@ -1,6 +1,12 @@
 <template>
+    <div v-if="loading" class="w-full max-w-3xl rounded-xl bg-white p-8 text-center text-gray-500">
+        Đang tải chi tiết giao dịch...
+    </div>
+    <div v-else-if="error" class="w-full max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+        {{ error }}
+    </div>
     <div
-        v-if="transaction"
+        v-else-if="transaction"
         class="space-y-0 bg-white rounded-xl shadow-lg w-full max-w-3xl p-5 z-50"
     >
         <!-- Header: Mã + Badge trạng thái -->
@@ -63,6 +69,12 @@
                 <p class="text-xs text-gray-500 mb-1">Loại thanh toán</p>
                 <p class="text-sm font-medium">
                     {{ transaction.category?.name ?? "—" }}
+                </p>
+            </div>
+            <div class="py-4 pl-4">
+                <p class="text-xs text-gray-500 mb-1">Hình thức giao dịch</p>
+                <p class="text-sm font-medium">
+                    {{ transaction.payment_method === "bank_transfer" ? "Chuyển khoản" : "Tiền mặt" }}
                 </p>
             </div>
         </div>
@@ -130,21 +142,18 @@
                     <p class="text-xs text-gray-500 mb-1">Người tạo</p>
                     <p class="text-sm font-medium">
                         {{
-                            giao_dich.themd_by?.name ||
-                            transaction.creator?.name ||
+                            transaction.created_by?.name ||
                             "—"
                         }}
                     </p>
                     <p
                         v-if="
-                            giao_dich.themd_by?.email ||
-                            transaction.creator?.email
+                            transaction.created_by?.email
                         "
                         class="text-xs text-gray-400"
                     >
                         {{
-                            giao_dich.themd_by?.email ||
-                            transaction.creator?.email
+                            transaction.created_by?.email
                         }}
                     </p>
                 </div>
@@ -154,16 +163,15 @@
                     <p class="text-xs text-gray-500 mb-1">Người duyệt</p>
                     <p class="text-sm font-medium">
                         {{
-                            giao_dich.duyetd_by?.name ||
-                            giao_dich.duyetr?.name ||
+                            transaction.approved_by?.name ||
                             "Chưa duyệt"
                         }}
                     </p>
                     <p
-                        v-if="giao_dich.duyetd_at"
+                        v-if="transaction.approved_at"
                         class="text-xs text-gray-400"
                     >
-                        {{ formatDate(giao_dich.duyetd_at) }}
+                        {{ formatDate(transaction.approved_at) }}
                     </p>
                 </div>
             </div>
@@ -173,10 +181,10 @@
         <div v-if="transaction.status === 'rejected'" class="border-b border-gray-200 py-4">
             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-red-500">Thông tin từ chối</p>
             <div class="rounded-lg border border-red-100 bg-red-50 p-3">
-                <p class="text-sm text-red-700">{{ giao_dich.tu_choiion_reason || 'Không có lý do' }}</p>
+                <p class="text-sm text-red-700">{{ transaction.rejection_reason || 'Không có lý do' }}</p>
                 <p class="mt-1 text-xs text-red-500">
-                    {{ giao_dich.tu_choied_by?.name || 'Người từ chối' }}
-                    <span v-if="giao_dich.tu_choied_at"> · {{ formatDate(giao_dich.tu_choied_at) }}</span>
+                    {{ transaction.rejected_by?.name || 'Người từ chối' }}
+                    <span v-if="transaction.rejected_at"> · {{ formatDate(transaction.rejected_at) }}</span>
                 </p>
             </div>
         </div>
@@ -200,9 +208,9 @@
         <!-- Footer -->
         <div class="pt-3 flex items-center justify-between flex-wrap gap-2">
             <p class="text-xs text-gray-400">
-                Tạo lúc: {{ formatDate(giao_dich.themd_at) }}
-                <span v-if="giao_dich.suad_at">
-                    · Cập nhật: {{ formatDate(giao_dich.suad_at) }}
+                Tạo lúc: {{ formatDate(transaction.created_at) }}
+                <span v-if="transaction.updated_at">
+                    · Cập nhật: {{ formatDate(transaction.updated_at) }}
                 </span>
             </p>
         </div>
@@ -226,9 +234,11 @@ const props = defineProps({
     transactionId: Number,
 });
 
-defineEmits(["print", "edit"]);
+defineEmits(["close", "print", "edit"]);
 
 const transaction = ref(null);
+const loading = ref(true);
+const error = ref("");
 
 const TYPE_MAP = {
     receipt: {
@@ -331,10 +341,18 @@ function formatTimeOnly(value) {
 }
 
 async function loadData() {
-    const res = await axios.get(
-        `/api/accountant/transactions/${props.transactionId}`,
-    );
-    transaction.value = res.data;
+    loading.value = true;
+    error.value = "";
+    try {
+        const res = await axios.get(
+            `/api/accountant/transactions/${props.transactionId}`,
+        );
+        transaction.value = res.data;
+    } catch (e) {
+        error.value = e.response?.data?.message || "Không thể tải chi tiết giao dịch.";
+    } finally {
+        loading.value = false;
+    }
 }
 
 onMounted(loadData);

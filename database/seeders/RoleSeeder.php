@@ -9,22 +9,34 @@ class RoleSeeder extends Seeder
 {
     public function run()
     {
-        Role::firstOrCreate([
-            'name' => 'Admin', 'guard_name' => 'web'
+        Role::updateOrCreate([
+            'name' => 'Supper Admin', 'guard_name' => 'web'
         ], [
-            'description' => 'Quản trị hệ thống'
+            'description' => 'Quản trị cao nhất hệ thống',
+            'company_id' => null,
+            'type' => 'system',
+            'hierarchy_level' => 100,
+            'is_protected' => false,
         ]);
 
-        Role::firstOrCreate([
+        Role::updateOrCreate([
             'name' => 'HR', 'guard_name' => 'web'
         ], [
-            'description' => 'Nhân sự'
+            'description' => 'Nhân sự',
+            'company_id' => null,
+            'type' => 'system',
+            'hierarchy_level' => 30,
+            'is_protected' => false,
         ]);
 
-        Role::firstOrCreate([
+        Role::updateOrCreate([
             'name' => 'Manager', 'guard_name' => 'web'
         ], [
-            'description' => 'Quản lý'
+            'description' => 'Quản lý',
+            'company_id' => null,
+            'type' => 'system',
+            'hierarchy_level' => 40,
+            'is_protected' => false,
         ]);
 
         $director = Role::where('guard_name', 'web')
@@ -36,12 +48,20 @@ class RoleSeeder extends Seeder
             $director->update([
                 'name' => 'Giám đốc',
                 'description' => 'Giám đốc - toàn quyền quản trị doanh nghiệp',
+                'company_id' => null,
+                'type' => 'system',
+                'hierarchy_level' => 90,
+                'is_protected' => false,
             ]);
         } else {
             Role::create([
                 'name' => 'Giám đốc',
                 'guard_name' => 'web',
                 'description' => 'Giám đốc - toàn quyền quản trị doanh nghiệp',
+                'company_id' => null,
+                'type' => 'system',
+                'hierarchy_level' => 90,
+                'is_protected' => false,
             ]);
         }
     }

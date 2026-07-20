@@ -295,6 +295,9 @@
                                                             },
                                                         ]"
                                                     >
+                                                        <span v-if="subItem.icon" class="h-5 w-5 shrink-0">
+                                                            <component :is="getIconComponent(subItem.icon)" />
+                                                        </span>
                                                         {{ subItem.name }}
 
                                                         <span

@@ -111,11 +111,6 @@ class CompanyController extends Controller
                     'type' => 'expense',
                 ],
                 [
-                    'code' => 'CHUYEN_KHOAN',
-                    'name' => 'Chuyển khoản',
-                    'type' => 'transfer',
-                ],
-                [
                     'code' => 'TAM_UNG_NCC',
                     'name' => 'Tạm ứng nhà cung cấp',
                     'type' => 'expense'

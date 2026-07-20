@@ -8,6 +8,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Services\CodeGeneratorService;
 use App\Services\CurrencyService;
+use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
@@ -79,6 +80,7 @@ class SupplierController extends Controller
                     'current_debt' => $currentDebt,
                     'total_advance' => $supplier->total_advance,
                     'opening_advance' => $supplier->opening_advance,
+                    'note' => $supplier->note,
                     'status' => $supplier->status,
                     'created_at' => $supplier->created_at,
                     'company_currency' => [
@@ -114,17 +116,26 @@ class SupplierController extends Controller
 
                 'regex:/^(0|\+84)[0-9]{9,10}$/'
             ],
-            'email' => 'required|email|unique:suppliers,email',
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('suppliers', 'email')->where(
+                    fn ($query) => $query->where('company_id', $this->companyId())
+                ),
+            ],
 
             'currency_id' => 'required|exists:currencies,id',
 
             'province_code' => 'required',
+            'province_name' => 'required|string|max:255',
             'ward_code' => 'required',
+            'ward_name' => 'required|string|max:255',
 
             'address_detail' => 'required|string|max:500',
 
             'opening_debt' => 'nullable|numeric|min:0',
-            'total_advance' => 'nullable|numeric|min:0',
+            'opening_advance' => 'nullable|numeric|min:0',
+            'note' => 'nullable|string|max:2000',
         ], [
             'name.required' => 'Tên nhà cung cấp không được để trống.',
             'name.max' => 'Tên nhà cung cấp tối đa 255 ký tự.',
@@ -244,7 +255,8 @@ class SupplierController extends Controller
                 return [
                     'id' => $order->id,
                     'code' => $order->code,
-                    'order_date' => $order->order_date,
+                    'order_date' => $order->created_at?->toIso8601String(),
+                    'created_at' => $order->created_at?->toIso8601String(),
                     'total_amount' => $order->total_amount,
                     'exchange_rate' => $order->exchange_rate,
 
@@ -277,32 +289,33 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::where('company_id', $this->companyId())->findOrFail($id);
 
-        if ($supplier->purchaseOrders()->exists()) {
-            return response()->json([
-                'message' => 'Nhà cung cấp đã phát sinh đơn mua, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
-            ], 422);
-        }
-
         $validated = $request->validate([
             'name' => 'required|max:255',
             'phone' => [
                 'required',
                 'regex:/^(0|\+84)[0-9]{9,10}$/'
             ],
-            'email' => 'required|email|',
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('suppliers', 'email')
+                    ->ignore($supplier->id)
+                    ->where(fn ($query) => $query->where('company_id', $this->companyId())),
+            ],
 
             'currency_id' => 'required|exists:currencies,id',
 
             'province_code' => 'required',
-            // 'province_name' => 'required|string|max:255',
+            'province_name' => 'required|string|max:255',
 
             'ward_code' => 'required',
-            // 'ward_name' => 'required|string|max:255',
+            'ward_name' => 'required|string|max:255',
 
             'address_detail' => 'required|string|max:500',
 
             'opening_debt' => 'nullable|numeric|min:0',
             'opening_advance' => 'nullable|numeric|min:0',
+            'note' => 'nullable|string|max:2000',
 
         ], [
             'name.required' => 'Tên nhà cung cấp không được để trống.',

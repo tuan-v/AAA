@@ -15,7 +15,7 @@ class StoreTransactionCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'type' => 'required|in:income,expense,transfer',
+            'type' => 'required|in:income,expense',
             'description' => 'nullable|string',
             'status' => 'nullable|in:1,0',
         ];

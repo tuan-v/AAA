@@ -232,7 +232,14 @@ class CustomerController extends Controller
                 'remaining' => $remaining,
                 'opening_balance' => $customer->opening_balance,
             ],
-            'recent_orders' => $customer->orders,
+            'recent_orders' => $customer->orders->map(fn ($order) => [
+                'id' => $order->id,
+                'code' => $order->code,
+                'order_date' => $order->created_at?->toIso8601String(),
+                'created_at' => $order->created_at?->toIso8601String(),
+                'total_amount' => $order->total_amount,
+                'status' => $order->status,
+            ]),
             'debt_history' => $customer->debts,
         ]);
     }
@@ -272,7 +279,14 @@ class CustomerController extends Controller
                 'total_paid'       => abs($totalPaid),
                 'remaining_debt'   => $remainingDebt,
             ],
-            'recent_orders' => $customer->orders,
+            'recent_orders' => $customer->orders->map(fn ($order) => [
+                'id' => $order->id,
+                'code' => $order->code,
+                'order_date' => $order->created_at?->toIso8601String(),
+                'created_at' => $order->created_at?->toIso8601String(),
+                'total_amount' => $order->total_amount,
+                'status' => $order->status,
+            ]),
             'debt_history'  => $debtEntries,
             'payments'      => $customer->payments,
         ]);

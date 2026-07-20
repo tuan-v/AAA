@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,6 +22,13 @@ class ModuleDashboardTest extends TestCase
             'owner_id' => $user->id,
         ]);
         $user->update(['company_id' => $company->id]);
+        $this->seed(PermissionSeeder::class);
+        $user->givePermissionTo([
+            'don_mua.xem',
+            'don_ban.xem',
+            'kho.xem',
+            'giao_dich.xem',
+        ]);
 
         foreach (['purchase', 'sale', 'warehouse', 'accountant'] as $module) {
             $this->actingAs($user)
@@ -32,5 +40,27 @@ class ModuleDashboardTest extends TestCase
                     'data' => ['metrics', 'trend', 'recent', 'ranking', 'currency'],
                 ]);
         }
+    }
+
+    public function test_module_user_cannot_access_overall_or_another_module_dashboard(): void
+    {
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $warehouseUser = User::where('email', 'warehouse@demo.vn')->firstOrFail();
+
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/dashboard/overview')
+            ->assertForbidden();
+
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/dashboard/accountant')
+            ->assertForbidden();
+
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/dashboard/warehouse')
+            ->assertOk();
+
+        $this->actingAs($warehouseUser)
+            ->get('/dashboard')
+            ->assertRedirect('/warehouse');
     }
 }

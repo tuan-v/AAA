@@ -150,6 +150,15 @@
                     {{ categoryMismatchMessage }}
                 </p>
             </div>
+            <div class="field">
+                <label class="label">
+                    <i class="ti ti-wallet"></i>Hình thức giao dịch
+                </label>
+                <select v-model="form.payment_method" class="input">
+                    <option value="cash">Tiền mặt</option>
+                    <option value="bank_transfer">Chuyển khoản</option>
+                </select>
+            </div>
             <div class="divider"></div>
 
             <!-- ACCOUNTS -->
@@ -157,7 +166,7 @@
 
             <div class="grid2">
                 <!-- RECEIPT: to_account -->
-                <div v-if="form.type === 'receipt'" class="field">
+                <div v-if="form.type === 'receipt' && form.payment_method !== 'bank_transfer'" class="field">
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản nhận
                     </label>
@@ -174,7 +183,7 @@
                 </div>
 
                 <!-- PAYMENT: from_account -->
-                <div v-if="form.type === 'payment'" class="field">
+                <div v-if="form.type === 'payment' && form.payment_method !== 'bank_transfer'" class="field">
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản chi
                     </label>
@@ -191,10 +200,10 @@
                 </div>
 
                 <!-- TRANSFER: both -->
-                <template v-if="form.type === 'transfer'">
+                <template v-if="form.payment_method === 'bank_transfer'">
                     <div class="field">
                         <label class="label">
-                            <i class="ti ti-building-bank"></i>Từ tài khoản
+                            <i class="ti ti-building-bank"></i>Tài khoản chuyển
                         </label>
                         <select v-model="form.from_account_id" class="input">
                             <option value="">Chọn tài khoản</option>
@@ -209,7 +218,7 @@
                     </div>
                     <div class="field">
                         <label class="label">
-                            <i class="ti ti-building-bank"></i>Đến tài khoản
+                            <i class="ti ti-building-bank"></i>Tài khoản nhận
                         </label>
                         <select v-model="form.to_account_id" class="input">
                             <option value="">Chọn tài khoản</option>
@@ -324,7 +333,6 @@ const isEdit = computed(() => !!props.transaction?.id);
 const typeOptions = [
     { value: "receipt", label: "Thu tiền", icon: "ti ti-arrow-down-circle" },
     { value: "payment", label: "Chi tiền", icon: "ti ti-arrow-up-circle" },
-    { value: "transfer", label: "Chuyển khoản", icon: "ti ti-arrows-exchange" },
 ];
 
 const normalizedCurrencies = computed(() =>
@@ -427,6 +435,7 @@ const form = reactive({
     id: null,
     code: "",
     type: "receipt",
+    payment_method: "cash",
     amount: 0,
     currency_id: "",
     category_id: "",
@@ -446,6 +455,7 @@ function resetForm() {
         id: null,
         code: "",
         type: "receipt",
+        payment_method: "cash",
         amount: 0,
         currency_id: "",
         category_id: "",
@@ -476,6 +486,7 @@ watch(
             id: val.id,
             code: val.code ?? "",
             type: val.type ?? "receipt",
+            payment_method: val.payment_method ?? "cash",
             amount: val.amount ?? 0,
             currency_id: val.currency_id ?? "",
             category_id: val.category_id ?? "",
@@ -723,8 +734,12 @@ async function save() {
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
     width: 100%;
     max-width: 820px;
+    max-height: calc(100dvh - 3rem);
     overflow: hidden;
     z-index: 50;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 /* ── Header ── */
@@ -735,6 +750,8 @@ async function save() {
     gap: 1rem;
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #f0f0f0;
+    flex: 0 0 auto;
+    background: #fff;
 }
 .tx-title {
     font-size: 18px;
@@ -753,6 +770,7 @@ async function save() {
 /* ── Type tabs ── */
 .type-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
     padding: 4px;
     background: #f5f5f5;
@@ -784,6 +802,23 @@ async function save() {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+.tx-body::-webkit-scrollbar {
+    width: 7px;
+}
+.tx-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.tx-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.tx-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 .section-label {
     font-size: 11px;
@@ -806,6 +841,7 @@ async function save() {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    min-width: 0;
 }
 .label {
     font-size: 12px;
@@ -830,6 +866,7 @@ async function save() {
         border-color 0.15s,
         box-shadow 0.15s;
     font-family: inherit;
+    min-width: 0;
 }
 .input:focus {
     border-color: #185fa5;
@@ -899,6 +936,9 @@ textarea.input {
     gap: 8px;
     padding: 1rem 1.5rem;
     border-top: 1px solid #f0f0f0;
+    flex: 0 0 auto;
+    background: #fff;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 .btn {
     display: inline-flex;
@@ -930,5 +970,60 @@ textarea.input {
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .tx-modal {
+        max-height: calc(100dvh - 1rem);
+        border-radius: 12px;
+    }
+
+    .tx-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem;
+    }
+
+    .type-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .tab {
+        justify-content: center;
+        padding: 8px 6px;
+        white-space: nowrap;
+    }
+
+    .tx-body {
+        padding: 1rem;
+    }
+
+    .grid2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tx-footer {
+        padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+    }
+
+    .btn {
+        flex: 1;
+        justify-content: center;
+        padding-inline: 12px;
+    }
+}
+
+@media (max-height: 600px) {
+    .tx-modal {
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .tx-header,
+    .tx-footer {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
 }
 </style>

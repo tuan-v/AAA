@@ -7,6 +7,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class WarehouseController extends Controller
@@ -130,17 +131,18 @@ class WarehouseController extends Controller
     {
         $warehouse = Warehouse::where('company_id', $this->companyId())->findOrFail($id);
 
-        if ($warehouse->slips()->exists() || $warehouse->stocks()->exists()) {
-            return response()->json([
-                'message' => 'Kho đã phát sinh tồn kho hoặc phiếu kho, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
-            ], 422);
-        }
-
         $validated = $request->validate([
             'name' => 'required|max:255',
             'province_code' => 'required|exists:provinces,id',
-            'ward_code' => 'required|exists:wards,id',
+            'ward_code' => [
+                'required',
+                Rule::exists('wards', 'id')->where(
+                    fn ($query) => $query->where('province_id', $request->input('province_code'))
+                ),
+            ],
             'address_detail' => 'required',
+        ], [
+            'ward_code.exists' => 'Xã/Phường không thuộc Tỉnh/Thành phố đã chọn.',
         ]);
 
         $warehouse->update($validated);

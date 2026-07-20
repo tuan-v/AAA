@@ -1,10 +1,10 @@
 <template>
     <div
-        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl overflow-hidden"
+        class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl max-h-[calc(100dvh-3rem)] overflow-hidden flex flex-col min-h-0"
     >
         <!-- Header -->
         <div
-            class="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
+            class="flex flex-none items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
         >
             <div class="flex items-center gap-3">
                 <div>
@@ -37,7 +37,7 @@
             </button>
         </div>
 
-        <div class="px-6 py-6 max-h-[75vh] overflow-y-auto space-y-6">
+        <div class="px-4 sm:px-6 py-5 sm:py-6 flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-6">
             <!-- SECTION: THÔNG TIN CƠ BẢN -->
             <div>
                 <h3
@@ -312,7 +312,7 @@
 
         <!-- Footer -->
         <div
-            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60"
+            class="flex flex-none justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/60"
         >
             <button
                 @click="$emit('close')"
@@ -334,7 +334,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted, computed } from "vue";
+import { reactive, ref, watch, computed } from "vue";
 import axios from "axios";
 import FormSelect from "@/components/FormSelect.vue";
 import { toast } from "vue3-toastify";
@@ -382,23 +382,23 @@ const currencyOptions = computed(() =>
 );
 
 const provinceOptions = computed(() =>
-    provinces.value.map((p) => ({
-        value: String(p.code),
-        label: p.name,
+    (Array.isArray(provinces.value) ? provinces.value : []).filter(Boolean).map((p) => ({
+        value: String(p.id),
+        label: p.name ?? "",
     })),
 );
 
 const wardOptions = computed(() =>
-    wards.value.map((w) => ({
-        value: String(w.code),
-        label: w.name,
+    (Array.isArray(wards.value) ? wards.value : []).filter(Boolean).map((w) => ({
+        value: String(w.id),
+        label: w.name ?? "",
     })),
 );
 
 // ==================== THEO DÕI LOAD DỮ LIỆU SỬA ====================
 watch(
     () => props.supplier,
-    (supplier) => {
+    async (supplier) => {
         if (!supplier) {
             resetForm();
             return;
@@ -418,16 +418,22 @@ watch(
             ? String(supplier.currency_id)
             : "";
 
-        selectedProvince.value = supplier.province_code
-            ? String(supplier.province_code)
-            : "";
-        selectedWard.value = supplier.ward_code
-            ? String(supplier.ward_code)
-            : "";
         addressDetail.value = supplier.address_detail || "";
 
+        if (!provinces.value.length) {
+            await fetchProvinces();
+        }
+        const province = provinces.value.find(
+            (item) => String(item.code) === String(supplier.province_code),
+        );
+        selectedProvince.value = province ? String(province.id) : "";
+
         if (selectedProvince.value) {
-            fetchWards(selectedProvince.value);
+            await fetchWards(selectedProvince.value);
+            const ward = wards.value.find(
+                (item) => String(item.code) === String(supplier.ward_code),
+            );
+            selectedWard.value = ward ? String(ward.id) : "";
         }
     },
     { immediate: true },
@@ -437,20 +443,20 @@ watch(
 async function fetchProvinces() {
     try {
         const res = await axios.get("/api/provinces");
-        provinces.value = res.data;
+        provinces.value = Array.isArray(res.data) ? res.data : [];
     } catch (error) {
         console.error("Thất bại khi lấy danh sách tỉnh thành:", error);
     }
 }
 
-async function fetchWards(provinceCode) {
-    if (!provinceCode) {
+async function fetchWards(provinceId) {
+    if (!provinceId) {
         wards.value = [];
         return;
     }
     try {
-        const res = await axios.get(`/api/provinces/${provinceCode}/wards`);
-        wards.value = res.data;
+        const res = await axios.get(`/api/provinces/${provinceId}/wards`);
+        wards.value = Array.isArray(res.data) ? res.data : [];
     } catch (error) {
         console.error("Thất bại khi lấy danh sách phường xã:", error);
     }
@@ -477,24 +483,24 @@ function resetForm() {
     errors.value = {};
 }
 
-onMounted(() => {
-    fetchProvinces();
-});
+fetchProvinces();
 
 // ==================== SUBMIT GỬI DỮ LIỆU LÊN SERVER ====================
 async function submit() {
     errors.value = {};
     try {
         const provinceObj = provinces.value.find(
-            (x) => x.code == selectedProvince.value,
+            (x) => String(x.id) === String(selectedProvince.value),
         );
-        const wardObj = wards.value.find((x) => x.code == selectedWard.value);
+        const wardObj = wards.value.find(
+            (x) => String(x.id) === String(selectedWard.value),
+        );
 
         const payload = {
             ...form,
-            province_code: selectedProvince.value || null,
+            province_code: provinceObj?.code ?? null,
             province_name: provinceObj ? provinceObj.name : "",
-            ward_code: selectedWard.value || null,
+            ward_code: wardObj?.code ?? null,
             ward_name: wardObj ? wardObj.name : "",
             address_detail: addressDetail.value || "",
             // Ép chuỗi ngược về Number để Database Laravel lưu trữ đúng kiểu số nguyên nguyên bản
@@ -521,7 +527,7 @@ async function submit() {
         emit("saved", supplier);
     } catch (error) {
         if (error.response?.status === 422) {
-            errors.value = error.response.data.errors;
+            errors.value = error.response?.data?.errors ?? {};
             toast.error("Vui lòng kiểm tra lại dữ liệu các trường bắt buộc.");
             return;
         }

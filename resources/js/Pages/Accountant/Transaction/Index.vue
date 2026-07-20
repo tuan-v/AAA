@@ -159,7 +159,6 @@ const filters = [
         options: [
             { value: "receipt", label: "Thu tiền" },
             { value: "payment", label: "Chi tiền" },
-            { value: "transfer", label: "Chuyển khoản" },
         ],
     },
     {

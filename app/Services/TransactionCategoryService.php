@@ -13,7 +13,7 @@ class TransactionCategoryService extends BaseService
 {
     // Các giá trị type hợp lệ, khớp với transaction.type (receipt/payment/transfer)
     // qua bảng ánh xạ ở TransactionService::validateCategoryType()
-    private const VALID_TYPES = ['income', 'expense', 'transfer'];
+    private const VALID_TYPES = ['income', 'expense'];
 
     public function __construct(
         protected TransactionCategoryRepositoryInterface $repository
@@ -118,7 +118,7 @@ class TransactionCategoryService extends BaseService
     {
         if (empty($type) || !in_array($type, self::VALID_TYPES, true)) {
             throw ValidationException::withMessages([
-                'type' => 'Loại thanh toán không hợp lệ. Chỉ chấp nhận: income, expense, transfer.',
+                'type' => 'Loại giao dịch không hợp lệ. Chỉ chấp nhận Thu hoặc Chi.',
             ]);
         }
     }

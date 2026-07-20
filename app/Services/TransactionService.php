@@ -53,8 +53,10 @@ class TransactionService extends BaseService
 
             $transaction = $this->repository->create([
                 'company_id'        => $this->companyId(),
+                'code'              => app(CodeGeneratorService::class)->generate(Transaction::class, 'GD'),
                 'transaction_date'  => $data['transaction_date'] ?? now(),
                 'type'              => $data['type'],
+                'payment_method'    => $data['payment_method'] ?? 'cash',
                 'category_id'       => $data['category_id'],
                 'currency_id'       => $data['currency_id'],
                 'amount'            => $data['amount'],
@@ -107,6 +109,7 @@ class TransactionService extends BaseService
             $transaction->update([
                 'transaction_date' => $data['transaction_date'] ?? now(),
                 'type' => $data['type'],
+                'payment_method' => $data['payment_method'] ?? 'cash',
                 'category_id' => $data['category_id'],
                 'currency_id' => $data['currency_id'],
                 'amount' => $data['amount'],
@@ -321,6 +324,23 @@ class TransactionService extends BaseService
 
         $type = $data['type'];
 
+        if (!in_array($type, ['receipt', 'payment'], true)) {
+            throw new \InvalidArgumentException('Loại giao dịch chỉ được là Thu hoặc Chi.');
+        }
+
+        if (!in_array($data['payment_method'] ?? 'cash', ['cash', 'bank_transfer'], true)) {
+            throw new \InvalidArgumentException('Hình thức giao dịch không hợp lệ.');
+        }
+
+        if (($data['payment_method'] ?? 'cash') === 'bank_transfer') {
+            if (empty($data['from_account_id']) || empty($data['to_account_id'])) {
+                throw new \InvalidArgumentException('Chuyển khoản phải có tài khoản chuyển và tài khoản nhận.');
+            }
+            if ((int) $data['from_account_id'] === (int) $data['to_account_id']) {
+                throw new \InvalidArgumentException('Tài khoản chuyển và tài khoản nhận không được trùng nhau.');
+            }
+        }
+
         if ($type === 'receipt' && empty($data['to_account_id'])) {
             throw new \InvalidArgumentException(
                 'Giao dịch thu (receipt) phải có tài khoản đích (to_account_id).'
@@ -444,14 +464,14 @@ class TransactionService extends BaseService
 
     private function updateBalance(Transaction $transaction): void
     {
-        if ($transaction->type === 'receipt') {
+        if ($transaction->type === 'receipt' && $transaction->payment_method !== 'bank_transfer') {
             $account = $this->lockAccount($transaction->to_account_id);
             $amount  = $this->convertToAccountCurrency($transaction, $account);
             $this->balanceService->increase($account, $amount);
             return;
         }
 
-        if ($transaction->type === 'payment') {
+        if ($transaction->type === 'payment' && $transaction->payment_method !== 'bank_transfer') {
             $account = $this->lockAccount($transaction->from_account_id);
             $amount  = $this->convertToAccountCurrency($transaction, $account);
 
@@ -465,7 +485,7 @@ class TransactionService extends BaseService
             return;
         }
 
-        if ($transaction->type === 'transfer') {
+        if ($transaction->payment_method === 'bank_transfer') {
             $ids = [$transaction->from_account_id, $transaction->to_account_id];
             sort($ids);
 

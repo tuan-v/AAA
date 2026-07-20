@@ -121,21 +121,25 @@ class AppServiceProvider extends ServiceProvider
                 'subItems' => array_values(array_filter([
                     $this->can('nhan_su.xem') ? [
                         'name' => 'Nhân sự',
+                        'icon' => 'UserGroupIcon',
                         'path' => '/user',
                     ] : null,
 
                     $this->can('quyen.xem') ? [
                         'name' => 'Quyền',
+                        'icon' => 'Lock',
                         'path' => '/permission',
                     ] : null,
 
                     $this->can('vai_tro.xem') ? [
                         'name' => 'Vai trò',
+                        'icon' => 'UserPosition',
                         'path' => '/role',
                     ] : null,
 
                     $this->can('nhat_ky.xem') ? [
                         'name' => 'Lịch sử hoạt động',
+                        'icon' => 'LockClock',
                         'path' => '/audit-logs',
                     ] : null,
                 ])),
@@ -247,9 +251,15 @@ class AppServiceProvider extends ServiceProvider
                 ] : null,
 
                 $this->can('giao_dich.xem') ? [
-                    'icon' => 'transaction',
+                    'icon' => 'TransactionIcon',
                     'name' => 'Giao dịch',
                     'path' => '/accountant/transactions',
+                ] : null,
+
+                $this->can('giao_dich.xem') ? [
+                    'icon' => 'ListCheckIcon',
+                    'name' => 'Lịch sử giao dịch',
+                    'path' => '/accountant/account-ledgers',
                 ] : null,
 
                 $this->can('cong_no_khach_hang.xem') ? [

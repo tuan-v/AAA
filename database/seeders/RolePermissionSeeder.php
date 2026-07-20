@@ -10,7 +10,7 @@ class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
-        $admin = Role::findByName('Admin');
+        $admin = Role::findByName('Supper Admin');
 
         $admin->syncPermissions(Permission::all());
 

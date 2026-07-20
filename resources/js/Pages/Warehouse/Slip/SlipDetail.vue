@@ -18,6 +18,10 @@
                 Đang tải dữ liệu phiếu...
             </div>
 
+            <div v-else-if="errorMessage" class="text-center py-10 text-red-600">
+                {{ errorMessage }}
+            </div>
+
             <div v-else-if="slip">
                 <!-- HEADER -->
                 <div
@@ -71,7 +75,7 @@
 
                         <p class="font-semibold text-gray-900 text-lg">
                             {{
-                                slip.sales_order?.customer?.name ||
+                                slip.sale_order?.customer?.name ||
                                 slip.purchase_order?.supplier?.name ||
                                 "-"
                             }}
@@ -196,6 +200,7 @@ const emit = defineEmits(["close"]);
 
 const slip = ref(null);
 const loading = ref(false);
+const errorMessage = ref("");
 
 const totalQuantity = computed(() =>
     (slip.value?.items || []).reduce((s, i) => s + i.quantity, 0),
@@ -207,11 +212,16 @@ watch(
         if (!id) return;
 
         loading.value = true;
-        slip.value = null; // 👈 thêm dòng này
+        slip.value = null;
+        errorMessage.value = "";
 
         try {
             const res = await axios.get(`/api/warehouse/slips/${id}`);
-            slip.value = res.data; // OK vì data của bạn đúng format
+            slip.value = res.data?.data ?? res.data;
+        } catch (error) {
+            errorMessage.value =
+                error.response?.data?.message ||
+                "Không tải được chi tiết phiếu xuất.";
         } finally {
             loading.value = false;
         }

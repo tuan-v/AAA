@@ -29,6 +29,7 @@ class Supplier extends Model
         'total_debts',
         'total_advance',
         'opening_advance',
+        'note',
 
         'status',
     ];

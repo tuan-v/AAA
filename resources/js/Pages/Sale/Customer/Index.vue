@@ -193,12 +193,6 @@ const columns = [
     },
 
     {
-        label: "Tiền tệ",
-        align: "text-start",
-        render: (row) => h("span", {}, row.currency?.code ?? "-"),
-    },
-
-    {
         label: "Công nợ đầu kỳ",
         align: "text-right",
         render: (row) =>

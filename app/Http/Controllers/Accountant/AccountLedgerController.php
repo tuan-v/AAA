@@ -12,7 +12,8 @@ class AccountLedgerController extends Controller
     {
         $query = AccountLedger::query()
             ->with([
-                'account:id,name,code',
+                'account:id,name,code,currency_id',
+                'account.currency:id,code,symbol',
                 'transaction:id,code,type'
             ])
             ->where('company_id', auth()->user()->company_id);
@@ -27,10 +28,16 @@ class AccountLedgerController extends Controller
             });
         }
 
+        $perPage = min(max($request->integer('per_page', 10), 5), 100);
+
         return response()->json(
             $query
                 ->orderByDesc('ledger_date')
-                ->paginate(20)
+                ->paginate($perPage)
+                ->through(function (AccountLedger $ledger) {
+                    $ledger->currency = $ledger->account?->currency;
+                    return $ledger;
+                })
         );
     }
 }

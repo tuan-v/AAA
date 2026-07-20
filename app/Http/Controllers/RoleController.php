@@ -13,9 +13,10 @@ class RoleController extends Controller
     public function index(Request $request)
     {
         $currentUser = $request->user();
-        $isSuperAdmin = $currentUser->hasRole('Super Admin');
+        $isSuperAdmin = $currentUser->hasRole('Supper Admin');
 
         $query = Role::query()
+            ->visibleTo($currentUser)
             ->where(function ($q) use ($currentUser) {
 
                 // Role hệ thống
@@ -44,7 +45,7 @@ class RoleController extends Controller
             $query->where('is_protected', false);
         }
 
-        $roles = $query->orderByRaw("FIELD(type, 'system', 'user')")
+        $roles = $query->orderByRaw("CASE WHEN type = 'system' THEN 0 ELSE 1 END")
             ->orderBy('name')
             ->get()
             ->map(function ($role) {
@@ -91,6 +92,7 @@ class RoleController extends Controller
                 'name' => $validated['name'],
                 'guard_name' => 'web',
                 'type' => 'user',
+                'hierarchy_level' => max(0, (int) auth()->user()->roles()->max('hierarchy_level') - 1),
                 'is_protected' => false,
                 'description' => $validated['description'] ?? null,
             ]
@@ -177,7 +179,7 @@ class RoleController extends Controller
 
     private function guardAgainstProtectedRole(Request $request, Role $role, string $action): void
     {
-        if ($role->is_protected && ! $request->user()->hasRole('Super Admin')) {
+        if ($role->is_protected && ! $request->user()->hasRole('Supper Admin')) {
             abort(403, "Bạn không có quyền {$action} vai trò này.");
         }
     }

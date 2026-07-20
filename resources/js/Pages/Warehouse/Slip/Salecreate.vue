@@ -430,13 +430,8 @@ const slipActions = [
     },
 ];
 async function openDetail(row) {
-    try {
-        const res = await axios.get(`/api/warehouse/slips/${row.id}`);
-        selectedSlip.value = res.data;
-        showDetailModal.value = true;
-    } catch (e) {
-        toast.error("Không load được chi tiết phiếu");
-    }
+    selectedSlip.value = row;
+    showDetailModal.value = true;
 }
 
 // ===================== INIT

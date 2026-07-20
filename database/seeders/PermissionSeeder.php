@@ -50,11 +50,13 @@ class PermissionSeeder extends Seeder
 
         foreach ($permissions as $permission) {
             [$module, $action] = array_pad(explode('.', $permission, 2), 2, '');
+            $moduleLabel = $this->modules[$module] ?? str_replace('_', ' ', $module);
             Permission::updateOrCreate([
                 'name' => $permission,
                 'guard_name' => 'web',
             ], [
-                'description' => ($this->actions[$action] ?? ucfirst($action)).' '.($this->modules[$module] ?? str_replace('_', ' ', $module)),
+                'description' => ($this->actions[$action] ?? ucfirst($action)).' '.$moduleLabel,
+                'group' => mb_convert_case($moduleLabel, MB_CASE_TITLE, 'UTF-8'),
             ]);
         }
     }

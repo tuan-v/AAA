@@ -103,9 +103,18 @@ class WarehouseSlipController extends Controller
         $company = auth()->user()->company ?? auth()->user()->companies()->first();
         $companyCurrency = $company ? $company->default_currency : null;
 
-        // Quy đổi giá trị item của phiếu kho
+        // Phiếu nhập hiển thị giá mua; phiếu xuất hiển thị giá bán trên đơn bán.
+        // company_price của phiếu xuất là giá vốn và không phải đơn giá khách hàng.
         foreach ($slip->items as $item) {
-            $item->price = $item->company_price;
+            if ($slip->type === 'export') {
+                $saleItem = $slip->saleOrder?->items
+                    ->firstWhere('product_id', $item->product_id);
+                $item->price = $saleItem?->company_unit_price
+                    ?? $saleItem?->unit_price
+                    ?? $item->price;
+            } else {
+                $item->price = $item->company_price ?? $item->price;
+            }
         }
 
         // Quy đổi đơn mua hàng đi kèm

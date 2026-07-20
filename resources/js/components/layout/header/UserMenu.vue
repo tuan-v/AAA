@@ -22,7 +22,7 @@
                 ></div>
             </div>
 
-            <!-- Tên user + tên công ty - chỉ hiển thị từ sm trở lên -->
+            <!-- Tên user + vai trò - chỉ hiển thị từ sm trở lên -->
             <div class="hidden sm:flex flex-col items-start flex-1 min-w-0">
                 <span
                     class="text-sm font-medium text-gray-900 dark:text-gray-100 leading-tight truncate max-w-[140px] md:max-w-[160px] lg:max-w-[180px]"
@@ -33,10 +33,7 @@
                 <span
                     class="hidden md:block text-xs text-gray-500 dark:text-gray-400 leading-tight truncate max-w-[140px] lg:max-w-[160px]"
                 >
-                    {{
-                        page.props.auths?.user?.company?.name ||
-                        "Chưa có công ty"
-                    }}
+                    {{ roleLabel }}
                 </span>
             </div>
 
@@ -381,6 +378,12 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const companies = computed(() => page.props.auth.companies || []);
+const roleLabel = computed(() => {
+    const roles = page.props.auths?.user?.roles || user.value?.roles || [];
+    const names = roles.map((role) => role.name).filter(Boolean);
+
+    return names.length ? names.join(", ") : "Chưa có vai trò";
+});
 const defaultAvatar =
     "https://ui-avatars.com/api/?name=" +
     encodeURIComponent(user.value?.name || "User") +

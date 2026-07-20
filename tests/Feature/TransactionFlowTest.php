@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class TransactionFlowTest extends TestCase
@@ -35,6 +36,12 @@ class TransactionFlowTest extends TestCase
         $user->companies()->attach($company->id);
         $company->currencies()->attach($currency->id, ['is_default' => true]);
         $this->actingAs($user);
+        $viewPermission = Permission::create([
+            'name' => 'giao_dich.xem',
+            'guard_name' => 'web',
+            'description' => 'Xem giao dịch',
+        ]);
+        $user->givePermissionTo($viewPermission);
 
         $category = TransactionCategory::create([
             'company_id' => $company->id, 'code' => 'THU_KHAC', 'name' => 'Thu khác', 'type' => 'income', 'status' => 'active',
@@ -63,6 +70,11 @@ class TransactionFlowTest extends TestCase
         $this->assertSame('approved', $transaction->status);
         $this->assertEquals(150, $account->fresh()->current_balance);
         $this->assertDatabaseHas('account_ledgers', ['transaction_id' => $transaction->id, 'debit' => 150]);
+        $this->getJson("/api/accountant/transactions/{$transaction->id}")
+            ->assertOk()
+            ->assertJsonPath('id', $transaction->id)
+            ->assertJsonPath('created_by.id', $user->id)
+            ->assertJsonStructure(['currency', 'category', 'to_account', 'approved_by']);
         $this->assertThrows(fn () => $service->update($transaction->id, $payload), \RuntimeException::class);
         $this->assertThrows(fn () => $service->delete($transaction->id), \RuntimeException::class);
 

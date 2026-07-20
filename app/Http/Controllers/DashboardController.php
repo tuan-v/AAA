@@ -4,12 +4,41 @@ namespace App\Http\Controllers;
 
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    private const MODULE_PERMISSIONS = [
+        'purchase' => 'don_mua.xem',
+        'sale' => 'don_ban.xem',
+        'warehouse' => 'kho.xem',
+        'accountant' => 'giao_dich.xem',
+    ];
+
     public function __construct(
         protected DashboardService $dashboardService
     ) {}
+
+    public function landing(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->hasAnyRole(['Supper Admin', 'Giám đốc'])) {
+            return Inertia::render('DashBoard');
+        }
+
+        foreach (self::MODULE_PERMISSIONS as $module => $permission) {
+            if ($user->can($permission)) {
+                return redirect('/'.($module === 'accountant' ? 'accountant' : $module));
+            }
+        }
+
+        if ($user->can('nhan_su.xem')) {
+            return redirect('/user');
+        }
+
+        abort(403, 'Tài khoản chưa được cấp quyền xem dashboard.');
+    }
 
     /**
      * GET /api/dashboard/overview
@@ -17,6 +46,12 @@ class DashboardController extends Controller
      */
     public function overview(Request $request)
     {
+        abort_unless(
+            $request->user()->hasAnyRole(['Supper Admin', 'Giám đốc']),
+            403,
+            'Bạn không có quyền xem dashboard tổng.'
+        );
+
         $companyId = $request->user()->company_id;
 
         if (!$companyId) {
@@ -43,6 +78,12 @@ class DashboardController extends Controller
         if (!in_array($module, ['purchase', 'sale', 'warehouse', 'accountant'], true)) {
             return response()->json(['message' => 'Phân hệ dashboard không hợp lệ.'], 404);
         }
+
+        abort_unless(
+            $request->user()->can(self::MODULE_PERMISSIONS[$module]),
+            403,
+            'Bạn không có quyền xem dashboard phân hệ này.'
+        );
 
         $companyId = $request->user()->company_id
             ?? $request->user()->companies()->value('companies.id');

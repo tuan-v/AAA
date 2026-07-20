@@ -75,8 +75,14 @@ import AddChartIcon from "./AddChartIcon.vue";
 import MoneyIcon2 from "./MoneyIcon2.vue";
 import LightBulbIcon from "./LightBulbIcon.vue";
 import SendMoneyIcon from "./SendMoneyIcon.vue";
+import ShoppingCartIcon from "./ShoppingCartIcon.vue";
+import TruckIcon from "./TruckIcon.vue";
+import TransactionIcon from "./TransactionIcon.vue";
 
 export {
+  ShoppingCartIcon,
+  TruckIcon,
+  TransactionIcon,
   LightBulbIcon,
   BellIcon,
   BarChartIcon,

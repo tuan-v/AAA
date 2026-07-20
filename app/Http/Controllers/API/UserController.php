@@ -53,7 +53,7 @@ class UserController extends Controller
     }
     public function role()
     {
-        return Role::all();
+        return Role::query()->visibleTo(auth()->user())->orderByDesc('hierarchy_level')->get();
     }
 
     public function show($id)
@@ -114,6 +114,12 @@ class UserController extends Controller
             ], 422);
         }
 
+        $assignableRole = Role::query()
+            ->visibleTo(auth()->user())
+            ->where('name', $validated['role'])
+            ->first();
+        abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
+
         $user = User::create([
             'name' => $validated['name'],
             'username' => $validated['username'],
@@ -129,7 +135,7 @@ class UserController extends Controller
             auth()->user()->company_id
         ]);
 
-        $user->syncRoles($validated['role']);
+        $user->syncRoles([$assignableRole]);
         return response()->json([
             'message' => 'Thêm tài khoản thành công',
             'user' => $user
@@ -170,6 +176,12 @@ class UserController extends Controller
             'role' => 'required|exists:roles,name'
         ]);
 
+        $assignableRole = Role::query()
+            ->visibleTo(auth()->user())
+            ->where('name', $validated['role'])
+            ->first();
+        abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
+
         $data = [
             'name' => $validated['name'],
             'username' => $validated['username'],
@@ -186,7 +198,7 @@ class UserController extends Controller
         // 🔥 đảm bảo vẫn thuộc company hiện tại
         $user->companies()->sync([auth()->user()->company_id]);
 
-        $user->syncRoles($validated['role']);
+        $user->syncRoles([$assignableRole]);
 
         return response()->json([
             'message' => 'Cập nhật thành công'
