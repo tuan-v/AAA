@@ -48,7 +48,7 @@
 
         <!-- Metric row: Số tiền + Ngày + Loại thanh toán -->
         <div
-            class="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200"
+            class="grid grid-cols-2 lg:grid-cols-5 divide-x divide-gray-200 border-b border-gray-200"
         >
             <div class="py-4 pr-4">
                 <p class="text-xs text-gray-500 mb-1">Số tiền</p>
@@ -74,8 +74,12 @@
             <div class="py-4 pl-4">
                 <p class="text-xs text-gray-500 mb-1">Hình thức giao dịch</p>
                 <p class="text-sm font-medium">
-                    {{ transaction.payment_method === "bank_transfer" ? "Chuyển khoản" : "Tiền mặt" }}
+                    {{ transaction.type === "transfer" ? "Chuyển giữa tài khoản nội bộ" : (transaction.payment_method === "bank_transfer" ? "Chuyển khoản" : "Tiền mặt") }}
                 </p>
+            </div>
+            <div class="py-4 pl-4">
+                <p class="text-xs text-gray-500 mb-1">Nghiệp vụ</p>
+                <p class="text-sm font-medium">{{ purposeLabel }}</p>
             </div>
         </div>
 
@@ -252,7 +256,7 @@ const TYPE_MAP = {
         badgeClass: "bg-amber-50 text-amber-700",
     },
     transfer: {
-        label: "Chuyển khoản",
+        label: "Chuyển nội bộ",
         icon: ArrowsRightLeftIcon,
         badgeClass: "bg-purple-50 text-purple-700",
     },
@@ -272,6 +276,17 @@ const typeBadgeClass = computed(
         TYPE_MAP[transaction.value?.type]?.badgeClass ??
         "bg-gray-100 text-gray-600",
 );
+
+const PURPOSE_MAP = {
+    customer_receipt: "Thu tiền khách hàng",
+    supplier_payment: "Thanh toán nhà cung cấp",
+    customer_refund: "Hoàn tiền khách hàng",
+    supplier_refund: "Nhà cung cấp hoàn tiền",
+    internal_transfer: "Chuyển tiền nội bộ",
+    other_receipt: "Khoản thu khác",
+    other_payment: "Khoản chi khác",
+};
+const purposeLabel = computed(() => PURPOSE_MAP[transaction.value?.purpose] ?? "—");
 
 const STATUS_MAP = {
     pending: {

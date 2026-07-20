@@ -78,6 +78,35 @@ class TransactionFlowTest extends TestCase
         $this->assertThrows(fn () => $service->update($transaction->id, $payload), \RuntimeException::class);
         $this->assertThrows(fn () => $service->delete($transaction->id), \RuntimeException::class);
 
+        $destination = Account::create([
+            'company_id' => $company->id, 'code' => 'NH01', 'name' => 'Ngân hàng', 'type' => 'bank',
+            'currency_id' => $currency->id, 'opening_balance' => 0, 'current_balance' => 0, 'is_active' => true,
+        ]);
+        $transferCategory = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'CHUYEN_KHOAN', 'name' => 'Chuyển tiền nội bộ', 'type' => 'transfer', 'status' => 'active',
+        ]);
+        $internalTransfer = $service->create([
+            'type' => 'transfer', 'payment_method' => 'bank_transfer', 'amount' => 50,
+            'currency_id' => $currency->id, 'category_id' => $transferCategory->id,
+            'from_account_id' => $account->id, 'to_account_id' => $destination->id,
+            'transaction_date' => '2026-07-20',
+        ]);
+        $internalTransfer = $service->approve($internalTransfer->id);
+        $this->assertSame('internal_transfer', $internalTransfer->purpose);
+        $this->assertEquals(100, $account->fresh()->current_balance);
+        $this->assertEquals(50, $destination->fresh()->current_balance);
+        $this->assertSame(2, AccountLedger::where('transaction_id', $internalTransfer->id)->count());
+
+        $bankReceipt = $service->create([
+            'type' => 'receipt', 'payment_method' => 'bank_transfer', 'amount' => 25,
+            'currency_id' => $currency->id, 'category_id' => $category->id,
+            'to_account_id' => $destination->id, 'transaction_date' => '2026-07-20',
+        ]);
+        $bankReceipt = $service->approve($bankReceipt->id);
+        $this->assertSame('other_receipt', $bankReceipt->purpose);
+        $this->assertEquals(75, $destination->fresh()->current_balance);
+        $this->assertSame(1, AccountLedger::where('transaction_id', $bankReceipt->id)->count());
+
         $rejected = $service->create([...$payload, 'amount' => 20]);
         $rejected = $service->reject($rejected->id, 'Chứng từ chưa hợp lệ');
         $this->assertSame('rejected', $rejected->status);

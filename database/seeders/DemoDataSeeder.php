@@ -217,6 +217,7 @@ class DemoDataSeeder extends Seeder
             foreach ([
                 ['THU_KH', 'Thu tiền khách hàng', 'income'], ['THU_KHAC', 'Thu khác', 'income'],
                 ['CHI_NCC', 'Thanh toán nhà cung cấp', 'expense'], ['CHI_KHAC', 'Chi khác', 'expense'],
+                ['CHUYEN_KHOAN', 'Chuyển tiền nội bộ', 'transfer'],
             ] as [$code, $name, $type]) {
                 TransactionCategory::updateOrCreate(['company_id' => $company->id, 'code' => $code], [
                     'name' => $name, 'type' => $type, 'status' => 1,

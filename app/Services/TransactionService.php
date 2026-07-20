@@ -57,6 +57,7 @@ class TransactionService extends BaseService
                 'transaction_date'  => $data['transaction_date'] ?? now(),
                 'type'              => $data['type'],
                 'payment_method'    => $data['payment_method'] ?? 'cash',
+                'purpose'           => $this->determinePurpose($data),
                 'category_id'       => $data['category_id'],
                 'currency_id'       => $data['currency_id'],
                 'amount'            => $data['amount'],
@@ -110,6 +111,7 @@ class TransactionService extends BaseService
                 'transaction_date' => $data['transaction_date'] ?? now(),
                 'type' => $data['type'],
                 'payment_method' => $data['payment_method'] ?? 'cash',
+                'purpose' => $this->determinePurpose($data),
                 'category_id' => $data['category_id'],
                 'currency_id' => $data['currency_id'],
                 'amount' => $data['amount'],
@@ -236,9 +238,35 @@ class TransactionService extends BaseService
         });
     }
 
+    private function determinePurpose(array $data): string
+    {
+        return match (true) {
+            $data['type'] === 'transfer' => 'internal_transfer',
+            $data['type'] === 'receipt' && !empty($data['customer_id']) => 'customer_receipt',
+            $data['type'] === 'payment' && !empty($data['supplier_id']) => 'supplier_payment',
+            $data['type'] === 'payment' && !empty($data['customer_id']) => 'customer_refund',
+            $data['type'] === 'receipt' && !empty($data['supplier_id']) => 'supplier_refund',
+            $data['type'] === 'receipt' => 'other_receipt',
+            default => 'other_payment',
+        };
+    }
+
     private function normalizeAndValidateRelations(array $data): array
     {
         $companyId = $this->companyId();
+
+        if (($data['type'] ?? null) === 'receipt') {
+            $data['from_account_id'] = null;
+        } elseif (($data['type'] ?? null) === 'payment') {
+            $data['to_account_id'] = null;
+        } elseif (($data['type'] ?? null) === 'transfer') {
+            $data['payment_method'] = 'bank_transfer';
+            $data['customer_id'] = null;
+            $data['supplier_id'] = null;
+            $data['sales_order_id'] = null;
+            $data['purchase_order_id'] = null;
+        }
+
         $data['currency_id'] = $this->deriveCurrencyId($data, $companyId);
         $currency = Currency::whereKey($data['currency_id'])->first();
         $companyHasCurrency = $currency && $this->user()?->companies()
@@ -324,21 +352,12 @@ class TransactionService extends BaseService
 
         $type = $data['type'];
 
-        if (!in_array($type, ['receipt', 'payment'], true)) {
-            throw new \InvalidArgumentException('Loại giao dịch chỉ được là Thu hoặc Chi.');
+        if (!in_array($type, ['receipt', 'payment', 'transfer'], true)) {
+            throw new \InvalidArgumentException('Nghiệp vụ giao dịch không hợp lệ.');
         }
 
         if (!in_array($data['payment_method'] ?? 'cash', ['cash', 'bank_transfer'], true)) {
             throw new \InvalidArgumentException('Hình thức giao dịch không hợp lệ.');
-        }
-
-        if (($data['payment_method'] ?? 'cash') === 'bank_transfer') {
-            if (empty($data['from_account_id']) || empty($data['to_account_id'])) {
-                throw new \InvalidArgumentException('Chuyển khoản phải có tài khoản chuyển và tài khoản nhận.');
-            }
-            if ((int) $data['from_account_id'] === (int) $data['to_account_id']) {
-                throw new \InvalidArgumentException('Tài khoản chuyển và tài khoản nhận không được trùng nhau.');
-            }
         }
 
         if ($type === 'receipt' && empty($data['to_account_id'])) {
@@ -464,14 +483,14 @@ class TransactionService extends BaseService
 
     private function updateBalance(Transaction $transaction): void
     {
-        if ($transaction->type === 'receipt' && $transaction->payment_method !== 'bank_transfer') {
+        if ($transaction->type === 'receipt') {
             $account = $this->lockAccount($transaction->to_account_id);
             $amount  = $this->convertToAccountCurrency($transaction, $account);
             $this->balanceService->increase($account, $amount);
             return;
         }
 
-        if ($transaction->type === 'payment' && $transaction->payment_method !== 'bank_transfer') {
+        if ($transaction->type === 'payment') {
             $account = $this->lockAccount($transaction->from_account_id);
             $amount  = $this->convertToAccountCurrency($transaction, $account);
 
@@ -485,7 +504,7 @@ class TransactionService extends BaseService
             return;
         }
 
-        if ($transaction->payment_method === 'bank_transfer') {
+        if ($transaction->type === 'transfer') {
             $ids = [$transaction->from_account_id, $transaction->to_account_id];
             sort($ids);
 

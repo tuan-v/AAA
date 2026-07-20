@@ -14,11 +14,6 @@ class LedgerService
      */
     public function record(Transaction $transaction): void
     {
-        if ($transaction->payment_method === 'bank_transfer') {
-            $this->transfer($transaction);
-            return;
-        }
-
         switch ($transaction->type) {
             case 'receipt':
                 $this->receipt($transaction);

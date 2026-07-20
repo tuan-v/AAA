@@ -159,6 +159,7 @@ const filters = [
         options: [
             { value: "receipt", label: "Thu tiền" },
             { value: "payment", label: "Chi tiền" },
+            { value: "transfer", label: "Chuyển nội bộ" },
         ],
     },
     {
@@ -215,6 +216,18 @@ const columns = [
         label: "Đơn hàng",
         render: (row) =>
             h("span", row.sales_order?.code || row.purchase_order?.code || "-"),
+    },
+    {
+        label: "Nghiệp vụ",
+        render: (row) => h("span", ({
+            customer_receipt: "Thu tiền khách hàng",
+            supplier_payment: "Thanh toán nhà cung cấp",
+            customer_refund: "Hoàn tiền khách hàng",
+            supplier_refund: "Nhà cung cấp hoàn tiền",
+            internal_transfer: "Chuyển nội bộ",
+            other_receipt: "Thu khác",
+            other_payment: "Chi khác",
+        })[row.purpose] || "-"),
     },
     {
         label: "Số tiền",

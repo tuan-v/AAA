@@ -69,7 +69,7 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'type' => 'required|in:receipt,payment',
+            'type' => 'required|in:receipt,payment,transfer',
             'payment_method' => 'required|in:cash,bank_transfer',
             'amount' => 'required|numeric|gt:0',
             'currency_id' => 'nullable|exists:currencies,id',
@@ -130,7 +130,7 @@ class TransactionController extends Controller
     public function update(Request $request, int $id)
     {
         $validated = $request->validate([
-            'type' => 'required|in:receipt,payment',
+            'type' => 'required|in:receipt,payment,transfer',
             'payment_method' => 'required|in:cash,bank_transfer',
             'amount' => 'required|numeric|gt:0',
             'currency_id' => 'nullable|exists:currencies,id',

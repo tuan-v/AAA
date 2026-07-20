@@ -154,10 +154,11 @@
                 <label class="label">
                     <i class="ti ti-wallet"></i>Hình thức giao dịch
                 </label>
-                <select v-model="form.payment_method" class="input">
+                <select v-model="form.payment_method" class="input" :disabled="form.type === 'transfer'">
                     <option value="cash">Tiền mặt</option>
                     <option value="bank_transfer">Chuyển khoản</option>
                 </select>
+                <p v-if="form.type === 'transfer'" class="hint-text">Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.</p>
             </div>
             <div class="divider"></div>
 
@@ -166,7 +167,7 @@
 
             <div class="grid2">
                 <!-- RECEIPT: to_account -->
-                <div v-if="form.type === 'receipt' && form.payment_method !== 'bank_transfer'" class="field">
+                <div v-if="form.type === 'receipt'" class="field">
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản nhận
                     </label>
@@ -183,7 +184,7 @@
                 </div>
 
                 <!-- PAYMENT: from_account -->
-                <div v-if="form.type === 'payment' && form.payment_method !== 'bank_transfer'" class="field">
+                <div v-if="form.type === 'payment'" class="field">
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản chi
                     </label>
@@ -200,7 +201,7 @@
                 </div>
 
                 <!-- TRANSFER: both -->
-                <template v-if="form.payment_method === 'bank_transfer'">
+                <template v-if="form.type === 'transfer'">
                     <div class="field">
                         <label class="label">
                             <i class="ti ti-building-bank"></i>Tài khoản chuyển
@@ -333,6 +334,7 @@ const isEdit = computed(() => !!props.transaction?.id);
 const typeOptions = [
     { value: "receipt", label: "Thu tiền", icon: "ti ti-arrow-down-circle" },
     { value: "payment", label: "Chi tiền", icon: "ti ti-arrow-up-circle" },
+    { value: "transfer", label: "Chuyển nội bộ", icon: "ti ti-arrows-exchange" },
 ];
 
 const normalizedCurrencies = computed(() =>
@@ -519,6 +521,7 @@ watch(
 watch(
     () => form.type,
     () => {
+        if (form.type === "transfer") form.payment_method = "bank_transfer";
         form.sales_order_id = "";
         form.purchase_order_id = "";
         form.customer_id = "";

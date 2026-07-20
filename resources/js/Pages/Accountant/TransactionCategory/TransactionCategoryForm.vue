@@ -146,6 +146,7 @@ const errors = ref({});
 const typeOptions = [
     { value: "income", label: "Thu tiền", icon: "ti ti-arrow-down-circle" },
     { value: "expense", label: "Chi tiền", icon: "ti ti-arrow-up-circle" },
+    { value: "transfer", label: "Chuyển nội bộ", icon: "ti ti-arrows-exchange" },
 ];
 
 const form = reactive({
