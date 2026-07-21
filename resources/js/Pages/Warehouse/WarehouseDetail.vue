@@ -148,8 +148,8 @@
                                 <th>Danh mục</th>
                                 <th>Đơn vị</th>
                                 <th class="text-right">Số lượng tồn</th>
-                                <th class="text-right">Đơn giá nhập</th>
-                                <th class="text-right">Giá trị</th>
+                                <th class="text-right">Giá vốn bình quân</th>
+                                <th class="text-right">Giá trị tồn</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -166,12 +166,12 @@
                                 </td>
                                 <td>{{ stock.product?.unit?.name ?? "-" }}</td>
                                 <td class="text-right">
-                                    {{ formatNumber(stock.quantity) }}
+                                    {{ formatQuantity(stock.quantity) }}
                                 </td>
                                 <td class="text-right">
                                     {{
                                         formatMoneyLocal(
-                                            stock.product?.purchase_price ?? 0,
+                                            averageUnitCost(stock),
                                             summary.currency_symbol,
                                         )
                                     }}
@@ -264,59 +264,6 @@
                     </table>
                 </div>
 
-                <!-- TAB 4: BIẾN ĐỘNG TỒN KHO -->
-                <div v-if="activeTab === 'movement'" class="tab-pane">
-                    <p class="text-muted" style="margin-bottom: 16px">
-                        Tổng số lượng nhập/xuất theo tháng (chỉ tính phiếu đã
-                        duyệt)
-                    </p>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Tháng</th>
-                                <th class="text-right">SL nhập</th>
-                                <th class="text-right">SL xuất</th>
-                                <th>Biểu đồ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in monthlyMovement" :key="row.month">
-                                <td>{{ row.month }}</td>
-                                <td class="text-right" style="color: #2f9e44">
-                                    {{ formatNumber(row.importQty) }}
-                                </td>
-                                <td class="text-right" style="color: #e03131">
-                                    {{ formatNumber(row.exportQty) }}
-                                </td>
-                                <td>
-                                    <div class="bar-chart">
-                                        <div
-                                            class="bar-chart__bar bar-chart__bar--in"
-                                            :style="{
-                                                width:
-                                                    barWidth(row.importQty) +
-                                                    '%',
-                                            }"
-                                        ></div>
-                                        <div
-                                            class="bar-chart__bar bar-chart__bar--out"
-                                            :style="{
-                                                width:
-                                                    barWidth(row.exportQty) +
-                                                    '%',
-                                            }"
-                                        ></div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-if="monthlyMovement.length === 0">
-                                <td colspan="4" class="text-center text-muted">
-                                    Chưa có dữ liệu biến động
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </template>
     </div>
@@ -325,7 +272,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import axios from "axios";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 
 const props = defineProps({
     warehouseId: {
@@ -347,7 +294,6 @@ const tabs = [
     { key: "overview", label: "Tổng quan", icon: "ti-layout-dashboard" },
     { key: "stocks", label: "Tồn kho sản phẩm", icon: "ti-package" },
     { key: "slips", label: "Phiếu nhập/xuất", icon: "ti-file-invoice" },
-    { key: "movement", label: "Biến động tồn kho", icon: "ti-chart-bar" },
 ];
 
 const fetchDetail = async (id) => {
@@ -384,8 +330,11 @@ const filteredStocks = computed(() => {
     );
 });
 
-const stockValue = (stock) =>
-    stock.quantity * (stock.product?.purchase_price ?? 0);
+const stockValue = (stock) => Number(stock.stock_value || 0);
+const averageUnitCost = (stock) => {
+    const quantity = Number(stock.quantity || 0);
+    return quantity > 0 ? stockValue(stock) / quantity : 0;
+};
 
 const filteredSlips = computed(() => {
     const slips = warehouse.value.slips ?? [];
@@ -401,44 +350,6 @@ const slipStatusText = (status) => {
     };
     return map[status] ?? status;
 };
-
-const monthlyMovement = computed(() => {
-    const slips = (warehouse.value.slips ?? []).filter(
-        (s) => s.status === "approved",
-    );
-    const grouped = {};
-
-    slips.forEach((slip) => {
-        const date = new Date(slip.approved_at ?? slip.created_at);
-        const month = `${date.getMonth() + 1}/${date.getFullYear()}`;
-        const qty = (slip.items ?? []).reduce(
-            (sum, i) => sum + (i.quantity ?? 0),
-            0,
-        );
-
-        if (!grouped[month]) {
-            grouped[month] = {
-                month,
-                importQty: 0,
-                exportQty: 0,
-                sortKey: date.getFullYear() * 12 + date.getMonth(),
-            };
-        }
-        if (slip.type === "import") grouped[month].importQty += qty;
-        else grouped[month].exportQty += qty;
-    });
-
-    return Object.values(grouped).sort((a, b) => a.sortKey - b.sortKey);
-});
-
-const maxMovementQty = computed(() =>
-    Math.max(
-        1,
-        ...monthlyMovement.value.map((r) => Math.max(r.importQty, r.exportQty)),
-    ),
-);
-
-const barWidth = (qty) => Math.round((qty / maxMovementQty.value) * 100);
 
 const formatNumber = (n) => formatMoney(n ?? 0);
 const formatMoneyLocal = (amount, symbol = "₫") =>
@@ -684,22 +595,4 @@ const formatDate = (date) => {
     font-weight: 700;
 }
 
-.bar-chart {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    width: 100%;
-    max-width: 180px;
-}
-.bar-chart__bar {
-    height: 6px;
-    border-radius: 3px;
-    min-width: 2px;
-}
-.bar-chart__bar--in {
-    background: #2f9e44;
-}
-.bar-chart__bar--out {
-    background: #e8590c;
-}
 </style>

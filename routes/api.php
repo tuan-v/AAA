@@ -24,10 +24,12 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseInventoryController;
+use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +51,14 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::put('/user/{id}', 'update')->middleware('permission:nhan_su.sua');
         Route::delete('/user/{id}', 'destroy')->middleware('permission:nhan_su.xoa');
         Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:nhan_su.khoa');
+    });
+
+    Route::controller(DepartmentController::class)->prefix('departments')->group(function () {
+        Route::get('/', 'index')->middleware('permission:nhan_su.xem');
+        Route::get('/all', 'all')->middleware('permission:nhan_su.xem');
+        Route::post('/', 'store')->middleware('permission:nhan_su.them');
+        Route::put('/{department}', 'update')->middleware('permission:nhan_su.sua');
+        Route::delete('/{department}', 'destroy')->middleware('permission:nhan_su.xoa');
     });
 
     Route::controller(RoleController::class)->prefix('roles')->group(function () {
@@ -80,7 +90,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     */
     Route::controller(WarehouseController::class)->prefix('warehouses')->group(function () {
         Route::get('/', 'index')->middleware('permission:kho.xem');
-        Route::get('/all', 'all')->middleware('permission:kho.xem');
+        Route::get('/all', 'all')->middleware('permission:kho.xem|san_pham_mua_hang.xem');
         Route::get('/{warehouse}/detail', 'detail')->middleware('permission:kho.xem');
         Route::get('/{warehouse}', 'show')->middleware('permission:kho.xem');
         Route::post('/', 'store')->middleware('permission:kho.them');
@@ -138,6 +148,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         });
 
         Route::get('/inventory', [WarehouseInventoryController::class, 'index'])->middleware('permission:kho.xem');
+        Route::get('/inventory-movements', [InventoryMovementController::class, 'index'])->middleware('permission:kho.xem');
         Route::get('/stocks', [WarehouseController::class, 'getStocks'])->middleware('permission:kho.xem');
     });
 
@@ -210,7 +221,8 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::get('/all', 'all')->middleware('permission:khach_hang.xem');
             Route::get('/next-code', 'nextCode')->middleware('permission:khach_hang.xem');
             Route::post('/', 'store')->middleware('permission:khach_hang.them');
-            Route::get('/{id}/detail', 'detail')->middleware('permission:cong_no_khach_hang.xem_chi_tiet');
+            Route::get('/{id}/detail', 'detail')
+                ->middleware('permission:khach_hang.xem|cong_no_khach_hang.xem_chi_tiet');
             Route::get('/{customer}', 'show')->middleware('permission:khach_hang.xem');
             Route::put('/{customer}', 'update')->middleware('permission:khach_hang.sua');
             Route::delete('/{customer}', 'destroy')->middleware('permission:khach_hang.xoa');
@@ -320,7 +332,10 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     | SELECTORS & SHARED ENDPOINTS AT ROOT
     |--------------------------------------------------------------------------
     */
-    Route::get('/products/for-select', [ProductController::class, 'forSelect'])->middleware('permission:san_pham_mua_hang.xem');
+    Route::get('/products/for-select', [ProductController::class, 'forSelect'])
+        ->middleware('permission:san_pham_mua_hang.xem|don_ban.xem|khach_hang.xem');
+    Route::get('/currencies/for-select', [CurrencyController::class, 'forSelect'])
+        ->middleware('permission:nha_cung_cap.xem|don_mua.xem|don_ban.xem|khach_hang.xem|giao_dich.xem');
     Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:danh_muc_mua_hang.xem');
     Route::get('/units', [UnitController::class, 'index'])->middleware('permission:don_vi_mua_hang.xem');
 

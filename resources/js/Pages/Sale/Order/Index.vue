@@ -172,7 +172,7 @@ import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import { usePermission } from "../../../composables/usePermission.js";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import SaleOrderDetail from "./SaleOrderDetail.vue";
@@ -251,7 +251,7 @@ const columns = [
             h(
                 "span",
                 { class: "font-semibold text-blue-600" },
-                row.total_quantity ?? 0,
+                formatQuantity(row.total_quantity),
             ),
     },
     {
@@ -390,13 +390,13 @@ async function fetchCustomers() {
 }
 
 async function fetchProducts() {
-    const res = await axios.get("/api/warehouse/products");
-    products.value = res.data.data ?? [];
+    const res = await axios.get("/api/products/for-select");
+    products.value = res.data ?? [];
 }
 
 async function fetchCurrencies() {
-    const res = await axios.get("/api/accountant/currencies");
-    currencies.value = res.data.data ?? res.data;
+    const res = await axios.get("/api/currencies/for-select");
+    currencies.value = res.data;
 }
 
 // Modal

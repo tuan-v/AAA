@@ -6,9 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use Illuminate\Http\Request;
 use App\Models\CurrencyRate;
+use App\Models\CompanyCurrencyRate;
 
 class CurrencyController extends Controller
 {
+    public function forSelect()
+    {
+        $company = auth()->user()->company;
+        abort_unless($company, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        return response()->json(
+            $company->currencies()
+                ->where('currencies.is_active', true)
+                ->select('currencies.id', 'currencies.code', 'currencies.name', 'currencies.symbol', 'currencies.exchange_rate')
+                ->orderBy('currencies.code')
+                ->get()
+        );
+    }
+
     public function index(Request $request)
     {
         $query = Currency::query();
@@ -110,8 +125,11 @@ class CurrencyController extends Controller
 
     public function rates(Currency $currency)
     {
-        return $currency
-            ->rates()
+        $companyId = auth()->user()->company_id ?? auth()->user()->companies()->value('companies.id');
+        abort_unless($companyId, 403);
+
+        return CompanyCurrencyRate::where('company_id', $companyId)
+            ->where('currency_id', $currency->id)
             ->with('creator')
             ->orderByDesc('effective_date')
             ->get();
@@ -119,31 +137,32 @@ class CurrencyController extends Controller
 
     public function storeRate(Request $request, Currency $currency)
     {
-        if ($currency->isUsed()) {
-            return response()->json([
-                'message' => 'Đơn vị tiền tệ đã được sử dụng, không thể thay đổi tỷ giá.'
-            ], 422);
-        }
-
         $validated = $request->validate([
-            'rate' => 'required|numeric|min:0',
+            'rate' => 'required|numeric|gt:0',
             'effective_date' => 'required|date',
         ]);
 
-        $rate = CurrencyRate::updateOrCreate(
+        $companyId = auth()->user()->company_id ?? auth()->user()->companies()->value('companies.id');
+        abort_unless($companyId, 403);
+        $company = \App\Models\Company::with('currencies')->findOrFail($companyId);
+        abort_unless($company->currencies->contains('id', $currency->id), 404);
+
+        $defaultId = $company->currencies->first(fn ($item) => (bool) $item->pivot->is_default)?->id;
+        if ((int) $defaultId === (int) $currency->id && (float) $validated['rate'] !== 1.0) {
+            return response()->json(['message' => 'Tiền cơ sở của công ty luôn có tỷ giá bằng 1.'], 422);
+        }
+
+        $rate = CompanyCurrencyRate::updateOrCreate(
             [
+                'company_id' => $companyId,
                 'currency_id' => $currency->id,
                 'effective_date' => $validated['effective_date'],
             ],
             [
-                'rate' => $validated['rate'],
+                'rate_to_base' => $validated['rate'],
                 'created_by' => auth()->id(),
             ]
         );
-
-        $currency->update([
-            'exchange_rate' => $validated['rate']
-        ]);
 
         return response()->json([
             'message' => 'Cập nhật tỷ giá thành công',

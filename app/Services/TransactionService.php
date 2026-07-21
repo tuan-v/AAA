@@ -278,7 +278,9 @@ class TransactionService extends BaseService
             throw new \InvalidArgumentException('Tiền tệ không thuộc công ty hiện tại.');
         }
 
-        $data['exchange_rate'] = (float) ($currency->exchange_rate ?: 1);
+        $data['exchange_rate'] = app(CompanyCurrencyService::class)->rate(
+            $companyId, (int) $currency->id, $data['transaction_date'] ?? now()
+        );
 
         foreach (['from_account_id', 'to_account_id'] as $field) {
             if (! empty($data[$field]) && ! Account::whereKey($data[$field])->where('company_id', $companyId)->exists()) {

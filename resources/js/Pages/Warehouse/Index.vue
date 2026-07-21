@@ -16,6 +16,10 @@
             </button>
         </div>
 
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5">
+            <SearchPage :filters="filters" @filter="handleFilter" />
+        </div>
+
         <DataTable
             :columns="columns"
             :data="warehouses.data"
@@ -71,12 +75,14 @@ import { formatMoney } from "@/config/helpers";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import WarehouseDetail from "./WarehouseDetail.vue";
 import { usePermission } from "@/composables/usePermission";
+import SearchPage from "@/components/SearchPage.vue";
 
 const { can } = usePermission();
 const handlePageChange = (page) => {
-    getData(page);
+    getData(page, currentFilters.value);
 };
 const perPage = ref(10);
+const currentFilters = ref({});
 const form = ref({});
 const warehouses = ref({
     data: [],
@@ -90,6 +96,28 @@ const selectedWarehouse = ref(null);
 const selectedWarehouseId = ref(null);
 const showDetailModal = ref(false);
 const showModal = ref(false);
+
+const filters = [
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm tên hoặc mã kho...",
+    },
+    {
+        name: "min_inventory_value",
+        type: "number",
+        min: 0,
+        step: 1000,
+        placeholder: "Giá trị tồn từ...",
+    },
+    {
+        name: "max_inventory_value",
+        type: "number",
+        min: 0,
+        step: 1000,
+        placeholder: "Giá trị tồn đến...",
+    },
+];
 
 const columns = [
     {
@@ -141,6 +169,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
@@ -184,12 +213,15 @@ function openDetail(warehouse) {
     selectedWarehouseId.value = id;
     showDetailModal.value = true;
 }
-const fetchData = async (page = 1) => {
+const fetchData = async (page = 1, params = {}) => {
     try {
         const response = await axios.get("/api/warehouses", {
             params: {
                 page,
                 per_page: perPage.value,
+                search: params.search || "",
+                min_inventory_value: params.min_inventory_value || "",
+                max_inventory_value: params.max_inventory_value || "",
             },
         });
 
@@ -199,15 +231,19 @@ const fetchData = async (page = 1) => {
     }
 };
 
-const getData = (page = 1) => {
-    fetchData(page);
+const getData = (page = 1, params = {}) => {
+    fetchData(page, params);
+};
+const handleFilter = (params) => {
+    currentFilters.value = params;
+    getData(1, params);
 };
 const handlePerPageChange = (value) => {
     perPage.value = value;
-    getData(1);
+    getData(1, currentFilters.value);
 };
 const reloadData = () => {
-    getData(warehouses.value.current_page);
+    getData(warehouses.value.current_page, currentFilters.value);
     showModal.value = false;
 };
 async function toggleStatus(warehouse) {

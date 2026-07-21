@@ -105,7 +105,12 @@
 import { Head } from "@inertiajs/vue3";
 import { ref, onMounted, h, watch, computed } from "vue";
 import axios from "axios";
-import { formatMoney, removeMoneyFormat } from "@/config/helpers";
+import {
+    formatMoney,
+    getValidationMessage,
+    removeMoneyFormat,
+} from "@/config/helpers";
+import { toast } from "vue3-toastify";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
@@ -248,6 +253,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
@@ -341,17 +347,21 @@ function reloadData() {
 
 /* init */
 onMounted(async () => {
-    const [currencyRes, customerRes, productRes, provinceRes] =
-        await Promise.all([
-            axios.get("/api/accountant/currencies"),
+    try {
+        const [currencyRes, customerRes, productRes, provinceRes] =
+            await Promise.all([
+            axios.get("/api/currencies/for-select"),
             axios.get("/api/sale/customers/all"),
             axios.get("/api/products/for-select"),
             axios.get("/api/provinces"),
-        ]);
+            ]);
 
-    currencies.value = currencyRes.data;
-    products.value = productRes.data;
-    provinces.value = provinceRes.data;
+        currencies.value = currencyRes.data;
+        products.value = productRes.data;
+        provinces.value = provinceRes.data;
+    } catch (error) {
+        toast.error(getValidationMessage(error, "Không thể tải dữ liệu tạo đơn bán."));
+    }
     getData(1);
 });
 </script>

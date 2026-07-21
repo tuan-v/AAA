@@ -45,6 +45,12 @@ class ProductController extends Controller
             ->leftJoin('warehouse_product_stocks as wps', 'products.id', '=', 'wps.product_id')
             ->selectRaw('COALESCE(SUM(wps.quantity), 0) as total_quantity')
             ->groupBy('products.id');
+
+        // Danh sách thuộc phân hệ kho chỉ hiển thị sản phẩm còn tồn thực tế.
+        // Danh mục mua hàng vẫn giữ sản phẩm hết tồn để có thể lập đơn nhập lại.
+        if ($request->is('api/warehouse/products')) {
+            $query->havingRaw('COALESCE(SUM(wps.quantity), 0) > 0');
+        }
         if ($request->stock === 'in_stock') {
             // còn hàng (> 10)
             $query->havingRaw('COALESCE(SUM(wps.quantity),0) > 10');
@@ -80,15 +86,24 @@ class ProductController extends Controller
             });
         }
         if ($request->filled('warehouse_id')) {
+            $warehouseId = (int) $request->warehouse_id;
+            $query->where('wps.warehouse_id', $warehouseId);
             $query->whereHas('stocks', function ($q) use ($request) {
-                $q->where('warehouse_id', $request->warehouse_id);
+                $q->where('warehouse_id', $request->warehouse_id)
+                    ->where('quantity', '>', 0);
             });
         }
 
         $products = $query
             ->orderByDesc('id')
             ->paginate($request->input('per_page', 5))
-            ->through(function ($p) use ($currency) {
+            ->through(function ($p) use ($currency, $request) {
+
+                $stocks = $p->stocks
+                    ->when(
+                        $request->filled('warehouse_id'),
+                        fn ($stocks) => $stocks->where('warehouse_id', (int) $request->warehouse_id)
+                    );
 
                 return [
                     'id' => $p->id,
@@ -102,8 +117,11 @@ class ProductController extends Controller
                     'unit_name' => $p->unit?->name,
                     'allow_decimal' => (bool) $p->unit?->allow_decimal,
 
-                    'quantity' => $p->stocks->sum('quantity'),
-                    'warehouse' => $p->stocks->map(function ($s) {
+                    'quantity' => $stocks->sum('quantity'),
+                    'warehouse' => $stocks
+                        ->filter(fn ($s) => (float) $s->quantity > 0)
+                        ->values()
+                        ->map(function ($s) {
                         return [
                             'warehouse_name' => $s->warehouse?->name,
                             'quantity' => $s->quantity,
@@ -125,6 +143,7 @@ class ProductController extends Controller
 
                     'description' => $p->description,
                     'status' => $p->status,
+                    'is_used' => $this->isUsed($p),
                 ];
             });
 
@@ -134,7 +153,10 @@ class ProductController extends Controller
     public function forSelect()
     {
         $products = Product::with(['stocks', 'unit'])
+            ->where('status', 'active')
+            ->whereHas('stocks', fn ($query) => $query->where('quantity', '>', 0))
             ->get()
+            ->filter(fn ($product) => (float) $product->stocks->sum('quantity') > 0)
             ->map(function ($p) {
                 return [
                     'id' => $p->id,

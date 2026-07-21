@@ -39,9 +39,9 @@ class CustomerDebtService
     }
     public function createFromWarehouseSlip(WarehouseSlip $slip): CustomerDebt
     {
-        $slip->load(['salesOrder.items', 'items']);
+        $slip->load(['saleOrder.items', 'items']);
 
-        if ($slip->type !== 'export' || ! $slip->salesOrder) {
+        if ($slip->type !== 'export' || ! $slip->saleOrder) {
             throw new \RuntimeException('Phiếu xuất không gắn với đơn bán hợp lệ.');
         }
         $exists = CustomerDebt::where(
@@ -57,7 +57,7 @@ class CustomerDebtService
         $totalAmount = 0;
 
         foreach ($slip->items as $item) {
-            $saleItem = $slip->salesOrder
+            $saleItem = $slip->saleOrder
                 ->items
                 ->firstWhere('product_id', $item->product_id);
 
@@ -75,7 +75,7 @@ class CustomerDebtService
         $amountBase = round($totalAmount, 2);
         return $this->createDebt(
 
-            customerId: $slip->salesOrder->customer_id,
+            customerId: $slip->saleOrder->customer_id,
 
             amount: $amountBase,
 

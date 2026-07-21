@@ -309,7 +309,9 @@ class SalesOrderController extends Controller
             $companyCurrency = $company->currencies()->wherePivot('is_default', true)->first();
             if (!$companyCurrency) throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
 
-            $exchangeRate = $orderCurrency->exchange_rate ?? 1;
+            $exchangeRate = app(\App\Services\CompanyCurrencyService::class)->rate(
+                $company->id, $orderCurrency->id, $validated['order_date'] ?? now()
+            );
             $last = SalesOrder::latest('id')->first();
 
             $order = SalesOrder::create([
@@ -343,11 +345,11 @@ class SalesOrderController extends Controller
 
                 // Quy đổi đúng: giá khách hàng × tỉ_giá_đơn ÷ tỉ_giá_công_ty
                 $companyUnitPrice = round(
-                    $item['unit_price'] * $orderCurrency->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                    $item['unit_price'] * $exchangeRate,
                     2
                 );
                 $companyAmount = round(
-                    $amount * $orderCurrency->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                    $amount * $exchangeRate,
                     2
                 );
 
@@ -451,7 +453,9 @@ class SalesOrderController extends Controller
             $companyCurrency = $company->currencies()->wherePivot('is_default', true)->first();
             if (!$companyCurrency) throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
 
-            $exchangeRate = $orderCurrency->exchange_rate ?? 1;
+            $exchangeRate = app(\App\Services\CompanyCurrencyService::class)->rate(
+                $company->id, $orderCurrency->id, $validated['order_date'] ?? now()
+            );
 
             $order->update([
                 'customer_id'           => $validated['customer_id'],
@@ -476,11 +480,11 @@ class SalesOrderController extends Controller
             foreach ($validated['items'] as $item) {
                 // Quy đổi đúng: giá khách hàng × tỉ_giá_đơn ÷ tỉ_giá_công_ty
                 $companyUnitPrice = round(
-                    $item['unit_price'] * $orderCurrency->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                    $item['unit_price'] * $exchangeRate,
                     2
                 );
                 $companyAmount = round(
-                    $item['amount'] * $orderCurrency->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                    $item['amount'] * $exchangeRate,
                     2
                 );
 

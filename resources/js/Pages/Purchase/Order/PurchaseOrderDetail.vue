@@ -215,15 +215,15 @@
                             </td>
 
                             <td class="border p-3 text-center">
-                                {{ item.quantity }}
+                                {{ formatQuantity(item.quantity) }}
                             </td>
 
                             <td
                                 class="border p-3 text-center text-green-600 font-semibold"
                             >
-                                {{ item.received_quantity || 0 }}
+                                {{ formatQuantity(item.received_quantity) }}
                                 /
-                                {{ item.quantity }}
+                                {{ formatQuantity(item.quantity) }}
                             </td>
 
                             <td class="border p-3 text-right">
@@ -245,7 +245,7 @@
 
 <script setup>
 import { computed } from "vue";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 
 defineEmits(["close"]);
 

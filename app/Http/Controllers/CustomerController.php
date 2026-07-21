@@ -245,6 +245,10 @@ class CustomerController extends Controller
     }
     public function detail($id)
     {
+        $canViewDebt = auth()->user()->can('khach_hang.xem')
+            || auth()->user()->can('cong_no_khach_hang.xem')
+            || auth()->user()->can('cong_no_khach_hang.xem_chi_tiet');
+
         $customer = Customer::with([
             'currency',
             'province',
@@ -252,16 +256,15 @@ class CustomerController extends Controller
             'orders' => function ($query) {
                 $query->latest()->limit(8);
             },
-            'debts' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'payments' => function ($query) {
-                $query->latest()->limit(10);
-            }
         ])->findOrFail($id);
 
-        $openingDebt = (float) $customer->opening_debt;
-        $debtEntries = $customer->debts()->latest()->get();
+        $openingDebt = $canViewDebt ? (float) $customer->opening_debt : 0;
+        $debtEntries = $canViewDebt
+            ? $customer->debts()->latest()->get()
+            : collect();
+        $payments = $canViewDebt
+            ? $customer->payments()->latest()->limit(10)->get()
+            : collect();
 
         $totalReceivable = (float) abs($debtEntries
             ->whereIn('type', ['sale', 'refund'])
@@ -288,7 +291,8 @@ class CustomerController extends Controller
                 'status' => $order->status,
             ]),
             'debt_history'  => $debtEntries,
-            'payments'      => $customer->payments,
+            'payments'      => $payments,
+            'can_view_debt' => $canViewDebt,
         ]);
     }
     public function createQuickOrder(Request $request, $id)

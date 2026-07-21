@@ -11,6 +11,7 @@ class Warehouse extends Model
     use BelongsToCompany;
     protected $fillable = [
         'company_id',
+        'address_id',
         'code',
         'name',
         'address_detail',

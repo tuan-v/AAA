@@ -479,8 +479,11 @@ async function saveProduct() {
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {};
+            toast.warning(
+                error.response.data.message || "Dữ liệu sản phẩm không hợp lệ",
+            );
         } else {
-            toast.error("Có lỗi xảy ra khi lưu sản phẩm");
+            toast.error(error.response?.data?.message || "Có lỗi xảy ra khi lưu sản phẩm");
         }
     }
 }

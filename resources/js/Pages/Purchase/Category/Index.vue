@@ -133,7 +133,7 @@ const columns = [
     },
     {
         label: "Danh mục cha",
-        render: (row) => row.parent?.name || "—",
+        render: (row) => h("span", {}, row.parent?.name || "—"),
         align: "text-start",
     },
     {
@@ -165,6 +165,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock

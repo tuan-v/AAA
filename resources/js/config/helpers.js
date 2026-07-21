@@ -179,6 +179,19 @@ export function formatDisplayNumber(value) {
         .replace(/(\.\d*[1-9])0+$/, "$1"); // bỏ số 0 dư
 }
 
+/** Format quantities without meaningless trailing zeroes (5.00 => 5). */
+export function formatQuantity(value, maximumFractionDigits = 6) {
+    if (value === null || value === undefined || value === "") return "0";
+
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "0";
+
+    return new Intl.NumberFormat("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits,
+    }).format(number);
+}
+
 export function formatTimeAgo(datetimeString) {
     if (!datetimeString) return "";
 

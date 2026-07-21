@@ -49,6 +49,12 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Công ty TNHH Demo Việt', 'phone' => '0901000000', 'email' => 'contact@demo.vn',
                 'address' => '1 Tràng Tiền, Hà Nội', 'owner_id' => $owner->id,
             ]);
+            $department->update([
+                'company_id' => $company->id,
+                'code' => 'PB-001',
+                'status' => 'active',
+                'manager_id' => $owner->id,
+            ]);
             $owner->update(['company_id' => $company->id]);
             $owner->companies()->syncWithoutDetaching([$company->id]);
             $owner->syncRoles(['Giám đốc']);

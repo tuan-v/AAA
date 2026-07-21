@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\SupplierDebtService;
 use App\Services\CustomerDebtService;
+use App\Services\InventoryMovementService;
 
 class WarehouseSlipController extends Controller
 {
@@ -425,13 +426,15 @@ class WarehouseSlipController extends Controller
     public function approve(
         $id,
         SupplierDebtService $supplierDebtService,
-        CustomerDebtService $customerDebtService
+        CustomerDebtService $customerDebtService,
+        InventoryMovementService $movements
     ) {
 
         DB::transaction(function () use (
             $id,
             $supplierDebtService,
             $customerDebtService
+            , $movements
         ) {
             $slip = WarehouseSlip::with(['items', 'warehouse'])
                 ->lockForUpdate()
@@ -459,6 +462,9 @@ class WarehouseSlipController extends Controller
 
                     $companyPrice = $item->company_price ?? 0;
 
+                    $quantityBefore = (float) $stock->quantity;
+                    $valueBefore = (float) $stock->stock_value;
+
                     $stock->quantity += $item->quantity;
                     $stock->stock_value += $item->quantity * $companyPrice;
 
@@ -467,6 +473,7 @@ class WarehouseSlipController extends Controller
                         $companyPrice
                     );
                     $stock->save();
+                    $movements->record($stock, 'import', (float) $item->quantity, (float) $companyPrice, $quantityBefore, $valueBefore, $slip);
                 }
 
                 if ($slip->type === 'export') {
@@ -506,6 +513,9 @@ class WarehouseSlipController extends Controller
                         ? $stock->stock_value / $stock->quantity
                         : 0;
 
+                    $quantityBefore = (float) $stock->quantity;
+                    $valueBefore = (float) $stock->stock_value;
+
                     $item->company_price = $avgCost;
                     $item->save();
 
@@ -521,6 +531,7 @@ class WarehouseSlipController extends Controller
                     );
 
                     $stock->save();
+                    $movements->record($stock, 'export', (float) $item->quantity, (float) $avgCost, $quantityBefore, $valueBefore, $slip);
                 }
             }
             if ($slip->type === 'import') {

@@ -85,9 +85,9 @@
 
                         <!-- SLN / SLĐ -->
                         <td class="border p-3 text-center font-semibold">
-                            {{ item.received_quantity || 0 }}
+                            {{ formatQuantity(item.received_quantity) }}
                             /
-                            {{ item.quantity }}
+                            {{ formatQuantity(item.quantity) }}
                             {{ item.product?.unit?.name }}
                         </td>
 
@@ -172,7 +172,7 @@ import FormSelect from "@/components/FormSelect.vue";
 import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
 import SlipDetail from "./SlipDetail.vue";
 import { usePermission } from "@/composables/usePermission";
-import { getValidationMessage } from "@/config/helpers";
+import { formatQuantity, getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
 const showDetailModal = ref(false);

@@ -771,14 +771,17 @@ const fetchNotifications = async (reset = false) => {
             params: { page: currentPage.value },
         });
 
-        const newNotifications = response.data.data.data || [];
+        const pageData = response?.data?.data;
+        const newNotifications = Array.isArray(pageData?.data)
+            ? pageData.data
+            : [];
 
         if (reset) {
             notifications.value = newNotifications;
         } else {
             notifications.value = [...notifications.value, ...newNotifications];
         }
-        hasMoreNotifications.value = response.data.data.next_page_url !== null;
+        hasMoreNotifications.value = Boolean(pageData?.next_page_url);
     } catch (error) {
         console.error("Error fetching notifications:", error);
     }

@@ -656,7 +656,7 @@
                         </div>
                         <div class="text-right shrink-0">
                             <p class="text-sm font-bold text-error-600">
-                                {{ p.quantity }} {{ p.unit }}
+                                {{ formatQuantity(p.quantity) }} {{ p.unit }}
                             </p>
                             <p class="text-xs text-gray-400">
                                 Tối thiểu: {{ p.minQuantity }}
@@ -676,7 +676,7 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import { computed, onMounted, reactive, ref } from "vue";
 import axios from "axios";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 
 // ==========================================================================
 // Dữ liệu dashboard được nạp từ API thật: GET /api/dashboard/overview

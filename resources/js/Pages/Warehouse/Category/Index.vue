@@ -44,7 +44,7 @@
             <h2 class="text-2xl font-bold">Danh sách danh mục</h2>
 
             <button
-                v-if="can('danh_muc_mua_hang.them')"
+                v-if="can('danh_muc_kho.them')"
                 @click="openCreate"
                 class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
@@ -153,19 +153,20 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("danh_muc_mua_hang.sua"),
+        hidden: () => !can("danh_muc_kho.sua"),
         onClick: (item) => openEdit(item),
     },
     {
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
             item.status === "active"
-                ? !can("danh_muc_mua_hang.khoa")
+                ? !can("danh_muc_kho.khoa")
                 : !can("danh_muc_kho.khoa"),
         onClick: (item) => toggleStatus(item),
     },

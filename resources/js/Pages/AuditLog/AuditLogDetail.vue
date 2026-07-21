@@ -172,7 +172,7 @@
                             </td>
 
                             <td class="text-right">
-                                {{ item.quantity }}
+                                {{ formatQuantity(item.quantity) }}
                             </td>
 
                             <td class="text-right">
@@ -213,7 +213,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import dayjs from "dayjs";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 
 const props = defineProps({
     log: {

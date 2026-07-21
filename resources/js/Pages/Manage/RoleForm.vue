@@ -219,20 +219,39 @@ const moduleLabels = {
     chuyen_kho: "Chuyển kho", don_vi_kho: "Đơn vị tính kho",
 };
 
+function normalizeSearch(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase();
+}
+
 const filteredGroups = computed(() => {
     if (!search.value.trim()) {
         return groupedPermissions.value;
     }
 
-    const keyword = search.value.trim().toLowerCase();
+    const keyword = normalizeSearch(search.value.trim());
 
     return groupedPermissions.value
-        .map((group) => ({
-            name: group.name,
-            items: group.items.filter((p) =>
-                `${p.name} ${p.description || ""}`.toLowerCase().includes(keyword),
-            ),
-        }))
+        .map((group) => {
+            const groupMatches = normalizeSearch(
+                `${group.name} ${group.label}`,
+            ).includes(keyword);
+
+            return {
+                ...group,
+                items: groupMatches
+                    ? group.items
+                    : group.items.filter((permission) =>
+                          normalizeSearch(
+                              `${permission.name} ${permission.description || ""}`,
+                          ).includes(keyword),
+                      ),
+            };
+        })
         .filter((group) => group.items.length > 0);
 });
 

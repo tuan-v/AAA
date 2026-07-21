@@ -230,6 +230,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
@@ -272,7 +273,7 @@ function handlePageChange(page) {
 }
 const getCurrencies = async () => {
     try {
-        const res = await axios.get("/api/accountant/currencies");
+        const res = await axios.get("/api/currencies/for-select");
 
 
         currencies.value = res.data.data ?? res.data;

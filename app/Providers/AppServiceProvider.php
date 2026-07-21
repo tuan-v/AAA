@@ -117,12 +117,18 @@ class AppServiceProvider extends ServiceProvider
             ],
             [
                 'icon' => 'GridIcon',
-                'name' => 'Quản lí',
+                'name' => 'Quản lý',
                 'subItems' => array_values(array_filter([
                     $this->can('nhan_su.xem') ? [
                         'name' => 'Nhân sự',
                         'icon' => 'UserGroupIcon',
                         'path' => '/user',
+                    ] : null,
+
+                    $this->can('nhan_su.xem') ? [
+                        'name' => 'Phòng ban',
+                        'icon' => 'WarehouseIcon',
+                        'path' => '/departments',
                     ] : null,
 
                     $this->can('quyen.xem') ? [
@@ -176,6 +182,18 @@ class AppServiceProvider extends ServiceProvider
                     'icon' => 'AddOder',
                     'name' => 'Đơn hàng',
                     'path' => '/warehouse/orders',
+                ] : null,
+
+                $this->can('chuyen_kho.xem') ? [
+                    'icon' => 'TransactionIcon',
+                    'name' => 'Chuyển kho',
+                    'path' => '/warehouse/transfers',
+                ] : null,
+
+                $this->can('kho.xem') ? [
+                    'icon' => 'ListCheckIcon',
+                    'name' => 'Sổ biến động tồn',
+                    'path' => '/warehouse/inventory-movements',
                 ] : null,
 
                 $this->can('phieu_kho.xem') ? [

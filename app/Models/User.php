@@ -194,6 +194,11 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    public function departmentRecord()
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
     /**
      * Get the creator of the user.
      */

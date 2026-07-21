@@ -229,8 +229,7 @@
                                         >
                                             <component
                                                 :is="
-                                                    typeof action.icon ===
-                                                    'function'
+                                                    action.iconByItem
                                                         ? action.icon(item)
                                                         : action.icon
                                                 "

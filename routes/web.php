@@ -26,6 +26,9 @@ Route::prefix('/warehouse')->group(function () {
     Route::get('/categories', fn() => Inertia::render('Warehouse/Category/Index'))->middleware('permission:danh_muc_kho.xem');
     Route::get('/units', fn() => Inertia::render('Warehouse/Unit/Index'))->middleware('permission:don_vi_kho.xem');
 
+    Route::get('/transfers', fn() => Inertia::render('Warehouse/Transfer/Index'))->middleware('permission:chuyen_kho.xem');
+    Route::get('/inventory-movements', fn() => Inertia::render('Warehouse/InventoryMovement/Index'))->middleware('permission:kho.xem');
+
     Route::get('/orders', fn() => Inertia::render('Warehouse/Order/Index'))->middleware('permission:phieu_kho.xem');
 
     Route::get('/slips', fn() => Inertia::render('Warehouse/Slip/Index'))->middleware('permission:phieu_kho.xem');
@@ -130,6 +133,9 @@ Route::get('/audit-logs', function () {
 Route::get('/user', function () {
     return Inertia::render('Manage/User');
 })->middleware('permission:nhan_su.xem');
+Route::get('/departments', function () {
+    return Inertia::render('Manage/Department/Index');
+})->middleware('permission:nhan_su.xem');
 Route::get('/user/{id}', function ($id) {
     return Inertia::render('Manage/UserDetail', [
         'id' => $id
@@ -181,7 +187,7 @@ Route::middleware(['auth'])->group(function () {
         })->name('products.index');
         Route::get('/manage/user', function () {
             return Inertia::render('Manage/User');
-        })->name('manage.user');
+        })->middleware('permission:nhan_su.xem')->name('manage.user');
 
         Route::get('/users', [UserController::class, 'index']);
     });

@@ -228,7 +228,7 @@ import Pagination from "@/components/Pagination.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import Modal from "@/components/Modal.vue";
 
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 
 import ImportIcon from "../../../icons/ImportIcon.vue";
@@ -464,7 +464,7 @@ const saleColumns = [
             h(
                 "span",
                 { class: "font-semibold text-blue-600" },
-                row.total_quantity ?? 0,
+                formatQuantity(row.total_quantity),
             ),
     },
     {
@@ -472,22 +472,8 @@ const saleColumns = [
         render: (row) =>
             h(
                 "span",
-                { class: "font-semibold text-green-600" },
+                { class: "font-semibold " },
                 `${formatMoney(row.total_amount)} ${row.currency?.symbol ?? ""}`,
-            ),
-    },
-    {
-        label: "Công nợ",
-        render: (row) =>
-            h(
-                "span",
-                {
-                    class:
-                        Number(row.remaining_debt) > 0
-                            ? "text-red-600 font-semibold"
-                            : "text-green-600",
-                },
-                formatMoney(row.remaining_debt ?? 0),
             ),
     },
     {

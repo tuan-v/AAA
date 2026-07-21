@@ -72,6 +72,7 @@ import Unlock from "@/icons/Unlock.vue";
 import { ref, reactive, onMounted, h, computed } from "vue";
 import axios from "axios";
 import SearchPage from "@/components/SearchPage.vue";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 const filters = ref([
     // ← đổi thành ref
     {
@@ -83,6 +84,12 @@ const filters = ref([
         name: "role",
         type: "select",
         placeholder: "Lọc theo vai trò",
+        options: [],
+    },
+    {
+        name: "department_id",
+        type: "select",
+        placeholder: "Lọc theo phòng ban",
         options: [],
     },
     {
@@ -145,6 +152,10 @@ const columns = [
         key: "roles",
         label: "Vai trò",
     },
+    {
+        label: "Phòng ban",
+        render: (row) => h("span", row.department_record?.name || "-"),
+    },
 
     {
         key: "status",
@@ -175,6 +186,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
@@ -228,6 +240,15 @@ const loadRoles = async () => {
         console.error("Không load được vai trò", error);
     }
 };
+const loadDepartments = async () => {
+    try {
+        const { data } = await axios.get('/api/departments/all');
+        const filter = filters.value.find((item) => item.name === 'department_id');
+        if (filter) filter.options = data.map((department) => ({ value: department.id, label: department.name }));
+    } catch (error) {
+        console.error('Không load được phòng ban', error);
+    }
+};
 const getData = async (page = 1) => {
     const response = await axios.get(`/api/users/user`, {
         params: {
@@ -271,6 +292,7 @@ function show(id) {
 
 onMounted(() => {
     loadRoles();
+    loadDepartments();
     reloadData();
 });
 </script>

@@ -436,13 +436,13 @@ async function fetchSuppliers() {
 }
 
 async function fetchProducts() {
-    const res = await axios.get("/api/warehouse/products");
+    const res = await axios.get("/api/purchase/products", { params: { per_page: 100 } });
 
     products.value = res.data.data;
 }
 
 async function fetchCurrencies() {
-    const res = await axios.get("/api/accountant/currencies");
+    const res = await axios.get("/api/currencies/for-select");
 
     currencies.value = res.data.data ?? res.data;
 }

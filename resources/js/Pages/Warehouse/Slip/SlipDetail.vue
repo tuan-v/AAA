@@ -144,7 +144,7 @@
                                     </td>
 
                                     <td class="p-3 text-center">
-                                        {{ i.quantity }}
+                                        {{ formatQuantity(i.quantity) }}
                                     </td>
                                     <td class="p-3 text-center text-gray-600">
                                         {{ i.product?.unit?.name || "-" }}
@@ -186,6 +186,7 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import axios from "axios";
+import { formatQuantity } from "@/config/helpers";
 
 const props = defineProps({
     slipId: Number,
@@ -203,7 +204,10 @@ const loading = ref(false);
 const errorMessage = ref("");
 
 const totalQuantity = computed(() =>
-    (slip.value?.items || []).reduce((s, i) => s + i.quantity, 0),
+    (slip.value?.items || []).reduce(
+        (sum, item) => sum + Number(item.quantity || 0),
+        0,
+    ),
 );
 
 watch(

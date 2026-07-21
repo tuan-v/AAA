@@ -8,6 +8,7 @@ use App\Models\WarehouseProductStock;
 use App\Models\WarehouseTransfer;
 use App\Services\CodeGeneratorService;
 use App\Services\OrderQuantityValidationService;
+use App\Services\InventoryMovementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -47,6 +48,21 @@ class WarehouseTransferController extends Controller
         ]);
         $quantityValidator->validate($validated['items']);
 
+        $sourceStocks = WarehouseProductStock::where('company_id', $companyId)
+            ->where('warehouse_id', $validated['from_warehouse_id'])
+            ->whereIn('product_id', collect($validated['items'])->pluck('product_id'))
+            ->get()
+            ->keyBy('product_id');
+
+        foreach ($validated['items'] as $index => $item) {
+            $available = (float) ($sourceStocks->get($item['product_id'])?->quantity ?? 0);
+            if ((float) $item['quantity'] > $available) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "items.{$index}.quantity" => "Số lượng chuyển vượt quá tồn kho nguồn ({$available}).",
+                ]);
+            }
+        }
+
         $transfer = DB::transaction(function () use ($validated, $companyId, $codes) {
             $transfer = WarehouseTransfer::create([
                 'company_id' => $companyId,
@@ -63,10 +79,10 @@ class WarehouseTransferController extends Controller
         return response()->json(['message' => 'Tạo phiếu chuyển kho thành công.', 'data' => $transfer], 201);
     }
 
-    public function approve($id)
+    public function approve($id, InventoryMovementService $movements)
     {
         $companyId = $this->companyId();
-        $transfer = DB::transaction(function () use ($id, $companyId) {
+        $transfer = DB::transaction(function () use ($id, $companyId, $movements) {
             $transfer = WarehouseTransfer::with('items')->where('company_id', $companyId)->lockForUpdate()->findOrFail($id);
             abort_if($transfer->status !== 'pending', 422, 'Phiếu chuyển kho đã được xử lý.');
 
@@ -80,12 +96,29 @@ class WarehouseTransferController extends Controller
                     ->lockForUpdate()->firstOrFail();
                 abort_if((float) $source->quantity < (float) $item->quantity, 422, 'Tồn kho nguồn không đủ cho sản phẩm ID '.$item->product_id.'.');
 
-                $source->decrement('quantity', $item->quantity);
+                $sourceQuantityBefore = (float) $source->quantity;
+                $sourceValueBefore = (float) $source->stock_value;
+                $unitCost = $sourceQuantityBefore > 0 ? $sourceValueBefore / $sourceQuantityBefore : 0;
+                $movedValue = round((float) $item->quantity * $unitCost, 2);
+
+                $source->quantity = round($sourceQuantityBefore - (float) $item->quantity, 3);
+                $source->stock_value = $source->quantity <= 0
+                    ? 0
+                    : round(max(0, $sourceValueBefore - $movedValue), 2);
+                $source->save();
                 $target = WarehouseProductStock::firstOrCreate(
                     ['company_id' => $companyId, 'warehouse_id' => $transfer->to_warehouse_id, 'product_id' => $item->product_id],
-                    ['quantity' => 0]
+                    ['quantity' => 0, 'stock_value' => 0]
                 );
-                $target->increment('quantity', $item->quantity);
+                $target = WarehouseProductStock::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                $targetQuantityBefore = (float) $target->quantity;
+                $targetValueBefore = (float) $target->stock_value;
+                $target->quantity = round($targetQuantityBefore + (float) $item->quantity, 3);
+                $target->stock_value = round($targetValueBefore + $movedValue, 2);
+                $target->save();
+
+                $movements->record($source, 'transfer_out', (float) $item->quantity, $unitCost, $sourceQuantityBefore, $sourceValueBefore, $transfer);
+                $movements->record($target, 'transfer_in', (float) $item->quantity, $unitCost, $targetQuantityBefore, $targetValueBefore, $transfer);
             }
 
             $transfer->update(['status' => 'approved', 'approved_by' => auth()->id(), 'approved_at' => now()]);

@@ -374,6 +374,7 @@
 import { ChevronDownIcon, LogoutIcon, SettingsIcon } from "@/icons";
 import { usePage, router } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted, computed } from "vue";
+import axios from "axios";
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -394,7 +395,23 @@ const dropdownRef = ref(null);
 const modalOpen = ref(false);
 const switchingCompany = ref(false);
 const targetCompany = ref(null);
+const notificationsCount = ref(0);
 let loadingTimeout = null;
+
+const fetchNotificationsCount = async () => {
+    try {
+        const response = await axios.get("/api/notifications/unread-count");
+        const counts = response.data?.by_category || {};
+        notificationsCount.value = Object.values(counts).reduce(
+            (total, value) => total + Number(value || 0),
+            0,
+        );
+    } catch {
+        notificationsCount.value = 0;
+    }
+};
+
+const handleNotificationReceived = () => fetchNotificationsCount();
 
 const quickSwitchCompanies = computed(() => {
     return companies.value
@@ -482,10 +499,13 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
     document.addEventListener("click", handleClickOutside);
+    window.addEventListener("notification-received", handleNotificationReceived);
+    fetchNotificationsCount();
 });
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
+    window.removeEventListener("notification-received", handleNotificationReceived);
     if (loadingTimeout) clearTimeout(loadingTimeout);
 });
 </script>

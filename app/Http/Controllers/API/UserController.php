@@ -14,12 +14,16 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::query()
-            ->with('roles:id,name')                    // load vai trò
+            ->with(['roles:id,name', 'departmentRecord:id,code,name'])
             ->visibleFor(auth()->user());              // giữ scope quyền xem
 
         // Lọc theo công ty
         if ($request->filled('company_id')) {
             $query->where('company_id', $request->company_id);
+        }
+
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
         }
 
         // Tìm kiếm chung
@@ -85,7 +89,13 @@ class UserController extends Controller
                         User::STATUS_PENDING,
                     ])
                 ],
-                'role' => 'required|exists:roles,name'
+                'role' => 'required|exists:roles,name',
+                'department_id' => [
+                    'required',
+                    Rule::exists('departments', 'id')->where(
+                        fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
+                    ),
+                ],
             ],
             [
                 'name.required' => 'Vui lòng nhập tên',
@@ -129,6 +139,7 @@ class UserController extends Controller
             'status' => User::STATUS_ACTIVE,
             'mode' => 'company',
             'company_id' => auth()->user()->company_id,
+            'department_id' => $validated['department_id'],
         ]);
 
         $user->companies()->syncWithoutDetaching([
@@ -173,7 +184,13 @@ class UserController extends Controller
                     User::STATUS_PENDING,
                 ])
             ],
-            'role' => 'required|exists:roles,name'
+            'role' => 'required|exists:roles,name',
+            'department_id' => [
+                'required',
+                Rule::exists('departments', 'id')->where(
+                    fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
+                ),
+            ],
         ]);
 
         $assignableRole = Role::query()
@@ -187,7 +204,8 @@ class UserController extends Controller
             'username' => $validated['username'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
-            'status' => $validated['status']
+            'status' => $validated['status'],
+            'department_id' => $validated['department_id'],
         ];
 
         if (!empty($validated['password'])) {

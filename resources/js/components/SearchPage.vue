@@ -16,6 +16,17 @@
                     class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-gray-500 w-full"
                 />
 
+                <input
+                    v-if="item.type === 'number'"
+                    v-model="values[item.name]"
+                    type="number"
+                    :min="item.min"
+                    :max="item.max"
+                    :step="item.step || 1"
+                    :placeholder="item.placeholder || 'Nhập giá trị...'"
+                    class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-gray-500 w-full"
+                />
+
                 <!-- ASYNC SELECT -->
                 <!-- <AsyncSelect v-if="item.type === 'async-select'" v-model="values[item.name]" :apiUrl="item.apiUrl"
                     :placeholder="item.placeholder || 'Tìm kiếm...'" :minChars="item.minChars || 0"

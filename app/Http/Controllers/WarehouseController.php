@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SalesOrder;
+use App\Models\Address;
 use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
 use Illuminate\Http\Request;
@@ -22,6 +23,13 @@ class WarehouseController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'min_inventory_value' => 'nullable|numeric|min:0',
+            'max_inventory_value' => 'nullable|numeric|min:0|gte:min_inventory_value',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
         $user = auth()->user();
         $company = $user->company; // belongsTo, 1 user - 1 company
 
@@ -36,25 +44,51 @@ class WarehouseController extends Controller
             ->wherePivot('is_default', true)
             ->first();
 
-        $rate = $companyCurrency?->exchange_rate ?? 1;
-
         $currency = [
             'code'          => $companyCurrency?->code ?? 'VND',
             'symbol'        => $companyCurrency?->symbol ?? '₫',
-            'exchange_rate' => $rate,
+            // Tiền mặc định của công ty luôn là tiền cơ sở.
+            'exchange_rate' => 1,
         ];
-        $perPage = min((int) $request->input('per_page', 10), 100);
-        return Warehouse::with(['province', 'ward', 'stocks.product'])
+        $perPage = (int) ($validated['per_page'] ?? 10);
+        $query = Warehouse::with(['province', 'ward', 'stocks.product']);
+
+        $inventoryValueQuery = fn () => DB::table('warehouse_product_stocks as wps')
+            ->select('wps.warehouse_id')
+            ->groupBy('wps.warehouse_id');
+
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
+            });
+        }
+
+        if (isset($validated['min_inventory_value'])) {
+            $minimumQuery = $inventoryValueQuery()->havingRaw(
+                'SUM(wps.stock_value) >= (? + 0)',
+                [(float) $validated['min_inventory_value']]
+            );
+            $query->whereIn('warehouses.id', $minimumQuery);
+        }
+
+        if (isset($validated['max_inventory_value'])) {
+            $maximumQuery = $inventoryValueQuery()->havingRaw(
+                'SUM(wps.stock_value) <= (? + 0)',
+                [(float) $validated['max_inventory_value']]
+            );
+            $query->where(function ($query) use ($maximumQuery) {
+                $query->whereDoesntHave('stocks')
+                    ->orWhereIn('warehouses.id', $maximumQuery);
+            });
+        }
+
+        return $query
             ->orderByDesc('id')
             ->paginate($perPage)
-            ->through(function ($warehouse) use ($rate, $currency) {
-                $totalValue = 0;
-
-                foreach ($warehouse->stocks as $stock) {
-                    $price = $stock->product?->purchase_price ?? 0;
-                    $converted = $rate > 0 ? $price / $rate : 0;
-                    $totalValue += $stock->quantity * $converted;
-                }
+            ->through(function ($warehouse) use ($currency) {
+                $totalValue = (float) $warehouse->stocks->sum('stock_value');
 
                 return [
                     'id' => $warehouse->id,
@@ -67,7 +101,10 @@ class WarehouseController extends Controller
                     ),
                     'province_code' => $warehouse->province_code,
                     'ward_code' => $warehouse->ward_code,
-                    'total_inventory_value' => round($totalValue, 2),
+                    'total_inventory_value' => round(
+                        $totalValue,
+                        $currency['code'] === 'VND' ? 0 : 2
+                    ),
                     'currency_symbol' => $currency['symbol'],
                     'status' => $warehouse->status,
                 ];
@@ -79,7 +116,12 @@ class WarehouseController extends Controller
         $validated = $request->validate([
             'name' => 'required|max:255',
             'province_code' => 'required|exists:provinces,id',
-            'ward_code' => 'required|exists:wards,id',
+            'ward_code' => [
+                'required',
+                Rule::exists('wards', 'id')->where(
+                    fn ($query) => $query->where('province_id', $request->input('province_code'))
+                ),
+            ],
             'address_detail' => 'required',
         ], [
             'name.required' => 'Tên không được để trống',
@@ -91,8 +133,15 @@ class WarehouseController extends Controller
         $companyId = auth()->user()->company_id;
 
         $warehouse = DB::transaction(function () use ($validated, $companyId) {
+            $address = Address::create([
+                'province_id' => $validated['province_code'],
+                'ward_id' => $validated['ward_code'],
+                'address_detail' => $validated['address_detail'],
+            ]);
+
             return Warehouse::create([
                 'name' => $validated['name'],
+                'address_id' => $address->id,
                 'province_code' => $validated['province_code'],
                 'ward_code' => $validated['ward_code'],
                 'address_detail' => $validated['address_detail'],
@@ -111,7 +160,8 @@ class WarehouseController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => Warehouse::where('status', 'active')
+            'data' => Warehouse::where('company_id', $this->companyId())
+                ->where('status', 'active')
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get()
@@ -145,7 +195,16 @@ class WarehouseController extends Controller
             'ward_code.exists' => 'Xã/Phường không thuộc Tỉnh/Thành phố đã chọn.',
         ]);
 
-        $warehouse->update($validated);
+        DB::transaction(function () use ($warehouse, $validated) {
+            $address = $warehouse->address ?: new Address();
+            $address->fill([
+                'province_id' => $validated['province_code'],
+                'ward_id' => $validated['ward_code'],
+                'address_detail' => $validated['address_detail'],
+            ])->save();
+
+            $warehouse->update($validated + ['address_id' => $address->id]);
+        });
 
         return response()->json([
             'success' => true,
@@ -212,6 +271,7 @@ class WarehouseController extends Controller
 
         $stocks = WarehouseProductStock::with(['product.unit'])
             ->where('warehouse_id', $warehouse->id)
+            ->where('quantity', '>', 0)
             ->get();
 
         return response()->json([
@@ -232,22 +292,26 @@ class WarehouseController extends Controller
             'slips.approvedBy',
         ]);
 
+        $warehouse->setRelation(
+            'stocks',
+            $warehouse->stocks->filter(fn ($stock) => (float) $stock->quantity > 0)->values()
+        );
+
         $company = auth()->user()->company;
         $companyCurrency = $company?->currencies()
             ->wherePivot('is_default', true)
             ->first();
-        $rate = $companyCurrency?->exchange_rate ?? 1;
-
-        $inventoryValue = $warehouse->stocks->sum(function ($stock) use ($rate) {
-            $price = $stock->product?->purchase_price ?? 0;
-            $converted = $rate > 0 ? $price / $rate : 0;
-            return $stock->quantity * $converted;
-        });
+        // stock_value là giá trị kế toán thực tế đã được ghi nhận bằng tiền cơ sở
+        // khi duyệt phiếu; không tính lại theo giá mua hiện tại của sản phẩm.
+        $inventoryValue = (float) $warehouse->stocks->sum('stock_value');
 
         $summary = [
             'total_products'  => $warehouse->stocks->count(),
             'total_quantity'  => $warehouse->stocks->sum('quantity'),
-            'inventory_value' => round($inventoryValue, 2),
+            'inventory_value' => round(
+                $inventoryValue,
+                ($companyCurrency?->code ?? 'VND') === 'VND' ? 0 : 2
+            ),
             'currency_symbol' => $companyCurrency?->symbol ?? '₫',
             'import_slips'    => $warehouse->slips->where('type', 'import')->count(),
             'export_slips'    => $warehouse->slips->where('type', 'export')->count(),

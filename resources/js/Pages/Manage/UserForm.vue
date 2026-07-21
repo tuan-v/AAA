@@ -283,6 +283,25 @@
 
                             <input type="hidden" v-model="form.company_id" />
                         </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                Phòng ban <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                v-model="form.department_id"
+                                required
+                                class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                            >
+                                <option value="" disabled>Chọn phòng ban</option>
+                                <option v-for="department in departments" :key="department.id" :value="department.id">
+                                    {{ department.code }} — {{ department.name }}
+                                </option>
+                            </select>
+                            <p v-if="errors.department_id" class="mt-1 text-xs text-red-600">
+                                {{ errors.department_id[0] }}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -333,6 +352,7 @@ const props = defineProps({
 const emit = defineEmits(["saved", "close"]);
 
 const roles = ref([]);
+const departments = ref([]);
 
 const form = reactive({
     name: "",
@@ -343,6 +363,7 @@ const form = reactive({
     status: "active",
     role: "",
     company_id: "",
+    department_id: "",
 });
 
 watch(
@@ -365,6 +386,7 @@ watch(
                 phone: value.phone || "",
                 status: value.status || "",
                 role: value.roles?.[0]?.name || "",
+                department_id: value.department_id || "",
             });
         } else {
             Object.assign(form, {
@@ -375,6 +397,7 @@ watch(
                 password: "",
                 status: "active",
                 role: "",
+                department_id: "",
             });
         }
     },
@@ -390,6 +413,14 @@ const getRoles = async () => {
         ];
     } catch (error) {
         console.error("Không load được vai trò", error);
+    }
+};
+const getDepartments = async () => {
+    try {
+        const res = await axios.get('/api/departments/all');
+        departments.value = res.data;
+    } catch (error) {
+        console.error('Không load được phòng ban', error);
     }
 };
 async function saveUser() {
@@ -418,5 +449,6 @@ async function saveUser() {
 }
 onMounted(() => {
     getRoles();
+    getDepartments();
 });
 </script>

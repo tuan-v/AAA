@@ -81,7 +81,7 @@
                 </div>
             </template>
             <template #cell-quantity="{ item }">
-                {{ item.quantity || "0" }} {{ item.unit_name || " " }}
+                {{ formatQuantity(item.quantity) }} {{ item.unit_name || " " }}
             </template>
         </DataTable>
 
@@ -120,7 +120,7 @@ import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import ProductForm from "./ProductForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
-import { formatMoney } from "@/config/helpers";
+import { formatMoney, formatQuantity } from "@/config/helpers";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
@@ -219,7 +219,7 @@ const columns = [
                                   h("span", w.warehouse_name),
                                   h(
                                       "span",
-                                      `${w.quantity} ${row.unit_name || ""}`,
+                                      `${formatQuantity(w.quantity)} ${row.unit_name || ""}`,
                                   ),
                               ],
                           ),
@@ -238,7 +238,7 @@ const columns = [
                     {
                         class: "text-xs font-semibold text-blue-600 border-t pt-1 mt-1",
                     },
-                    `Tổng tồn: ${total} ${row.unit_name || ""}`,
+                    `Tổng tồn: ${formatQuantity(total)} ${row.unit_name || ""}`,
                 ),
             ]);
         },
@@ -272,6 +272,7 @@ const actions = computed(() => [
         type: "status",
         // icon đổi theo trạng thái của từng dòng
         icon: (item) => (item.status === "active" ? Lock : Unlock),
+        iconByItem: true,
         // quyền cũng đổi theo trạng thái của từng dòng:
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
@@ -327,6 +328,12 @@ function handleFilter(params) {
     fetchData(1, params);
 }
 function openEdit(product) {
+    if (product.is_used) {
+        toast.warning(
+            "Sản phẩm đã được sử dụng nên không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa sản phẩm.",
+        );
+        return;
+    }
     selectedProduct.value = {
         id: product.id,
         name: product.name || "",
@@ -366,8 +373,7 @@ async function deleteProduct(id) {
 
         fetchData(products.value.current_page, currentFilters.value);
     } catch (error) {
-        console.error(error);
-        alert("Xóa sản phẩm thất bại");
+        toast.error(error.response?.data?.message || "Xóa sản phẩm thất bại");
     }
 }
 async function toggleStatus(product) {
@@ -382,18 +388,22 @@ async function toggleStatus(product) {
             products.value.data[index].status = newStatus;
         }
     } catch (error) {
-        console.error(error);
+        toast.error(error.response?.data?.message || "Cập nhật trạng thái thất bại");
     }
 }
 async function fetchWarehouses() {
-    const res = await axios.get("/api/warehouses/all");
+    try {
+        const res = await axios.get("/api/warehouses/all");
+        const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
 
-    warehouse.value = res.data.data.map((w) => ({
-        value: w.id,
-        label: w.name,
-    }));
-
-    filters[1].options = warehouse.value;
+        warehouse.value = rows.map((w) => ({
+            value: w.id,
+            label: w.name,
+        }));
+    } catch (error) {
+        warehouse.value = [];
+        console.error("Error fetching warehouses:", error);
+    }
 }
 onMounted(() => {
     getData();

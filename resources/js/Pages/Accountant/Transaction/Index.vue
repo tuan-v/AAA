@@ -434,14 +434,19 @@ function reloadData() {
 
 /* INIT */
 onMounted(async () => {
-    const [accRes, catRes, curRes, customerRes, supplierRes] =
-        await Promise.all([
+    // Danh sách giao dịch là dữ liệu chính, không được phụ thuộc vào việc
+    // một API danh mục của biểu mẫu tạo mới có tải thành công hay không.
+    getData(1);
+
+    try {
+        const [accRes, catRes, curRes, customerRes, supplierRes] =
+            await Promise.all([
             axios.get("/api/accountant/accounts/all"),
             axios.get("/api/accountant/transaction-categories"),
             axios.get("/api/accountant/currencies"),
             axios.get("/api/sale/customers/all"),
             axios.get("/api/purchase/suppliers/all"),
-        ]);
+            ]);
 
     accounts.value = accRes.data;
     categories.value = catRes.data.data || [];
@@ -464,6 +469,8 @@ onMounted(async () => {
         label: `${currency.code}${currency.name ? ` - ${currency.name}` : ""}`,
     }));
 
-    getData(1);
+    } catch (error) {
+        console.error("Không thể tải đầy đủ danh mục giao dịch", error);
+    }
 });
 </script>

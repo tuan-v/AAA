@@ -77,9 +77,9 @@
                         </td>
 
                         <td class="border p-3 text-center font-semibold">
-                            {{ item.exported_quantity || 0 }}
+                            {{ formatQuantity(item.exported_quantity) }}
                             /
-                            {{ item.quantity }}
+                            {{ formatQuantity(item.quantity) }}
                             {{ item.product?.unit?.name }}
                         </td>
 
@@ -166,7 +166,7 @@ import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import { usePermission } from "@/composables/usePermission";
-import { getValidationMessage } from "@/config/helpers";
+import { formatQuantity, getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
 // ===================== STATE
