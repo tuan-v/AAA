@@ -99,7 +99,7 @@ const columns = [
     { label: 'Trưởng phòng', render: row => h('span', row.manager?.name || 'Chưa chỉ định') },
     { label: 'Số nhân sự', render: row => h('span', { class: 'font-semibold text-blue-600' }, String(row.users_count || 0)) },
     { label: 'Mô tả', render: row => h('span', row.description || '-') },
-    { label: 'Trạng thái', render: row => h('span', { class: ['rounded-full px-2.5 py-1 text-xs font-semibold', row.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'] }, row.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động') },
+    { label: 'Trạng thái', render: row => h('span', { class: ['inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset', row.status === 'active' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-red-50 text-red-700 ring-red-600/20'] }, row.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động') },
 ];
 const actions = computed(() => [
     { icon: EditButtonIcon, type: 'edit', hidden: () => !can('nhan_su.sua'), onClick: openEdit },

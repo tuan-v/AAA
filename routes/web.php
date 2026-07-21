@@ -136,6 +136,9 @@ Route::get('/user', function () {
 Route::get('/departments', function () {
     return Inertia::render('Manage/Department/Index');
 })->middleware('permission:nhan_su.xem');
+Route::get('/positions', function () {
+    return Inertia::render('Manage/Position/Index');
+})->middleware('permission:nhan_su.xem');
 Route::get('/user/{id}', function ($id) {
     return Inertia::render('Manage/UserDetail', [
         'id' => $id

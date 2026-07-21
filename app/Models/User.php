@@ -38,6 +38,7 @@ class User extends Authenticatable
         'google_id',
         'company_id',
         'department_id',
+        'position_id',
         'address',
         'avatar',
         'creater_id',
@@ -197,6 +198,11 @@ class User extends Authenticatable
     public function departmentRecord()
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function positionRecord()
+    {
+        return $this->belongsTo(Position::class, 'position_id');
     }
 
     /**

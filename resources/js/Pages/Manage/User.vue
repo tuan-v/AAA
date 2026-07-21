@@ -156,6 +156,10 @@ const columns = [
         label: "Phòng ban",
         render: (row) => h("span", row.department_record?.name || "-"),
     },
+    {
+        label: "Chức vụ",
+        render: (row) => h("span", row.position_record?.name || "-"),
+    },
 
     {
         key: "status",

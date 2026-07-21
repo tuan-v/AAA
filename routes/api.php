@@ -30,6 +30,7 @@ use App\Http\Controllers\Accountant\AccountLedgerController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\PositionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,14 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::post('/', 'store')->middleware('permission:nhan_su.them');
         Route::put('/{department}', 'update')->middleware('permission:nhan_su.sua');
         Route::delete('/{department}', 'destroy')->middleware('permission:nhan_su.xoa');
+    });
+
+    Route::controller(PositionController::class)->prefix('positions')->group(function () {
+        Route::get('/', 'index')->middleware('permission:nhan_su.xem');
+        Route::get('/all', 'all')->middleware('permission:nhan_su.xem');
+        Route::post('/', 'store')->middleware('permission:nhan_su.them');
+        Route::put('/{position}', 'update')->middleware('permission:nhan_su.sua');
+        Route::delete('/{position}', 'destroy')->middleware('permission:nhan_su.xoa');
     });
 
     Route::controller(RoleController::class)->prefix('roles')->group(function () {

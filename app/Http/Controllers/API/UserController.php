@@ -14,7 +14,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::query()
-            ->with(['roles:id,name', 'departmentRecord:id,code,name'])
+            ->with(['roles:id,name', 'departmentRecord:id,code,name', 'positionRecord:id,department_id,code,name'])
             ->visibleFor(auth()->user());              // giữ scope quyền xem
 
         // Lọc theo công ty
@@ -79,7 +79,7 @@ class UserController extends Controller
                 'username' => 'required|string|max:50|unique:users,username',
                 'email' => 'required|email|max:255|unique:users,email',
                 'phone' => 'required|regex:/^(0)[0-9]{9,10}$/',
-                'password' => 'required|string',
+                'password' => 'required|string|min:6|confirmed',
                 'status' => [
                     'required',
                     Rule::in([
@@ -95,6 +95,13 @@ class UserController extends Controller
                     Rule::exists('departments', 'id')->where(
                         fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
                     ),
+                ],
+                'position_id' => [
+                    'required',
+                    Rule::exists('positions', 'id')->where(fn ($query) => $query
+                        ->where('company_id', auth()->user()->company_id)
+                        ->where('department_id', $request->department_id)
+                        ->where('status', 'active')),
                 ],
             ],
             [
@@ -140,6 +147,7 @@ class UserController extends Controller
             'mode' => 'company',
             'company_id' => auth()->user()->company_id,
             'department_id' => $validated['department_id'],
+            'position_id' => $validated['position_id'],
         ]);
 
         $user->companies()->syncWithoutDetaching([
@@ -191,6 +199,13 @@ class UserController extends Controller
                     fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
                 ),
             ],
+            'position_id' => [
+                'required',
+                Rule::exists('positions', 'id')->where(fn ($query) => $query
+                    ->where('company_id', auth()->user()->company_id)
+                    ->where('department_id', $request->department_id)
+                    ->where('status', 'active')),
+            ],
         ]);
 
         $assignableRole = Role::query()
@@ -206,6 +221,7 @@ class UserController extends Controller
             'phone' => $validated['phone'] ?? null,
             'status' => $validated['status'],
             'department_id' => $validated['department_id'],
+            'position_id' => $validated['position_id'],
         ];
 
         if (!empty($validated['password'])) {

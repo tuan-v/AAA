@@ -127,13 +127,19 @@ class AppServiceProvider extends ServiceProvider
 
                     $this->can('nhan_su.xem') ? [
                         'name' => 'Phòng ban',
-                        'icon' => 'WarehouseIcon',
+                        'icon' => 'CompanyIcon',
                         'path' => '/departments',
+                    ] : null,
+
+                    $this->can('nhan_su.xem') ? [
+                        'name' => 'Chức vụ',
+                        'icon' => 'UserPosition',
+                        'path' => '/positions',
                     ] : null,
 
                     $this->can('quyen.xem') ? [
                         'name' => 'Quyền',
-                        'icon' => 'Lock',
+                        'icon' => 'PersonIcon',
                         'path' => '/permission',
                     ] : null,
 

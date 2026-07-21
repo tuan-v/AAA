@@ -69,7 +69,7 @@ class DepartmentController extends Controller
     public function destroy(Department $department)
     {
         abort_unless((int) $department->company_id === $this->companyId(), 404);
-        if ($department->users()->exists()) {
+        if ($department->users()->exists() || $department->positions()->exists()) {
             return response()->json(['message' => 'Phòng ban đã có nhân sự, chỉ có thể ngừng hoạt động.'], 422);
         }
         $department->delete();

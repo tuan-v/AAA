@@ -13,4 +13,5 @@ class Department extends Model
     public function company() { return $this->belongsTo(Company::class); }
     public function manager() { return $this->belongsTo(User::class, 'manager_id'); }
     public function users() { return $this->hasMany(User::class); }
+    public function positions() { return $this->hasMany(Position::class); }
 }

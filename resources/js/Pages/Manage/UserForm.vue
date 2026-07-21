@@ -177,7 +177,7 @@
                                     class="ti ti-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
                                 ></i>
                                 <input
-                                    type="text"
+                                    type="password"
                                     v-model="form.password"
                                     :placeholder="
                                         props.user
@@ -197,6 +197,19 @@
                                 <i class="ti ti-alert-circle"></i
                                 >{{ errors.password[0] }}
                             </p>
+                        </div>
+
+                        <div v-if="form.password">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                Xác nhận mật khẩu
+                            </label>
+                            <input
+                                v-model="form.password_confirmation"
+                                type="password"
+                                placeholder="Nhập lại mật khẩu"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                                :class="errors.password ? 'border-red-300' : ''"
+                            />
                         </div>
 
                         <div>
@@ -302,6 +315,19 @@
                                 {{ errors.department_id[0] }}
                             </p>
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                Chức vụ <span class="text-red-500">*</span>
+                            </label>
+                            <select v-model="form.position_id" required :disabled="!form.department_id"
+                                class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm disabled:bg-gray-100">
+                                <option value="" disabled>Chọn chức vụ</option>
+                                <option v-for="position in positions" :key="position.id" :value="position.id">
+                                    {{ position.code }} — {{ position.name }}
+                                </option>
+                            </select>
+                            <p v-if="errors.position_id" class="mt-1 text-xs text-red-600">{{ errors.position_id[0] }}</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -353,6 +379,7 @@ const emit = defineEmits(["saved", "close"]);
 
 const roles = ref([]);
 const departments = ref([]);
+const positions = ref([]);
 
 const form = reactive({
     name: "",
@@ -360,10 +387,12 @@ const form = reactive({
     email: "",
     phone: "",
     password: "",
+    password_confirmation: "",
     status: "active",
     role: "",
     company_id: "",
     department_id: "",
+    position_id: "",
 });
 
 watch(
@@ -384,9 +413,12 @@ watch(
                 username: value.username || "",
                 email: value.email || "",
                 phone: value.phone || "",
+                password: "",
+                password_confirmation: "",
                 status: value.status || "",
                 role: value.roles?.[0]?.name || "",
                 department_id: value.department_id || "",
+                position_id: value.position_id || "",
             });
         } else {
             Object.assign(form, {
@@ -395,9 +427,11 @@ watch(
                 email: "",
                 phone: "",
                 password: "",
+                password_confirmation: "",
                 status: "active",
                 role: "",
                 department_id: "",
+                position_id: "",
             });
         }
     },
@@ -423,6 +457,18 @@ const getDepartments = async () => {
         console.error('Không load được phòng ban', error);
     }
 };
+const getPositions = async (departmentId) => {
+    positions.value = [];
+    if (!departmentId) return;
+    try {
+        const res = await axios.get('/api/positions/all', { params: { department_id: departmentId } });
+        positions.value = res.data;
+        if (!positions.value.some(item => item.id === Number(form.position_id))) form.position_id = '';
+    } catch (error) {
+        console.error('Không load được chức vụ', error);
+    }
+};
+watch(() => form.department_id, value => getPositions(value), { immediate: true });
 async function saveUser() {
     errors.value = {};
 
