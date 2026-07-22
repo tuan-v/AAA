@@ -1,9 +1,9 @@
 <template>
-    <Head title="Dashboard - Tổng quan doanh nghiệp"></Head>
+    <Head title="Tổng quan doanh nghiệp"></Head>
     <AdminLayout>
         <PageBreadcrumb
-            title="Dashboard"
-            :items="[{ text: 'Dashboard', link: null }]"
+            title="Tổng quan"
+            :items="[{ text: 'Tổng quan', link: null }]"
         />
 
         <!-- ================= ROW 1: KPI TÀI CHÍNH TỔNG QUAN ================= -->
@@ -1022,7 +1022,7 @@ async function loadDashboard() {
         state.lowStockProducts = d.low_stock_products;
     } catch (error) {
         loadError.value = true;
-        console.error("Không tải được dữ liệu dashboard:", error);
+        console.error("Không tải được dữ liệu tổng quan:", error);
     } finally {
         loading.value = false;
     }

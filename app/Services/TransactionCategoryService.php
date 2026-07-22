@@ -74,6 +74,8 @@ class TransactionCategoryService extends BaseService
      */
     public function update(TransactionCategory $category, array $data): TransactionCategory
     {
+        $this->ensureCurrentCompany($category);
+
         $isUsed = $category->transactions()->exists();
 
         if ($isUsed) {
@@ -102,6 +104,8 @@ class TransactionCategoryService extends BaseService
      */
     public function delete(TransactionCategory $category): bool
     {
+        $this->ensureCurrentCompany($category);
+
         if ($category->transactions()->exists()) {
             throw ValidationException::withMessages([
                 'category' => 'Loại giao dịch đã được sử dụng, không thể xóa.',
@@ -109,6 +113,11 @@ class TransactionCategoryService extends BaseService
         }
 
         return $this->repository->delete($category);
+    }
+
+    private function ensureCurrentCompany(TransactionCategory $category): void
+    {
+        abort_unless((int) $category->company_id === $this->companyId(), 404);
     }
 
     /**

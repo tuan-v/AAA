@@ -154,12 +154,15 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Công ty Cung ứng Việt', 'phone' => '0912000001', 'email' => 'ncc@demo.vn',
                 'currency_id' => $vnd->id, 'province_code' => $province->code, 'province_name' => $province->name,
                 'ward_code' => $ward->code, 'ward_name' => $ward->name, 'address_detail' => '10 Trần Hưng Đạo',
-                'opening_debt' => 1000000, 'total_debts' => 1000000, 'status' => 'active',
+                'opening_debt' => 1000000, 'opening_debt_exchange_rate' => 1,
+                'opening_debt_base' => 1000000, 'opening_advance_exchange_rate' => 1,
+                'opening_advance_base' => 0, 'total_debts' => 1000000, 'status' => 'active',
             ]);
             $customer = Customer::updateOrCreate(['company_id' => $company->id, 'code' => 'KH-DEMO'], [
                 'name' => 'Cửa hàng Minh Anh', 'phone' => '0913000001', 'email' => 'khachhang@demo.vn',
                 'currency_id' => $vnd->id, 'province_id' => $province->id, 'ward_id' => $ward->id,
-                'address_detail' => '20 Hai Bà Trưng', 'opening_debt' => 500000, 'status' => 'active',
+                'address_detail' => '20 Hai Bà Trưng', 'opening_debt' => 500000,
+                'opening_debt_exchange_rate' => 1, 'opening_debt_base' => 500000, 'status' => 'active',
             ]);
 
             $po = PurchaseOrder::updateOrCreate(['company_id' => $company->id, 'code' => 'PO-DEMO-001'], [
@@ -243,7 +246,8 @@ class DemoDataSeeder extends Seeder
             }
             if (! DB::table('transactions')->where('company_id', $company->id)->where('description', 'Thanh toán nhà cung cấp demo')->exists()) {
                 $payment = $service->create([
-                    'type' => 'payment', 'amount' => 1000000, 'currency_id' => $vnd->id,
+                    'type' => 'payment', 'payment_method' => 'bank_transfer',
+                    'amount' => 1000000, 'currency_id' => $vnd->id,
                     'category_id' => TransactionCategory::where('company_id', $company->id)->where('code', 'CHI_NCC')->value('id'),
                     'from_account_id' => $bankAccount->id, 'supplier_id' => $supplier->id, 'purchase_order_id' => $po->id,
                     'transaction_date' => now()->toDateString(), 'description' => 'Thanh toán nhà cung cấp demo',

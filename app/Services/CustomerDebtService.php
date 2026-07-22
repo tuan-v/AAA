@@ -32,6 +32,12 @@ class CustomerDebtService
             'customer_id'    => $salesOrder->customer_id,
             'type'           => 'sale',
             'amount'         => $amountBase,
+            ...$this->moneySnapshot(
+                $amountBase,
+                (int) $salesOrder->currency_id,
+                (float) $salesOrder->exchange_rate,
+                (float) $salesOrder->total_amount
+            ),
             'reference_type' => SalesOrder::class,
             'reference_id'   => $salesOrder->id,
             'note'           => "Phát sinh công nợ từ đơn bán {$salesOrder->code}",
@@ -79,6 +85,12 @@ class CustomerDebtService
 
             amount: $amountBase,
 
+            currencyId: (int) $slip->saleOrder->currency_id,
+
+            exchangeRate: (float) $slip->saleOrder->exchange_rate,
+
+            originalAmount: $amountBase / ((float) $slip->saleOrder->exchange_rate ?: 1),
+
             referenceType: WarehouseSlip::class,
 
             referenceId: $slip->id,
@@ -100,12 +112,16 @@ class CustomerDebtService
         float $amount,
         string $referenceType,
         int $referenceId,
-        ?string $note = null
+        ?string $note = null,
+        ?int $currencyId = null,
+        float $exchangeRate = 1,
+        ?float $originalAmount = null
     ): CustomerDebt {
         return CustomerDebt::create([
             'customer_id'    => $customerId,
             'type'           => 'sale',
             'amount'         => $amount,
+            ...$this->moneySnapshot($amount, $currencyId, $exchangeRate, $originalAmount),
             'reference_type' => $referenceType,
             'reference_id'   => $referenceId,
             'note'           => $note,
@@ -135,6 +151,12 @@ class CustomerDebtService
             'customer_id'    => $transaction->customer_id,
             'type'           => 'payment',
             'amount'         => -abs((float) $transaction->amount_base), // âm = giảm nợ
+            ...$this->moneySnapshot(
+                -abs((float) $transaction->amount_base),
+                (int) $transaction->currency_id,
+                (float) $transaction->exchange_rate,
+                -abs((float) $transaction->amount)
+            ),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => $note,
@@ -163,6 +185,12 @@ class CustomerDebtService
             'customer_id'    => $transaction->customer_id,
             'type'           => 'refund',
             'amount'         => abs((float) $transaction->amount_base), // dương = tăng nợ
+            ...$this->moneySnapshot(
+                abs((float) $transaction->amount_base),
+                (int) $transaction->currency_id,
+                (float) $transaction->exchange_rate,
+                abs((float) $transaction->amount)
+            ),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => $note,
@@ -178,7 +206,7 @@ class CustomerDebtService
      */
     public function getBalance(int $customerId): float
     {
-        $openingDebt = (float) (Customer::find($customerId)?->opening_debt ?? 0);
+        $openingDebt = (float) (Customer::find($customerId)?->opening_debt_base ?? 0);
 
         return $openingDebt
             + (float) CustomerDebt::where('customer_id', $customerId)->sum('amount');
@@ -192,5 +220,21 @@ class CustomerDebtService
         return CustomerDebt::where('customer_id', $customerId)
             ->orderByDesc('created_at')
             ->get();
+    }
+
+    private function moneySnapshot(
+        float $amountBase,
+        ?int $currencyId,
+        float $exchangeRate,
+        ?float $originalAmount = null
+    ): array {
+        $rate = $exchangeRate > 0 ? $exchangeRate : 1;
+
+        return [
+            'currency_id' => $currencyId,
+            'original_amount' => round($originalAmount ?? ($amountBase / $rate), 2),
+            'exchange_rate' => $rate,
+            'amount_base' => round($amountBase, 2),
+        ];
     }
 }

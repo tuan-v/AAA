@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Storage;
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Services\CurrencyService;
@@ -29,6 +30,22 @@ class ProductController extends Controller
             || DB::table('sales_order_items')->where('product_id', $product->id)->exists()
             || DB::table('warehouse_slip_items')->where('product_id', $product->id)->exists()
             || DB::table('warehouse_product_stocks')->where('product_id', $product->id)->exists();
+    }
+
+    private function categoryRules(int $companyId): array
+    {
+        return [
+            'required',
+            Rule::exists('categories', 'id')->where(
+                fn ($query) => $query->where('company_id', $companyId)->where('status', 'active')
+            ),
+            function (string $attribute, mixed $value, \Closure $fail) use ($companyId) {
+                $category = Category::where('company_id', $companyId)->find($value);
+                if ($category?->children()->exists()) {
+                    $fail('Danh mục cha chỉ dùng để phân nhóm. Vui lòng chọn danh mục con cuối cùng.');
+                }
+            },
+        ];
     }
     // Danh sách
     public function index(Request $request)
@@ -194,7 +211,7 @@ class ProductController extends Controller
                     ),
                 ],
 
-                'category_id' => 'required|exists:categories,id',
+                'category_id' => $this->categoryRules($companyId),
                 'unit_id' => 'required|exists:units,id',
 
                 'type' => 'required|in:hang_hoa,vat_tu,dich_vu',
@@ -307,7 +324,7 @@ class ProductController extends Controller
                         ->where(fn ($query) => $query->where('company_id', $companyId)),
                 ],
 
-                'category_id' => 'required|exists:categories,id',
+                'category_id' => $this->categoryRules($companyId),
                 'unit_id' => 'required|exists:units,id',
 
                 'type' => 'required|in:hang_hoa,vat_tu,dich_vu',

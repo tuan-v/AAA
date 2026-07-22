@@ -175,7 +175,7 @@ const columns = [
             h(
                 "span",
                 {},
-                formatMoney(row.opening_debt ?? 0, row.company_currency),
+                formatMoney(row.opening_debt_base ?? 0, row.company_currency),
             ),
     },
     {
@@ -273,7 +273,9 @@ function handlePageChange(page) {
 }
 const getCurrencies = async () => {
     try {
-        const res = await axios.get("/api/currencies/for-select");
+        const res = await axios.get("/api/currencies/for-select", {
+            params: { scope: "all" },
+        });
 
 
         currencies.value = res.data.data ?? res.data;

@@ -37,11 +37,15 @@ class PermissionController extends Controller
         $request->validate(
             [
                 'name' => 'required|min:2',
+                'group' => 'required|string|max:255',
                 'description' => 'required|string',
             ],
             [
                 'name.required' => 'Tên quyền không được để trống',
                 'name.min' => 'Tên quyền phải có ít nhất 2 ký tự',
+                'group.required' => 'Vui lòng nhập nhóm quyền',
+                'group.string' => 'Nhóm quyền không hợp lệ',
+                'group.max' => 'Nhóm quyền không được vượt quá 255 ký tự',
                 'description.required' => 'Mô tả không được để trống',
                 'description.string' => 'Mô tả phải là chuỗi ký tự',
             ]
@@ -61,19 +65,21 @@ class PermissionController extends Controller
 
     public function update(Request $request, $id)
     {
+        $validated = $request->validate([
+            'name' => 'required|string|min:2',
+            'group' => 'required|string|max:255',
+            'description' => 'required|string',
+        ], [
+            'name.required' => 'Tên quyền không được để trống',
+            'name.min' => 'Tên quyền phải có ít nhất 2 ký tự',
+            'group.required' => 'Vui lòng nhập nhóm quyền',
+            'group.max' => 'Nhóm quyền không được vượt quá 255 ký tự',
+            'description.required' => 'Mô tả không được để trống',
+        ]);
+
         $permission = Permission::findOrFail($id);
 
-        $permission->update(
-            [
-                'name' => $request->name,
-                'group' => $request->group,
-                'description' => $request->description,
-            ],
-            [
-                'name' => 'tên quyền không được để trống',
-                'description' => 'mô tả không được để trống'
-            ]
-        );
+        $permission->update($validated);
 
         return response()->json([
             'success' => true

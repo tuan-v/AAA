@@ -3,11 +3,11 @@
         <Transition name="modal-fade">
             <div
                 v-if="show"
-                class="modal fixed inset-0 z-9999 flex items-center justify-center overflow-y-auto px-4 py-6"
+                class="modal fixed inset-0 z-9999 flex items-center justify-center overflow-y-auto px-3 py-5 sm:px-5"
             >
                 <!-- Overlay -->
                 <div
-                    class="fixed inset-0 h-full w-full bg-black/60 backdrop-blur-[2px]"
+                    class="fixed inset-0 h-full w-full bg-slate-950/65 backdrop-blur-sm"
                     aria-hidden="true"
                     @click="$emit('close')"
                 ></div>

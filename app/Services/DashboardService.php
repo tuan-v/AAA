@@ -37,6 +37,7 @@ class DashboardService
                 'purchase_trend_percent' => $this->percentChange($purchaseLastMonth, $purchaseThisMonth),
                 'receivable_debt' => $receivableDebt,
                 'payable_debt' => $payableDebt,
+                'account_balance_base' => $this->dashboardRepository->getTotalAccountBalanceBase($companyId),
             ],
             'operations' => $this->dashboardRepository->getOperationCounts($companyId),
             'monthly_finance' => $this->dashboardRepository->getMonthlyFinance($companyId, 6),
@@ -61,9 +62,9 @@ class DashboardService
             'purchase' => [
                 'metrics' => [
                     ['label' => 'Giá trị mua tháng này', 'value' => $overview['finance']['purchase_this_month'], 'type' => 'money'],
+                    ['label' => 'Đơn mua tháng này', 'value' => $overview['operations']['purchase_orders_this_month'], 'type' => 'number'],
                     ['label' => 'Công nợ phải trả', 'value' => $overview['finance']['payable_debt'], 'type' => 'money'],
                     ['label' => 'Nhà cung cấp hoạt động', 'value' => $overview['operations']['suppliers'], 'type' => 'number'],
-                    ['label' => 'Sản phẩm hoạt động', 'value' => $overview['operations']['products'], 'type' => 'number'],
                 ],
                 'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['purchase'], 'secondary' => 0], $overview['monthly_finance']),
                 'recent' => $overview['recent_purchase_orders'],
@@ -74,7 +75,7 @@ class DashboardService
                     ['label' => 'Doanh thu tháng này', 'value' => $overview['finance']['revenue_this_month'], 'type' => 'money'],
                     ['label' => 'Công nợ phải thu', 'value' => $overview['finance']['receivable_debt'], 'type' => 'money'],
                     ['label' => 'Khách hàng hoạt động', 'value' => $overview['operations']['customers'], 'type' => 'number'],
-                    ['label' => 'Đơn tháng này', 'value' => $overview['operations']['orders_this_month'], 'type' => 'number'],
+                    ['label' => 'Đơn bán tháng này', 'value' => $overview['operations']['sales_orders_this_month'], 'type' => 'number'],
                 ],
                 'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['revenue'], 'secondary' => 0], $overview['monthly_finance']),
                 'recent' => $overview['recent_sales_orders'],
@@ -94,9 +95,9 @@ class DashboardService
             'accountant' => [
                 'metrics' => [
                     ['label' => 'Doanh thu tháng này', 'value' => $overview['finance']['revenue_this_month'], 'type' => 'money'],
-                    ['label' => 'Chi mua tháng này', 'value' => $overview['finance']['purchase_this_month'], 'type' => 'money'],
                     ['label' => 'Công nợ phải thu', 'value' => $overview['finance']['receivable_debt'], 'type' => 'money'],
                     ['label' => 'Công nợ phải trả', 'value' => $overview['finance']['payable_debt'], 'type' => 'money'],
+                    ['label' => 'Tổng số dư tài khoản', 'value' => $overview['finance']['account_balance_base'], 'type' => 'money'],
                 ],
                 'trend' => array_map(fn ($row) => ['label' => $row['month'], 'primary' => $row['in'], 'secondary' => $row['out']], $overview['cash_flow']),
                 'recent' => $overview['recent_transactions'],

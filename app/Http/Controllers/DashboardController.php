@@ -37,7 +37,7 @@ class DashboardController extends Controller
             return redirect('/user');
         }
 
-        abort(403, 'Tài khoản chưa được cấp quyền xem dashboard.');
+        abort(403, 'Tài khoản chưa được cấp quyền xem tổng quan.');
     }
 
     /**
@@ -49,7 +49,7 @@ class DashboardController extends Controller
         abort_unless(
             $request->user()->hasAnyRole(['Supper Admin', 'Giám đốc']),
             403,
-            'Bạn không có quyền xem dashboard tổng.'
+            'Bạn không có quyền xem tổng quan chung.'
         );
 
         $companyId = $request->user()->company_id;
@@ -67,7 +67,7 @@ class DashboardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy dữ liệu dashboard thành công',
+            'message' => 'Lấy dữ liệu tổng quan thành công',
             'data' => $data,
             'meta' => null,
         ]);
@@ -76,13 +76,13 @@ class DashboardController extends Controller
     public function module(Request $request, string $module)
     {
         if (!in_array($module, ['purchase', 'sale', 'warehouse', 'accountant'], true)) {
-            return response()->json(['message' => 'Phân hệ dashboard không hợp lệ.'], 404);
+            return response()->json(['message' => 'Phân hệ tổng quan không hợp lệ.'], 404);
         }
 
         abort_unless(
             $request->user()->can(self::MODULE_PERMISSIONS[$module]),
             403,
-            'Bạn không có quyền xem dashboard phân hệ này.'
+            'Bạn không có quyền xem tổng quan phân hệ này.'
         );
 
         $companyId = $request->user()->company_id

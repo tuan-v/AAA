@@ -1,32 +1,38 @@
 <template>
-    <div class="bg-white rounded-xl p-6 w-[600px] z-50">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold mb-5">
-                {{ props.permission ? "Sửa quyền" : "Thêm quyền" }}
-            </h2>
-            <button @click="emit('close')">✕</button>
+    <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">
+                    {{ props.permission ? "Cập nhật quyền" : "Thêm quyền" }}
+                </h2>
+                <p class="mt-1 text-sm text-slate-500">Khai báo mã quyền và nhóm chức năng trong hệ thống.</p>
+            </div>
+            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" @click="emit('close')">
+                <i class="ti ti-x text-xl"></i>
+            </button>
         </div>
 
-        <form @submit.prevent="save">
-            <div class="mb-3">
-                <label class="block mb-1">Tên quyền</label>
-                <input v-model="form.name" class="border p-2 w-full" />
+        <form novalidate class="flex min-h-0 flex-1 flex-col" @submit.prevent="save">
+            <div class="space-y-5 overflow-y-auto px-6 py-5">
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700">Tên quyền <span class="text-red-500">*</span></label>
+                <input v-model.trim="form.name" required placeholder="Ví dụ: san_pham.xem" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" :class="form.errors?.name ? 'border-red-400' : ''" />
                 <p v-if="form.errors?.name" class="text-red-500 text-xs mt-1">
                     {{ form.errors.name[0] }}
                 </p>
             </div>
 
-            <div class="mb-5">
-                <label class="block mb-1">Nhóm</label>
-                <input v-model="form.group" class="border p-2 w-full" />
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700">Nhóm quyền <span class="text-red-500">*</span></label>
+                <input v-model.trim="form.group" required placeholder="Ví dụ: Sản phẩm" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" :class="form.errors?.group ? 'border-red-400' : ''" />
                 <p v-if="form.errors?.group" class="text-red-500 text-xs mt-1">
                     {{ form.errors.group[0] }}
                 </p>
             </div>
 
-            <div class="mb-5">
-                <label class="block mb-1">Mô tả</label>
-                <input v-model="form.description" class="border p-2 w-full" />
+            <div>
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700">Mô tả</label>
+                <textarea v-model.trim="form.description" rows="3" placeholder="Mô tả ngắn mục đích của quyền" class="w-full resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" :class="form.errors?.description ? 'border-red-400' : ''"></textarea>
                 <p
                     v-if="form.errors?.description"
                     class="text-red-500 text-xs mt-1"
@@ -34,18 +40,20 @@
                     {{ form.errors.description[0] }}
                 </p>
             </div>
+            </div>
 
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
                 <button
                     type="button"
-                    class="border px-4 py-2"
+                    class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                     @click="emit('close')"
                 >
                     Hủy
                 </button>
 
-                <button type="submit" class="bg-blue-500 text-white px-4 py-2">
-                    Lưu
+                <button type="submit" :disabled="saving" class="inline-flex min-w-28 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span v-if="saving" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                    {{ saving ? "Đang lưu..." : "Lưu thay đổi" }}
                 </button>
             </div>
         </form>
@@ -53,7 +61,7 @@
 </template>
 
 <script setup>
-import { reactive, watch, defineProps, defineEmits } from "vue";
+import { reactive, ref, watch, defineProps, defineEmits } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
@@ -65,6 +73,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["saved", "close"]);
+const saving = ref(false);
 
 const form = reactive({
     name: "",
@@ -92,43 +101,25 @@ watch(
     { immediate: true },
 );
 
-function save() {
+async function save() {
     form.errors = {}; // Reset lỗi trước khi submit
-
-    if (props.permission?.id) {
-        // Sửa quyền
-        axios
-            .put(`/api/permissions/${props.permission.id}`, form)
-            .then(() => {
-                toast.success("Cập nhật quyền thành công!", {
-                    position: "top-right",
-                    autoClose: 3000,
-                });
-                emit("saved");
-                emit("close");
-            })
-            .catch((err) => {
-                if (err.response?.data?.errors) {
-                    form.errors = err.response.data.errors;
-                }
-            });
-    } else {
-        // Thêm mới quyền
-        axios
-            .post("/api/permissions", form)
-            .then(() => {
-                toast.success("Thêm quyền thành công!", {
-                    position: "top-right",
-                    autoClose: 3000,
-                });
-                emit("saved");
-                emit("close");
-            })
-            .catch((err) => {
-                if (err.response?.data?.errors) {
-                    form.errors = err.response.data.errors;
-                }
-            });
+    saving.value = true;
+    try {
+        if (props.permission?.id) {
+            await axios.put(`/api/permissions/${props.permission.id}`, form);
+        } else {
+            await axios.post("/api/permissions", form);
+        }
+        toast.success(props.permission?.id ? "Cập nhật quyền thành công!" : "Thêm quyền thành công!");
+        emit("saved");
+        emit("close");
+    } catch (err) {
+        form.errors = err.response?.data?.errors || {};
+        if (!err.response?.data?.errors) {
+            toast.error(err.response?.data?.message || "Không thể lưu quyền");
+        }
+    } finally {
+        saving.value = false;
     }
 }
 </script>

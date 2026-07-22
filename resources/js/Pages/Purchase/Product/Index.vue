@@ -124,9 +124,7 @@ import { formatMoney, formatQuantity } from "@/config/helpers";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
-const warehouse = ref([]);
-
-const filters = computed(() => [
+const filters = ref([
     {
         name: "search",
         type: "text",
@@ -136,7 +134,7 @@ const filters = computed(() => [
         name: "warehouse_id",
         type: "select",
         placeholder: "Chọn kho",
-        options: warehouse.value,
+        options: [],
     },
     {
         name: "stock",
@@ -299,12 +297,16 @@ function debounce(fn, delay = 300) {
 }
 const fetchData = async (page = 1, params = {}) => {
     try {
+        const selectedWarehouse = params.warehouse_id;
+        const warehouseId = selectedWarehouse && typeof selectedWarehouse === 'object'
+            ? selectedWarehouse.value ?? selectedWarehouse.id ?? ''
+            : selectedWarehouse || '';
         const response = await axios.get(`/api/purchase/products`, {
             params: {
                 page,
                 per_page: perPage.value,
                 search: params.search || "",
-                warehouse_id: params.warehouse_id || "",
+                warehouse_id: warehouseId,
                 stock: params.stock || "all",
             },
         });
@@ -394,14 +396,17 @@ async function toggleStatus(product) {
 async function fetchWarehouses() {
     try {
         const res = await axios.get("/api/warehouses/all");
-        const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
-
-        warehouse.value = rows.map((w) => ({
+        const payload = res?.data?.data ?? res?.data ?? [];
+        const rows = Array.isArray(payload) ? payload : [];
+        const warehouseFilter = filters.value.find((item) => item.name === 'warehouse_id');
+        warehouseFilter.options = rows.map((w) => ({
             value: w.id,
             label: w.name,
         }));
     } catch (error) {
-        warehouse.value = [];
+        const warehouseFilter = filters.value.find((item) => item.name === 'warehouse_id');
+        warehouseFilter.options = [];
+        toast.error(error.response?.data?.message || 'Không thể tải danh sách kho.');
         console.error("Error fetching warehouses:", error);
     }
 }

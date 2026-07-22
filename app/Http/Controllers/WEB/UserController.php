@@ -20,6 +20,7 @@ use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use App\Services\NotificationService;
 use Spatie\Permission\Models\Role;
 
 
@@ -194,6 +195,17 @@ class UserController extends Controller
 
             DB::commit();
 
+            app(NotificationService::class)->createForPermission(
+                'nhan_su.xem',
+                (int) Auth::user()->company_id,
+                'Nhân sự mới được thêm',
+                "Tài khoản {$user->name} vừa được thêm vào công ty.",
+                ['user_id' => $user->id],
+                '/manage/user',
+                Auth::id(),
+                'management'
+            );
+
             return redirect()->back()->with('success', 'Tạo người dùng thành công!');
         } catch (Exception $e) {
             DB::rollBack();
@@ -331,7 +343,7 @@ class UserController extends Controller
                     ],
                 ],
                 urlLink: '/profile',
-                category: 'user'
+                category: 'management'
             );
 
             DB::commit();

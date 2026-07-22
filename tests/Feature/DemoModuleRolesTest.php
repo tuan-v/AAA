@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -15,6 +16,40 @@ use Tests\TestCase;
 class DemoModuleRolesTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_user_detail_returns_real_profile_and_the_users_own_activity_history(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $viewer = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $target = User::where('email', 'sales@demo.vn')->firstOrFail();
+
+        ActivityLog::create([
+            'user_id' => $target->id,
+            'action' => 'xem_chi_tiet',
+            'model_type' => 'App\\Models\\SalesOrder',
+            'model_id' => 123,
+            'description' => 'Xem chi tiết đơn bán',
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->actingAs($viewer)
+            ->getJson('/api/users/user/'.$target->id)
+            ->assertOk()
+            ->assertJsonPath('id', $target->id)
+            ->assertJsonPath('company.id', $target->company_id)
+            ->assertJsonPath('activities.0.action', 'xem_chi_tiet')
+            ->assertJsonPath('activities.0.model_id', 123)
+            ->assertJsonStructure([
+                'roles',
+                'company',
+                'department_record',
+                'position_record',
+                'activities',
+                'recent_sessions',
+                'activity_count',
+            ]);
+    }
 
     public function test_demo_module_roles_are_global_system_roles_with_dedicated_accounts(): void
     {
@@ -37,6 +72,24 @@ class DemoModuleRolesTest extends TestCase
             $this->assertTrue($user->hasRole($roleName));
             $this->assertGreaterThan(0, $user->getAllPermissions()->count());
         }
+    }
+
+    public function test_warehouse_manager_can_load_product_category_and_unit_options(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $warehouseManager = User::where('email', 'warehouse@demo.vn')->firstOrFail();
+
+        $categories = $this->actingAs($warehouseManager)
+            ->getJson('/api/warehouse/categories/select?active_only=1')
+            ->assertOk();
+
+        $units = $this->actingAs($warehouseManager)
+            ->getJson('/api/warehouse/units/select?active_only=1')
+            ->assertOk();
+
+        $this->assertNotEmpty($categories->json('data') ?? $categories->json());
+        $this->assertNotEmpty($units->json('data') ?? $units->json());
     }
 
     public function test_authorized_company_owner_can_update_a_system_module_role(): void
@@ -161,7 +214,11 @@ class DemoModuleRolesTest extends TestCase
             ->getJson("/api/purchase/orders/{$orderId}")
             ->assertOk()
             ->assertJsonPath('supplier.id', $supplier->id)
-            ->assertJsonStructure(['items', 'created_at', 'total_amount']);
+            ->assertJsonStructure([
+                'items' => [['amount', 'vat_amount', 'total_amount', 'vat_percent']],
+                'created_at',
+                'total_amount',
+            ]);
     }
 
     public function test_customer_recent_order_has_date_and_can_load_full_detail(): void
@@ -182,7 +239,16 @@ class DemoModuleRolesTest extends TestCase
             ->getJson("/api/sale/orders/{$orderId}")
             ->assertOk()
             ->assertJsonPath('customer.id', $customer->id)
-            ->assertJsonStructure(['items', 'created_at', 'total_amount']);
+            ->assertJsonStructure([
+                'items' => [[
+                    'amount',
+                    'vat_amount',
+                    'total_amount',
+                    'vat_percent',
+                ]],
+                'created_at',
+                'total_amount',
+            ]);
     }
 
     public function test_accountant_can_open_full_customer_and_supplier_details(): void
@@ -212,6 +278,22 @@ class DemoModuleRolesTest extends TestCase
         $this->actingAs($accountant)
             ->getJson('/api/purchase/orders/'.$supplier->purchaseOrders()->firstOrFail()->id)
             ->assertOk();
+    }
+
+    public function test_accountant_can_load_transaction_party_and_order_options(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $accountant = User::where('email', 'accountant@demo.vn')->firstOrFail();
+
+        $this->actingAs($accountant)->getJson('/api/sale/customers/all')
+            ->assertOk()->assertJsonCount(1);
+        $this->actingAs($accountant)->getJson('/api/purchase/suppliers/all')
+            ->assertOk()->assertJsonCount(1);
+        $this->actingAs($accountant)->getJson('/api/sale/orders')
+            ->assertOk()->assertJsonCount(1, 'data');
+        $this->actingAs($accountant)->getJson('/api/purchase/orders')
+            ->assertOk()->assertJsonCount(1, 'data');
     }
 
     public function test_used_supplier_can_update_all_form_fields(): void

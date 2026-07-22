@@ -63,16 +63,25 @@ class PositionController extends Controller
     {
         return $request->validate([
             'department_id' => ['required', Rule::exists('departments', 'id')->where(fn ($q) => $q->where('company_id', $companyId)->where('status', 'active'))],
-            'name' => ['required', 'string', 'max:255', Rule::unique('positions', 'name')->where(fn ($q) => $q->where('department_id', $request->department_id))->ignore($ignoreId)],
+            'name' => ['required', 'string', 'max:255', Rule::unique('positions', 'name')->where('company_id', $companyId)->ignore($ignoreId)],
             'description' => ['nullable', 'string', 'max:1000'], 'status' => ['required', Rule::in(['active', 'inactive'])],
+        ], [
+            'department_id.required' => 'Vui lòng chọn phòng ban.',
+            'department_id.exists' => 'Phòng ban không hợp lệ hoặc đã ngừng hoạt động.',
+            'name.required' => 'Vui lòng nhập tên chức vụ.',
+            'name.string' => 'Tên chức vụ phải là chuỗi ký tự.',
+            'name.max' => 'Tên chức vụ không được vượt quá 255 ký tự.',
+            'name.unique' => 'Tên chức vụ đã tồn tại trong công ty.',
+            'description.string' => 'Mô tả phải là chuỗi ký tự.',
+            'description.max' => 'Mô tả không được vượt quá 1.000 ký tự.',
+            'status.required' => 'Vui lòng chọn trạng thái.',
+            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
     }
 
     private function nextCode(int $companyId): string
     {
-        $number = ((int) Position::where('company_id', $companyId)->max('id')) + 1;
-        do { $code = 'CV-'.str_pad((string) $number++, 3, '0', STR_PAD_LEFT); }
-        while (Position::where('company_id', $companyId)->where('code', $code)->exists());
-        return $code;
+        return app(\App\Services\CodeGeneratorService::class)
+            ->generate(Position::class, 'CV-', 3);
     }
 }

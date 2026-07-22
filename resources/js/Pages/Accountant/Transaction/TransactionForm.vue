@@ -119,7 +119,11 @@
 
             <div v-if="selectedOrderRemaining !== null" class="currency-hint">
                 <i class="ti ti-cash"></i>
-                Số tiền còn lại của đơn: <strong>{{ formatMoney(selectedOrderRemaining) }} {{ selectedCurrencyLabel }}</strong>
+                Số tiền còn lại của đơn:
+                <strong
+                    >{{ formatMoney(selectedOrderRemaining) }}
+                    {{ selectedCurrencyLabel }}</strong
+                >
             </div>
 
             <div v-if="currencyMismatchMessage" class="currency-warning">
@@ -133,7 +137,7 @@
             <div class="section-label">Phân loại</div>
             <div class="field">
                 <label class="label">
-                    <i class="ti ti-tag"></i>Loại thanh toán
+                    <i class="ti ti-tag"></i>Loại thanh toán <span class="required">*</span>
                 </label>
                 <select v-model="form.category_id" class="input">
                     <option value="">Chọn loại</option>
@@ -145,6 +149,7 @@
                         {{ c.name }}
                     </option>
                 </select>
+                <p v-if="errors.category_id" class="field-error">{{ errors.category_id }}</p>
                 <p v-if="categoryMismatchMessage" class="category-error">
                     <i class="ti ti-alert-circle"></i>
                     {{ categoryMismatchMessage }}
@@ -154,11 +159,17 @@
                 <label class="label">
                     <i class="ti ti-wallet"></i>Hình thức giao dịch
                 </label>
-                <select v-model="form.payment_method" class="input" :disabled="form.type === 'transfer'">
+                <select
+                    v-model="form.payment_method"
+                    class="input"
+                    :disabled="form.type === 'transfer'"
+                >
                     <option value="cash">Tiền mặt</option>
                     <option value="bank_transfer">Chuyển khoản</option>
                 </select>
-                <p v-if="form.type === 'transfer'" class="hint-text">Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.</p>
+                <p v-if="form.type === 'transfer'" class="hint-text">
+                    Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.
+                </p>
             </div>
             <div class="divider"></div>
 
@@ -169,72 +180,82 @@
                 <!-- RECEIPT: to_account -->
                 <div v-if="form.type === 'receipt'" class="field">
                     <label class="label">
-                        <i class="ti ti-building-bank"></i>Tài khoản nhận
+                        <i class="ti ti-building-bank"></i>Tài khoản nhận <span class="required">*</span>
                     </label>
                     <select v-model="form.to_account_id" class="input">
                         <option value="">Chọn tài khoản</option>
                         <option
-                            v-for="a in accounts || []"
+                            v-for="a in filteredAccounts"
                             :key="a.id"
                             :value="a.id"
                         >
-                            {{ a.name }}
+                            {{ accountLabel(a) }}
                         </option>
                     </select>
+                    <p v-if="errors.to_account_id" class="field-error">{{ errors.to_account_id }}</p>
                 </div>
 
                 <!-- PAYMENT: from_account -->
                 <div v-if="form.type === 'payment'" class="field">
                     <label class="label">
-                        <i class="ti ti-building-bank"></i>Tài khoản chi
+                        <i class="ti ti-building-bank"></i>Tài khoản chi <span class="required">*</span>
                     </label>
                     <select v-model="form.from_account_id" class="input">
                         <option value="">Chọn tài khoản</option>
                         <option
-                            v-for="a in accounts || []"
+                            v-for="a in filteredAccounts"
                             :key="a.id"
                             :value="a.id"
                         >
-                            {{ a.name }}
+                            {{ accountLabel(a) }}
                         </option>
                     </select>
+                    <p v-if="errors.from_account_id" class="field-error">{{ errors.from_account_id }}</p>
+                    <p v-if="selectedPaymentAccount" class="account-balance">
+                        <i class="ti ti-wallet"></i>
+                        Số dư khả dụng:
+                        <strong>{{
+                            formatAccountBalance(selectedPaymentAccount)
+                        }}</strong>
+                    </p>
                 </div>
 
                 <!-- TRANSFER: both -->
                 <template v-if="form.type === 'transfer'">
                     <div class="field">
                         <label class="label">
-                            <i class="ti ti-building-bank"></i>Tài khoản chuyển
+                            <i class="ti ti-building-bank"></i>Tài khoản chuyển <span class="required">*</span>
                         </label>
                         <select v-model="form.from_account_id" class="input">
                             <option value="">Chọn tài khoản</option>
                             <option
-                                v-for="a in accounts || []"
+                                v-for="a in filteredAccounts"
                                 :key="a.id"
                                 :value="a.id"
                             >
-                                {{ a.name }}
+                                {{ accountLabel(a) }}
                             </option>
                         </select>
+                        <p v-if="errors.from_account_id" class="field-error">{{ errors.from_account_id }}</p>
                     </div>
                     <div class="field">
                         <label class="label">
-                            <i class="ti ti-building-bank"></i>Tài khoản nhận
+                            <i class="ti ti-building-bank"></i>Tài khoản nhận <span class="required">*</span>
                         </label>
                         <select v-model="form.to_account_id" class="input">
                             <option value="">Chọn tài khoản</option>
                             <option
-                                v-for="a in accounts || []"
+                                v-for="a in filteredAccounts"
                                 :key="a.id"
                                 :value="a.id"
                             >
-                                {{ a.name }}
+                                {{ accountLabel(a) }}
                             </option>
                         </select>
+                        <p v-if="errors.to_account_id" class="field-error">{{ errors.to_account_id }}</p>
                     </div>
                 </template>
             </div>
-
             <div class="divider"></div>
 
             <!-- AMOUNT + CURRENCY -->
@@ -242,20 +263,24 @@
             <div class="grid2">
                 <div class="field">
                     <label class="label">
-                        <i class="ti ti-currency-dong"></i>Số tiền
+                        <i class="ti ti-currency-dong"></i>Số tiền <span class="required">*</span>
                     </label>
                     <div class="amount-wrap">
                         <input
                             :value="formatMoney(form.amount)"
                             @input="handleAmountInput"
+                            @keydown="handleAmountKeydown"
                             type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
                             class="input"
                             placeholder="0"
                         />
                         <span class="currency-badge">
-                            {{ selectedCurrencyLabel }}
+                            {{ amountCurrencyUnit }}
                         </span>
                     </div>
+                    <p v-if="errors.amount" class="field-error">{{ errors.amount }}</p>
                 </div>
             </div>
             <div class="divider"></div>
@@ -263,13 +288,14 @@
             <div class="section-label">Thời gian</div>
             <div class="field">
                 <label class="label"
-                    ><i class="ti ti-calendar"></i>Ngày giao dịch</label
+                    ><i class="ti ti-calendar"></i>Ngày giao dịch <span class="required">*</span></label
                 >
                 <input
                     v-model="form.transaction_date"
                     type="date"
                     class="input"
                 />
+                <p v-if="errors.transaction_date" class="field-error">{{ errors.transaction_date }}</p>
             </div>
             <div class="divider"></div>
 
@@ -323,10 +349,55 @@ const props = defineProps({
 const emit = defineEmits(["saved", "close"]);
 
 const saving = ref(false);
+const errors = reactive({});
+
+function setFieldErrors(values = {}) {
+    Object.keys(errors).forEach((key) => delete errors[key]);
+    Object.entries(values).forEach(([key, messages]) => {
+        errors[key] = Array.isArray(messages) ? messages[0] : messages;
+    });
+}
+
+function validateForm() {
+    const next = {};
+    if (!form.category_id) next.category_id = "Vui lòng chọn loại thanh toán.";
+    if (!Number(form.amount) || Number(form.amount) <= 0) next.amount = "Số tiền phải lớn hơn 0.";
+    if (!form.transaction_date) next.transaction_date = "Vui lòng chọn ngày giao dịch.";
+    if (form.type === "receipt" && !form.to_account_id) next.to_account_id = "Vui lòng chọn tài khoản nhận.";
+    if (form.type === "payment" && !form.from_account_id) next.from_account_id = "Vui lòng chọn tài khoản chi.";
+    if (form.type === "transfer") {
+        if (!form.from_account_id) next.from_account_id = "Vui lòng chọn tài khoản chuyển.";
+        if (!form.to_account_id) next.to_account_id = "Vui lòng chọn tài khoản nhận.";
+        if (form.from_account_id && Number(form.from_account_id) === Number(form.to_account_id)) {
+            next.to_account_id = "Tài khoản nhận phải khác tài khoản chuyển.";
+        }
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+}
 
 function handleAmountInput(e) {
     const raw = e.target.value.replace(/[^\d]/g, "");
     form.amount = raw ? Number(raw) : 0;
+}
+
+function handleAmountKeydown(event) {
+    if (event.ctrlKey || event.metaKey) return;
+
+    const allowedKeys = [
+        "Backspace",
+        "Delete",
+        "Tab",
+        "Enter",
+        "ArrowLeft",
+        "ArrowRight",
+        "Home",
+        "End",
+    ];
+
+    if (!/^\d$/.test(event.key) && !allowedKeys.includes(event.key)) {
+        event.preventDefault();
+    }
 }
 
 const isEdit = computed(() => !!props.transaction?.id);
@@ -334,7 +405,11 @@ const isEdit = computed(() => !!props.transaction?.id);
 const typeOptions = [
     { value: "receipt", label: "Thu tiền", icon: "ti ti-arrow-down-circle" },
     { value: "payment", label: "Chi tiền", icon: "ti ti-arrow-up-circle" },
-    { value: "transfer", label: "Chuyển nội bộ", icon: "ti ti-arrows-exchange" },
+    {
+        value: "transfer",
+        label: "Chuyển nội bộ",
+        icon: "ti ti-arrows-exchange",
+    },
 ];
 
 const normalizedCurrencies = computed(() =>
@@ -357,6 +432,11 @@ const selectedCurrencyLabel = computed(() => {
     const symbol =
         selectedCurrency.value.symbol || selectedCurrency.value.code || "";
     return `${selectedCurrency.value.code} ${symbol}`.trim();
+});
+
+const amountCurrencyUnit = computed(() => {
+    if (!selectedCurrency.value) return "";
+    return selectedCurrency.value.symbol || selectedCurrency.value.code || "";
 });
 
 const selectedOrderCurrency = ref(null);
@@ -450,6 +530,57 @@ const form = reactive({
     exchange_rate: 1,
     transaction_date: today(),
     description: "",
+});
+
+const normalizedAccounts = computed(() =>
+    Array.isArray(props.accounts) ? props.accounts : props.accounts?.data || [],
+);
+
+const filteredAccounts = computed(() => {
+    if (form.payment_method === "cash") {
+        return normalizedAccounts.value.filter(
+            (account) => account.type === "cash" && !account.bank_id,
+        );
+    }
+
+    return normalizedAccounts.value.filter((account) => account.bank_id);
+});
+
+function accountLabel(account) {
+    const bankName = account.bank?.name;
+    const accountNo = account.bank_account_no;
+    return [account.name, bankName, accountNo]
+        .filter(Boolean)
+        .join(" - ");
+}
+
+const selectedPaymentAccount = computed(() => {
+    if (form.type !== "payment" || !form.from_account_id) return null;
+    return (
+        normalizedAccounts.value.find(
+            (account) => Number(account.id) === Number(form.from_account_id),
+        ) || null
+    );
+});
+
+function formatAccountBalance(account) {
+    const currency = account.currency;
+    const currencyLabel = currency?.code || currency?.symbol || "";
+    return `${formatMoney(Number(account.current_balance || 0))} ${currencyLabel}`.trim();
+}
+
+watch([() => form.payment_method, () => props.accounts], () => {
+    const allowedIds = new Set(
+        filteredAccounts.value.map((account) => Number(account.id)),
+    );
+
+    if (form.from_account_id && !allowedIds.has(Number(form.from_account_id))) {
+        form.from_account_id = "";
+    }
+
+    if (form.to_account_id && !allowedIds.has(Number(form.to_account_id))) {
+        form.to_account_id = "";
+    }
 });
 
 function resetForm() {
@@ -576,8 +707,15 @@ async function loadOrderOptions() {
                 label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 customer_id: order.customer?.id ?? form.customer_id,
                 currency: order.order_currency || order.currency || null,
-                currency_id: order.currency_id ?? order.order_currency?.id ?? order.currency?.id ?? null,
-                exchange_rate: order.exchange_rate ?? order.order_currency?.exchange_rate ?? 1,
+                currency_id:
+                    order.currency_id ??
+                    order.order_currency?.id ??
+                    order.currency?.id ??
+                    null,
+                exchange_rate:
+                    order.exchange_rate ??
+                    order.order_currency?.exchange_rate ??
+                    1,
             }));
             return;
         }
@@ -597,8 +735,15 @@ async function loadOrderOptions() {
                 label: `${order.code} - ${formatMoney(order.total_amount ?? 0)}`,
                 supplier_id: order.supplier?.id ?? form.supplier_id,
                 currency: order.order_currency || order.currency || null,
-                currency_id: order.currency_id ?? order.order_currency?.id ?? order.currency?.id ?? null,
-                exchange_rate: order.exchange_rate ?? order.order_currency?.exchange_rate ?? 1,
+                currency_id:
+                    order.currency_id ??
+                    order.order_currency?.id ??
+                    order.currency?.id ??
+                    null,
+                exchange_rate:
+                    order.exchange_rate ??
+                    order.order_currency?.exchange_rate ??
+                    1,
             }));
             return;
         }
@@ -642,7 +787,7 @@ async function onSalesOrderChange() {
         form.currency_id = selected.currency_id;
         form.exchange_rate = Number(selected.exchange_rate) || 1;
         selectedOrderCurrency.value = selected.currency || null;
-        await loadOrderOutstanding('sale', selected.id);
+        await loadOrderOutstanding("sale", selected.id);
     }
 }
 
@@ -657,7 +802,7 @@ async function onPurchaseOrderChange() {
         form.currency_id = selected.currency_id;
         form.exchange_rate = Number(selected.exchange_rate) || 1;
         selectedOrderCurrency.value = selected.currency || null;
-        await loadOrderOutstanding('purchase', selected.id);
+        await loadOrderOutstanding("purchase", selected.id);
     }
 }
 
@@ -665,28 +810,50 @@ async function loadOrderOutstanding(type, orderId) {
     selectedOrderRemaining.value = null;
     if (!orderId) return;
     try {
-        const { data } = await axios.get('/api/accountant/transactions/order-outstanding', { params: { type, order_id: orderId } });
+        const { data } = await axios.get(
+            "/api/accountant/transactions/order-outstanding",
+            { params: { type, order_id: orderId } },
+        );
         selectedOrderRemaining.value = Number(data.remaining_amount || 0);
     } catch (error) {
-        toast.error(getValidationMessage(error, 'Không thể tải số tiền còn lại của đơn hàng.'));
+        toast.error(
+            getValidationMessage(
+                error,
+                "Không thể tải số tiền còn lại của đơn hàng.",
+            ),
+        );
     }
 }
 
 watch(
-    [() => form.type, () => form.from_account_id, () => form.to_account_id, () => props.accounts],
+    [
+        () => form.type,
+        () => form.from_account_id,
+        () => form.to_account_id,
+        () => props.accounts,
+    ],
     () => {
         if (form.sales_order_id || form.purchase_order_id) return;
-        const accountId = form.type === 'receipt' ? form.to_account_id : form.from_account_id;
-        const account = (props.accounts || []).find((item) => Number(item.id) === Number(accountId));
+        const accountId =
+            form.type === "receipt" ? form.to_account_id : form.from_account_id;
+        const account = (props.accounts || []).find(
+            (item) => Number(item.id) === Number(accountId),
+        );
         if (!account) return;
-        form.currency_id = account.currency_id || account.currency?.id || '';
-        const currency = normalizedCurrencies.value.find((item) => Number(item.id) === Number(form.currency_id));
+        form.currency_id = account.currency_id || account.currency?.id || "";
+        const currency = normalizedCurrencies.value.find(
+            (item) => Number(item.id) === Number(form.currency_id),
+        );
         form.exchange_rate = Number(currency?.exchange_rate || 1);
     },
     { immediate: true },
 );
 
 async function save() {
+    if (!validateForm()) {
+        toast.error("Vui lòng kiểm tra các trường được đánh dấu đỏ.");
+        return;
+    }
     // Chặn lưu ngay tại FE nếu category không khớp loại giao dịch
     if (categoryMismatchMessage.value) {
         toast.error(categoryMismatchMessage.value);
@@ -698,8 +865,14 @@ async function save() {
         return;
     }
 
-    if ((form.sales_order_id || form.purchase_order_id) && selectedOrderRemaining.value !== null && Number(form.amount) > selectedOrderRemaining.value) {
-        toast.error(`Số tiền thanh toán không được vượt quá ${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}.`);
+    if (
+        (form.sales_order_id || form.purchase_order_id) &&
+        selectedOrderRemaining.value !== null &&
+        Number(form.amount) > selectedOrderRemaining.value
+    ) {
+        toast.error(
+            `Số tiền thanh toán không được vượt quá ${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}.`,
+        );
         return;
     }
 
@@ -721,6 +894,7 @@ async function save() {
         emit("saved");
     } catch (error) {
         console.error(error);
+        setFieldErrors(error.response?.data?.errors || {});
         // Bắt lỗi nghiệp vụ từ BE (vd category không khớp loại giao dịch) trả về qua message
         toast.error(getValidationMessage(error, "Không thể lưu giao dịch."));
     } finally {
@@ -730,6 +904,8 @@ async function save() {
 </script>
 
 <style scoped>
+.required { color: #dc2626; margin-left: 2px; }
+.field-error { margin-top: 6px; color: #dc2626; font-size: 12px; line-height: 1.4; }
 /* ── Container ── */
 .tx-modal {
     background: #fff;
@@ -930,6 +1106,19 @@ textarea.input {
     border: 1px solid #f5c6cb;
     border-radius: 8px;
     padding: 8px 12px;
+}
+
+.account-balance {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 0;
+    padding: 8px 10px;
+    color: #166534;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    font-size: 12.5px;
 }
 
 /* ── Footer ── */

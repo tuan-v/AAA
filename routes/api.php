@@ -57,6 +57,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     Route::controller(DepartmentController::class)->prefix('departments')->group(function () {
         Route::get('/', 'index')->middleware('permission:nhan_su.xem');
         Route::get('/all', 'all')->middleware('permission:nhan_su.xem');
+        Route::get('/managers', 'managers')->middleware('permission:nhan_su.xem');
         Route::post('/', 'store')->middleware('permission:nhan_su.them');
         Route::put('/{department}', 'update')->middleware('permission:nhan_su.sua');
         Route::delete('/{department}', 'destroy')->middleware('permission:nhan_su.xoa');
@@ -169,7 +170,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     Route::prefix('purchase')->group(function () {
         Route::controller(SupplierController::class)->prefix('suppliers')->group(function () {
             Route::get('/', 'index')->middleware('permission:nha_cung_cap.xem');
-            Route::get('/all', 'all')->middleware('permission:nha_cung_cap.xem');
+            Route::get('/all', 'all')->middleware('permission:nha_cung_cap.xem|giao_dich.them|giao_dich.sua');
             Route::get('/{id}/detail', 'detail')->middleware('permission:nha_cung_cap.xem_chi_tiet|cong_no_nha_cung_cap.xem_chi_tiet');
             Route::post('/', 'store')->middleware('permission:nha_cung_cap.them');
             Route::get('/{supplier}', 'show')->middleware('permission:nha_cung_cap.xem');
@@ -208,7 +209,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         });
 
         Route::controller(PurchaseOrderController::class)->prefix('orders')->group(function () {
-            Route::get('/', 'index')->middleware('permission:don_mua.xem');
+            Route::get('/', 'index')->middleware('permission:don_mua.xem|giao_dich.them|giao_dich.sua');
             Route::post('/', 'store')->middleware('permission:don_mua.them');
             Route::get('/{order}', 'show')->middleware('permission:don_mua.xem_chi_tiet|cong_no_nha_cung_cap.xem_chi_tiet');
             Route::put('/{order}', 'update')->middleware('permission:don_mua.sua');
@@ -227,7 +228,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     Route::prefix('sale')->group(function () {
         Route::controller(CustomerController::class)->prefix('customers')->group(function () {
             Route::get('/', 'index')->middleware('permission:khach_hang.xem');
-            Route::get('/all', 'all')->middleware('permission:khach_hang.xem');
+            Route::get('/all', 'all')->middleware('permission:khach_hang.xem|giao_dich.them|giao_dich.sua');
             Route::get('/next-code', 'nextCode')->middleware('permission:khach_hang.xem');
             Route::post('/', 'store')->middleware('permission:khach_hang.them');
             Route::get('/{id}/detail', 'detail')
@@ -240,7 +241,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         });
 
         Route::controller(SalesOrderController::class)->prefix('orders')->group(function () {
-            Route::get('/', 'index')->middleware('permission:don_ban.xem');
+            Route::get('/', 'index')->middleware('permission:don_ban.xem|giao_dich.them|giao_dich.sua');
             Route::post('/', 'store')->middleware('permission:don_ban.them');
             Route::get('/{order}', 'show')->middleware('permission:don_ban.xem_chi_tiet|cong_no_khach_hang.xem_chi_tiet');
             Route::put('/{order}', 'update')->middleware('permission:don_ban.sua');
@@ -364,6 +365,9 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     Route::controller(NotificationController::class)->prefix('notifications')->group(function () {
         Route::get('/', 'index');
         Route::get('/unread-count', 'unreadCount');
+        Route::post('/mark-all-read', 'markAllAsRead');
+        Route::post('/{notification}/mark-as-read', 'markAsRead');
+        Route::delete('/{notification}', 'destroy');
     });
 
     /*

@@ -70,4 +70,22 @@ class WarehouseFilterTest extends TestCase
             ->getJson('/api/warehouses')
             ->assertForbidden();
     }
+
+    public function test_warehouse_account_can_filter_warehouse_products_by_warehouse(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $warehouseUser = User::where('email', 'warehouse@demo.vn')->firstOrFail();
+        $warehouse = Warehouse::where('code', 'KHO-DEMO')->firstOrFail();
+
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/warehouses/all')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $warehouse->id, 'name' => 'Kho trung tâm']);
+
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/warehouse/products?warehouse_id='.$warehouse->id)
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
+    }
 }

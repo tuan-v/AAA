@@ -204,7 +204,7 @@ const columns = [
             h(
                 "span",
                 {},
-                formatMoney(row.opening_debt ?? 0, row.currency),
+                formatMoney(row.opening_debt_base ?? 0, row.company_currency),
             ),
     },
     {
@@ -219,7 +219,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                formatMoney(row.current_debt ?? 0, row.currency),
+                formatMoney(row.current_debt ?? 0, row.company_currency),
             ),
     },
 
@@ -350,7 +350,7 @@ onMounted(async () => {
     try {
         const [currencyRes, customerRes, productRes, provinceRes] =
             await Promise.all([
-            axios.get("/api/currencies/for-select"),
+            axios.get("/api/currencies/for-select", { params: { scope: "all" } }),
             axios.get("/api/sale/customers/all"),
             axios.get("/api/products/for-select"),
             axios.get("/api/provinces"),

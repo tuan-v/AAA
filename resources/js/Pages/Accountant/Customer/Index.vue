@@ -108,7 +108,7 @@ const columns = [
                             ? "text-red-600 font-semibold"
                             : "text-green-600 font-semibold",
                 },
-                formatMoney(row.current_debt ?? 0, row.currency),
+                formatMoney(row.current_debt ?? 0, row.company_currency),
             ),
     },
     {

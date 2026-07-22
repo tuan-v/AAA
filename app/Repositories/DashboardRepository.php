@@ -14,6 +14,8 @@ use App\Models\Product;
 use App\Models\Warehouse;
 use App\Models\WarehouseSlip;
 use App\Models\Transaction;
+use App\Models\Account;
+use App\Services\CompanyCurrencyService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +31,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'completed'
             ])
             ->whereBetween('created_at', [$from, $to])
-            ->sum('total_amount');
+            ->sum(DB::raw('total_amount * COALESCE(NULLIF(exchange_rate, 0), 1)'));
     }
 
     public function getPurchaseCost(int $companyId, Carbon $from, Carbon $to): float
@@ -45,23 +47,43 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->whereIn('purchase_orders.status', ['approved', 'partial', 'completed'])
             ->whereBetween('purchase_orders.created_at', [$from, $to])
             ->sum(DB::raw(
-                'purchase_order_items.company_price * purchase_order_items.quantity'
+                'purchase_order_items.company_price * purchase_order_items.quantity * '
+                .'(1 + COALESCE(purchase_order_items.vat_percent, 0) / 100)'
             ));
     }
 
     public function getTotalReceivableDebt(int $companyId): float
     {
         // customer_debts không có company_id trực tiếp -> lọc qua quan hệ customer.
-        return (float) CustomerDebt::query()
+        $movements = (float) CustomerDebt::query()
             ->whereHas('customer', fn($q) => $q->where('company_id', $companyId))
             ->sum('amount');
+        $opening = (float) Customer::where('company_id', $companyId)->sum('opening_debt_base');
+
+        return $opening + $movements;
     }
 
     public function getTotalPayableDebt(int $companyId): float
     {
-        return (float) SupplierDebt::query()
+        $movements = (float) SupplierDebt::query()
             ->whereHas('supplier', fn($q) => $q->where('company_id', $companyId))
             ->sum('amount');
+        $opening = (float) Supplier::where('company_id', $companyId)->sum('opening_debt_base');
+
+        return $opening + $movements;
+    }
+
+    public function getTotalAccountBalanceBase(int $companyId): float
+    {
+        $rates = app(CompanyCurrencyService::class);
+
+        return round((float) Account::with('currency')
+            ->where('company_id', $companyId)
+            ->get()
+            ->sum(function (Account $account) use ($rates, $companyId) {
+                return (float) $account->current_balance
+                    * $rates->rate($companyId, (int) $account->currency_id, now());
+            }), 2);
     }
 
     public function getOperationCounts(int $companyId): array
@@ -69,10 +91,11 @@ class DashboardRepository implements DashboardRepositoryInterface
         $monthStart = Carbon::now()->startOfMonth();
         $monthEnd = Carbon::now()->endOfMonth();
 
-        $ordersThisMonth = SalesOrder::where('company_id', $companyId)
+        $salesOrdersThisMonth = SalesOrder::where('company_id', $companyId)
             ->whereBetween('created_at', [$monthStart, $monthEnd])
-            ->count()
-            + PurchaseOrder::where('company_id', $companyId)
+            ->count();
+
+        $purchaseOrdersThisMonth = PurchaseOrder::where('company_id', $companyId)
             ->whereBetween('created_at', [$monthStart, $monthEnd])
             ->count();
 
@@ -82,7 +105,9 @@ class DashboardRepository implements DashboardRepositoryInterface
             'suppliers' => Supplier::where('company_id', $companyId)->where('status', 'active')->count(),
             'products' => Product::where('company_id', $companyId)->where('status', 'active')->count(),
             'warehouses' => Warehouse::where('company_id', $companyId)->where('status', 'active')->count(),
-            'orders_this_month' => $ordersThisMonth,
+            'sales_orders_this_month' => $salesOrdersThisMonth,
+            'purchase_orders_this_month' => $purchaseOrdersThisMonth,
+            'orders_this_month' => $salesOrdersThisMonth + $purchaseOrdersThisMonth,
         ];
     }
 
@@ -241,7 +266,10 @@ class DashboardRepository implements DashboardRepositoryInterface
             ])
             ->join('customers', 'customers.id', '=', 'sales_orders.customer_id')
             ->groupBy('customers.id', 'customers.name')
-            ->select('customers.name as name', DB::raw('SUM(sales_orders.total_amount) as value'))
+            ->select(
+                'customers.name as name',
+                DB::raw('SUM(sales_orders.total_amount * COALESCE(NULLIF(sales_orders.exchange_rate, 0), 1)) as value')
+            )
             ->orderByDesc('value')
             ->limit($limit)
             ->get()
@@ -259,7 +287,10 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->groupBy('suppliers.id', 'suppliers.name')
             ->select(
                 'suppliers.name as name',
-                DB::raw('SUM(purchase_order_items.company_price * purchase_order_items.quantity) as value')
+                DB::raw(
+                    'SUM(purchase_order_items.company_price * purchase_order_items.quantity * '
+                    .'(1 + COALESCE(purchase_order_items.vat_percent, 0) / 100)) as value'
+                )
             )
             ->orderByDesc('value')
             ->limit($limit)
@@ -279,7 +310,10 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'code' => $order->code,
                 'customer' => $order->customer->name ?? '—',
                 'date' => $order->created_at->format('d/m/Y'),
-                'total' => (float) $order->total_amount,
+                'total' => round(
+                    (float) $order->total_amount * (float) ($order->exchange_rate ?: 1),
+                    2
+                ),
                 'status' => $order->status,
             ])
             ->toArray();
@@ -290,7 +324,7 @@ class DashboardRepository implements DashboardRepositoryInterface
         return PurchaseOrder::with('supplier:id,name')
             ->withSum(
                 'items as items_total',
-                DB::raw('company_price * quantity')
+                DB::raw('company_price * quantity * (1 + COALESCE(vat_percent, 0) / 100)')
             )
             ->where('company_id', $companyId)
             ->latest()

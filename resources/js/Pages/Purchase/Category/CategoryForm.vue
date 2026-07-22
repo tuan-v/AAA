@@ -45,7 +45,9 @@
 
                 <select v-model="form.parent_id" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-blue-500 mb-3">
                     <option :value="null">Không có danh mục cha</option>
-                    <option v-for="item in parentOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+                    <option v-for="item in parentOptions" :key="item.id" :value="item.id" :disabled="item.has_products">
+                        {{ item.full_path || item.name }}{{ item.has_products ? " (đã chứa sản phẩm)" : "" }}
+                    </option>
                 </select>
                 <p v-if="form.errors.parent_id" class="text-red-500 text-xs mb-2">{{ form.errors.parent_id[0] }}</p>
 

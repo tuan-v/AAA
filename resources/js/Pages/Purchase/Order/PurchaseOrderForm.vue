@@ -159,7 +159,7 @@
                 </p>
 
                 <div
-                    class="overflow-x-auto rounded-lg border border-gray-200 style-scroll-visible pb-16 -mb-16"
+                    class="overflow-x-auto rounded-lg border border-gray-200"
                 >
                     <table
                         class="w-full table-auto min-w-[800px] text-sm table-layout-fixed"
@@ -217,6 +217,7 @@
                                         <FormSelect
                                             v-model="item.product_id"
                                             :options="productOptions"
+                                            append-to-body
                                             placeholder="Chọn sản phẩm..."
                                             searchable
                                             allow-create
@@ -279,6 +280,9 @@
                                                 : 'border-gray-200'
                                         "
                                     />
+                                    <p v-if="showConvertedAmounts" class="mt-1 text-[11px] text-right text-gray-500">
+                                        Quy đổi: {{ formatMoney(convertToCompanyCurrency(item.price), companyCurrency) }}
+                                    </p>
                                     <p
                                         v-if="errors[`items.${index}.price`]"
                                         class="text-red-500 text-xs mt-1 text-right"
@@ -303,12 +307,10 @@
                                 <td
                                     class="px-3 py-2 text-right font-semibold text-blue-600"
                                 >
-                                    {{
-                                        formatMoney(
-                                            lineTotal(item),
-                                            currentCurrency,
-                                        )
-                                    }}
+                                    <div>{{ formatMoney(lineTotal(item), currentCurrency) }}</div>
+                                    <div v-if="showConvertedAmounts" class="mt-1 text-[11px] font-normal text-gray-500">
+                                        Quy đổi: {{ formatMoney(convertToCompanyCurrency(lineTotal(item)), companyCurrency) }}
+                                    </div>
                                 </td>
 
                                 <td class="px-3 py-2 text-center">
@@ -331,6 +333,7 @@
                         <div class="flex justify-between text-sm"><span>Tạm tính:</span><span>{{ formatMoney(subtotal, currentCurrency) }}</span></div>
                         <div class="flex justify-between text-sm"><span>VAT:</span><span>{{ formatMoney(vatAmount, currentCurrency) }}</span></div>
                         <div class="flex justify-between border-t pt-2 font-bold text-xl text-blue-700"><span>Tổng tiền:</span><span>{{ formatMoney(totalAmount, currentCurrency) }}</span></div>
+                        <div v-if="showConvertedAmounts" class="flex justify-between text-xs text-gray-500"><span>Tổng sau quy đổi:</span><span class="font-semibold">{{ formatMoney(convertToCompanyCurrency(totalAmount), companyCurrency) }}</span></div>
                     </div>
                 </div>
             </div>
@@ -372,7 +375,7 @@
     <Modal v-if="showSupplierModal" @close="showSupplierModal = false">
         <template #body>
             <SupplierForm
-                :currencies="currencies"
+                :currencies="supplierCurrencies"
                 @saved="onSupplierCreated"
                 @close="showSupplierModal = false"
             />
@@ -414,6 +417,7 @@ const emit = defineEmits(["saved", "close"]);
 
 const showSupplierModal = ref(false);
 const showProductModal = ref(false);
+const supplierCurrencies = ref([]);
 // Dòng sản phẩm đang được thao tác "Thêm sản phẩm mới" (để biết điền kết quả vào đúng dòng nào)
 const activeProductItem = ref(null);
 const loading = ref(false);
@@ -464,6 +468,15 @@ const lineTotal = (item) => {
 const currentCurrency = computed(
     () => props.currencies.find((c) => c.id == form.currency_id) || null,
 );
+const companyCurrency = computed(
+    () => props.currencies.find((c) => c.is_default || c.pivot?.is_default) || null,
+);
+const showConvertedAmounts = computed(
+    () => currentCurrency.value && companyCurrency.value
+        && String(currentCurrency.value.id) !== String(companyCurrency.value.id),
+);
+const convertToCompanyCurrency = (amount) =>
+    Number(amount || 0) * Number(currentCurrency.value?.exchange_rate || 1);
 
 // ==================== FETCH PRODUCTS ====================
 const fetchAllProducts = async () => {
@@ -505,7 +518,19 @@ function handleVatChange(item, index) {
     else delete errors.value[key];
 }
 
-const openSupplierModal = () => (showSupplierModal.value = true);
+const openSupplierModal = async () => {
+    try {
+        const { data } = await axios.get("/api/currencies/for-select", {
+            params: { scope: "all" },
+        });
+        supplierCurrencies.value = Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+        supplierCurrencies.value = [...props.currencies];
+        toast.error("Không thể tải đầy đủ danh sách tiền tệ.");
+    }
+
+    showSupplierModal.value = true;
+};
 
 const onSupplierCreated = (newSupplier) => {
     showSupplierModal.value = false;
@@ -680,10 +705,3 @@ async function submit() {
     }
 }
 </script>
-
-<style scoped>
-.style-scroll-visible {
-    overflow-x: auto;
-    overflow-y: visible !important;
-}
-</style>

@@ -62,6 +62,7 @@ class LogPermissionAction
         }
 
         ActivityLog::create([
+            'company_id' => $request->user()->company_id,
             'user_id' => $request->user()->id,
             'action' => $action,
             'model_type' => $modelClass ?? 'Unknown',

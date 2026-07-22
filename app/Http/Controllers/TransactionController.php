@@ -60,7 +60,12 @@ class TransactionController extends Controller
             });
         }
         $perPage = min((int) $request->input('per_page', 10), 100);
-        $transactions = $query->latest()->paginate($perPage);
+        $companyCurrency = auth()->user()->company?->currencies()
+            ->wherePivot('is_default', true)->first();
+        $transactions = $query->latest()->paginate($perPage)->through(function ($transaction) use ($companyCurrency) {
+            $transaction->setAttribute('company_currency', $companyCurrency);
+            return $transaction;
+        });
 
         return response()->json($transactions);
     }
@@ -187,7 +192,7 @@ class TransactionController extends Controller
 
     public function show(Transaction $transaction)
     {
-        return $transaction->load([
+        $transaction->load([
             'fromAccount',
             'toAccount',
             'currency',
@@ -200,6 +205,12 @@ class TransactionController extends Controller
             'customer',
             'supplier',
         ]);
+        $transaction->setAttribute(
+            'company_currency',
+            auth()->user()->company?->currencies()->wherePivot('is_default', true)->first()
+        );
+
+        return $transaction;
     }
 
     public function approve(int $id, TransactionService $service)

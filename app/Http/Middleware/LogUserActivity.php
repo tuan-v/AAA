@@ -23,13 +23,15 @@ class LogUserActivity
 
             // Tạo log mô tả cơ bản
             ActivityLog::create([
+                'company_id' => Auth::user()->company_id,
                 'user_id' => Auth::id(),
                 'action' => $request->method(),
-                'module' => $module,
+                'model_type' => 'Request:' . $module,
+                'model_id' => 0,
                 'description' => "Người dùng " . Auth::user()->name . " thực hiện thao tác tại đường dẫn: " . $request->getRequestUri(),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->header('User-Agent'),
-                'payload_after' => json_encode($request->except(['password', 'password_confirmation'])),
+                'new_values' => $request->except(['password', 'password_confirmation']),
             ]);
         }
 

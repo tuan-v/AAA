@@ -191,10 +191,10 @@ import { formatQuantity } from "@/config/helpers";
 const props = defineProps({
     slipId: Number,
 });
-function formatMoney(value, currency = "VND") {
+function formatMoney(value) {
     return new Intl.NumberFormat("vi-VN", {
         style: "currency",
-        currency: currency,
+        currency: slip.value?.company_currency?.code || "VND",
     }).format(value || 0);
 }
 const emit = defineEmits(["close"]);

@@ -55,6 +55,83 @@ class ProductAvailabilityTest extends TestCase
             ->assertJsonPath('message', 'Sản phẩm đã phát sinh giao dịch, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.');
     }
 
+    public function test_used_category_and_unit_are_marked_and_cannot_be_changed(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $product = Product::whereNotNull('category_id')->whereNotNull('unit_id')->firstOrFail();
+
+        $this->actingAs($owner);
+
+        $categories = $this->getJson('/api/purchase/categories?per_page=100')->assertOk();
+        $units = $this->getJson('/api/purchase/units?per_page=100')->assertOk();
+
+        $this->assertTrue((bool) collect($categories->json('data'))->firstWhere('id', $product->category_id)['is_used']);
+        $this->assertTrue((bool) collect($units->json('data'))->firstWhere('id', $product->unit_id)['is_used']);
+
+        $this->putJson('/api/purchase/categories/'.$product->category_id, [])->assertStatus(422);
+        $this->patchJson('/api/purchase/categories/'.$product->category_id.'/status')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Danh mục đã được sử dụng nên không thể thay đổi trạng thái.');
+
+        $this->putJson('/api/purchase/units/'.$product->unit_id, [])->assertStatus(422);
+        $this->patchJson('/api/purchase/units/'.$product->unit_id.'/status')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Đơn vị tính đã được sử dụng nên không thể thay đổi trạng thái.');
+    }
+
+    public function test_parent_category_with_children_is_used_and_cannot_be_changed(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $parent = Category::whereHas('children')->firstOrFail();
+
+        $this->actingAs($owner);
+
+        $response = $this->getJson('/api/purchase/categories?per_page=100')->assertOk();
+        $parentRow = collect($response->json('data'))->firstWhere('id', $parent->id);
+
+        $this->assertTrue((bool) $parentRow['is_used']);
+        $this->putJson('/api/purchase/categories/'.$parent->id, [])->assertStatus(422);
+        $this->deleteJson('/api/purchase/categories/'.$parent->id)->assertStatus(422);
+        $this->patchJson('/api/purchase/categories/'.$parent->id.'/status')->assertStatus(422);
+    }
+
+    public function test_product_requires_a_leaf_category_and_used_category_cannot_become_parent(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $parent = Category::whereHas('children')->firstOrFail();
+        $usedLeaf = Category::whereHas('products')->whereDoesntHave('children')->firstOrFail();
+        $unit = Unit::where('company_id', $owner->company_id)->firstOrFail();
+
+        $this->actingAs($owner);
+
+        $select = $this->getJson('/api/purchase/categories/select?active_only=1')->assertOk();
+        $parentOption = collect($select->json())->firstWhere('id', $parent->id);
+        $this->assertFalse((bool) $parentOption['is_leaf']);
+
+        $this->postJson('/api/purchase/products', [
+            'name' => 'Sản phẩm kiểm tra danh mục cha',
+            'sku' => 'PARENT-CATEGORY-TEST',
+            'category_id' => $parent->id,
+            'unit_id' => $unit->id,
+            'type' => 'hang_hoa',
+            'purchase_price' => 100,
+            'sell_price' => 120,
+            'quantity' => 0,
+            'status' => 'active',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('category_id');
+
+        $this->postJson('/api/purchase/categories', [
+            'name' => 'Danh mục con không hợp lệ',
+            'parent_id' => $usedLeaf->id,
+            'status' => 'active',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('parent_id');
+    }
+
     public function test_sales_account_can_load_products_for_sale_order_selector(): void
     {
         $this->seed(DatabaseSeeder::class);

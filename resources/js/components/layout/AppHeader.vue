@@ -1,15 +1,15 @@
 <template>
     <header
-        class="sticky top-0 flex w-full bg-white border-b border-gray-200 z-999 dark:border-gray-800 dark:bg-gray-900"
+        class="sticky top-0 z-999 flex w-full border-b border-slate-200/80 bg-white/90 shadow-sm shadow-slate-950/[0.03] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/90"
     >
         <div
-            class="flex items-center justify-between w-full px-3 py-3 lg:px-6 lg:py-4"
+            class="flex w-full items-center justify-between px-3 py-2.5 lg:px-7 lg:py-3"
         >
             <!-- Left Section: Toggle Button + Logo -->
             <div class="flex items-center gap-2 sm:gap-4">
                 <button
                     @click="handleToggle"
-                    class="flex items-center justify-center w-10 h-10 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 dark:text-gray-400 lg:h-11 lg:w-11 lg:border"
+                    class="z-99999 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 lg:h-11 lg:w-11"
                     :class="[
                         isMobileOpen
                             ? 'lg:bg-transparent dark:lg:bg-transparent bg-gray-100 dark:bg-gray-800'
@@ -59,11 +59,11 @@
                     :key="item.name"
                     :href="item.route"
                     @click.prevent="handleNavClick(item)"
-                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap cursor-pointer"
+                    class="cursor-pointer whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200"
                     :class="[
                         activeNav === item.name
-                            ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20'
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800',
+                            ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-300'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white',
                     ]"
                 >
                     {{ item.name }}
@@ -230,7 +230,7 @@ const allNavItems = [
 
 const navItems = computed(() => allNavItems.filter((item) => canAny(item.permissions)));
 
-const activeNav = ref("Dashboard");
+const activeNav = ref("Tổng quan");
 
 // const handleNavClick = (item) => {
 //     if (item.name === "Trang chủ") {

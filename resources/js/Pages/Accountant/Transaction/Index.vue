@@ -70,33 +70,6 @@
             />
         </template>
     </Modal>
-    <Modal v-if="showConfirm" @close="showConfirm = false">
-        <template #body>
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                <h3 class="text-lg font-semibold">Xác nhận duyệt giao dịch</h3>
-
-                <p class="mt-2 text-gray-600">
-                    Bạn có chắc chắn muốn duyệt giao dịch này không?
-                </p>
-
-                <div class="mt-6 flex justify-end gap-2">
-                    <button
-                        class="px-4 py-2 border rounded-lg"
-                        @click="showConfirm = false"
-                    >
-                        Hủy
-                    </button>
-
-                    <button
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg"
-                        @click="confirmApprove"
-                    >
-                        Duyệt
-                    </button>
-                </div>
-            </div>
-        </template>
-    </Modal>
 </template>
 
 <script setup>
@@ -117,11 +90,11 @@ import DeleteIcon from "@/icons/DeleteIcon.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { XCircle } from "lucide-vue-next";
 import { usePermission } from "@/composables/usePermission";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 import { formatMoney, formatDateTime } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 const { can } = usePermission();
-const showConfirm = ref(false);
-const pendingItem = ref(null);
+const { confirmAction, promptAction } = useActionConfirm();
 
 const transactions = ref({
     data: [],
@@ -219,25 +192,29 @@ const columns = [
     },
     {
         label: "Nghiệp vụ",
-        render: (row) => h("span", ({
-            customer_receipt: "Thu tiền khách hàng",
-            supplier_payment: "Thanh toán nhà cung cấp",
-            customer_refund: "Hoàn tiền khách hàng",
-            supplier_refund: "Nhà cung cấp hoàn tiền",
-            internal_transfer: "Chuyển nội bộ",
-            other_receipt: "Thu khác",
-            other_payment: "Chi khác",
-        })[row.purpose] || "-"),
+        render: (row) =>
+            h(
+                "span",
+                {
+                    customer_receipt: "Thu tiền khách hàng",
+                    supplier_payment: "Thanh toán nhà cung cấp",
+                    customer_refund: "Hoàn tiền khách hàng",
+                    supplier_refund: "Nhà cung cấp hoàn tiền",
+                    internal_transfer: "Chuyển nội bộ",
+                    other_receipt: "Thu khác",
+                    other_payment: "Chi khác",
+                }[row.purpose] || "-",
+            ),
     },
     {
         label: "Số tiền",
         align: "text-right",
-        render: (row) =>
-            h(
-                "span",
-                { class: "font-semibold" },
-                formatMoney(row.amount ?? 0, row.currency),
-            ),
+        render: (row) => h("div", { class: "text-right" }, [
+            h("div", { class: "font-semibold" }, formatMoney(row.amount_base ?? 0, row.company_currency)),
+            Number(row.currency_id) !== Number(row.company_currency?.id)
+                ? h("div", { class: "text-xs text-gray-500" }, `Gốc: ${formatMoney(row.amount ?? 0, row.currency)}`)
+                : null,
+        ]),
     },
     // {
     //     label: "Tiền tệ",
@@ -265,8 +242,7 @@ const columns = [
     },
     {
         label: "Ngày",
-        render: (row) =>
-            h("span", formatDateTime(row.transaction_date)),
+        render: (row) => h("span", formatDateTime(row.transaction_date)),
     },
     {
         label: "Trạng thái",
@@ -309,23 +285,24 @@ const actions = [
     {
         icon: CheckIcon,
         title: "Duyệt",
-        hidden: (row) =>
-            !can("giao_dich.duyet") || row.status !== "pending",
-        onClick: (item) => {
-            pendingItem.value = item;
-            showConfirm.value = true;
-        },
+        hidden: (row) => !can("giao_dich.duyet") || row.status !== "pending",
+        onClick: (item) => approveTransaction(item),
     },
     {
         icon: XCircle,
         title: "Từ chối",
         hidden: (row) => !can("giao_dich.tu_choi") || row.status !== "pending",
         onClick: async (item) => {
-            const reason = window.prompt("Vui lòng nhập lý do từ chối giao dịch:");
-            if (!reason?.trim()) {
-                toast.warning("Cần nhập lý do từ chối giao dịch");
-                return;
-            }
+            const reason = await promptAction({
+                title: "Từ chối giao dịch",
+                message: `Bạn có chắc chắn muốn từ chối giao dịch ${item.code}?`,
+                confirmText: "Từ chối",
+                tone: "danger",
+                inputLabel: "Lý do từ chối",
+                inputPlaceholder: "Nhập lý do từ chối giao dịch...",
+                inputRequired: true,
+            });
+            if (!reason) return;
             try {
                 await axios.post(
                     `/api/accountant/transactions/${item.id}/reject`,
@@ -343,13 +320,21 @@ const actions = [
         title: "Xóa giao dịch chờ duyệt",
         hidden: (row) => !can("giao_dich.xoa") || row.status !== "pending",
         onClick: async (item) => {
-            if (!window.confirm(`Xóa giao dịch ${item.code}? Thao tác này không thể hoàn tác.`)) return;
+            const accepted = await confirmAction({
+                title: "Xóa giao dịch",
+                message: `Xóa giao dịch ${item.code}? Thao tác này không thể hoàn tác.`,
+                confirmText: "Xóa giao dịch",
+                tone: "danger",
+            });
+            if (!accepted) return;
             try {
                 await axios.delete(`/api/accountant/transactions/${item.id}`);
                 toast.success("Xóa giao dịch chờ duyệt thành công");
                 getData(transactions.value.current_page);
             } catch (error) {
-                toast.error(error.response?.data?.message || "Không thể xóa giao dịch");
+                toast.error(
+                    error.response?.data?.message || "Không thể xóa giao dịch",
+                );
             }
         },
     },
@@ -360,15 +345,21 @@ const actions = [
     },
 ];
 
-async function confirmApprove() {
-    if (!pendingItem.value) return;
+async function approveTransaction(item) {
+    const confirmed = await confirmAction({
+        title: "Xác nhận duyệt giao dịch",
+        message: `Bạn có chắc chắn muốn duyệt giao dịch ${item.code || "này"}? Sau khi duyệt, số dư tài khoản và công nợ liên quan sẽ được cập nhật.`,
+        confirmText: "Duyệt giao dịch",
+        cancelText: "Quay lại",
+        tone: "success",
+    });
+
+    if (!confirmed) return;
+
     try {
-        await axios.post(
-            `/api/accountant/transactions/${pendingItem.value.id}/approve`,
-        );
+        await axios.post(`/api/accountant/transactions/${item.id}/approve`);
         toast.success("Duyệt giao dịch thành công");
-        showConfirm.value = false;
-        getData(transactions.value.current_page);
+        await getData(transactions.value.current_page);
     } catch (err) {
         toast.error(err.response?.data?.message ?? "Duyệt thất bại");
     }
@@ -441,34 +432,33 @@ onMounted(async () => {
     try {
         const [accRes, catRes, curRes, customerRes, supplierRes] =
             await Promise.all([
-            axios.get("/api/accountant/accounts/all"),
-            axios.get("/api/accountant/transaction-categories"),
-            axios.get("/api/accountant/currencies"),
-            axios.get("/api/sale/customers/all"),
-            axios.get("/api/purchase/suppliers/all"),
+                axios.get("/api/accountant/accounts/all"),
+                axios.get("/api/accountant/transaction-categories"),
+                axios.get("/api/accountant/currencies"),
+                axios.get("/api/sale/customers/all"),
+                axios.get("/api/purchase/suppliers/all"),
             ]);
 
-    accounts.value = accRes.data;
-    categories.value = catRes.data.data || [];
-    customers.value = customerRes.data || [];
-    suppliers.value = supplierRes.data || [];
+        accounts.value = accRes.data;
+        categories.value = catRes.data.data || [];
+        customers.value = customerRes.data || [];
+        suppliers.value = supplierRes.data || [];
 
-    // inject category options into filter
-    filters[2].options = (catRes.data.data || []).map((c) => ({
-        value: c.id,
-        label: c.name,
-    }));
+        // inject category options into filter
+        filters[2].options = (catRes.data.data || []).map((c) => ({
+            value: c.id,
+            label: c.name,
+        }));
 
-    currencies.value = curRes.data;
-    const currencyRows = Array.isArray(curRes.data)
-        ? curRes.data
-        : curRes.data?.data || [];
-    currencies.value = currencyRows;
-    filters[3].options = currencyRows.map((currency) => ({
-        value: currency.id,
-        label: `${currency.code}${currency.name ? ` - ${currency.name}` : ""}`,
-    }));
-
+        currencies.value = curRes.data;
+        const currencyRows = Array.isArray(curRes.data)
+            ? curRes.data
+            : curRes.data?.data || [];
+        currencies.value = currencyRows;
+        filters[3].options = currencyRows.map((currency) => ({
+            value: currency.id,
+            label: `${currency.code}${currency.name ? ` - ${currency.name}` : ""}`,
+        }));
     } catch (error) {
         console.error("Không thể tải đầy đủ danh mục giao dịch", error);
     }

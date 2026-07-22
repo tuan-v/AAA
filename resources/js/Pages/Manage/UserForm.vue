@@ -1,17 +1,18 @@
 <template>
     <div
-        class="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-2xl overflow-hidden"
+        class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20"
     >
         <!-- HEADER -->
         <div
-            class="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white"
+            class="flex items-start justify-between bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-800 px-6 py-6 text-white sm:px-8"
         >
             <div class="flex items-center gap-3">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800 leading-tight">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">Hồ sơ nhân sự</p>
+                    <h2 class="text-2xl font-bold leading-tight">
                         {{ props.user ? "Cập nhật nhân sự" : "Thêm nhân sự" }}
                     </h2>
-                    <p class="text-sm text-gray-400 mt-0.5">
+                    <p class="mt-1 text-sm text-indigo-100/70">
                         {{
                             props.user
                                 ? "Chỉnh sửa thông tin tài khoản nhân sự"
@@ -24,17 +25,20 @@
             <button
                 @click="$emit('close')"
                 type="button"
-                class="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-indigo-100 transition-colors hover:bg-white/20 hover:text-white"
             >
                 <i class="ti ti-x text-xl">X</i>
             </button>
         </div>
 
-        <form @submit.prevent="saveUser">
+        <form novalidate @submit.prevent="saveUser">
             <!-- BODY -->
-            <div class="px-6 py-6 max-h-[70vh] overflow-y-auto">
+            <div class="asfy-modal-scroll max-h-[70vh] overflow-y-auto bg-slate-50/70 px-6 py-6 sm:px-8">
+                <div v-if="errors.general" class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {{ errors.general[0] }}
+                </div>
                 <!-- SECTION: THÔNG TIN CÁ NHÂN -->
-                <div class="mb-6">
+                <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3
                         class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                     >
@@ -42,7 +46,7 @@
                         Thông tin cá nhân
                     </h3>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
@@ -128,7 +132,7 @@
                 </div>
 
                 <!-- SECTION: TÀI KHOẢN & BẢO MẬT -->
-                <div class="mb-6">
+                <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3
                         class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                     >
@@ -136,7 +140,7 @@
                         Tài khoản &amp; bảo mật
                     </h3>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
@@ -235,12 +239,13 @@
                                     class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
                                 ></i>
                             </div>
+                            <p v-if="errors.status" class="mt-1 text-xs text-red-600">{{ errors.status[0] }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- SECTION: PHÂN QUYỀN -->
-                <div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3
                         class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-2"
                     >
@@ -248,7 +253,7 @@
                         Phân quyền &amp; đơn vị
                     </h3>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
@@ -261,6 +266,7 @@
                                 ></i>
                                 <select
                                     v-model="form.role"
+                                    :class="errors.role ? 'border-red-400' : ''"
                                     class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
                                 >
                                     <option
@@ -275,6 +281,7 @@
                                     class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
                                 ></i>
                             </div>
+                            <p v-if="errors.role" class="mt-1 text-xs text-red-600">{{ errors.role[0] }}</p>
                         </div>
 
                         <div>
@@ -288,7 +295,7 @@
                                     class="ti ti-building absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"
                                 ></i>
                                 <input
-                                    :value="company?.name || ''"
+                                    :value="currentCompany?.name || ''"
                                     disabled
                                     class="w-full border border-gray-200 rounded-lg pl-5 pr-3 py-2.5 text-sm bg-gray-50 text-gray-500"
                                 />
@@ -297,7 +304,7 @@
                             <input type="hidden" v-model="form.company_id" />
                         </div>
 
-                        <div>
+                        <div v-if="!isCompanyOwner">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 Phòng ban <span class="text-red-500">*</span>
                             </label>
@@ -305,6 +312,7 @@
                                 v-model="form.department_id"
                                 required
                                 class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                :class="errors.department_id ? 'border-red-400' : ''"
                             >
                                 <option value="" disabled>Chọn phòng ban</option>
                                 <option v-for="department in departments" :key="department.id" :value="department.id">
@@ -315,12 +323,12 @@
                                 {{ errors.department_id[0] }}
                             </p>
                         </div>
-                        <div>
+                        <div v-if="!isCompanyOwner">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 Chức vụ <span class="text-red-500">*</span>
                             </label>
                             <select v-model="form.position_id" required :disabled="!form.department_id"
-                                class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm disabled:bg-gray-100">
+                                class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm disabled:bg-gray-100" :class="errors.position_id ? 'border-red-400' : ''">
                                 <option value="" disabled>Chọn chức vụ</option>
                                 <option v-for="position in positions" :key="position.id" :value="position.id">
                                     {{ position.code }} — {{ position.name }}
@@ -328,14 +336,17 @@
                             </select>
                             <p v-if="errors.position_id" class="mt-1 text-xs text-red-600">{{ errors.position_id[0] }}</p>
                         </div>
+                        <div v-if="isCompanyOwner" class="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                            Giám đốc điều hành toàn công ty nên không thuộc một phòng ban hoặc chức vụ phòng ban cụ thể.
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- FOOTER -->
-            <div
-                class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60"
-            >
+            <div class="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4 sm:px-8">
+                <p class="hidden text-xs text-slate-400 sm:block"><span class="text-red-500">*</span> Thông tin bắt buộc</p>
+                <div class="ml-auto flex gap-3">
                 <button
                     type="button"
                     class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
@@ -346,25 +357,29 @@
 
                 <button
                     type="submit"
-                    class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    :disabled="submitting"
+                    class="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    <i class="ti ti-device-floppy text-base"></i>
-                    Lưu
+                    <span v-if="submitting" class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                    <i v-else class="ti ti-device-floppy text-base"></i>
+                    {{ submitting ? 'Đang lưu...' : 'Lưu thay đổi' }}
                 </button>
+                </div>
             </div>
         </form>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from "vue";
+import { computed, ref, reactive, watch, onMounted } from "vue";
 import axios from "axios";
 import { usePage } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 const page = usePage();
-const company = page.props.auths?.user?.company;
+const currentCompany = computed(() => props.company || page.props.auth?.user?.company || page.props.auths?.user?.company || null);
 const errors = ref({});
+const submitting = ref(false);
 const props = defineProps({
     user: {
         type: Object,
@@ -374,6 +389,7 @@ const props = defineProps({
         type: Object,
     },
 });
+const isCompanyOwner = computed(() => Boolean(props.user?.is_company_owner));
 
 const emit = defineEmits(["saved", "close"]);
 
@@ -471,6 +487,7 @@ const getPositions = async (departmentId) => {
 watch(() => form.department_id, value => getPositions(value), { immediate: true });
 async function saveUser() {
     errors.value = {};
+    submitting.value = true;
 
     try {
         if (props.user?.id) {
@@ -488,9 +505,14 @@ async function saveUser() {
 
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {};
+            if (!Object.keys(errors.value).length) {
+                errors.value = { general: [error.response.data.message || 'Dữ liệu chưa hợp lệ.'] };
+            }
         } else {
-            alert("Có lỗi xảy ra");
+            toast.error(error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại.");
         }
+    } finally {
+        submitting.value = false;
     }
 }
 onMounted(() => {

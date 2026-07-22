@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\SalesOrder;
 use Illuminate\Http\Request;
+use App\Services\CompanyCurrencyService;
 
 class CustomerController extends Controller
 {
     public function index(Request $request)
     {
         $query = Customer::with('currency');
+        $companyCurrency = auth()->user()->company?->currencies()
+            ->wherePivot('is_default', true)->first();
 
         if ($request->filled('search')) {
 
@@ -34,12 +37,12 @@ class CustomerController extends Controller
             ->latest()
             ->orderByDesc('id')
             ->paginate($perPage)
-            ->through(function ($customer) {
+            ->through(function ($customer) use ($companyCurrency) {
 
                 $debtEntries = $customer->debts()->latest()->get();
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['sale', 'refund'])->sum('amount'));
                 $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
-                $currentDebt = (float) $customer->opening_debt + $totalReceivable - $totalPaid;
+                $currentDebt = (float) $customer->opening_debt_base + $totalReceivable - $totalPaid;
 
                 return [
                     'id' => $customer->id,
@@ -55,6 +58,7 @@ class CustomerController extends Controller
                     'currency_id' => $customer->currency_id,
 
                     'currency' => $customer->currency,
+                    'company_currency' => $companyCurrency,
 
                     'province_id' => $customer->province_id,
 
@@ -63,6 +67,7 @@ class CustomerController extends Controller
                     'address_detail' => $customer->address_detail,
 
                     'opening_debt' => $customer->opening_debt,
+                    'opening_debt_base' => $customer->opening_debt_base,
                     'current_debt' => $currentDebt,
 
                     'status' => $customer->status,
@@ -142,6 +147,9 @@ class CustomerController extends Controller
             ]
         );
 
+        $this->ensureCompanyCurrency((int) $validated['currency_id']);
+        $validated = $this->withOpeningDebtSnapshot($validated);
+
         return Customer::create($validated);
     }
     public function update(
@@ -204,6 +212,8 @@ class CustomerController extends Controller
             ]
         );
 
+        $this->ensureCompanyCurrency((int) $validated['currency_id']);
+        $validated = $this->withOpeningDebtSnapshot($validated);
         $customer->update($validated);
 
         return response()->json([
@@ -258,7 +268,7 @@ class CustomerController extends Controller
             },
         ])->findOrFail($id);
 
-        $openingDebt = $canViewDebt ? (float) $customer->opening_debt : 0;
+        $openingDebt = $canViewDebt ? (float) $customer->opening_debt_base : 0;
         $debtEntries = $canViewDebt
             ? $customer->debts()->latest()->get()
             : collect();
@@ -274,8 +284,12 @@ class CustomerController extends Controller
             ->sum('amount'));
         $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
 
+        $companyCurrency = auth()->user()->company?->currencies()
+            ->wherePivot('is_default', true)->first();
+
         return response()->json([
             'customer' => $customer,
+            'company_currency' => $companyCurrency,
             'debt_summary' => [
                 'opening_debt'     => $openingDebt,
                 'total_receivable' => abs($totalReceivable),
@@ -288,6 +302,7 @@ class CustomerController extends Controller
                 'order_date' => $order->created_at?->toIso8601String(),
                 'created_at' => $order->created_at?->toIso8601String(),
                 'total_amount' => $order->total_amount,
+                'total_amount_base' => round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2),
                 'status' => $order->status,
             ]),
             'debt_history'  => $debtEntries,
@@ -330,5 +345,28 @@ class CustomerController extends Controller
         return response()->json([
             'status' => $customer->status
         ]);
+    }
+    private function ensureCompanyCurrency(int $currencyId): void
+    {
+        $company = auth()->user()->company;
+        abort_unless($company, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        if (! $company->currencies()->whereKey($currencyId)->exists()) {
+            $company->currencies()->attach($currencyId, ['is_default' => false]);
+        }
+    }
+
+    private function withOpeningDebtSnapshot(array $data): array
+    {
+        $companyId = (int) auth()->user()->company_id;
+        $rate = app(CompanyCurrencyService::class)->rate(
+            $companyId,
+            (int) $data['currency_id'],
+            now()
+        );
+        $data['opening_debt_exchange_rate'] = $rate;
+        $data['opening_debt_base'] = round((float) ($data['opening_debt'] ?? 0) * $rate, 2);
+
+        return $data;
     }
 }

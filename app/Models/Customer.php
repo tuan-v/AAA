@@ -18,11 +18,19 @@ class Customer extends Model
         'phone',
         'currency_id',
         'opening_debt',
+        'opening_debt_exchange_rate',
+        'opening_debt_base',
 
         'province_id',
         'ward_id',
         'address_detail',
         'status',
+    ];
+
+    protected $casts = [
+        'opening_debt' => 'decimal:2',
+        'opening_debt_exchange_rate' => 'decimal:8',
+        'opening_debt_base' => 'decimal:2',
     ];
     public function company()
     {
@@ -64,6 +72,11 @@ class Customer extends Model
     protected static function booted()
     {
         static::creating(function ($model) {
+
+            if (! array_key_exists('opening_debt_base', $model->getAttributes())) {
+                $model->opening_debt_exchange_rate = 1;
+                $model->opening_debt_base = $model->opening_debt ?? 0;
+            }
 
             if (!$model->code) {
                 $model->code = app(CodeGeneratorService::class)

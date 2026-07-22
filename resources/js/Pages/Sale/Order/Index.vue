@@ -180,6 +180,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 const showSaleDetailModal = ref(false);
 const detailOrder = ref(null);
 const { can } = usePermission();
@@ -312,6 +313,7 @@ const actions = [
     {
         icon: CheckIcon,
         type: "approve",
+        confirm: false,
         title: "Duyệt đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
@@ -331,6 +333,7 @@ const actions = [
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
+        confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
             !can("don_ban.huy") ||
@@ -345,6 +348,7 @@ const actions = [
 ];
 const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"];
 const LOCKED_STATUSES = ["approved", "partial", "completed"];
+const { confirmAction } = useActionConfirm();
 
 function isLocked(row) {
     return LOCKED_STATUSES.includes(row.status);
@@ -395,8 +399,10 @@ async function fetchProducts() {
 }
 
 async function fetchCurrencies() {
-    const res = await axios.get("/api/currencies/for-select");
-    currencies.value = res.data;
+    const res = await axios.get("/api/currencies/for-select", {
+        params: { scope: "all" },
+    });
+    currencies.value = res.data?.data ?? res.data ?? [];
 }
 
 // Modal
@@ -429,6 +435,23 @@ async function openEdit(item) {
 function openApproveConfirm(item) {
     pendingApproveItem.value = item;
     showConfirm.value = true;
+}
+async function cancelOrder(item) {
+    const confirmed = await confirmAction({
+        title: "Xác nhận hủy đơn bán",
+        message: `Bạn có chắc muốn hủy đơn ${item.code || `#${item.id}`}? Hành động này không thể hoàn tác.`,
+        confirmText: "Hủy đơn",
+        tone: "danger",
+    });
+    if (!confirmed) return;
+
+    try {
+        await axios.post(`/api/sale/orders/${item.id}/cancel`);
+        toast.success("Hủy đơn bán thành công");
+        getData();
+    } catch (error) {
+        toast.error(error.response?.data?.message || "Không thể hủy đơn bán");
+    }
 }
 // function openDetail() {}
 async function confirmApprove() {

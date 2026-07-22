@@ -53,7 +53,10 @@
             <div class="py-4 pr-4">
                 <p class="text-xs text-gray-500 mb-1">Số tiền</p>
                 <p :class="amountClass" class="text-xl font-medium">
-                    {{ formatMoney(transaction.amount_base) }} ₫
+                    {{ formatMoney(transaction.amount_base, transaction.company_currency) }}
+                </p>
+                <p v-if="Number(transaction.currency_id) !== Number(transaction.company_currency?.id)" class="text-xs text-gray-500 mt-1">
+                    Số tiền gốc: {{ formatMoney(transaction.amount, transaction.currency) }}
                 </p>
             </div>
             <div class="py-4 px-4">
@@ -322,8 +325,8 @@ const amountClass = computed(() => {
     return "text-gray-900";
 });
 
-function formatMoney(value) {
-    return formatMoneyHelper(value || 0);
+function formatMoney(value, currency = null) {
+    return formatMoneyHelper(value || 0, currency);
 }
 
 function formatDate(value) {

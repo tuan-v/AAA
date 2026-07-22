@@ -11,6 +11,7 @@ use App\Models\SalesOrder;
 use App\Models\SupplierDebt;
 use App\Models\Supplier;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Models\WarehouseSlip;
 use App\Repositories\TransactionRepositoryInterface;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,8 @@ class TransactionService extends BaseService
         protected AccountBalanceService $balanceService,
         protected LedgerService $ledgerService,
         protected CustomerDebtService $customerDebtService,
-        protected SupplierDebtService $supplierDebtService
+        protected SupplierDebtService $supplierDebtService,
+        protected NotificationService $notificationService
     ) {}
 
     // -------------------------------------------------------------------------
@@ -45,7 +47,7 @@ class TransactionService extends BaseService
         $this->validateInput($data);
         $this->validateRequestedOutstanding($data);
 
-        return DB::transaction(function () use ($data) {
+        $transaction = DB::transaction(function () use ($data) {
             $amountBase = round(
                 $data['amount'] * ($data['exchange_rate'] ?? 1),
                 self::DEFAULT_DECIMALS
@@ -89,6 +91,33 @@ class TransactionService extends BaseService
                 'purchaseOrder',
             ]);
         });
+
+        $approverIds = User::query()
+            ->where('company_id', $this->companyId())
+            ->whereKeyNot($this->user()?->id)
+            ->where(function ($query) {
+                $query->whereHas('permissions', fn ($permissionQuery) =>
+                    $permissionQuery->where('name', 'giao_dich.duyet')
+                )->orWhereHas('roles.permissions', fn ($permissionQuery) =>
+                    $permissionQuery->where('name', 'giao_dich.duyet')
+                );
+            })
+            ->pluck('id')
+            ->all();
+
+        if ($approverIds) {
+            $this->notificationService->createForUsers(
+                $approverIds,
+                $this->companyId(),
+                'Giao dịch mới chờ duyệt',
+                "Giao dịch {$transaction->code} vừa được tạo và đang chờ duyệt.",
+                ['priority' => 'normal', 'transaction_id' => $transaction->id],
+                '/accountant/transactions',
+                category: 'accountant'
+            );
+        }
+
+        return $transaction;
     }
 
     public function update(int $transactionId, array $data): Transaction
@@ -163,7 +192,7 @@ class TransactionService extends BaseService
      */
     public function approve(int $transactionId): Transaction
     {
-        return DB::transaction(function () use ($transactionId) {
+        $transaction = DB::transaction(function () use ($transactionId) {
             $transaction = Transaction::where('id', $transactionId)
                 ->where('company_id', $this->companyId())
                 ->lockForUpdate()
@@ -203,6 +232,22 @@ class TransactionService extends BaseService
                 'purchaseOrder',
             ]);
         });
+
+        $this->notifyTransactionCreator(
+            $transaction,
+            'Giao dịch đã được duyệt',
+            "Giao dịch {$transaction->code} đã được duyệt thành công."
+        );
+
+        ActivityLogService::log(
+            $transaction,
+            'approve',
+            "Duyệt giao dịch {$transaction->code}",
+            ['status' => 'pending'],
+            ['status' => 'approved']
+        );
+
+        return $transaction;
     }
 
     /**
@@ -211,7 +256,7 @@ class TransactionService extends BaseService
      */
     public function reject(int $transactionId, ?string $reason = null): Transaction
     {
-        return DB::transaction(function () use ($transactionId, $reason) {
+        $transaction = DB::transaction(function () use ($transactionId, $reason) {
             $transaction = Transaction::where('id', $transactionId)
                 ->where('company_id', $this->companyId())
                 ->lockForUpdate()
@@ -236,6 +281,43 @@ class TransactionService extends BaseService
 
             return $transaction->fresh(['rejectedBy']);
         });
+
+        $message = "Giao dịch {$transaction->code} đã bị từ chối.";
+        if ($reason) {
+            $message .= " Lý do: {$reason}";
+        }
+        $this->notifyTransactionCreator($transaction, 'Giao dịch bị từ chối', $message, 'urgent');
+
+        ActivityLogService::log(
+            $transaction,
+            'reject',
+            "Từ chối giao dịch {$transaction->code}".($reason ? ": {$reason}" : ''),
+            ['status' => 'pending'],
+            ['status' => 'rejected', 'rejection_reason' => $reason]
+        );
+
+        return $transaction;
+    }
+
+    private function notifyTransactionCreator(
+        Transaction $transaction,
+        string $title,
+        string $message,
+        string $priority = 'normal'
+    ): void {
+        if (!$transaction->created_by || $transaction->created_by === $this->user()?->id) {
+            return;
+        }
+
+        $this->notificationService->create(
+            $transaction->created_by,
+            $this->companyId(),
+            $title,
+            $message,
+            ['priority' => $priority, 'transaction_id' => $transaction->id],
+            '/accountant/transactions',
+            category: 'accountant'
+        );
     }
 
     private function determinePurpose(array $data): string
@@ -385,6 +467,53 @@ class TransactionService extends BaseService
                 throw new \InvalidArgumentException(
                     'Tài khoản nguồn và đích không được trùng nhau.'
                 );
+            }
+        }
+
+        if (($data['payment_method'] ?? 'cash') === 'bank_transfer') {
+            $accountIds = match ($type) {
+                'receipt' => [$data['to_account_id'] ?? null],
+                'payment' => [$data['from_account_id'] ?? null],
+                'transfer' => [
+                    $data['from_account_id'] ?? null,
+                    $data['to_account_id'] ?? null,
+                ],
+            };
+
+            $accountIds = array_values(array_unique(array_filter($accountIds)));
+            $bankAccountCount = Account::query()
+                ->where('company_id', $this->companyId())
+                ->whereIn('id', $accountIds)
+                ->whereNotNull('bank_id')
+                ->count();
+
+            if ($bankAccountCount !== count($accountIds)) {
+                throw new \InvalidArgumentException(
+                    'Hình thức chuyển khoản chỉ được sử dụng với tài khoản đã liên kết ngân hàng.'
+                );
+            }
+        }
+
+        if (($data['payment_method'] ?? 'cash') === 'cash') {
+            $accountId = match ($type) {
+                'receipt' => $data['to_account_id'] ?? null,
+                'payment' => $data['from_account_id'] ?? null,
+                'transfer' => null,
+            };
+
+            if ($accountId) {
+                $isCashAccount = Account::query()
+                    ->where('company_id', $this->companyId())
+                    ->whereKey($accountId)
+                    ->where('type', 'cash')
+                    ->whereNull('bank_id')
+                    ->exists();
+
+                if (!$isCashAccount) {
+                    throw new \InvalidArgumentException(
+                        'Hình thức tiền mặt chỉ được sử dụng với tài khoản tiền mặt không liên kết ngân hàng.'
+                    );
+                }
             }
         }
 

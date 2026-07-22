@@ -84,7 +84,7 @@ class RoleController extends Controller
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
             'description' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         $role = Role::create(
             [
@@ -139,7 +139,7 @@ class RoleController extends Controller
             'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name',
             'description' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         $role->update([
             'name' => $validated['name'],
@@ -151,6 +151,19 @@ class RoleController extends Controller
         }
 
         return response()->json(['message' => 'Cập nhật vai trò thành công']);
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'name.required' => 'Vui lòng nhập tên vai trò.',
+            'name.unique' => 'Tên vai trò đã tồn tại trong công ty.',
+            'permissions.array' => 'Danh sách quyền không hợp lệ.',
+            'permissions.*.string' => 'Quyền được chọn không hợp lệ.',
+            'permissions.*.exists' => 'Có quyền được chọn không tồn tại.',
+            'description.string' => 'Mô tả vai trò không hợp lệ.',
+            'description.max' => 'Mô tả không được vượt quá 255 ký tự.',
+        ];
     }
 
     public function destroy(Request $request, int $id)

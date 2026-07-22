@@ -18,7 +18,8 @@ class UnitController extends Controller
 
     public function index(Request $request)
     {
-        $query = Unit::where('company_id', $this->companyId());
+        $query = Unit::where('company_id', $this->companyId())
+            ->withExists('products as is_used');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -80,6 +81,7 @@ class UnitController extends Controller
     public function show($id)
     {
         return Unit::where('company_id', $this->companyId())
+            ->withExists('products as is_used')
             ->findOrFail($id);
     }
 
@@ -147,6 +149,12 @@ class UnitController extends Controller
     {
         $unit = Unit::where('company_id', $this->companyId())
             ->findOrFail($id);
+
+        if ($unit->products()->exists()) {
+            return response()->json([
+                'message' => 'Đơn vị tính đã được sử dụng nên không thể thay đổi trạng thái.',
+            ], 422);
+        }
 
         $unit->status =
             $unit->status === 'active'

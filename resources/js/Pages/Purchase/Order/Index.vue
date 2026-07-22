@@ -173,6 +173,7 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 import { formatMoney, removeMoneyFormat } from "@/config/helpers";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
@@ -349,6 +350,7 @@ const actions = [
     {
         icon: CheckIcon,
         type: "approve",
+        confirm: false,
         title: "Duyệt đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
@@ -368,6 +370,7 @@ const actions = [
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         // TODM: cần xác nhận lại hàm xử lý thật sự (hiện đang gọi nhầm showDetail đã bị comment)
+        confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
             !can("don_mua.huy") ||
@@ -380,7 +383,8 @@ const actions = [
         hidden: () => !can("don_mua.xem_chi_tiet"),
     },
 ];
-const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed"];
+const HIDDEN_EDIT_STATUSES = ["approved", "partial", "completed", "cancelled"];
+const { confirmAction } = useActionConfirm();
 const showConfirm = ref(false);
 const pendingApproveItem = ref(null);
 function openApproveConfirm(item) {
@@ -452,6 +456,13 @@ function openCreate() {
     showModal.value = true;
 }
 async function cancelOrder(item) {
+    const confirmed = await confirmAction({
+        title: "Xác nhận hủy đơn mua",
+        message: `Bạn có chắc muốn hủy đơn ${item.code || `#${item.id}`}? Hành động này không thể hoàn tác.`,
+        confirmText: "Hủy đơn",
+        tone: "danger",
+    });
+    if (!confirmed) return;
     try {
         await axios.post(`/api/purchase/orders/${item.id}/cancel`);
         toast.success("Hủy đơn thành công");
@@ -461,7 +472,7 @@ async function cancelOrder(item) {
     }
 }
 async function openEdit(item) {
-    if (item.status === "approved") {
+    if (HIDDEN_EDIT_STATUSES.includes(item.status)) {
         toast.warning("Đơn này đã được duyệt rồi, không thể sửa.");
         return;
     }

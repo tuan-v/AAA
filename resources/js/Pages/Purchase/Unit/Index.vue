@@ -169,7 +169,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("don_vi_mua_hang.sua"),
+        hidden: (item) => item.is_used || !can("don_vi_mua_hang.sua"),
         onClick: (item) => openEdit(item),
     },
     {
@@ -181,9 +181,9 @@ const actions = computed(() => [
         // đang active (sắp bị khóa) -> cần quyền lock
         // đang inactive (sắp được mở) -> cần quyền unlock
         hidden: (item) =>
-            item.status === "active"
+            item.is_used || (item.status === "active"
                 ? !can("don_vi_mua_hang.khoa")
-                : !can("don_vi_mua_hang.khoa"),
+                : !can("don_vi_mua_hang.khoa")),
         onClick: (item) => toggleStatus(item),
     },
     // {

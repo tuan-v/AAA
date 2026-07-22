@@ -12,16 +12,26 @@ class CategoryController extends Controller
     {
         $company = auth()->user()->companies()->first();
 
-        $query = Category::with('parent:id,name')->where('company_id', $company->id);
+        $query = Category::with('parent:id,name')
+            ->withExists(['products as has_products', 'children as has_children'])
+            ->where('company_id', $company->id);
 
         // SEARCH
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
 
-        return $query
+        $categories = $query
             ->orderByDesc('id')
             ->paginate(min((int) $request->input('per_page', 10), 100));
+
+        $categories->getCollection()->transform(function (Category $category) {
+            $category->is_used = (bool) ($category->has_products || $category->has_children);
+            unset($category->has_products, $category->has_children);
+            return $category;
+        });
+
+        return $categories;
     }
 
     public function store(Request $request)
@@ -52,6 +62,16 @@ class CategoryController extends Controller
             ]
         );
 
+        if (!empty($validated['parent_id'])) {
+            $parent = Category::where('company_id', $company->id)->findOrFail($validated['parent_id']);
+            if ($parent->products()->exists()) {
+                return response()->json([
+                    'message' => 'Không thể tạo danh mục con vì danh mục cha đã chứa sản phẩm.',
+                    'errors' => ['parent_id' => ['Danh mục đã chứa sản phẩm không thể trở thành danh mục cha.']],
+                ], 422);
+            }
+        }
+
         $validated['company_id'] = $company->id;
         return Category::create($validated);
         // return response()->json([
@@ -69,16 +89,44 @@ class CategoryController extends Controller
             $query->where('status', 'active');
         }
 
-        return response()->json(
-            $query->with('parent:id,name')->orderBy('name')->get()
-        );
+        $categories = $query
+            ->withExists(['products as has_products', 'children as has_children'])
+            ->orderBy('name')
+            ->get();
+        $byId = $categories->keyBy('id');
+
+        $categories->each(function (Category $category) use ($byId) {
+            $names = [$category->name];
+            $parentId = $category->parent_id;
+            $visited = [$category->id];
+
+            while ($parentId && $byId->has($parentId) && !in_array($parentId, $visited, true)) {
+                $parent = $byId->get($parentId);
+                array_unshift($names, $parent->name);
+                $visited[] = $parentId;
+                $parentId = $parent->parent_id;
+            }
+
+            $category->depth = count($names) - 1;
+            $category->full_path = implode(' / ', $names);
+            $category->is_leaf = ! (bool) $category->has_children;
+            $category->is_used = (bool) ($category->has_products || $category->has_children);
+        });
+
+        return response()->json($categories->sortBy('full_path')->values());
     }
     public function show($id)
     {
         $company = auth()->user()->companies()->first();
 
-        return Category::where('company_id', $company->id)
+        $category = Category::where('company_id', $company->id)
+            ->withExists(['products as has_products', 'children as has_children'])
             ->findOrFail($id);
+
+        $category->is_used = (bool) ($category->has_products || $category->has_children);
+        unset($category->has_products, $category->has_children);
+
+        return $category;
     }
 
     public function update(Request $request, $id)
@@ -88,7 +136,7 @@ class CategoryController extends Controller
         $category = Category::where('company_id', $company->id)
             ->findOrFail($id);
 
-        if ($category->products()->exists()) {
+        if ($this->isUsed($category)) {
             return response()->json([
                 'message' => 'Danh mục đã được sử dụng, không thể chỉnh sửa. Bạn chỉ có thể khóa hoặc mở khóa.',
             ], 422);
@@ -154,7 +202,7 @@ class CategoryController extends Controller
         $company = auth()->user()->companies()->firstOrFail();
         $category = Category::where('company_id', $company->id)->findOrFail($id);
 
-        if ($category->products()->exists()) {
+        if ($this->isUsed($category)) {
             return response()->json([
                 'message' => 'Danh mục đã được sử dụng, không thể xóa. Bạn có thể chuyển sang trạng thái khóa.',
             ], 422);
@@ -171,6 +219,12 @@ class CategoryController extends Controller
         $category = Category::where('company_id', $company->id)
             ->findOrFail($id);
 
+        if ($this->isUsed($category)) {
+            return response()->json([
+                'message' => 'Danh mục đã được sử dụng nên không thể thay đổi trạng thái.',
+            ], 422);
+        }
+
         $category->status =
             $category->status === 'active'
             ? 'inactive'
@@ -181,5 +235,10 @@ class CategoryController extends Controller
         return response()->json([
             'status' => $category->status
         ]);
+    }
+
+    private function isUsed(Category $category): bool
+    {
+        return $category->products()->exists() || $category->children()->exists();
     }
 }

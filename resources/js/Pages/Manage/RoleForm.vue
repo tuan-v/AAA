@@ -1,10 +1,8 @@
 <template>
-    <div class="bg-white rounded-xl w-[640px] max-h-[85vh] flex flex-col z-50">
+    <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
         <!-- Header -->
-        <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b">
-            <h2 class="font-bold text-xl">
-                {{ role ? "Sửa vai trò" : "Thêm vai trò" }}
-            </h2>
+        <div class="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+            <div><h2 class="text-xl font-bold text-slate-800">{{ role ? "Cập nhật vai trò" : "Thêm vai trò" }}</h2><p class="mt-1 text-sm text-slate-500">Thiết lập thông tin và phạm vi quyền cho vai trò.</p></div>
             <button
                 @click="$emit('close')"
                 type="button"
@@ -14,16 +12,16 @@
             </button>
         </div>
 
-        <form @submit.prevent="save" class="flex flex-col flex-1 min-h-0">
+        <form novalidate @submit.prevent="save" class="flex flex-col flex-1 min-h-0">
             <!-- Body (scrollable) -->
-            <div class="px-6 py-4 overflow-y-auto flex-1 min-h-0">
+            <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 <div class="mb-3">
                     <label class="block text-sm font-medium mb-1"
                         >Tên vai trò</label
                     >
                     <input
                         v-model="form.name"
-                        class="border p-2 w-full rounded"
+                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                     />
                     <p v-if="errors.name" class="text-red-500 text-xs mt-1">
                         {{ errors.name[0] }}
@@ -34,7 +32,7 @@
                     <label class="block text-sm font-medium mb-1">Mô tả</label>
                     <input
                         v-model="form.description"
-                        class="border p-2 w-full rounded"
+                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                     />
                     <p
                         v-if="errors.description"
@@ -65,13 +63,13 @@
                                 v-model="search"
                                 type="text"
                                 placeholder="Tìm quyền..."
-                                class="border p-2 pl-7 w-full rounded text-sm"
+                                class="w-full rounded-xl border border-slate-300 py-2.5 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                             />
                         </div>
                         <button
                             type="button"
                             @click="toggleAll"
-                            class="text-xs px-3 py-2 border rounded whitespace-nowrap hover:bg-gray-50"
+                            class="whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         >
                             {{
                                 isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"
@@ -88,7 +86,7 @@
 
                     <!-- Danh sách nhóm -->
                     <div
-                        class="border rounded-lg divide-y max-h-[320px] overflow-y-auto"
+                        class="max-h-[320px] divide-y overflow-y-auto rounded-xl border border-slate-200"
                     >
                         <div
                             v-for="group in filteredGroups"
@@ -141,19 +139,19 @@
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 border-t flex justify-end gap-2">
+            <div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
                 <button
                     type="button"
                     @click="$emit('close')"
-                    class="px-4 py-2 rounded border text-gray-600 hover:bg-gray-50"
+                    class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                 >
                     Hủy
                 </button>
                 <button
                     :disabled="saving"
-                    class="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
+                    class="min-w-28 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
                 >
-                    {{ saving ? "Đang lưu..." : "Lưu" }}
+                    {{ saving ? "Đang lưu..." : "Lưu thay đổi" }}
                 </button>
             </div>
         </form>

@@ -1,11 +1,11 @@
 <template>
-    <div class="rounded-xl p-1 asfy_searchpage">
-        <form @submit.prevent class="flex flex-wrap items-end gap-4 md:gap-6">
+    <div class="asfy_searchpage relative z-50 overflow-visible rounded-2xl">
+        <form @submit.prevent class="flex flex-wrap items-end gap-3">
             <!-- LOOP FILTER ITEMS -->
             <div
                 v-for="item in filters"
                 :key="item.name"
-                class="flex flex-col w-full md:w-auto md:min-w-[220px]"
+                class="flex w-full flex-col md:w-auto md:min-w-[210px] md:flex-1"
             >
                 <!-- TEXT INPUT -->
                 <input
@@ -13,7 +13,7 @@
                     v-model="values[item.name]"
                     type="text"
                     :placeholder="item.placeholder || 'Nhập...'"
-                    class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-gray-500 w-full"
+                    class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
 
                 <input
@@ -24,7 +24,7 @@
                     :max="item.max"
                     :step="item.step || 1"
                     :placeholder="item.placeholder || 'Nhập giá trị...'"
-                    class="h-11 px-4 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-gray-500 w-full"
+                    class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
 
                 <!-- ASYNC SELECT -->

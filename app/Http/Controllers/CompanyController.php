@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Role;
 use Inertia\Inertia;
 use App\Models\Currency;
 use App\Models\Province;
@@ -137,6 +138,17 @@ class CompanyController extends Controller
             // 3. attach user
             $user = auth()->user();
 
+            $directorRole = Role::updateOrCreate(
+                ['name' => 'Giám đốc', 'guard_name' => 'web'],
+                [
+                    'company_id' => null,
+                    'type' => 'system',
+                    'hierarchy_level' => 90,
+                    'is_protected' => false,
+                    'description' => 'Giám đốc - toàn quyền quản trị doanh nghiệp',
+                ]
+            );
+
             $user->companies()->attach($company->id);
 
             $user->update([
@@ -145,8 +157,8 @@ class CompanyController extends Controller
                 'status' => User::STATUS_ACTIVE,
             ]);
 
-            if (!$user->hasRole('Giám đốc')) {
-                $user->assignRole('Giám đốc');
+            if (!$user->hasRole($directorRole)) {
+                $user->assignRole($directorRole);
             }
 
             return response()->json([

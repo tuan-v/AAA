@@ -166,9 +166,11 @@ import CheckIcon from "../../../icons/CheckIcon.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
+const { confirmAction } = useActionConfirm();
 // ===================== STATE
 const slips = ref([]);
 const order = ref(null);
@@ -367,7 +369,10 @@ const slipActions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         hidden: (row) => row.status !== "pending",
+        confirm: false,
         onClick: async (row) => {
+            const confirmed = await confirmAction({ title: "Duyệt phiếu xuất kho", message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`, confirmText: "Duyệt phiếu", tone: "success" });
+            if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
@@ -397,7 +402,10 @@ const slipActions = [
         title: "Từ chối",
         icon: DeleteIcon,
         hidden: (row) => row.status !== "pending",
+        confirm: false,
         onClick: async (row) => {
+            const confirmed = await confirmAction({ title: "Từ chối phiếu xuất kho", message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`, confirmText: "Từ chối", tone: "danger" });
+            if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
 

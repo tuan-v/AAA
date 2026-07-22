@@ -85,8 +85,8 @@ class DepartmentEmployeeDemoSeeder extends Seeder
                 $role = Role::updateOrCreate(
                     ['name' => $profile['role'], 'guard_name' => 'web'],
                     [
-                        'company_id' => $company->id, 'type' => 'user', 'hierarchy_level' => 20,
-                        'is_protected' => false, 'description' => 'Vai trò demo giới hạn theo nghiệp vụ '.$profile['position'],
+                        'company_id' => null, 'type' => 'system', 'hierarchy_level' => 20,
+                        'is_protected' => false, 'description' => 'Vai trò nhân viên hệ thống theo nghiệp vụ '.$profile['position'],
                     ]
                 );
                 $role->syncPermissions($profile['permissions']);

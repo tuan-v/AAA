@@ -66,9 +66,7 @@ class PositionUserController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('positions')->where(function ($query) use ($request) {
-                    return $query->where('department_id', $request->department_id);
-                }),
+                Rule::unique('positions')->where('company_id', Auth::user()->company_id),
             ],
             'department_id' => 'required|exists:departments,id',
             'status' => 'required|in:active,inactive'
@@ -125,9 +123,8 @@ class PositionUserController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('positions')->where(function ($query) use ($request) {
-                    return $query->where('department_id', $request->department_id);
-                })->ignore($position->id),
+                Rule::unique('positions')->where('company_id', Auth::user()->company_id)
+                    ->ignore($position->id),
             ],
             'department_id' => 'required|exists:departments,id',
             'status' => 'required|in:active,inactive'

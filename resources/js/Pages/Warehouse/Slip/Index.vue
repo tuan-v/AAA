@@ -117,8 +117,10 @@ import "vue3-toastify/dist/index.css";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 
 const { can } = usePermission();
+const { confirmAction } = useActionConfirm();
 const warehouseFilter = ref("all");
 const search = ref("");
 const activeTab = ref("import");
@@ -229,7 +231,15 @@ const actions = [
         icon: CheckIcon,
         hidden: (row) =>
             !can("phieu_kho.duyet") || row.status !== "pending",
+        confirm: false,
         onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Duyệt phiếu kho",
+                message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`} và cập nhật số lượng tồn kho?`,
+                confirmText: "Duyệt phiếu",
+                tone: "success",
+            });
+            if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
@@ -254,7 +264,15 @@ const actions = [
         icon: DeleteIcon,
         hidden: (row) =>
             !can("phieu_kho.tu_choi") || row.status !== "pending",
+        confirm: false,
         onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Từ chối phiếu kho",
+                message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`,
+                confirmText: "Từ chối phiếu",
+                tone: "danger",
+            });
+            if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
 

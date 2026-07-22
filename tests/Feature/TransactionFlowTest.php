@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\AccountLedger;
+use App\Models\Bank;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Customer;
@@ -73,13 +74,23 @@ class TransactionFlowTest extends TestCase
         $this->getJson("/api/accountant/transactions/{$transaction->id}")
             ->assertOk()
             ->assertJsonPath('id', $transaction->id)
+            ->assertJsonPath('transaction_date', '2026-07-20')
             ->assertJsonPath('created_by.id', $user->id)
             ->assertJsonStructure(['currency', 'category', 'to_account', 'approved_by']);
         $this->assertThrows(fn () => $service->update($transaction->id, $payload), \RuntimeException::class);
         $this->assertThrows(fn () => $service->delete($transaction->id), \RuntimeException::class);
 
+        $bank = Bank::create([
+            'code' => 'VCB', 'name' => 'Vietcombank', 'status' => 'active',
+        ]);
+        $bankSource = Account::create([
+            'company_id' => $company->id, 'code' => 'NH00', 'name' => 'Bank source', 'type' => 'bank',
+            'bank_id' => $bank->id, 'bank_account_no' => '001000000001',
+            'currency_id' => $currency->id, 'opening_balance' => 150, 'current_balance' => 150, 'is_active' => true,
+        ]);
         $destination = Account::create([
             'company_id' => $company->id, 'code' => 'NH01', 'name' => 'Ngân hàng', 'type' => 'bank',
+            'bank_id' => $bank->id, 'bank_account_no' => '001000000002',
             'currency_id' => $currency->id, 'opening_balance' => 0, 'current_balance' => 0, 'is_active' => true,
         ]);
         $transferCategory = TransactionCategory::create([
@@ -88,12 +99,12 @@ class TransactionFlowTest extends TestCase
         $internalTransfer = $service->create([
             'type' => 'transfer', 'payment_method' => 'bank_transfer', 'amount' => 50,
             'currency_id' => $currency->id, 'category_id' => $transferCategory->id,
-            'from_account_id' => $account->id, 'to_account_id' => $destination->id,
+            'from_account_id' => $bankSource->id, 'to_account_id' => $destination->id,
             'transaction_date' => '2026-07-20',
         ]);
         $internalTransfer = $service->approve($internalTransfer->id);
         $this->assertSame('internal_transfer', $internalTransfer->purpose);
-        $this->assertEquals(100, $account->fresh()->current_balance);
+        $this->assertEquals(100, $bankSource->fresh()->current_balance);
         $this->assertEquals(50, $destination->fresh()->current_balance);
         $this->assertSame(2, AccountLedger::where('transaction_id', $internalTransfer->id)->count());
 

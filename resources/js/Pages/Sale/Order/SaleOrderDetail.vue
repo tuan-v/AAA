@@ -21,6 +21,7 @@
             </div>
             <div class="flex gap-3">
                 <button
+                    v-if="order?.status !== 'cancelled'"
                     @click="duplicateOrder"
                     class="px-5 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 flex items-center gap-2"
                 >
@@ -200,7 +201,12 @@
                                 {{ item.vat_percent }}%
                             </td>
                             <td class="border p-3 text-right font-semibold">
-                                {{ formatMoney(item.amount, order?.currency) }}
+                                {{
+                                    formatMoney(
+                                        item.total_amount ?? 0,
+                                        order?.currency,
+                                    )
+                                }}
                             </td>
                         </tr>
                     </tbody>

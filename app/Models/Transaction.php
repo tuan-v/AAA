@@ -47,7 +47,9 @@ class Transaction extends Model
     ];
 
     protected $casts = [
-        'transaction_date' => 'datetime',
+        // Ngày nghiệp vụ không mang thông tin giờ/múi giờ. Serialize cố định
+        // Y-m-d để ô input date trên form chỉnh sửa không bị lệch một ngày.
+        'transaction_date' => 'date:Y-m-d',
         'amount' => 'decimal:2',
         'exchange_rate' => 'decimal:6',
         'amount_base' => 'decimal:2',

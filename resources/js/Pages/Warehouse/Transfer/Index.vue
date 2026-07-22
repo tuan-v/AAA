@@ -192,8 +192,10 @@ import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
 import { usePermission } from "@/composables/usePermission";
+import { useActionConfirm } from "@/composables/useActionConfirm";
 
 const { can } = usePermission();
+const { confirmAction } = useActionConfirm();
 const transfers = ref({ data: [], total: 0, per_page: 10, current_page: 1 });
 const warehouses = ref([]);
 const products = ref([]);
@@ -267,12 +269,14 @@ const actions = [
         title: "Duyệt",
         icon: CheckIcon,
         hidden: (row) => !can("chuyen_kho.duyet") || row.status !== "pending",
+        confirm: false,
         onClick: approve,
     },
     {
         title: "Hủy",
         icon: DeleteIcon,
         hidden: (row) => !can("chuyen_kho.huy") || row.status !== "pending",
+        confirm: false,
         onClick: cancel,
     },
 ];
@@ -332,11 +336,25 @@ async function createTransfer() {
     }
 }
 async function approve(row) {
+    const confirmed = await confirmAction({
+        title: "Duyệt phiếu chuyển kho",
+        message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`} và cập nhật tồn kho?`,
+        confirmText: "Duyệt phiếu",
+        tone: "success",
+    });
+    if (!confirmed) return;
     await axios.post(`/api/warehouse/transfers/${row.id}/approve`);
     toast.success("Đã duyệt phiếu chuyển kho");
     await load(transfers.value.current_page);
 }
 async function cancel(row) {
+    const confirmed = await confirmAction({
+        title: "Hủy phiếu chuyển kho",
+        message: `Bạn có chắc muốn hủy phiếu ${row.code || `#${row.id}`}?`,
+        confirmText: "Hủy phiếu",
+        tone: "danger",
+    });
+    if (!confirmed) return;
     await axios.post(`/api/warehouse/transfers/${row.id}/cancel`);
     toast.success("Đã hủy phiếu chuyển kho");
     await load(transfers.value.current_page);

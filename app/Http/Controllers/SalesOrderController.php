@@ -13,9 +13,12 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Services\OrderQuantityValidationService;
 use Illuminate\Support\Facades\DB;
+use App\Services\NotificationService;
 
 class SalesOrderController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     private function companyId(): int
     {
         $companyId = auth()->user()->company_id
@@ -208,7 +211,12 @@ class SalesOrderController extends Controller
                 }
             }
             $item->exported_quantity = $exported;
-            $item->amount = $item->unit_price * $item->quantity;
+            $lineAmount = round((float) $item->unit_price * (float) $item->quantity, 2);
+            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 0) / 100), 2);
+
+            $item->amount = $lineAmount;
+            $item->vat_amount = $lineVatAmount;
+            $item->total_amount = round($lineAmount + $lineVatAmount, 2);
         }
 
         // Quy đổi giá trị phiếu xuất kho đi kèm
@@ -359,7 +367,8 @@ class SalesOrderController extends Controller
                     'unit_price'          => $item['unit_price'],
                     'company_unit_price'  => $companyUnitPrice,
                     'vat_percent'         => $vatPercent,
-                    'amount'              => $item['amount'] ?? $amount,
+                    // amount là thành tiền trước VAT. Không tin giá trị tổng do FE gửi.
+                    'amount'              => round($amount, 2),
                     'company_amount'      => $companyAmount,
                 ]);
                 $subtotal += $amount;
@@ -374,6 +383,18 @@ class SalesOrderController extends Controller
             ]);
 
             DB::commit();
+
+            $this->notificationService->createForPermission(
+                'don_ban.duyet',
+                $company->id,
+                'Đơn bán mới chờ duyệt',
+                "Đơn bán {$order->code} vừa được tạo và đang chờ duyệt.",
+                ['sales_order_id' => $order->id],
+                '/sale/orders',
+                auth()->id(),
+                'sale'
+            );
+
             return response()->json([
                 'message' => 'Tạo đơn bán thành công',
                 'id'      => $order->id
@@ -483,10 +504,8 @@ class SalesOrderController extends Controller
                     $item['unit_price'] * $exchangeRate,
                     2
                 );
-                $companyAmount = round(
-                    $item['amount'] * $exchangeRate,
-                    2
-                );
+                $lineAmount = (float) $item['quantity'] * (float) $item['unit_price'];
+                $companyAmount = round($lineAmount * $exchangeRate, 2);
 
                 SalesOrderItem::create([
                     'sales_order_id'     => $order->id,
@@ -495,11 +514,10 @@ class SalesOrderController extends Controller
                     'unit_price'         => $item['unit_price'],
                     'company_unit_price' => $companyUnitPrice,
                     'vat_percent'        => $item['vat_percent'] ?? 0,
-                    'amount'             => $item['amount'],
+                    'amount'             => round($lineAmount, 2),
                     'company_amount'     => $companyAmount,
                 ]);
 
-                $lineAmount = (float) $item['quantity'] * (float) $item['unit_price'];
                 $lineVat = $lineAmount * ((float) ($item['vat_percent'] ?? 0) / 100);
                 $subtotal += $lineAmount;
                 $vatAmountTotal += $lineVat;
@@ -535,6 +553,13 @@ class SalesOrderController extends Controller
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
+            ActivityLogService::log(
+                $order,
+                'approve',
+                "Duyệt đơn bán {$order->code}",
+                ['status' => 'pending'],
+                ['status' => 'approved']
+            );
         });
 
         return response()->json([
@@ -562,6 +587,13 @@ class SalesOrderController extends Controller
         }
 
         $order->update(['status' => 'cancelled']);
+        ActivityLogService::log(
+            $order,
+            'cancel',
+            "Hủy đơn bán {$order->code}",
+            ['status' => 'pending'],
+            ['status' => 'cancelled']
+        );
 
         return response()->json(['message' => 'Hủy đơn bán thành công.']);
     }

@@ -12,7 +12,7 @@
         </label>
 
         <!-- Multiselect -->
-        <Multiselect :modelValue="modelValue" @update:modelValue="!readonly && $emit('update:modelValue', $event)"
+        <Multiselect ref="multiselectRef" :modelValue="modelValue" @update:modelValue="!readonly && $emit('update:modelValue', $event)"
             :options="computedOptions" :searchable="!readonly && searchable" :canClear="!readonly && canClear"
             :disabled="disabled || readonly" :mode="mode" :closeOnSelect="closeOnSelect" :placeholder="placeholder"
             :noOptionsText="noOptionsText" :noResultsText="noResultsText" :limit="limit" :max="max"
@@ -96,6 +96,8 @@
 import Multiselect from '@vueform/multiselect'
 import '@vueform/multiselect/themes/default.css'
 import { onMounted, computed, ref, watch } from 'vue'
+
+const multiselectRef = ref(null)
 
 const props = defineProps({
     modelValue: {
@@ -405,10 +407,12 @@ const loadMore = async () => {
 
 // Event handlers
 const handleAddNew = () => {
+    multiselectRef.value?.close?.()
     emit('add-new')
 }
 
 const handleCustomButton = () => {
+    multiselectRef.value?.close?.()
     emit('custom-action')
 }
 

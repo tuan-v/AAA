@@ -1,7 +1,7 @@
 <template>
     <aside
         :class="[
-            'fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-999 border-r border-gray-200',
+            'fixed left-0 top-0 z-999 mt-16 flex h-screen flex-col border-r border-slate-200/80 bg-white px-4 text-slate-900 shadow-[8px_0_30px_rgba(15,23,42,0.025)] transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 lg:mt-0',
             {
                 'lg:w-[290px]': isExpanded || isMobileOpen || isHovered,
                 'lg:w-[90px]': !isExpanded && !isHovered,
@@ -15,7 +15,7 @@
     >
         <div
             :class="[
-                'py-8 flex',
+                'flex border-b border-slate-100 py-6 dark:border-gray-800',
                 !isExpanded && !isHovered
                     ? 'lg:justify-center'
                     : 'justify-start',
@@ -30,7 +30,7 @@
                             (isExpanded || isHovered || isMobileOpen)
                         "
                         :src="user.company.logo"
-                        class="h-9 w-9 rounded-md object-cover border"
+                            class="h-10 w-10 rounded-xl border border-slate-200 object-cover shadow-sm"
                     />
 
                     <!-- fallback logo -->
@@ -51,7 +51,7 @@
                     <!-- COMPANY NAME -->
                     <span
                         v-if="isExpanded || isHovered || isMobileOpen"
-                        class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate max-w-[180px]"
+                        class="max-w-[180px] truncate text-sm font-bold text-slate-800 dark:text-gray-200"
                     >
                         {{ user?.company?.name }}
                     </span>
@@ -60,7 +60,7 @@
         </div>
         <div
             v-if="isExpanded || isHovered || isMobileOpen"
-            class="text-xs text-gray-400 mt-1 flex items-center gap-1"
+            class="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:bg-gray-800 dark:text-gray-400"
         >
             <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
 
@@ -92,7 +92,7 @@
                             </template>
                             <HorizontalDots v-else />
                         </h2>
-                        <ul class="flex flex-col gap-4">
+                        <ul class="flex flex-col gap-2">
                             <template
                                 v-for="(item, index) in menuGroup.items"
                                 :key="item.name"

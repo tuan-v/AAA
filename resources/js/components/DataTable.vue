@@ -1,12 +1,12 @@
 <template>
     <div
-        class="config-table bg-white dark:bg-gray-800 shadow-[0 5px 10px rgba(151, 164, 175, .05)] dark:shadow-[0 5px 10px rgba(0, 0, 0, 0.3)] border border-gray-100 dark:border-gray-700 overflow-hidden"
+        class="config-table overflow-hidden bg-white dark:bg-gray-800"
     >
         <div class="overflow-x-auto overflow-y-auto">
             <table class="min-w-full w-full table-auto border-collapse">
                 <!-- Header luôn cố định -->
                 <thead
-                    class="sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800"
+                    class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[11px] font-bold tracking-wider text-slate-500 backdrop-blur dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                 >
                     <tr>
                         <th
@@ -18,7 +18,7 @@
                         <th
                             v-for="col in columns"
                             :key="col.key"
-                            class="px-4 py-3 whitespace-nowrap uppercase"
+                            class="whitespace-nowrap px-4 py-3.5 uppercase"
                             :title="col.title || col.label"
                             :class="
                                 col.align === 'text-right'
@@ -106,12 +106,12 @@
                 <!-- Data Rows -->
                 <tbody
                     v-else
-                    class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700 text-sm"
+                    class="divide-y divide-slate-100 bg-white text-sm dark:divide-gray-700 dark:bg-gray-800"
                 >
                     <tr
                         v-for="(item, index) in tableData"
                         :key="item.id || index"
-                        class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer"
+                        class="cursor-pointer transition-colors duration-150 hover:bg-indigo-50/40 dark:hover:bg-gray-700/50"
                     >
                         <!-- Index -->
                         <td
@@ -131,7 +131,7 @@
                                       ? 'text-center'
                                       : 'text-left',
                             ]"
-                            class="px-4 py-3 text-sm"
+                            class="px-4 py-3.5 text-sm text-slate-600 dark:text-gray-200"
                         >
                             <!-- ROLE BADGE -->
                             <template v-if="col.key === 'roles'">
@@ -220,7 +220,7 @@
                                     >
                                         <button
                                             type="button"
-                                            @click="action.onClick?.(item)"
+                                            @click="runAction(action, item)"
                                             class="px-2 py-1 text-xs font-medium rounded-full border transition hover:scale-105"
                                             :class="
                                                 getActionClass(action, item)
@@ -332,6 +332,9 @@
 import { computed } from "vue";
 import Skeleton from "primevue/skeleton";
 import Tooltip from "@/Components/Tooltip.vue";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction } = useActionConfirm();
 
 const emit = defineEmits(["toggle-status"]);
 const getRoleBadgeClass = (name) => {
@@ -370,6 +373,27 @@ const shouldHideAction = (action, item) => {
     }
     return !!action.hidden;
 };
+
+const mutationPattern = /(duyệt|hủy|từ chối|xóa|khóa|mở khóa|đổi trạng thái)/i;
+
+async function runAction(action, item) {
+    const label = action.title || action.label || action.type || "thao tác";
+    const needsConfirmation = action.confirm !== false && mutationPattern.test(label);
+
+    if (needsConfirmation) {
+        const custom = typeof action.confirm === "object" ? action.confirm : {};
+        const destructive = /(hủy|từ chối|xóa|khóa)/i.test(label) && !/mở khóa/i.test(label);
+        const confirmed = await confirmAction({
+            title: custom.title || `Xác nhận ${label.toLowerCase()}`,
+            message: custom.message || `Bạn có chắc muốn ${label.toLowerCase()} ${item.code || item.name || `#${item.id}`}?`,
+            confirmText: custom.confirmText || label,
+            tone: custom.tone || (destructive ? "danger" : "success"),
+        });
+        if (!confirmed) return;
+    }
+
+    await action.onClick?.(item);
+}
 
 // Kiểm tra xem có action nào visible cho một item cụ thể không
 const hasVisibleActionsForItem = (item) => {

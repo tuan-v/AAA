@@ -110,9 +110,16 @@ class InventoryLifecycleEndToEndTest extends TestCase
                 'quantity' => 2,
                 'unit_price' => 300000,
                 'vat_percent' => 10,
-                'amount' => 600000,
+                // Backend phải bỏ qua tổng dòng đã cộng VAT từ client và tự chuẩn hóa về giá trước VAT.
+                'amount' => 660000,
             ]],
         ])->assertOk()->json('id');
+        $this->assertDatabaseHas('sales_order_items', [
+            'sales_order_id' => $saleOrderId,
+            'product_id' => $product->id,
+            'amount' => 600000,
+            'vat_percent' => 10,
+        ]);
         $this->actingAs($salesUser)->postJson("/api/sale/orders/{$saleOrderId}/approve")->assertOk();
 
         $exportSlipId = $this->actingAs($warehouseUser)->postJson('/api/warehouse/slips', [
@@ -125,6 +132,7 @@ class InventoryLifecycleEndToEndTest extends TestCase
         $this->actingAs($warehouseUser)->postJson("/api/warehouse/slips/{$exportSlipId}/approve")->assertOk();
 
         $this->assertSame('completed', SalesOrder::findOrFail($saleOrderId)->status);
+        $this->assertEquals(300000, (float) $product->fresh()->sell_price);
         $this->assertEquals(0, $destinationStock->fresh()->quantity);
         $this->assertEquals(0, $destinationStock->fresh()->stock_value);
         $this->assertEquals($customerDebtBefore + 660000, CustomerDebt::where('customer_id', $customer->id)->sum('amount'));

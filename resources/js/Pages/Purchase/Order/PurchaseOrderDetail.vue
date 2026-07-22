@@ -233,7 +233,7 @@
                             <td class="border p-3 text-center">{{ item.vat_percent || 0 }}%</td>
 
                             <td class="border p-3 text-right font-semibold">
-                                {{ formatMoney(Number(item.amount || 0) * (1 + Number(item.vat_percent || 0) / 100), order?.currency) }}
+                                {{ formatMoney(item.total_amount || 0, order?.currency) }}
                             </td>
                         </tr>
                     </tbody>

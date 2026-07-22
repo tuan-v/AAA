@@ -10,6 +10,10 @@ class CustomerDebt extends Model
         'customer_id',
         'type',
         'amount',
+        'currency_id',
+        'original_amount',
+        'exchange_rate',
+        'amount_base',
         'reference_type',
         'reference_id',
         'note',
@@ -17,6 +21,9 @@ class CustomerDebt extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'original_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:8',
+        'amount_base' => 'decimal:2',
     ];
 
     // -------------------------------------------------------------------------
@@ -26,6 +33,11 @@ class CustomerDebt extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
     }
 
     /**

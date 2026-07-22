@@ -189,11 +189,7 @@ const columns = [
         align: "text-right",
 
         render: (row) =>
-            h(
-                "span",
-                {},
-                formatMoney(row.opening_balance ?? 0, row.currency),
-            ),
+            h("span", {}, formatMoney(row.opening_balance ?? 0, row.currency)),
     },
 
     {
@@ -211,12 +207,6 @@ const columns = [
                 formatMoney(row.current_balance ?? 0, row.currency),
             ),
     },
-    {
-        label: "Tiền tệ",
-
-        render: (row) => h("span", {}, row.currency?.code ?? "-"),
-    },
-
     {
         label: "Ngân hàng",
 

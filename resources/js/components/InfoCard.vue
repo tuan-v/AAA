@@ -1,9 +1,9 @@
 <template>
-    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+    <div class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
 
         <!-- Header -->
         <div class="mb-6">
-            <h2 class="text-base font-medium text-gray-900 dark:text-white">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">
                 {{ title }}
             </h2>
 

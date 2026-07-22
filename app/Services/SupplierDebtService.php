@@ -59,6 +59,9 @@ class SupplierDebtService
         return $this->createDebt(
             supplierId: $supplierId,
             amount: $remainDebt,
+            currencyId: (int) $slip->purchaseOrder->currency_id,
+            exchangeRate: (float) $slip->purchaseOrder->exchange_rate,
+            originalAmount: $remainDebt / ((float) $slip->purchaseOrder->exchange_rate ?: 1),
             referenceType: WarehouseSlip::class,
             referenceId: $slip->id,
             note: "Phát sinh công nợ từ phiếu nhập {$slip->code}"
@@ -98,6 +101,11 @@ class SupplierDebtService
             'supplier_id'    => $supplierId,
             'type'           => SupplierDebt::TYPE_ADVANCE_OFFSET,
             'amount'         => -$offset,
+            ...$this->moneySnapshot(
+                -$offset,
+                (int) $slip->purchaseOrder->currency_id,
+                (float) $slip->purchaseOrder->exchange_rate
+            ),
             'reference_type' => WarehouseSlip::class,
             'reference_id'   => $slip->id,
             'note'           => "Cấn trừ tạm ứng phiếu {$slip->code}",
@@ -116,12 +124,16 @@ class SupplierDebtService
         float $amount,
         string $referenceType,
         int $referenceId,
-        ?string $note = null
+        ?string $note = null,
+        ?int $currencyId = null,
+        float $exchangeRate = 1,
+        ?float $originalAmount = null
     ): SupplierDebt {
         $debt = $this->repository->create([
             'supplier_id'    => $supplierId,
             'type'           => SupplierDebt::TYPE_INVOICE,
             'amount'         => $amount,
+            ...$this->moneySnapshot($amount, $currencyId, $exchangeRate, $originalAmount),
             'reference_type' => $referenceType,
             'reference_id'   => $referenceId,
             'note'           => $note,
@@ -144,7 +156,7 @@ class SupplierDebtService
 
     public function getOutstandingBalance(int $supplierId): float
     {
-        $openingDebt = (float) (Supplier::find($supplierId)?->opening_debt ?? 0);
+        $openingDebt = (float) (Supplier::find($supplierId)?->opening_debt_base ?? 0);
 
         return $openingDebt + $this->getDebtBalance($supplierId);
     }
@@ -152,7 +164,7 @@ class SupplierDebtService
     {
         $supplier = Supplier::find($supplierId);
 
-        return ($supplier?->opening_advance ?? 0)
+        return ($supplier?->opening_advance_base ?? 0)
             + (float) SupplierDebt::where('supplier_id', $supplierId)
                 ->whereIn('type', [
                     SupplierDebt::TYPE_ADVANCE,
@@ -170,7 +182,7 @@ class SupplierDebtService
         }
 
         $supplier->total_debts =
-            $supplier->opening_debt +
+            $supplier->opening_debt_base +
             $this->getDebtBalance($supplierId);
 
         $supplier->total_advance =
@@ -200,6 +212,7 @@ class SupplierDebtService
             'supplier_id'    => $transaction->supplier_id,
             'type'           => SupplierDebt::TYPE_PAYMENT,
             'amount'         => -abs((float) $transaction->amount_base),
+            ...$this->transactionSnapshot($transaction, -1),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => $note,
@@ -232,6 +245,7 @@ class SupplierDebtService
             'supplier_id'    => $transaction->supplier_id,
             'type' => SupplierDebt::TYPE_REFUND,
             'amount'         => -abs((float) $transaction->amount_base),
+            ...$this->transactionSnapshot($transaction, -1),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => $note,
@@ -251,6 +265,7 @@ class SupplierDebtService
             'supplier_id'    => $transaction->supplier_id,
             'type'           => SupplierDebt::TYPE_ADVANCE,
             'amount'         => abs((float)$transaction->amount_base),
+            ...$this->transactionSnapshot($transaction, 1),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => "Tạm ứng NCC {$transaction->code}",
@@ -270,6 +285,7 @@ class SupplierDebtService
             'supplier_id'    => $transaction->supplier_id,
             'type'           => SupplierDebt::TYPE_ADVANCE_REFUND,
             'amount'         => -abs((float)$transaction->amount_base),
+            ...$this->transactionSnapshot($transaction, -1),
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => "NCC hoàn tạm ứng {$transaction->code}",
@@ -297,5 +313,31 @@ class SupplierDebtService
     public function getHistory(int $supplierId)
     {
         return $this->repository->getBySupplier($supplierId);
+    }
+
+    private function transactionSnapshot(Transaction $transaction, int $sign): array
+    {
+        return $this->moneySnapshot(
+            $sign * abs((float) $transaction->amount_base),
+            (int) $transaction->currency_id,
+            (float) $transaction->exchange_rate,
+            $sign * abs((float) $transaction->amount)
+        );
+    }
+
+    private function moneySnapshot(
+        float $amountBase,
+        ?int $currencyId,
+        float $exchangeRate,
+        ?float $originalAmount = null
+    ): array {
+        $rate = $exchangeRate > 0 ? $exchangeRate : 1;
+
+        return [
+            'currency_id' => $currencyId,
+            'original_amount' => round($originalAmount ?? ($amountBase / $rate), 2),
+            'exchange_rate' => $rate,
+            'amount_base' => round($amountBase, 2),
+        ];
     }
 }

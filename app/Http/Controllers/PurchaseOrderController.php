@@ -15,12 +15,14 @@ use App\Services\OrderQuantityValidationService;
 use Illuminate\Support\Facades\DB;
 use App\Services\CodeGeneratorService;
 use App\Services\CurrencyService;
+use App\Services\NotificationService;
 
 class PurchaseOrderController extends Controller
 {
     public function __construct(
         protected CurrencyService $currencyService,
-        protected CodeGeneratorService $codeGenerator
+        protected CodeGeneratorService $codeGenerator,
+        protected NotificationService $notificationService
     ) {}
     private function getCompanyCurrency()
     {
@@ -202,8 +204,12 @@ class PurchaseOrderController extends Controller
 
             $item->received_quantity = $received;
 
-            // Giữ nguyên giá NCC
-            $item->amount = $item->price * $item->quantity;
+            // Giá trị dòng được tính từ dữ liệu gốc của đơn, không dùng amount cũ từ client.
+            $lineAmount = round((float) $item->price * (float) $item->quantity, 2);
+            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 0) / 100), 2);
+            $item->amount = $lineAmount;
+            $item->vat_amount = $lineVatAmount;
+            $item->total_amount = round($lineAmount + $lineVatAmount, 2);
         }
 
         $order->subtotal = $order->items->sum('amount');
@@ -327,6 +333,17 @@ class PurchaseOrderController extends Controller
             ]);
 
             DB::commit();
+
+            $this->notificationService->createForPermission(
+                'don_mua.duyet',
+                $company->id,
+                'Đơn mua mới chờ duyệt',
+                "Đơn mua {$order->code} vừa được tạo và đang chờ duyệt.",
+                ['purchase_order_id' => $order->id],
+                '/purchase/orders',
+                auth()->id(),
+                'purchase'
+            );
 
             return response()->json([
                 'message' => 'Tạo đơn thành công',
@@ -481,6 +498,14 @@ class PurchaseOrderController extends Controller
                 'approved_at' => now(),
             ]);
 
+            ActivityLogService::log(
+                $order,
+                'approve',
+                "Duyệt đơn mua {$order->code}",
+                ['status' => 'pending'],
+                ['status' => 'approved']
+            );
+
             // Tự động phát sinh công nợ phải trả NCC khi đơn mua được duyệt
         });
 
@@ -508,6 +533,13 @@ class PurchaseOrderController extends Controller
         }
 
         $order->update(['status' => 'cancelled']);
+        ActivityLogService::log(
+            $order,
+            'cancel',
+            "Hủy đơn mua {$order->code}",
+            ['status' => 'pending'],
+            ['status' => 'cancelled']
+        );
 
         return response()->json(['message' => 'Hủy đơn mua thành công.']);
     }

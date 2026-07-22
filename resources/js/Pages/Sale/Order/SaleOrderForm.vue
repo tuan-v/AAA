@@ -208,7 +208,7 @@
                 </p>
 
                 <div
-                    class="overflow-x-auto rounded-lg border border-gray-100 style-scroll-visible pb-16 -mb-16"
+                    class="overflow-x-auto rounded-lg border border-gray-100"
                 >
                     <table
                         class="w-full table-auto min-w-[950px] text-sm table-layout-fixed"
@@ -271,6 +271,7 @@
                                         <FormSelect
                                             v-model="item.product_id"
                                             :options="productOptions"
+                                            append-to-body
                                             searchable
                                             placeholder="Chọn sản phẩm bán..."
                                             @update:modelValue="
@@ -361,6 +362,9 @@
                                         @input="updateUnitPrice(item, $event)"
                                         class="w-full border rounded-lg px-2 py-1.5 text-right text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
                                     />
+                                    <p v-if="showConvertedAmounts" class="mt-1 text-[11px] text-right text-gray-500">
+                                        Quy đổi: {{ formatMoney(convertToCompanyCurrency(item.unit_price), companyCurrency) }}
+                                    </p>
                                     <p
                                         v-if="
                                             errors[`items.${index}.unit_price`]
@@ -378,12 +382,10 @@
                                 <td
                                     class="px-3 py-2 text-right font-semibold text-green-600 align-middle"
                                 >
-                                    {{
-                                        formatMoney(
-                                            item.amount || 0,
-                                            currentCurrency,
-                                        )
-                                    }}
+                                    <div>{{ formatMoney(lineTotalWithVat(item), currentCurrency) }}</div>
+                                    <div v-if="showConvertedAmounts" class="mt-1 text-[11px] font-normal text-gray-500">
+                                        Quy đổi: {{ formatMoney(convertToCompanyCurrency(lineTotalWithVat(item)), companyCurrency) }}
+                                    </div>
                                 </td>
 
                                 <td class="px-3 py-2 text-center align-middle">
@@ -423,6 +425,10 @@
                             <span>{{
                                 formatMoney(totalAmount, currentCurrency)
                             }}</span>
+                        </div>
+                        <div v-if="showConvertedAmounts" class="flex justify-between text-xs text-gray-500">
+                            <span>Tổng sau quy đổi:</span>
+                            <span class="font-semibold">{{ formatMoney(convertToCompanyCurrency(totalAmount), companyCurrency) }}</span>
                         </div>
                     </div>
                 </div>
@@ -478,7 +484,7 @@
     <Modal v-if="showCustomerModal" @close="showCustomerModal = false">
         <template #body>
             <CustomerForm
-                :currencies="currencies"
+                :currencies="customerCurrencies"
                 @saved="onCustomerCreated"
                 @close="showCustomerModal = false"
             />
@@ -512,6 +518,7 @@ const props = defineProps({
 const emit = defineEmits(["saved", "close", "customer-created"]);
 
 const showCustomerModal = ref(false);
+const customerCurrencies = ref([]);
 const loading = ref(false);
 const wards = ref([]);
 const errors = ref({});
@@ -576,6 +583,15 @@ const totalAmount = computed(() => subtotal.value + vatAmount.value);
 const currentCurrency = computed(
     () => props.currencies.find((c) => c.id == form.currency_id) || null,
 );
+const companyCurrency = computed(
+    () => props.currencies.find((c) => c.is_default || c.pivot?.is_default) || null,
+);
+const showConvertedAmounts = computed(
+    () => currentCurrency.value && companyCurrency.value
+        && String(currentCurrency.value.id) !== String(companyCurrency.value.id),
+);
+const convertToCompanyCurrency = (amount) =>
+    Number(amount || 0) * Number(currentCurrency.value?.exchange_rate || 1);
 
 // ==================== DATA METHODS ====================
 async function loadWards(provinceId) {
@@ -678,9 +694,14 @@ function handleVatChange(item, index) {
 function calculateItem(item) {
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unit_price) || 0;
-    const vat = Number(item.vat_percent) || 0;
     const subtotalItem = qty * price;
-    item.amount = subtotalItem + (subtotalItem * vat) / 100;
+    // amount luôn là giá trị trước VAT; VAT được lưu và tổng hợp riêng.
+    item.amount = subtotalItem;
+}
+
+function lineTotalWithVat(item) {
+    const amount = Number(item.quantity || 0) * Number(item.unit_price || 0);
+    return amount + amount * (Number(item.vat_percent || 0) / 100);
 }
 
 function updateUnitPrice(item, event) {
@@ -704,7 +725,17 @@ function parseNumber(value) {
     return Number(String(value).replace(/[^\d]/g, ""));
 }
 
-function openCustomerModal() {
+async function openCustomerModal() {
+    try {
+        const { data } = await axios.get("/api/currencies/for-select", {
+            params: { scope: "all" },
+        });
+        customerCurrencies.value = Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+        customerCurrencies.value = [...props.currencies];
+        toast.error("Không thể tải đầy đủ danh sách tiền tệ.");
+    }
+
     showCustomerModal.value = true;
 }
 
@@ -892,10 +923,3 @@ async function submit() {
     }
 }
 </script>
-
-<style scoped>
-.style-scroll-visible {
-    overflow-x: auto;
-    overflow-y: visible !important;
-}
-</style>

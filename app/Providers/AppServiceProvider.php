@@ -112,7 +112,7 @@ class AppServiceProvider extends ServiceProvider
         $menuItems = [
             [
                 'icon' => 'GridIcon',
-                'name' => 'Dashboard',
+                'name' => 'Tổng quan',
                 'path' => '/dashboard',
             ],
             [
@@ -171,7 +171,7 @@ class AppServiceProvider extends ServiceProvider
         return match ($segment) {
             'warehouse' => array_values(array_filter([
                 ($this->can('kho.xem') || $this->can('san_pham_kho.xem') || $this->can('phieu_kho.xem') || $this->can('chuyen_kho.xem'))
-                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/warehouse'] : null,
+                    ? ['icon' => 'GridIcon', 'name' => 'Tổng quan', 'path' => '/warehouse'] : null,
                 $this->can('kho.xem') ? [
                     'icon' => 'WarehouseIcon',
                     'name' => 'Kho hàng',
@@ -211,7 +211,7 @@ class AppServiceProvider extends ServiceProvider
 
             'sale' => array_values(array_filter([
                 ($this->can('khach_hang.xem') || $this->can('don_ban.xem'))
-                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/sale'] : null,
+                    ? ['icon' => 'GridIcon', 'name' => 'Tổng quan', 'path' => '/sale'] : null,
                 $this->can('khach_hang.xem') ? [
                     'icon' => 'UserIcon',
                     'name' => 'Khách hàng',
@@ -227,7 +227,7 @@ class AppServiceProvider extends ServiceProvider
 
             'purchase' => array_values(array_filter([
                 ($this->can('nha_cung_cap.xem') || $this->can('san_pham_mua_hang.xem') || $this->can('don_mua.xem'))
-                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/purchase'] : null,
+                    ? ['icon' => 'GridIcon', 'name' => 'Tổng quan', 'path' => '/purchase'] : null,
                 $this->can('nha_cung_cap.xem') ? [
                     'icon' => 'handpakageIcon',
                     'name' => 'Nhà cung cấp',
@@ -249,7 +249,7 @@ class AppServiceProvider extends ServiceProvider
 
             'accountant' => array_values(array_filter([
                 ($this->can('tien_te.xem') || $this->can('ngan_hang.xem') || $this->can('tai_khoan.xem') || $this->can('giao_dich.xem') || $this->can('cong_no_khach_hang.xem') || $this->can('cong_no_nha_cung_cap.xem'))
-                    ? ['icon' => 'GridIcon', 'name' => 'Dashboard', 'path' => '/accountant'] : null,
+                    ? ['icon' => 'GridIcon', 'name' => 'Tổng quan', 'path' => '/accountant'] : null,
                 $this->can('tien_te.xem') ? [
                     'icon' => 'CurrencyIcon',
                     'name' => 'Tiền tệ',

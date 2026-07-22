@@ -69,6 +69,10 @@ class AccountController extends Controller
     public function all()
     {
         return Account::query()
+            ->with([
+                'bank:id,code,name',
+                'currency:id,code,name,symbol',
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -106,8 +110,8 @@ class AccountController extends Controller
             'opening_balance.required' => 'Số dư đầu kỳ không được để trống',
             'opening_balance.numeric' => 'Số dư đầu kỳ phải là số',
             'bank_id.exists' => 'Ngân hàng không hợp lệ',
-            'bank_id.required' => 'Vui lòng chọn ngân hàng',
-            'bank_account_no.required' => 'Số tài khoản không được để trống',
+            'bank_id.required_if' => 'Vui lòng chọn ngân hàng',
+            'bank_account_no.required_if' => 'Số tài khoản không được để trống',
             'bank_account_no.string' => 'Số tài khoản ngân hàng không hợp lệ',
             'bank_account_no.max' => 'Số tài khoản ngân hàng không được vượt quá 255 ký tự',
             'bank_account_no.unique' => 'Số tài khoản này đã tồn tại trong ngân hàng đã chọn',

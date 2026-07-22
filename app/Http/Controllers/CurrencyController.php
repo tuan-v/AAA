@@ -10,17 +10,50 @@ use App\Models\CompanyCurrencyRate;
 
 class CurrencyController extends Controller
 {
-    public function forSelect()
+    public function forSelect(Request $request)
     {
         $company = auth()->user()->company;
         abort_unless($company, 403, 'Tài khoản chưa thuộc công ty nào.');
 
+        $companyCurrencies = $company->currencies()->get();
+        $defaultCurrencyId = $companyCurrencies
+            ->first(fn ($currency) => (bool) $currency->pivot->is_default)?->id;
+        $latestRates = CompanyCurrencyRate::query()
+            ->where('company_id', $company->id)
+            ->whereIn('currency_id', $companyCurrencies->pluck('id'))
+            ->whereDate('effective_date', '<=', now()->toDateString())
+            ->orderByDesc('effective_date')
+            ->get()
+            ->unique('currency_id')
+            ->pluck('rate_to_base', 'currency_id');
+
+        $decorateCurrencies = static function ($currencies) use ($defaultCurrencyId, $latestRates) {
+            return $currencies->each(function ($currency) use ($defaultCurrencyId, $latestRates) {
+                $isDefault = (int) $currency->id === (int) $defaultCurrencyId;
+                $currency->setAttribute('is_default', $isDefault);
+                $currency->setAttribute(
+                    'exchange_rate',
+                    $isDefault ? 1 : (float) ($latestRates[$currency->id] ?? $currency->exchange_rate)
+                );
+            });
+        };
+
+        if ($request->string('scope')->toString() === 'all') {
+            return response()->json(
+                $decorateCurrencies(Currency::query()
+                    ->where('is_active', true)
+                    ->select('id', 'code', 'name', 'symbol', 'exchange_rate')
+                    ->orderBy('code')
+                    ->get())
+            );
+        }
+
         return response()->json(
-            $company->currencies()
+            $decorateCurrencies($company->currencies()
                 ->where('currencies.is_active', true)
                 ->select('currencies.id', 'currencies.code', 'currencies.name', 'currencies.symbol', 'currencies.exchange_rate')
                 ->orderBy('currencies.code')
-                ->get()
+                ->get())
         );
     }
 

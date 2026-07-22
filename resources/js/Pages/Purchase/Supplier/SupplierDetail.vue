@@ -235,7 +235,7 @@
                                 <p
                                     class="text-base font-semibold text-orange-600"
                                 >
-                                    {{ formatCurrency(supplier.opening_debt) }}
+                                    {{ formatCurrency(supplier.opening_debt_base) }}
                                 </p>
                             </div>
                         </div>
@@ -305,8 +305,8 @@
                                         >
                                             {{
                                                 formatMoney(
-                                                    order.total_amount,
-                                                    supplier.currency,
+                                                    order.total_amount_base ?? order.total_amount,
+                                                    companyCurrency,
                                                 )
                                             }}
                                         </td>
@@ -408,7 +408,7 @@
                                     >Công nợ đầu kỳ</span
                                 >
                                 <span class="font-medium text-gray-700">{{
-                                    formatCurrency(supplier.opening_debt || 0)
+                                    formatCurrency(supplier.opening_debt_base || 0)
                                 }}</span>
                             </div>
                             <div class="flex justify-between text-sm">
@@ -524,6 +524,7 @@ import { formatMoney, formatDate } from "@/config/helpers";
 import { router } from "@inertiajs/vue3";
 import PurchaseOrderDetail from "../Order/PurchaseOrderDetail.vue";
 const supplier = ref({});
+const companyCurrency = ref(null);
 const debtSummary = ref({});
 const recentOrders = ref([]);
 const debtHistory = ref([]);
@@ -563,6 +564,7 @@ onMounted(async () => {
         );
 
         supplier.value = res.data.supplier;
+        companyCurrency.value = res.data.company_currency || null;
         debtSummary.value = res.data.debt_summary;
         recentOrders.value = res.data.recent_orders;
         debtHistory.value = res.data.debt_history || [];
@@ -588,10 +590,7 @@ const paidPercent = computed(() => {
 });
 
 const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(amount || 0);
+    return formatMoney(amount || 0, companyCurrency.value);
 };
 
 const createQuickOrder = () => {

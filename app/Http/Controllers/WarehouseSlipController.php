@@ -16,9 +16,12 @@ use Illuminate\Support\Facades\DB;
 use App\Services\SupplierDebtService;
 use App\Services\CustomerDebtService;
 use App\Services\InventoryMovementService;
+use App\Services\NotificationService;
 
 class WarehouseSlipController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     // =========================
     // LIST
     // =========================
@@ -99,10 +102,14 @@ class WarehouseSlipController extends Controller
             'createdBy',
             'approvedBy',
             'logs.user'
-        ])->findOrFail($id);
+        ])->where('company_id', auth()->user()->company_id)->findOrFail($id);
 
         $company = auth()->user()->company ?? auth()->user()->companies()->first();
         $companyCurrency = $company ? $company->default_currency : null;
+        $slip->setAttribute('company_currency', $companyCurrency ? [
+            'code' => $companyCurrency->code,
+            'symbol' => $companyCurrency->symbol,
+        ] : ['code' => 'VND', 'symbol' => '₫']);
 
         // Phiếu nhập hiển thị giá mua; phiếu xuất hiển thị giá bán trên đơn bán.
         // company_price của phiếu xuất là giá vốn và không phải đơn giá khách hàng.
@@ -264,6 +271,18 @@ class WarehouseSlipController extends Controller
                     }),
                 ]
             );
+            if ($slip->type === 'import') {
+                $this->notificationService->createForPermission(
+                    'phieu_kho.duyet',
+                    (int) $slip->company_id,
+                    'Phiếu nhập kho mới chờ duyệt',
+                    "Phiếu nhập kho {$slip->code} vừa được tạo và đang chờ duyệt.",
+                    ['warehouse_slip_id' => $slip->id, 'type' => 'import'],
+                    '/warehouse/slips',
+                    auth()->id(),
+                    'warehouse'
+                );
+            }
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo phiếu kho thành công',
@@ -430,7 +449,7 @@ class WarehouseSlipController extends Controller
         InventoryMovementService $movements
     ) {
 
-        DB::transaction(function () use (
+        $approvedSlip = DB::transaction(function () use (
             $id,
             $supplierDebtService,
             $customerDebtService
@@ -493,14 +512,9 @@ class WarehouseSlipController extends Controller
                             ->firstWhere('product_id', $item->product_id);
 
                         if ($saleItem) {
-                            $vatPercent = $saleItem->vat_percent ?? 0;
-
-                            $sellPrice =
-                                $saleItem->company_unit_price +
-                                ($saleItem->company_unit_price * $vatPercent / 100);
-
                             $product->update([
-                                'sell_price' => $sellPrice
+                                // Giá bán sản phẩm luôn chưa VAT; VAT chỉ áp dụng trên đơn bán.
+                                'sell_price' => $saleItem->company_unit_price
                             ]);
                             $product->save();
                         }
@@ -551,12 +565,30 @@ class WarehouseSlipController extends Controller
                 $this->updateSalesOrderStatus($slip->sales_order_id);
             }
 
+            return $slip->fresh();
+
             // $this->updateStockFromPO(
             //     $slip->warehouse_id,
             //     $item->product_id,
             //     $item->quantity
             // );
         });
+
+        if (
+            $approvedSlip->type === 'import'
+            && $approvedSlip->created_by
+            && (int) $approvedSlip->created_by !== (int) auth()->id()
+        ) {
+            $this->notificationService->create(
+                (int) $approvedSlip->created_by,
+                (int) $approvedSlip->company_id,
+                'Phiếu nhập kho đã được duyệt',
+                "Phiếu nhập kho {$approvedSlip->code} của bạn đã được duyệt.",
+                ['warehouse_slip_id' => $approvedSlip->id, 'type' => 'import'],
+                '/warehouse/slips',
+                category: 'warehouse'
+            );
+        }
 
         return response()->json(['message' => 'Duyệt thành công']);
     }

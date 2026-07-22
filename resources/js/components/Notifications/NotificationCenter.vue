@@ -54,7 +54,7 @@
                     <div class="flex items-center gap-3">
                         <button
                             @click="markAllAsRead"
-                            v-if="unreadCount > 0"
+                            v-if="getCategoryCount(activeCategory) > 0"
                             class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                             Đọc tất cả
@@ -98,7 +98,7 @@
                                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         "
                     >
-                        <span>Tất cả</span>
+                        <span>Thông báo tổng</span>
                         <span
                             v-if="getCategoryCount('all') > 0"
                             class="px-2 py-0.5 text-xs font-medium rounded-full min-w-[20px] text-center"
@@ -537,9 +537,11 @@ const hasMoreNotifications = ref(true);
 const isLoadingMore = ref(false);
 const unreadCounts = ref({
     all: 0,
-    general: 0,
-    user: 0,
-    order: 0,
+    management: 0,
+    purchase: 0,
+    sale: 0,
+    warehouse: 0,
+    accountant: 0,
     system: 0,
 });
 const page = usePage();
@@ -551,14 +553,24 @@ let companyChannel = null;
 let domainChannel = null;
 
 const categories = [
-    { value: "all", label: "Tất cả", color: "blue" },
-    { value: "user", label: "Nhân sự", color: "purple" },
+    { value: "all", label: "Thông báo tổng", color: "blue" },
+    { value: "management", label: "Quản lý", color: "purple" },
+    { value: "purchase", label: "Mua hàng", color: "green" },
+    { value: "sale", label: "Bán hàng", color: "red" },
+    { value: "warehouse", label: "Kho", color: "teal" },
+    { value: "accountant", label: "Kế toán", color: "cyan" },
     { value: "system", label: "Hệ thống", color: "orange" },
-    { value: "purchase_order", label: "Đơn mua", color: "green" },
-    { value: "sale_order", label: "Đơn bán", color: "red" },
-    { value: "import_warehouse", label: "Nhập kho", color: "teal" },
-    { value: "export_warehouse", label: "Xuất kho", color: "cyan" },
 ];
+
+const moduleCategory = computed(() => {
+    const path = window.location.pathname;
+    if (path.startsWith("/purchase")) return "purchase";
+    if (path.startsWith("/sale")) return "sale";
+    if (path.startsWith("/warehouse")) return "warehouse";
+    if (path.startsWith("/accountant")) return "accountant";
+    if (path === "/dashboard" || path === "/") return "all";
+    return "management";
+});
 
 // Thêm helper function để lấy class màu
 const getCategoryColorClass = (color, isActive = false) => {
@@ -667,7 +679,9 @@ const filteredNotifications = computed(() => {
     );
 });
 
-const unreadCount = computed(() => unreadCounts.value.all);
+const unreadCount = computed(
+    () => unreadCounts.value[moduleCategory.value] || 0,
+);
 
 const priorityBadgeClass = computed(() => {
     const urgentCount = notifications.value.filter(
@@ -726,7 +740,7 @@ const handleImageError = (e) => {
 const toggleDropdown = () => {
     showDropdown.value = !showDropdown.value;
     if (showDropdown.value) {
-        activeCategory.value = "all";
+        activeCategory.value = moduleCategory.value;
         showCategoryDropdown.value = false; // đảm bảo đóng menu danh mục
         currentPage.value = 1;
         hasMoreNotifications.value = true;
@@ -812,9 +826,16 @@ const markAsRead = async (notification) => {
 
 const markAllAsRead = async () => {
     try {
-        await axios.post("/api/notifications/mark-all-read");
+        await axios.post("/api/notifications/mark-all-read", {
+            category: activeCategory.value,
+        });
         notifications.value.forEach((n) => {
-            n.read_at = new Date().toISOString();
+            if (
+                activeCategory.value === "all" ||
+                n.category === activeCategory.value
+            ) {
+                n.read_at = new Date().toISOString();
+            }
         });
         fetchUnreadCounts();
     } catch (error) {

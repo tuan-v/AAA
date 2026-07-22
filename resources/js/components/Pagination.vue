@@ -271,8 +271,8 @@ export default {
 
 <style scoped>
 .pagination-wrapper {
-    border-radius: 0.25rem;
-    padding: 12px;
+    border-radius: 1rem;
+    padding: 10px 12px;
 }
 
 .pagination-hungpv {
@@ -313,8 +313,8 @@ export default {
 }
 
 .highlight {
-    color: #2563eb;
-    font-weight: 600;
+    color: #4f46e5;
+    font-weight: 700;
     font-size: 13px;
 }
 
@@ -361,7 +361,7 @@ select {
     width: 100%;
     padding: 8px 30px 8px 12px;
     border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: 10px;
     background: white;
     color: #333;
     font-size: 13px;
@@ -386,8 +386,8 @@ select:hover {
 }
 
 select:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 .dark select:focus {
@@ -505,7 +505,7 @@ select:focus {
 .nav-btn {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #e0e0e0;
     background: white;
     color: #666;
@@ -523,9 +523,9 @@ select:focus {
 }
 
 .nav-btn:hover:not(:disabled) {
-    background: #f5f5f5;
-    border-color: #c0c0c0;
-    color: #333;
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #4f46e5;
 }
 
 .dark .nav-btn:hover:not(:disabled) {

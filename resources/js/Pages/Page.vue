@@ -1,9 +1,9 @@
 <template>
     <AdminLayout>
-        <Head title="Dashboard - Ecommerce"></Head>
+        <Head title="Tổng quan - Ecommerce"></Head>
         <PageBreadcrumb
             title="Document"
-            :items="[{ title: 'Dashboard', link: '' }, 'Page']"
+            :items="[{ title: 'Tổng quan', link: '' }, 'Page']"
         />
         <div class="my-4">Nội dung chung</div>
         <Pagination />

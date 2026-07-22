@@ -21,7 +21,7 @@ class NotificationService
         ?array $data = null,
         ?string $urlLink = null,
         ?string $subdomain = null,
-        ?string $category = 'general'
+        ?string $category = 'system'
     ): Notification {
         $notification = Notification::create([
             'user_id' => $userId,
@@ -31,7 +31,7 @@ class NotificationService
             'data' => $data,
             'url_link' => $urlLink,
             'subdomain' => $subdomain,
-            'category' => $category ?? 'general',
+            'category' => $category ?? 'system',
         ]);
 
         // Broadcast notification real-time (gửi cho tất cả kể cả user hiện tại)
@@ -51,7 +51,7 @@ class NotificationService
         ?array $data = null,
         ?string $urlLink = null,
         ?string $subdomain = null,
-        ?string $category = 'general'
+        ?string $category = 'system'
     ): Collection {
         $notifications = collect();
 
@@ -65,6 +65,44 @@ class NotificationService
     }
 
     /**
+     * Tạo thông báo cho các thành viên trong công ty có một quyền cụ thể.
+     */
+    public function createForPermission(
+        string $permission,
+        int $companyId,
+        string $title,
+        string $message,
+        ?array $data = null,
+        ?string $urlLink = null,
+        ?int $excludeUserId = null,
+        ?string $category = 'system'
+    ): Collection {
+        $userIds = User::query()
+            ->where('company_id', $companyId)
+            ->when($excludeUserId, fn ($query) => $query->whereKeyNot($excludeUserId))
+            ->where(function ($query) use ($permission) {
+                $query->whereHas('permissions', fn ($permissionQuery) =>
+                    $permissionQuery->where('name', $permission)
+                )->orWhereHas('roles.permissions', fn ($permissionQuery) =>
+                    $permissionQuery->where('name', $permission)
+                );
+            })
+            ->distinct()
+            ->pluck('id')
+            ->all();
+
+        return $this->createForUsers(
+            $userIds,
+            $companyId,
+            $title,
+            $message,
+            $data,
+            $urlLink,
+            category: $category
+        );
+    }
+
+    /**
      * Tạo thông báo cho tất cả user trong company
      */
     public function createForCompany(
@@ -74,7 +112,7 @@ class NotificationService
         ?array $data = null,
         ?string $urlLink = null,
         ?string $subdomain = null,
-        ?string $category = 'general'
+        ?string $category = 'system'
     ): Collection {
         $userIds = User::where('company_id', $companyId)
             ->pluck('id')
@@ -148,7 +186,7 @@ class NotificationService
      */
     public function markAsRead(int $notificationId): bool
     {
-        $notification = Notification::find($notificationId);
+        $notification = Notification::forUserLogin()->find($notificationId);
 
         if (!$notification) {
             return false;
@@ -161,11 +199,13 @@ class NotificationService
     /**
      * Đánh dấu tất cả là đã đọc
      */
-    public function markAllAsRead(int $userId): int
+    public function markAllAsRead(int $userId, ?string $category = null): int
     {
-        return Notification::forUserLogin()
-            ->unread()
-            ->update(['read_at' => now('Asia/Ho_Chi_Minh')]);
+        $query = Notification::forUserLogin()->unread();
+        if ($category && $category !== 'all') {
+            $query->where('category', $category);
+        }
+        return $query->update(['read_at' => now('Asia/Ho_Chi_Minh')]);
     }
 
     /**
@@ -173,7 +213,7 @@ class NotificationService
      */
     public function delete(int $notificationId): bool
     {
-        $notification = Notification::find($notificationId);
+        $notification = Notification::forUserLogin()->find($notificationId);
 
         if (!$notification) {
             return false;
@@ -208,13 +248,15 @@ class NotificationService
             ->unread()->get();
         $counts = [
             'all' => $notifications->count(),
-            'general' => 0,
-            'user' => 0,
-            'order' => 0,
+            'management' => 0,
+            'purchase' => 0,
+            'sale' => 0,
+            'warehouse' => 0,
+            'accountant' => 0,
             'system' => 0,
         ];
         foreach ($notifications as $notification) {
-            $category = $notification->category ?? 'general';
+            $category = $notification->category ?? 'system';
             if (isset($counts[$category])) {
                 $counts[$category]++;
             }

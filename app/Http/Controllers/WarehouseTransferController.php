@@ -7,6 +7,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
 use App\Models\WarehouseTransfer;
 use App\Services\CodeGeneratorService;
+use App\Services\ActivityLogService;
 use App\Services\OrderQuantityValidationService;
 use App\Services\InventoryMovementService;
 use Illuminate\Http\Request;
@@ -122,6 +123,13 @@ class WarehouseTransferController extends Controller
             }
 
             $transfer->update(['status' => 'approved', 'approved_by' => auth()->id(), 'approved_at' => now()]);
+            ActivityLogService::log(
+                $transfer,
+                'approve',
+                "Duyệt phiếu chuyển kho {$transfer->code}",
+                ['status' => 'pending'],
+                ['status' => 'approved']
+            );
             return $transfer;
         });
 
@@ -133,6 +141,13 @@ class WarehouseTransferController extends Controller
         $transfer = WarehouseTransfer::where('company_id', $this->companyId())->findOrFail($id);
         abort_if($transfer->status !== 'pending', 422, 'Chỉ được hủy phiếu chuyển kho đang chờ duyệt.');
         $transfer->update(['status' => 'cancelled']);
+        ActivityLogService::log(
+            $transfer,
+            'cancel',
+            "Hủy phiếu chuyển kho {$transfer->code}",
+            ['status' => 'pending'],
+            ['status' => 'cancelled']
+        );
         return response()->json(['message' => 'Hủy phiếu chuyển kho thành công.']);
     }
 }

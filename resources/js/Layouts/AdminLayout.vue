@@ -5,6 +5,7 @@
                 <Head :title="title"> </Head>
                 <slot></slot>
             </AdminLayoutContent>
+            <ActionConfirmDialog />
         </SidebarProvider>
     </ThemeProvider>
 </template>
@@ -18,6 +19,7 @@ import SidebarProvider from "@/components/layout/SidebarProvider.vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppHeader from "@/components/layout/AppHeader.vue";
 import Backdrop from "@/components/layout/Backdrop.vue";
+import ActionConfirmDialog from "@/components/ui/ActionConfirmDialog.vue";
 import { useSidebar } from "@/composables/useSidebar";
 import "../../css/main.css";
 import { Head, usePage } from "@inertiajs/vue3";
@@ -36,7 +38,7 @@ const AdminLayoutContent = defineComponent({
         const { isExpanded, isHovered } = useSidebar();
 
         return () =>
-            h("div", { class: "min-h-screen dark:bg-gray-900" }, [
+            h("div", { class: "app-shell min-h-screen bg-slate-50 dark:bg-gray-950" }, [
                 h(AppSidebar),
                 h(Backdrop),
                 h(
@@ -54,7 +56,7 @@ const AdminLayoutContent = defineComponent({
                         h(
                             "div",
                             {
-                                class: "flex-1 p-4 mx-auto w-full max-w-(--breakpoint-3xl) md:p-6 overflow-x-auto bg-[#FAFBFD] dark:bg-gray-900",
+                                class: "app-page flex-1 w-full max-w-[1920px] mx-auto overflow-visible px-4 pb-10 pt-5 sm:px-5 md:px-7 md:pt-7 dark:bg-gray-950",
                             },
                             slots.default?.(),
                         ),

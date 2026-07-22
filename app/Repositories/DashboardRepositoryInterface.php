@@ -31,10 +31,13 @@ interface DashboardRepositoryInterface
      */
     public function getTotalPayableDebt(int $companyId): float;
 
+    public function getTotalAccountBalanceBase(int $companyId): float;
+
     /**
      * Số lượng bản ghi đang active của từng danh mục vận hành.
      * Trả về mảng ['users' => n, 'customers' => n, 'suppliers' => n, 'products' => n,
-     *              'warehouses' => n, 'orders_this_month' => n]
+     *              'warehouses' => n, 'sales_orders_this_month' => n,
+     *              'purchase_orders_this_month' => n, 'orders_this_month' => n]
      */
     public function getOperationCounts(int $companyId): array;
 

@@ -309,7 +309,8 @@ const sellPriceDisplay = ref("");
 const categoryOptions = computed(() =>
     categories.value.map((c) => ({
         value: c.id,
-        label: c.name,
+        label: `${"— ".repeat(c.depth || 0)}${c.name}${c.is_leaf ? "" : " (Danh mục cha)"}`,
+        disabled: !c.is_leaf,
     })),
 );
 
@@ -409,13 +410,9 @@ function handleSellPrice(e) {
     form.value.sell_price = Number(raw || 0);
     sellPriceDisplay.value = e.target.value;
 }
-function onCategoryCreated(newCategory) {
+async function onCategoryCreated(newCategory) {
     showCategoryModal.value = false;
-
-    if (!categories.value.some((c) => c.id === newCategory.id)) {
-        categories.value.unshift(newCategory);
-    }
-
+    await loadData();
     form.value.category_id = newCategory.id;
 }
 
@@ -485,8 +482,8 @@ async function saveProduct() {
 async function loadData() {
     try {
         const [categoryRes, unitRes] = await Promise.all([
-            axios.get("/api/purchase/categories/select?active_only=1"),
-            axios.get("/api/purchase/units/select?active_only=1"),
+            axios.get("/api/warehouse/categories/select?active_only=1"),
+            axios.get("/api/warehouse/units/select?active_only=1"),
         ]);
         categories.value = categoryRes.data.data || categoryRes.data;
         units.value = unitRes.data.data || unitRes.data;

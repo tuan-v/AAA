@@ -1,6 +1,6 @@
 <template>
   <button :title="title" :class="[
-    'group relative inline-flex items-center justify-center font-medium gap-2 transition-all duration-300 uppercase',
+    'group relative inline-flex items-center justify-center gap-2 font-semibold transition-all duration-200',
     sizeClasses[size],
     variantClasses[variant],
     className,
@@ -9,15 +9,15 @@
 
     <!-- Background layer -->
     <span v-if="variant === 'primary'"
-      class="absolute inset-0 rounded-sm bg-brand-500 group-hover:bg-brand-600 transition-colors duration-300"></span>
+      class="absolute inset-0 rounded-xl bg-brand-500 group-hover:bg-brand-600 transition-colors duration-300"></span>
     <span v-if="variant === 'outline'"
-      class="absolute inset-0 rounded-sm border-2 border-gray-300 group-hover:border-gray-400 transition-colors duration-300 dark:border-gray-700 dark:group-hover:border-gray-600"></span>
+      class="absolute inset-0 rounded-xl border border-gray-300 group-hover:border-indigo-300 transition-colors duration-300 dark:border-gray-700 dark:group-hover:border-gray-600"></span>
 
     <span v-if="variant === 'orange'"
-      class="absolute inset-0 rounded-sm bg-orange-500 group-hover:bg-orange-600 transition-colors duration-300"></span>
+      class="absolute inset-0 rounded-xl bg-orange-500 group-hover:bg-orange-600 transition-colors duration-300"></span>
     <!-- Hover effect -->
     <span
-      class="absolute inset-0 rounded-sm bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+      class="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
 
     <!-- Content -->
     <span class="relative z-10 flex items-center gap-2">
@@ -31,7 +31,7 @@
     </span>
 
     <!-- Ripple effect (optional) -->
-    <span class="absolute inset-0 rounded-sm overflow-hidden">
+    <span class="absolute inset-0 overflow-hidden rounded-xl">
       <span
         class="absolute inset-0 bg-white/20 scale-0 group-hover:scale-100 transition-transform duration-500 opacity-0 group-hover:opacity-100"></span>
     </span>
@@ -59,8 +59,8 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 })
 
 const sizeClasses = {
-  sm: 'px-4 py-2 text-sm rounded-sm',
-  md: 'px-4 py-2 text-sm rounded-sm',
+  sm: 'px-4 py-2 text-sm rounded-xl',
+  md: 'px-4 py-2.5 text-sm rounded-xl',
 }
 
 const variantClasses = {

@@ -59,6 +59,36 @@ class DepartmentPositionFlowTest extends TestCase
         $this->actingAs($owner)->deleteJson('/api/departments/'.$department->id)->assertUnprocessable();
     }
 
+    public function test_position_name_cannot_be_duplicated_across_departments_in_the_same_company(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $firstDepartment = Department::where('company_id', $owner->company_id)->firstOrFail();
+        $secondDepartment = Department::create([
+            'company_id' => $owner->company_id,
+            'code' => 'PB-UNIQUE-NAME',
+            'name' => 'Second department',
+            'status' => 'active',
+        ]);
+
+        Position::create([
+            'company_id' => $owner->company_id,
+            'department_id' => $firstDepartment->id,
+            'code' => 'CV-UNIQUE-NAME',
+            'name' => 'Company scoped position',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($owner)->postJson('/api/positions', [
+            'department_id' => $secondDepartment->id,
+            'name' => 'Company scoped position',
+            'description' => null,
+            'status' => 'active',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('name')
+            ->assertJsonPath('errors.name.0', 'Tên chức vụ đã tồn tại trong công ty.');
+    }
+
     public function test_department_employee_can_only_access_assigned_module(): void
     {
         $this->seed(DatabaseSeeder::class);

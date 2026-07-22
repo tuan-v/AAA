@@ -2,30 +2,54 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
+
 class CodeGeneratorService
 {
-    public function generate(string $modelClass, string $prefix): string
+    public function generate(string $modelClass, string $prefix, int $padding = 4): string
     {
         $user = auth()->user();
-
         $company = $user->company ?? $user->companies()->first();
 
-        if (!$company) {
-            throw new \Exception('Không tìm thấy công ty.');
+        if (! $company) {
+            throw new \RuntimeException('Không tìm thấy công ty.');
         }
 
-        // THAY ĐỔI Ở ĐÂY: Thêm điều kiện where để lọc theo đúng tiền tố (Prefix)
-        $last = $modelClass::where('company_id', $company->id)
-            ->where('code', 'like', $prefix . '%') // Tìm những mã bắt đầu bằng PN hoặc PX
-            ->orderByDesc('code')
-            ->first();
+        $number = DB::transaction(function () use ($modelClass, $prefix, $company) {
+            DB::table('company_code_sequences')->insertOrIgnore([
+                'company_id' => $company->id,
+                'model_type' => $modelClass,
+                'prefix' => $prefix,
+                'current_number' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        $number = 1;
-        if ($last && $last->code) {
-            $number = (int) preg_replace('/\D/', '', $last->code) + 1;
-        }
+            $sequence = DB::table('company_code_sequences')
+                ->where('company_id', $company->id)
+                ->where('model_type', $modelClass)
+                ->where('prefix', $prefix)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Bạn đang để padding là 4 số (0001), mình giữ nguyên theo code gốc của bạn nhé
-        return $prefix . str_pad($number, 4, '0', STR_PAD_LEFT);
+            $current = (int) $sequence->current_number;
+            if ($current === 0) {
+                $lastCode = $modelClass::where('company_id', $company->id)
+                    ->where('code', 'like', $prefix.'%')
+                    ->orderByDesc('code')
+                    ->value('code');
+                $current = $lastCode ? (int) preg_replace('/\D/', '', $lastCode) : 0;
+            }
+
+            $next = $current + 1;
+            DB::table('company_code_sequences')->where('id', $sequence->id)->update([
+                'current_number' => $next,
+                'updated_at' => now(),
+            ]);
+
+            return $next;
+        }, 3);
+
+        return $prefix.str_pad((string) $number, $padding, '0', STR_PAD_LEFT);
     }
 }

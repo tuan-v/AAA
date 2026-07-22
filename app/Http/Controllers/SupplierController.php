@@ -8,6 +8,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Services\CodeGeneratorService;
 use App\Services\CurrencyService;
+use App\Services\CompanyCurrencyService;
 use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
@@ -48,7 +49,8 @@ class SupplierController extends Controller
                 $debtEntries = $supplier->debts()->latest()->get();
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
                 $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
-                $currentDebt = (float) $supplier->total_debts;
+                $currentDebt = (float) $supplier->opening_debt_base
+                    + $totalReceivable - $totalPaid;
                 $companyCurrency = $this->currencyService
                     ->getCompanyCurrency(auth()->user()->company);
 
@@ -77,9 +79,11 @@ class SupplierController extends Controller
                     ])->filter()->implode(', '),
 
                     'opening_debt' => $supplier->opening_debt,
+                    'opening_debt_base' => $supplier->opening_debt_base,
                     'current_debt' => $currentDebt,
                     'total_advance' => $supplier->total_advance,
                     'opening_advance' => $supplier->opening_advance,
+                    'opening_advance_base' => $supplier->opening_advance_base,
                     'note' => $supplier->note,
                     'status' => $supplier->status,
                     'created_at' => $supplier->created_at,
@@ -164,6 +168,9 @@ class SupplierController extends Controller
         ]);
 
 
+        $this->ensureCompanyCurrency((int) $validated['currency_id']);
+        $validated = $this->withOpeningBalanceSnapshots($validated);
+
         return Supplier::create($validated);
     }
 
@@ -184,7 +191,7 @@ class SupplierController extends Controller
             },
         ])->findOrFail($id);
 
-        $openingDebt = (float) ($supplier->opening_debt ?? 0);
+        $openingDebt = (float) ($supplier->opening_debt_base ?? 0);
 
         $debtEntries = $supplier->debts;
 
@@ -203,8 +210,11 @@ class SupplierController extends Controller
         );
 
         $remainingDebt = $openingDebt + $totalPayable - $totalPaid;
+        $companyCurrency = $this->currencyService
+            ->getCompanyCurrency(auth()->user()->company);
 
         return response()->json([
+            'company_currency' => $companyCurrency,
 
             'supplier' => [
 
@@ -222,6 +232,8 @@ class SupplierController extends Controller
                 ],
 
                 'opening_debt' => $openingDebt,
+                'opening_debt_base' => $openingDebt,
+                'opening_debt_original' => (float) $supplier->opening_debt,
 
                 'address_detail' => $supplier->address_detail,
 
@@ -258,6 +270,7 @@ class SupplierController extends Controller
                     'order_date' => $order->created_at?->toIso8601String(),
                     'created_at' => $order->created_at?->toIso8601String(),
                     'total_amount' => $order->total_amount,
+                    'total_amount_base' => round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2),
                     'exchange_rate' => $order->exchange_rate,
 
                     'currency' => [
@@ -347,6 +360,8 @@ class SupplierController extends Controller
 
         ]);
 
+        $this->ensureCompanyCurrency((int) $validated['currency_id']);
+        $validated = $this->withOpeningBalanceSnapshots($validated);
         $supplier->update($validated);
 
         return response()->json([
@@ -383,5 +398,29 @@ class SupplierController extends Controller
         return response()->json([
             'status' => $supplier->status
         ]);
+    }
+    private function ensureCompanyCurrency(int $currencyId): void
+    {
+        $company = auth()->user()->company;
+        abort_unless($company, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        if (! $company->currencies()->whereKey($currencyId)->exists()) {
+            $company->currencies()->attach($currencyId, ['is_default' => false]);
+        }
+    }
+
+    private function withOpeningBalanceSnapshots(array $data): array
+    {
+        $rate = app(CompanyCurrencyService::class)->rate(
+            $this->companyId(),
+            (int) $data['currency_id'],
+            now()
+        );
+        $data['opening_debt_exchange_rate'] = $rate;
+        $data['opening_debt_base'] = round((float) ($data['opening_debt'] ?? 0) * $rate, 2);
+        $data['opening_advance_exchange_rate'] = $rate;
+        $data['opening_advance_base'] = round((float) ($data['opening_advance'] ?? 0) * $rate, 2);
+
+        return $data;
     }
 }

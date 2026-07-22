@@ -9,7 +9,9 @@ class AuditLogController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ActivityLog::query()->with('user:id,name')
+        $companyId = $this->companyId($request);
+
+        $query = ActivityLog::query()->forCompany($companyId)->with('user:id,name')
             ->select([
                 'id',
                 'user_id',
@@ -87,6 +89,7 @@ class AuditLogController extends Controller
         $fullModelType = 'App\\Models\\' . $request->model_type;
 
         $logs = ActivityLog::query()
+            ->forCompany($this->companyId($request))
             ->with('user:id,name')
             ->where('model_type', $fullModelType)
             ->where('model_id', $request->model_id)
@@ -98,6 +101,16 @@ class AuditLogController extends Controller
 
     public function show(ActivityLog $auditLog)
     {
+        abort_unless((int) $auditLog->company_id === $this->companyId(request()), 404);
+
         return $auditLog->load('user:id,name');
+    }
+
+    private function companyId(Request $request): int
+    {
+        $companyId = $request->user()?->company_id;
+        abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
+
+        return (int) $companyId;
     }
 }

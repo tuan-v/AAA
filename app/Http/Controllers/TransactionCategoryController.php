@@ -54,6 +54,8 @@ class TransactionCategoryController extends Controller
      */
     public function show(TransactionCategory $transactionCategory): JsonResponse
     {
+        $this->ensureCurrentCompany($transactionCategory);
+
         return response()->json([
             'success' => true,
             'data' => new TransactionCategoryResource($transactionCategory),
@@ -81,6 +83,8 @@ class TransactionCategoryController extends Controller
         UpdateTransactionCategoryRequest $request,
         TransactionCategory $transactionCategory
     ): JsonResponse {
+        $this->ensureCurrentCompany($transactionCategory);
+
         $category = $this->service->update(
             $transactionCategory,
             $request->validated()
@@ -98,11 +102,21 @@ class TransactionCategoryController extends Controller
      */
     public function destroy(TransactionCategory $transactionCategory): JsonResponse
     {
+        $this->ensureCurrentCompany($transactionCategory);
+
         $this->service->delete($transactionCategory);
 
         return response()->json([
             'success' => true,
             'message' => 'Xóa loại giao dịch thành công.',
         ]);
+    }
+
+    private function ensureCurrentCompany(TransactionCategory $category): void
+    {
+        abort_unless(
+            (int) $category->company_id === (int) auth()->user()?->company_id,
+            404
+        );
     }
 }

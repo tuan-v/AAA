@@ -17,6 +17,10 @@ class SupplierDebt extends Model
         'supplier_id',
         'type',
         'amount',
+        'currency_id',
+        'original_amount',
+        'exchange_rate',
+        'amount_base',
         'reference_type',
         'reference_id',
         'note',
@@ -24,6 +28,9 @@ class SupplierDebt extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'original_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:8',
+        'amount_base' => 'decimal:2',
     ];
 
     /**
@@ -32,6 +39,11 @@ class SupplierDebt extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
     }
 
     /**

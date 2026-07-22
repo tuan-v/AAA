@@ -4,13 +4,18 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Company;
 use App\Models\User;
+use App\Models\ActivityLog;
 use App\Services\ActivityLogService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     public function index(Request $request)
     {
         $query = User::query()
@@ -52,6 +57,11 @@ class UserController extends Controller
         $perPage = min((int) $request->get('per_page', 10), 100);
 
         $users = $query->orderBy('id', 'desc')->paginate($perPage);
+        $ownerId = Company::whereKey(auth()->user()->company_id)->value('owner_id');
+        $users->getCollection()->transform(function ($user) use ($ownerId) {
+            $user->is_company_owner = (int) $user->id === (int) $ownerId;
+            return $user;
+        });
 
         return response()->json($users);
     }
@@ -62,12 +72,46 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::with([
-            'roles',
-            'logs.user'
-        ])->findOrFail($id);
+        $user = User::query()
+            ->visibleFor(auth()->user())
+            ->with([
+                'roles:id,name',
+                'company:id,name,email,phone,address',
+                'departmentRecord:id,code,name',
+                'positionRecord:id,code,name',
+                'creator:id,name',
+            ])
+            ->findOrFail($id);
 
-        return response()->json($user);
+        $activities = ActivityLog::query()
+            ->forCompany((int) auth()->user()->company_id)
+            ->where('user_id', $user->id)
+            ->select([
+                'id', 'action', 'description', 'model_type', 'model_id',
+                'old_values', 'new_values', 'ip_address', 'user_agent', 'created_at',
+            ])
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        $recentSessions = $user->sessions()
+            ->select(['id', 'ip_address', 'device_name', 'session_type', 'last_activity', 'login_at', 'logout_at'])
+            ->orderByDesc('last_activity')
+            ->limit(5)
+            ->get();
+
+        $ownerId = Company::whereKey(auth()->user()->company_id)->value('owner_id');
+
+        return response()->json([
+            ...$user->toArray(),
+            'is_company_owner' => (int) $user->id === (int) $ownerId,
+            'activities' => $activities,
+            'recent_sessions' => $recentSessions,
+            'activity_count' => ActivityLog::query()
+                ->forCompany((int) auth()->user()->company_id)
+                ->where('user_id', $user->id)
+                ->count(),
+        ]);
     }
 
     // Thêm user
@@ -155,6 +199,18 @@ class UserController extends Controller
         ]);
 
         $user->syncRoles([$assignableRole]);
+
+        $this->notificationService->createForPermission(
+            'nhan_su.xem',
+            (int) auth()->user()->company_id,
+            'Nhân sự mới được thêm',
+            "Tài khoản {$user->name} vừa được thêm vào công ty.",
+            ['user_id' => $user->id],
+            '/manage/user',
+            auth()->id(),
+            'management'
+        );
+
         return response()->json([
             'message' => 'Thêm tài khoản thành công',
             'user' => $user
@@ -166,6 +222,7 @@ class UserController extends Controller
     {
         $user = User::visibleFor(auth()->user())
             ->findOrFail($id);
+        $isCompanyOwner = (int) Company::whereKey(auth()->user()->company_id)->value('owner_id') === (int) $user->id;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -194,13 +251,15 @@ class UserController extends Controller
             ],
             'role' => 'required|exists:roles,name',
             'department_id' => [
-                'required',
+                Rule::requiredIf(! $isCompanyOwner),
+                'nullable',
                 Rule::exists('departments', 'id')->where(
                     fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
                 ),
             ],
             'position_id' => [
-                'required',
+                Rule::requiredIf(! $isCompanyOwner),
+                'nullable',
                 Rule::exists('positions', 'id')->where(fn ($query) => $query
                     ->where('company_id', auth()->user()->company_id)
                     ->where('department_id', $request->department_id)
@@ -220,8 +279,8 @@ class UserController extends Controller
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'status' => $validated['status'],
-            'department_id' => $validated['department_id'],
-            'position_id' => $validated['position_id'],
+            'department_id' => $isCompanyOwner ? null : $validated['department_id'],
+            'position_id' => $isCompanyOwner ? null : $validated['position_id'],
         ];
 
         if (!empty($validated['password'])) {

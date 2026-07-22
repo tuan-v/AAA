@@ -26,12 +26,25 @@ class Supplier extends Model
 
         'address_detail',
         'opening_debt',
+        'opening_debt_exchange_rate',
+        'opening_debt_base',
         'total_debts',
         'total_advance',
         'opening_advance',
+        'opening_advance_exchange_rate',
+        'opening_advance_base',
         'note',
 
         'status',
+    ];
+
+    protected $casts = [
+        'opening_debt' => 'decimal:2',
+        'opening_debt_exchange_rate' => 'decimal:8',
+        'opening_debt_base' => 'decimal:2',
+        'opening_advance' => 'decimal:2',
+        'opening_advance_exchange_rate' => 'decimal:8',
+        'opening_advance_base' => 'decimal:2',
     ];
 
     public function currency()
@@ -64,6 +77,15 @@ class Supplier extends Model
     protected static function booted()
     {
         static::creating(function ($model) {
+
+            if (! array_key_exists('opening_debt_base', $model->getAttributes())) {
+                $model->opening_debt_exchange_rate = 1;
+                $model->opening_debt_base = $model->opening_debt ?? 0;
+            }
+            if (! array_key_exists('opening_advance_base', $model->getAttributes())) {
+                $model->opening_advance_exchange_rate = 1;
+                $model->opening_advance_base = $model->opening_advance ?? 0;
+            }
 
             if (!$model->code) {
                 $model->code = app(CodeGeneratorService::class)

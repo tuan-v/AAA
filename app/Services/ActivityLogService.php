@@ -9,6 +9,7 @@ class ActivityLogService
     public static function log($model, $action, $description, $old = null, $new = null)
     {
         return ActivityLog::create([
+            'company_id' => auth()->user()?->company_id ?? $model->company_id ?? null,
             'user_id' => auth()->id(),
             'action' => $action,
             'model_type' => get_class($model),
