@@ -50,6 +50,21 @@ class PurchaseToPaymentEndToEndTest extends TestCase
             ]],
         ])->assertOk()->json('id');
 
+        $this->actingAs($purchaseUser)->putJson("/api/purchase/orders/{$orderId}", [
+            'supplier_id' => $supplier->id,
+            'currency_id' => $currencyId,
+            'expected_received_date' => '2026-07-31',
+            'note' => 'Kiểm tra cập nhật đơn mua',
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 2,
+                'price' => 100000,
+                'vat_percent' => 10,
+            ]],
+        ])->assertOk();
+
+        $this->assertGreaterThan(0, (float) PurchaseOrder::findOrFail($orderId)->exchange_rate);
+
         $this->actingAs($purchaseUser)
             ->postJson("/api/purchase/orders/{$orderId}/approve")
             ->assertOk();

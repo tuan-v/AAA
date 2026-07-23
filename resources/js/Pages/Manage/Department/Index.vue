@@ -179,6 +179,7 @@ import FormSelect from "@/components/FormSelect.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { getValidationMessage } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const permissions = usePage().props.auth.permissions || [];
 const can = (permission) => permissions.includes(permission);
@@ -319,6 +320,8 @@ async function remove(department) {
         toast.error(getValidationMessage(error));
     }
 }
+useRealtimeRefresh(() => load(departments.value.current_page || 1));
+
 onMounted(async () => {
     const { data } = await axios.get("/api/departments/managers");
     users.value = data || [];

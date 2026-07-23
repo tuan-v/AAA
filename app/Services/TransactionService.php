@@ -11,7 +11,6 @@ use App\Models\SalesOrder;
 use App\Models\SupplierDebt;
 use App\Models\Supplier;
 use App\Models\Transaction;
-use App\Models\User;
 use App\Models\WarehouseSlip;
 use App\Repositories\TransactionRepositoryInterface;
 use Illuminate\Support\Facades\DB;
@@ -92,30 +91,20 @@ class TransactionService extends BaseService
             ]);
         });
 
-        $approverIds = User::query()
-            ->where('company_id', $this->companyId())
-            ->whereKeyNot($this->user()?->id)
-            ->where(function ($query) {
-                $query->whereHas('permissions', fn ($permissionQuery) =>
-                    $permissionQuery->where('name', 'giao_dich.duyet')
-                )->orWhereHas('roles.permissions', fn ($permissionQuery) =>
-                    $permissionQuery->where('name', 'giao_dich.duyet')
-                );
-            })
-            ->pluck('id')
-            ->all();
-
-        if ($approverIds) {
-            $this->notificationService->createForUsers(
-                $approverIds,
-                $this->companyId(),
-                'Giao dịch mới chờ duyệt',
-                "Giao dịch {$transaction->code} vừa được tạo và đang chờ duyệt.",
-                ['priority' => 'normal', 'transaction_id' => $transaction->id],
-                '/accountant/transactions',
-                category: 'accountant'
-            );
-        }
+        $this->notificationService->createForPermission(
+            'giao_dich.duyet',
+            $this->companyId(),
+            'Giao dịch mới chờ duyệt',
+            "Giao dịch {$transaction->code} vừa được tạo và đang chờ duyệt.",
+            [
+                'priority' => 'normal',
+                'transaction_id' => $transaction->id,
+                'status' => 'pending',
+            ],
+            '/accountant/transactions',
+            $this->user()?->id,
+            'accountant',
+        );
 
         return $transaction;
     }

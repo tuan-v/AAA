@@ -1,42 +1,51 @@
 <?php
 
+use App\Http\Middleware\BroadcastCompanyDataChanges;
+use App\Http\Middleware\EnsureCompanyCreated;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogPermissionAction;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Symfony\Component\Routing\Annotation\Route;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        api: __DIR__ . '/../routes/api.php',
-        commands: __DIR__ . '/../routes/console.php',
-        channels: __DIR__ . '/../routes/channels.php',
-        web: __DIR__ . '/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
+        web: __DIR__.'/../routes/web.php',
         health: '/up'
 
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class, // giả định bạn đang dùng
-            'audit' => \App\Http\Middleware\LogPermissionAction::class,
+            'permission' => PermissionMiddleware::class, // giả định bạn đang dùng
+            'audit' => LogPermissionAction::class,
         ]);
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
-
 
         // Sanctum SPA
         $middleware->statefulApi();
+        $middleware->api(append: [
+            BroadcastCompanyDataChanges::class,
+        ]);
 
         // Middleware alias
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
 
-            'company.created' => \App\Http\Middleware\EnsureCompanyCreated::class,
+            'company.created' => EnsureCompanyCreated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

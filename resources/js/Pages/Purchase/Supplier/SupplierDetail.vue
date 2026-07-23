@@ -523,6 +523,7 @@ import { getStatusLabel } from "@/config/status";
 import { formatMoney, formatDate } from "@/config/helpers";
 import { router } from "@inertiajs/vue3";
 import PurchaseOrderDetail from "../Order/PurchaseOrderDetail.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const supplier = ref({});
 const companyCurrency = ref(null);
 const debtSummary = ref({});
@@ -557,7 +558,7 @@ const closeOrderDetail = () => {
     showOrderDetail.value = false;
     selectedOrder.value = null;
 };
-onMounted(async () => {
+const loadSupplier = async () => {
     try {
         const res = await axios.get(
             `/api/purchase/suppliers/${props.supplierId}/detail`,
@@ -571,7 +572,10 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
-});
+};
+
+useRealtimeRefresh(loadSupplier);
+onMounted(loadSupplier);
 
 const fullAddress = computed(() => {
     const parts = [

@@ -8,6 +8,7 @@ use Spatie\Permission\Models\Permission;
 class PermissionSeeder extends Seeder
 {
     private array $modules = [
+        'tong_quan' => 'tổng quan trang chủ',
         'nhan_su' => 'nhân sự', 'vai_tro' => 'vai trò', 'quyen' => 'quyền',
         'nhat_ky' => 'nhật ký hoạt động', 'tai_khoan' => 'tài khoản',
         'ngan_hang' => 'ngân hàng', 'tien_te' => 'tiền tệ',
@@ -32,6 +33,7 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = collect([
+            'tong_quan.xem',
             'nhan_su.xem',
             'nhan_su.them',
             'nhan_su.sua',

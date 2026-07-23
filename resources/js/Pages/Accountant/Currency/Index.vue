@@ -86,6 +86,7 @@ import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import CurrencyForm from "./CurrencyForm.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const { can } = usePermission();
 /* ================= STATE ================= */
@@ -288,6 +289,8 @@ function reloadData() {
 }
 
 /* ================= INIT ================= */
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData(1);

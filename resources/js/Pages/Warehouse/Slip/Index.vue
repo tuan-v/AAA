@@ -8,27 +8,8 @@
         <div class="flex justify-between items-center mb-5">
             <h2 class="text-2xl font-bold">Danh sách phiếu</h2>
         </div>
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-            <!-- TYPE FILTER -->
-            <select
-                v-model="warehouseFilter"
-                @change="getData(1)"
-                class="border px-3 py-2 rounded-lg bg-white shadow-sm"
-            >
-                <option value="all">Tất cả kho</option>
-
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">
-                    {{ w.name }}
-                </option>
-            </select>
-
-            <!-- SEARCH -->
-            <input
-                v-model="search"
-                type="text"
-                placeholder="Tìm mã phiếu..."
-                class="border px-3 py-2 rounded-lg w-80 shadow-sm"
-            />
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5">
+            <SearchPage :filters="filters" @filter="handleFilter" />
         </div>
         <div class="flex items-center border-b mb-5 gap-2">
             <!-- IMPORT TAB -->
@@ -118,12 +99,30 @@ import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import SlipDetail from "../../Warehouse/Slip/SlipDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import SearchPage from "@/components/SearchPage.vue";
 
 const { can } = usePermission();
 const { confirmAction } = useActionConfirm();
-const warehouseFilter = ref("all");
-const search = ref("");
 const activeTab = ref("import");
+const urlParams = new URLSearchParams(window.location.search);
+const currentFilters = ref({
+    search: urlParams.get("search") || "",
+    warehouse_id: urlParams.get("warehouse_id") || "",
+});
+const filters = ref([
+    {
+        name: "search",
+        type: "text",
+        placeholder: "Tìm mã phiếu...",
+    },
+    {
+        name: "warehouse_id",
+        type: "select",
+        placeholder: "Tất cả kho",
+        options: [],
+    },
+]);
 
 const showDetailModal = ref(false);
 const showModal = ref(false);
@@ -243,11 +242,7 @@ const actions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
-                toast.success("Duyệt phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Duyệt phiếu thành công");
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
@@ -276,11 +271,7 @@ const actions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
 
-                toast.success("Từ chối phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Từ chối phiếu thành công");
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
@@ -311,7 +302,7 @@ function debounce(fn, delay = 300) {
     };
 }
 
-const fetchData = async (page = 1) => {
+const fetchData = async (page = 1, params = currentFilters.value) => {
     const url =
         activeTab.value === "import"
             ? "/api/warehouse/slips?type=import"
@@ -321,8 +312,8 @@ const fetchData = async (page = 1) => {
         params: {
             page,
             per_page: perPage.value,
-            search: search.value,
-            warehouse_id: warehouseFilter.value,
+            search: params.search || "",
+            warehouse_id: params.warehouse_id || "",
             context: "approved_only",
         },
     });
@@ -336,22 +327,31 @@ const handlePerPageChange = (value) => {
 watch(activeTab, () => {
     getData(1);
 });
-watch(warehouseFilter, () => getData(1));
 function goToExport() {
     window.location.href = "/warehouse/export";
 }
 const fetchWarehouses = async () => {
     try {
-        const res = await axios.get("/api/warehouses");
+        const res = await axios.get("/api/warehouses/all");
 
         warehouses.value = res.data.data ?? res.data;
+        filters.value[1].options = warehouses.value.map((warehouse) => ({
+            value: warehouse.id,
+            label: warehouse.name,
+        }));
     } catch (err) {
         console.error(err);
     }
 };
-const getData = debounce((page = 1) => fetchData(page), 300);
+const getData = debounce(
+    (page = 1, params = currentFilters.value) => fetchData(page, params),
+    300,
+);
 
-watch(search, () => getData(1));
+function handleFilter(params) {
+    currentFilters.value = params;
+    getData(1, params);
+}
 
 function openCreate() {
     selectedSlip.value = null;
@@ -371,6 +371,8 @@ function reloadData() {
     getData(slips.value.current_page);
     showModal.value = false;
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData();

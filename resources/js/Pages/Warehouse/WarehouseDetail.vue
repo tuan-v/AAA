@@ -273,6 +273,7 @@
 import { ref, computed, watch } from "vue";
 import axios from "axios";
 import { formatMoney, formatQuantity } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({
     warehouseId: {
@@ -311,6 +312,8 @@ const fetchDetail = async (id) => {
 };
 
 // Load ngay khi modal mount, và load lại nếu warehouseId đổi (mở modal cho kho khác mà không unmount)
+useRealtimeRefresh(() => fetchDetail(props.warehouseId));
+
 watch(
     () => props.warehouseId,
     (id) => {

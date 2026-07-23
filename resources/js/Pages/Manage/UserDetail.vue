@@ -88,6 +88,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { useRealtimeRefresh } from '@/composables/useRealtimeRefresh';
 
 const props = defineProps({ userId: { type: Number, required: true } });
 const emit = defineEmits(['close']);
@@ -124,6 +125,7 @@ async function loadUser() {
     }
 }
 
+useRealtimeRefresh(loadUser);
 watch(() => props.userId, loadUser, { immediate: true });
 
 function initials(name) {

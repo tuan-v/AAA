@@ -66,6 +66,7 @@ import { formatMoney } from "@/config/helpers";
 
 // Import component chi tiết mới tách
 import CustomerDetail from "@/Pages/Sale/Customer/CustomerDetail.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const perPage = ref(10);
 const customers = ref({
@@ -187,6 +188,8 @@ function closeDetail() {
     showDetail.value = false;
     selectedCustomer.value = null;
 }
+
+useRealtimeRefresh(() => fetchData(customers.value.current_page || 1));
 
 onMounted(() => {
     getData(1);

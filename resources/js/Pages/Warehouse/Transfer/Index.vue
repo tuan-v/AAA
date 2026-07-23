@@ -193,6 +193,7 @@ import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
 import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const { can } = usePermission();
 const { confirmAction } = useActionConfirm();
@@ -359,6 +360,8 @@ async function cancel(row) {
     toast.success("Đã hủy phiếu chuyển kho");
     await load(transfers.value.current_page);
 }
+useRealtimeRefresh(() => load(transfers.value.current_page || 1));
+
 onMounted(async () => {
     const warehouseResponse = await axios.get("/api/warehouses/all");
     warehouses.value = warehouseResponse.data.data || warehouseResponse.data;

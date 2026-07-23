@@ -181,6 +181,7 @@ import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { useActionConfirm } from "@/composables/useActionConfirm";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const showSaleDetailModal = ref(false);
 const detailOrder = ref(null);
 const { can } = usePermission();
@@ -477,6 +478,22 @@ function reloadData() {
     getData();
 }
 
+async function refreshRealtimeData() {
+    await getData(orders.value.current_page || 1);
+
+    if (showSaleDetailModal.value && detailOrder.value?.id) {
+        try {
+            const res = await axios.get(`/api/sale/orders/${detailOrder.value.id}`);
+            detailOrder.value = res.data.data ?? res.data;
+        } catch (error) {
+            if (error.response?.status === 404) {
+                showSaleDetailModal.value = false;
+                detailOrder.value = null;
+            }
+        }
+    }
+}
+
 function handlePageChange(page) {
     getData(page);
 }
@@ -487,6 +504,8 @@ async function fetchProvinces() {
     const res = await axios.get("/api/provinces");
     provinces.value = res.data;
 }
+
+useRealtimeRefresh(refreshRealtimeData);
 
 onMounted(() => {
     getData();

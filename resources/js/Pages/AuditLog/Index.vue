@@ -73,6 +73,7 @@ import { View } from "lucide-vue-next";
 import dayjs from "dayjs"; // ← Thêm dòng này
 import relativeTime from "dayjs/plugin/relativeTime"; // ← Để hiển thị "2 giờ trước"
 import "dayjs/locale/vi";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 const { can } = usePermission();
@@ -212,6 +213,8 @@ function handlePerPageChange(value) {
     perPage.value = value;
     getData(1);
 }
+
+useRealtimeRefresh(() => getData(1));
 
 onMounted(() => {
     fetchUsers();

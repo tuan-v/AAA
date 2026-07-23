@@ -17,7 +17,7 @@
                 @click="openCreate"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-                + Thêm vai trò
+                + Vai trò
             </button>
         </div>
 
@@ -122,7 +122,9 @@
                                     :key="permission"
                                     class="max-w-[85px] truncate rounded bg-purple-50 px-2 py-1 text-[11px] text-purple-600"
                                     :title="permission"
-                                    >{{ permissionLabel(role, permission) }}</span
+                                    >{{
+                                        permissionLabel(role, permission)
+                                    }}</span
                                 >
                                 <button
                                     v-if="permissionNames(role).length > 2"
@@ -200,7 +202,9 @@
                                         :key="permission"
                                         class="rounded-md bg-purple-50 px-2 py-1 text-[11px] text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
                                         :title="permission"
-                                        >{{ permissionLabel(role, permission) }}</span
+                                        >{{
+                                            permissionLabel(role, permission)
+                                        }}</span
                                     >
                                 </div>
                             </div>
@@ -233,6 +237,7 @@ import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import RoleForm from "./RoleForm.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const filters = [
     { name: "search", type: "text", placeholder: "Tìm tên vai trò..." },
@@ -250,16 +255,33 @@ const permissionNames = (role) =>
     role.permissions_list || role.permissions?.map((item) => item.name) || [];
 const permissionLabel = (role, name) =>
     role.permissions?.find((item) => item.name === name)?.description || name;
-const moduleLabel = (name) => ({
-    nhan_su: 'Nhân sự', vai_tro: 'Vai trò', quyen: 'Quyền', nhat_ky: 'Nhật ký hoạt động',
-    tai_khoan: 'Tài khoản', ngan_hang: 'Ngân hàng', tien_te: 'Tiền tệ',
-    cong_no_khach_hang: 'Công nợ khách hàng', cong_no_nha_cung_cap: 'Công nợ nhà cung cấp',
-    danh_muc_mua_hang: 'Danh mục mua hàng', don_mua: 'Đơn mua', san_pham_mua_hang: 'Sản phẩm mua hàng',
-    don_vi_mua_hang: 'Đơn vị tính mua hàng', khach_hang: 'Khách hàng', don_ban: 'Đơn bán',
-    nha_cung_cap: 'Nhà cung cấp', giao_dich: 'Giao dịch', loai_giao_dich: 'Loại giao dịch',
-    kho: 'Kho', danh_muc_kho: 'Danh mục kho', san_pham_kho: 'Sản phẩm kho', phieu_kho: 'Phiếu kho',
-    chuyen_kho: 'Chuyển kho', don_vi_kho: 'Đơn vị tính kho',
-}[name] || name.replaceAll('_', ' '));
+const moduleLabel = (name) =>
+    ({
+        nhan_su: "Nhân sự",
+        vai_tro: "Vai trò",
+        quyen: "Quyền",
+        nhat_ky: "Nhật ký hoạt động",
+        tai_khoan: "Tài khoản",
+        ngan_hang: "Ngân hàng",
+        tien_te: "Tiền tệ",
+        cong_no_khach_hang: "Công nợ khách hàng",
+        cong_no_nha_cung_cap: "Công nợ nhà cung cấp",
+        danh_muc_mua_hang: "Danh mục mua hàng",
+        don_mua: "Đơn mua",
+        san_pham_mua_hang: "Sản phẩm mua hàng",
+        don_vi_mua_hang: "Đơn vị tính mua hàng",
+        khach_hang: "Khách hàng",
+        don_ban: "Đơn bán",
+        nha_cung_cap: "Nhà cung cấp",
+        giao_dich: "Giao dịch",
+        loai_giao_dich: "Loại giao dịch",
+        kho: "Kho",
+        danh_muc_kho: "Danh mục kho",
+        san_pham_kho: "Sản phẩm kho",
+        phieu_kho: "Phiếu kho",
+        chuyen_kho: "Chuyển kho",
+        don_vi_kho: "Đơn vị tính kho",
+    })[name] || name.replaceAll("_", " ");
 const totalUsers = computed(() =>
     roles.value.reduce(
         (total, role) => total + Number(role.users_count || 0),
@@ -313,6 +335,8 @@ function reloadData() {
     showModal.value = false;
     getData();
 }
+
+useRealtimeRefresh(getData);
 
 onMounted(getData);
 </script>

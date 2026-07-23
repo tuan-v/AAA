@@ -271,18 +271,21 @@ class WarehouseSlipController extends Controller
                     }),
                 ]
             );
-            if ($slip->type === 'import') {
-                $this->notificationService->createForPermission(
-                    'phieu_kho.duyet',
-                    (int) $slip->company_id,
-                    'Phiếu nhập kho mới chờ duyệt',
-                    "Phiếu nhập kho {$slip->code} vừa được tạo và đang chờ duyệt.",
-                    ['warehouse_slip_id' => $slip->id, 'type' => 'import'],
-                    '/warehouse/slips',
-                    auth()->id(),
-                    'warehouse'
-                );
-            }
+            $typeLabel = $slip->type === 'import' ? 'nhập' : 'xuất';
+            $this->notificationService->createForPermission(
+                'phieu_kho.duyet',
+                (int) $slip->company_id,
+                "Phiếu {$typeLabel} kho mới chờ duyệt",
+                "Phiếu {$typeLabel} kho {$slip->code} vừa được tạo và đang chờ duyệt.",
+                [
+                    'warehouse_slip_id' => $slip->id,
+                    'type' => $slip->type,
+                    'status' => 'pending',
+                ],
+                '/warehouse/slips',
+                auth()->id(),
+                'warehouse'
+            );
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo phiếu kho thành công',
@@ -575,16 +578,20 @@ class WarehouseSlipController extends Controller
         });
 
         if (
-            $approvedSlip->type === 'import'
-            && $approvedSlip->created_by
+            $approvedSlip->created_by
             && (int) $approvedSlip->created_by !== (int) auth()->id()
         ) {
+            $typeLabel = $approvedSlip->type === 'import' ? 'nhập' : 'xuất';
             $this->notificationService->create(
                 (int) $approvedSlip->created_by,
                 (int) $approvedSlip->company_id,
-                'Phiếu nhập kho đã được duyệt',
-                "Phiếu nhập kho {$approvedSlip->code} của bạn đã được duyệt.",
-                ['warehouse_slip_id' => $approvedSlip->id, 'type' => 'import'],
+                "Phiếu {$typeLabel} kho đã được duyệt",
+                "Phiếu {$typeLabel} kho {$approvedSlip->code} của bạn đã được duyệt.",
+                [
+                    'warehouse_slip_id' => $approvedSlip->id,
+                    'type' => $approvedSlip->type,
+                    'status' => 'approved',
+                ],
                 '/warehouse/slips',
                 category: 'warehouse'
             );
@@ -613,6 +620,23 @@ class WarehouseSlipController extends Controller
             $old,
             ['status' => 'rejected']
         );
+
+        if ($slip->created_by && (int) $slip->created_by !== (int) auth()->id()) {
+            $typeLabel = $slip->type === 'import' ? 'nhập' : 'xuất';
+            $this->notificationService->create(
+                (int) $slip->created_by,
+                (int) $slip->company_id,
+                "Phiếu {$typeLabel} kho đã bị từ chối",
+                "Phiếu {$typeLabel} kho {$slip->code} của bạn đã bị từ chối.",
+                [
+                    'warehouse_slip_id' => $slip->id,
+                    'type' => $slip->type,
+                    'status' => 'rejected',
+                ],
+                '/warehouse/slips',
+                category: 'warehouse'
+            );
+        }
 
         return response()->json([
             'message' => 'Từ chối phiếu thành công'

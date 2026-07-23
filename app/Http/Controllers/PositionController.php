@@ -82,6 +82,6 @@ class PositionController extends Controller
     private function nextCode(int $companyId): string
     {
         return app(\App\Services\CodeGeneratorService::class)
-            ->generate(Position::class, 'CV-', 3);
+            ->generate(Position::class, 'CV-', 3, $companyId);
     }
 }

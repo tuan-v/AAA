@@ -239,6 +239,7 @@ import DeleteIcon from "@/icons/DeleteIcon.vue";
 import SaleOrderDetail from "../../Sale/Order/SaleOrderDetail.vue";
 import PurchaseOrderDetail from "../../Purchase/Order/PurchaseOrderDetail.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const canViewPage = computed(() => can("phieu_kho.xem"));
 const { can } = usePermission();
@@ -331,6 +332,20 @@ const purchaseColumns = [
                 row.expected_received_date ?? "—",
             );
         },
+    },
+    {
+        label: "SL SP",
+        render: (row) =>
+            h(
+                "span",
+                { class: "font-semibold text-blue-600" },
+                formatQuantity(
+                    (row.items || []).reduce(
+                        (total, item) => total + Number(item.quantity || 0),
+                        0,
+                    ),
+                ),
+            ),
     },
 
     {
@@ -586,6 +601,11 @@ function openCreateSale() {
     modalKey.value++;
     showModal.value = true;
 }
+
+useRealtimeRefresh(() => {
+    getPurchaseData();
+    getSaleData();
+});
 
 onMounted(() => {
     getPurchaseData();

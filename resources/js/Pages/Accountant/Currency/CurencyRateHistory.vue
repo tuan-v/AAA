@@ -86,6 +86,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({
     currencyId: Number,
@@ -123,6 +124,8 @@ async function saveRate() {
 
     getRates();
 }
+
+useRealtimeRefresh(getRates);
 
 onMounted(() => {
     getRates();

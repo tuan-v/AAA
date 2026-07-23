@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\BroadcastController;
+use Illuminate\Support\Facades\Broadcast;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,3 +27,6 @@ Broadcast::channel('company.{companyId}.{id}.{sub}.notifications', function ($us
     return app(BroadcastController::class)->authorizeUserInCompanyChannel($user, $companyId, $id, $sub);
 });
 
+Broadcast::channel('company.{companyId}.{sub}.data', function ($user, $companyId, $sub) {
+    return app(BroadcastController::class)->authorizeCompanyChannel($user, $companyId, $sub);
+});

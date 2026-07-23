@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
-use App\Models\Company;
-use App\Models\User;
 use App\Models\ActivityLog;
-use App\Services\ActivityLogService;
+use App\Models\Company;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +18,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::query()
-            ->with(['roles:id,name', 'departmentRecord:id,code,name', 'positionRecord:id,department_id,code,name'])
+            ->with(['company:id,name', 'roles:id,name', 'departmentRecord:id,code,name', 'positionRecord:id,department_id,code,name'])
             ->visibleFor(auth()->user());              // giữ scope quyền xem
 
         // Lọc theo công ty
@@ -60,11 +59,13 @@ class UserController extends Controller
         $ownerId = Company::whereKey(auth()->user()->company_id)->value('owner_id');
         $users->getCollection()->transform(function ($user) use ($ownerId) {
             $user->is_company_owner = (int) $user->id === (int) $ownerId;
+
             return $user;
         });
 
         return response()->json($users);
     }
+
     public function role()
     {
         return Role::query()->visibleTo(auth()->user())->orderByDesc('hierarchy_level')->get();
@@ -87,8 +88,16 @@ class UserController extends Controller
             ->forCompany((int) auth()->user()->company_id)
             ->where('user_id', $user->id)
             ->select([
-                'id', 'action', 'description', 'model_type', 'model_id',
-                'old_values', 'new_values', 'ip_address', 'user_agent', 'created_at',
+                'id',
+                'action',
+                'description',
+                'model_type',
+                'model_id',
+                'old_values',
+                'new_values',
+                'ip_address',
+                'user_agent',
+                'created_at',
             ])
             ->latest()
             ->limit(50)
@@ -131,18 +140,18 @@ class UserController extends Controller
                         User::STATUS_INACTIVE,
                         User::STATUS_BLOCKED,
                         User::STATUS_PENDING,
-                    ])
+                    ]),
                 ],
                 'role' => 'required|exists:roles,name',
                 'department_id' => [
                     'required',
                     Rule::exists('departments', 'id')->where(
-                        fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
+                        fn($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
                     ),
                 ],
                 'position_id' => [
                     'required',
-                    Rule::exists('positions', 'id')->where(fn ($query) => $query
+                    Rule::exists('positions', 'id')->where(fn($query) => $query
                         ->where('company_id', auth()->user()->company_id)
                         ->where('department_id', $request->department_id)
                         ->where('status', 'active')),
@@ -160,7 +169,9 @@ class UserController extends Controller
                 'password.confirmed' => 'Xác nhận mật khẩu không khớp',
                 'password.required' => 'Vui lòng nhập mật khẩu',
                 'role.required' => 'Vui lòng chọn vai trò',
-                'role.exists' => 'Vai trò không tồn tại'
+                'role.exists' => 'Vai trò không tồn tại',
+                'department_id.required' => 'Vui lòng chọn phòng ban',
+                'position_id.required' => 'Vui lòng chọn chức vụ',
             ]
         );
 
@@ -171,7 +182,7 @@ class UserController extends Controller
 
         if ($exists) {
             return response()->json([
-                'message' => 'User đã tồn tại trong công ty'
+                'message' => 'User đã tồn tại trong công ty',
             ], 422);
         }
 
@@ -195,7 +206,7 @@ class UserController extends Controller
         ]);
 
         $user->companies()->syncWithoutDetaching([
-            auth()->user()->company_id
+            auth()->user()->company_id,
         ]);
 
         $user->syncRoles([$assignableRole]);
@@ -213,7 +224,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Thêm tài khoản thành công',
-            'user' => $user
+            'user' => $user,
         ], 201);
     }
 
@@ -228,16 +239,16 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'username' => [
                 'required',
-                Rule::unique('users', 'username')->ignore($user->id)
+                Rule::unique('users', 'username')->ignore($user->id),
             ],
             'email' => [
                 'required',
-                Rule::unique('users', 'email')->ignore($user->id)
+                Rule::unique('users', 'email')->ignore($user->id),
             ],
             'phone' => [
                 'nullable',
                 'regex:/^(0)[0-9]{9,10}$/',
-                Rule::unique('users', 'phone')->ignore($user->id)
+                Rule::unique('users', 'phone')->ignore($user->id),
             ],
             'password' => 'nullable|string|min:6|confirmed',
             'status' => [
@@ -247,20 +258,20 @@ class UserController extends Controller
                     User::STATUS_INACTIVE,
                     User::STATUS_BLOCKED,
                     User::STATUS_PENDING,
-                ])
+                ]),
             ],
             'role' => 'required|exists:roles,name',
             'department_id' => [
                 Rule::requiredIf(! $isCompanyOwner),
                 'nullable',
                 Rule::exists('departments', 'id')->where(
-                    fn ($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
+                    fn($query) => $query->where('company_id', auth()->user()->company_id)->where('status', 'active')
                 ),
             ],
             'position_id' => [
                 Rule::requiredIf(! $isCompanyOwner),
                 'nullable',
-                Rule::exists('positions', 'id')->where(fn ($query) => $query
+                Rule::exists('positions', 'id')->where(fn($query) => $query
                     ->where('company_id', auth()->user()->company_id)
                     ->where('department_id', $request->department_id)
                     ->where('status', 'active')),
@@ -283,7 +294,7 @@ class UserController extends Controller
             'position_id' => $isCompanyOwner ? null : $validated['position_id'],
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $data['password'] = bcrypt($validated['password']);
         }
         $user->update($data);
@@ -294,9 +305,10 @@ class UserController extends Controller
         $user->syncRoles([$assignableRole]);
 
         return response()->json([
-            'message' => 'Cập nhật thành công'
+            'message' => 'Cập nhật thành công',
         ]);
     }
+
     public function toggleStatus(Request $request, User $user)
     {
         // ❗ chặn user khác công ty
@@ -313,29 +325,30 @@ class UserController extends Controller
                     User::STATUS_ACTIVE,
                     User::STATUS_INACTIVE,
                     User::STATUS_BLOCKED,
-                    User::STATUS_PENDING
-                ])
-            ]
+                    User::STATUS_PENDING,
+                ]),
+            ],
         ]);
 
         $user->update([
-            'status' => $request->status
+            'status' => $request->status,
         ]);
 
         return response()->json([
-            'message' => 'Cập nhật trạng thái thành công'
+            'message' => 'Cập nhật trạng thái thành công',
         ]);
     }
+
     public function makeSystem($id)
     {
         $user = User::findOrFail($id);
 
         $user->update([
-            'type' => User::TYPE_SYSTEM
+            'type' => User::TYPE_SYSTEM,
         ]);
 
         return response()->json([
-            'message' => 'Đã chuyển sang system'
+            'message' => 'Đã chuyển sang system',
         ]);
     }
-};
+}

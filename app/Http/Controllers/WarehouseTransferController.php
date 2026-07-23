@@ -10,12 +10,17 @@ use App\Services\CodeGeneratorService;
 use App\Services\ActivityLogService;
 use App\Services\OrderQuantityValidationService;
 use App\Services\InventoryMovementService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class WarehouseTransferController extends Controller
 {
+    public function __construct(
+        protected NotificationService $notificationService
+    ) {}
+
     private function companyId(): int
     {
         $id = auth()->user()->company_id ?? auth()->user()->companies()->value('companies.id');
@@ -67,7 +72,7 @@ class WarehouseTransferController extends Controller
         $transfer = DB::transaction(function () use ($validated, $companyId, $codes) {
             $transfer = WarehouseTransfer::create([
                 'company_id' => $companyId,
-                'code' => $codes->generate(WarehouseTransfer::class, 'TRF', $companyId),
+                'code' => $codes->generate(WarehouseTransfer::class, 'TRF', 4, $companyId),
                 'from_warehouse_id' => $validated['from_warehouse_id'],
                 'to_warehouse_id' => $validated['to_warehouse_id'],
                 'note' => $validated['note'] ?? null,
@@ -76,6 +81,20 @@ class WarehouseTransferController extends Controller
             $transfer->items()->createMany($validated['items']);
             return $transfer->load('items');
         });
+
+        $this->notificationService->createForPermission(
+            'chuyen_kho.duyet',
+            $companyId,
+            'Phiếu chuyển kho mới chờ duyệt',
+            "Phiếu chuyển kho {$transfer->code} vừa được tạo và đang chờ duyệt.",
+            [
+                'warehouse_transfer_id' => $transfer->id,
+                'status' => 'pending',
+            ],
+            '/warehouse/transfers',
+            auth()->id(),
+            'warehouse',
+        );
 
         return response()->json(['message' => 'Tạo phiếu chuyển kho thành công.', 'data' => $transfer], 201);
     }
@@ -132,6 +151,21 @@ class WarehouseTransferController extends Controller
             );
             return $transfer;
         });
+
+        if ($transfer->created_by && (int) $transfer->created_by !== (int) auth()->id()) {
+            $this->notificationService->create(
+                (int) $transfer->created_by,
+                (int) $transfer->company_id,
+                'Phiếu chuyển kho đã được duyệt',
+                "Phiếu chuyển kho {$transfer->code} của bạn đã được duyệt.",
+                [
+                    'warehouse_transfer_id' => $transfer->id,
+                    'status' => 'approved',
+                ],
+                '/warehouse/transfers',
+                category: 'warehouse',
+            );
+        }
 
         return response()->json(['message' => 'Duyệt và cập nhật tồn kho thành công.', 'data' => $transfer]);
     }

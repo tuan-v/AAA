@@ -10,41 +10,33 @@ class BroadcastController extends Controller
     /**
      * Danh sách subdomain hợp lệ
      */
-    private const VALID_SUBDOMAINS = [
-        'ban-hang',
-        'kho',
-        'thu-chi',
-        'mua-hang',
-        'main'
-    ];
-
     /**
      * Xác thực kênh user cá nhân theo subdomain
      *
-     * @param mixed $user
-     * @param int $id
-     * @param string $sub
+     * @param  mixed  $user
+     * @param  int  $id
+     * @param  string  $sub
      * @return bool
      */
     public function authorizeUserChannel($user, $id, $sub)
     {
         // Kiểm tra user đã đăng nhập
-        if (!$this->checkAuthenticated($user)) {
+        if (! $this->checkAuthenticated($user)) {
             return false;
         }
 
         // Kiểm tra user id có khớp không
-        if (!$this->checkUserId($user, $id)) {
+        if (! $this->checkUserId($user, $id)) {
             return false;
         }
 
         // Kiểm tra subdomain có hợp lệ không
-        if (!$this->checkSubdomain($user, $sub)) {
+        if (! $this->checkSubdomain($user, $sub)) {
             return false;
         }
 
         // Kiểm tra origin từ request
-        if (!$this->checkOrigin($user)) {
+        if (! $this->checkOrigin($user)) {
             return false;
         }
 
@@ -60,30 +52,30 @@ class BroadcastController extends Controller
     /**
      * Xác thực kênh company với subdomain
      *
-     * @param mixed $user
-     * @param int $companyId
-     * @param string $sub
+     * @param  mixed  $user
+     * @param  int  $companyId
+     * @param  string  $sub
      * @return bool
      */
     public function authorizeCompanyChannel($user, $companyId, $sub)
     {
         // Kiểm tra user đã đăng nhập
-        if (!$this->checkAuthenticated($user)) {
+        if (! $this->checkAuthenticated($user)) {
             return false;
         }
 
         // Kiểm tra subdomain có hợp lệ không
-        if (!$this->checkSubdomain($user, $sub)) {
+        if (! $this->checkSubdomain($user, $sub)) {
             return false;
         }
 
         // Kiểm tra origin từ request
-        if (!$this->checkOrigin($user)) {
+        if (! $this->checkOrigin($user)) {
             return false;
         }
 
         // Kiểm tra user có thuộc công ty không
-        if (!$this->checkCompanyMembership($user, $companyId)) {
+        if (! $this->checkCompanyMembership($user, $companyId)) {
             return false;
         }
 
@@ -100,36 +92,36 @@ class BroadcastController extends Controller
     /**
      * Xác thực kênh user trong company với subdomain
      *
-     * @param mixed $user
-     * @param int $companyId
-     * @param int $id
-     * @param string $sub
+     * @param  mixed  $user
+     * @param  int  $companyId
+     * @param  int  $id
+     * @param  string  $sub
      * @return bool
      */
     public function authorizeUserInCompanyChannel($user, $companyId, $id, $sub)
     {
         // Kiểm tra user đã đăng nhập
-        if (!$this->checkAuthenticated($user)) {
+        if (! $this->checkAuthenticated($user)) {
             return false;
         }
 
         // Kiểm tra user id có khớp không
-        if (!$this->checkUserId($user, $id)) {
+        if (! $this->checkUserId($user, $id)) {
             return false;
         }
 
         // Kiểm tra subdomain có hợp lệ không
-        if (!$this->checkSubdomain($user, $sub)) {
+        if (! $this->checkSubdomain($user, $sub)) {
             return false;
         }
 
         // Kiểm tra origin từ request
-        if (!$this->checkOrigin($user)) {
+        if (! $this->checkOrigin($user)) {
             return false;
         }
 
         // Kiểm tra user có thuộc công ty không
-        if (!$this->checkCompanyMembership($user, $companyId)) {
+        if (! $this->checkCompanyMembership($user, $companyId)) {
             return false;
         }
 
@@ -146,23 +138,25 @@ class BroadcastController extends Controller
     /**
      * Kiểm tra user đã đăng nhập
      *
-     * @param mixed $user
+     * @param  mixed  $user
      * @return bool
      */
     private function checkAuthenticated($user)
     {
-        if (!$user) {
+        if (! $user) {
             Log::warning('Broadcast authentication failed: User not authenticated');
+
             return false;
         }
+
         return true;
     }
 
     /**
      * Kiểm tra user id có khớp không
      *
-     * @param mixed $user
-     * @param int $id
+     * @param  mixed  $user
+     * @param  int  $id
      * @return bool
      */
     private function checkUserId($user, $id)
@@ -170,37 +164,43 @@ class BroadcastController extends Controller
         if ($user->id !== (int) $id) {
             Log::warning('Broadcast authentication failed: User ID mismatch', [
                 'user_id' => $user->id,
-                'requested_id' => $id
+                'requested_id' => $id,
             ]);
+
             return false;
         }
+
         return true;
     }
 
     /**
      * Kiểm tra subdomain có hợp lệ không
      *
-     * @param mixed $user
-     * @param string $subdomain
+     * @param  mixed  $user
+     * @param  string  $subdomain
      * @return bool
      */
     private function checkSubdomain($user, $subdomain)
     {
-        if (!in_array($subdomain, self::VALID_SUBDOMAINS)) {
+        $validSubdomains = config('notifications.subdomains', ['main']);
+
+        if (! in_array($subdomain, $validSubdomains, true)) {
             Log::warning('Broadcast authentication failed: Invalid subdomain', [
                 'user_id' => $user->id,
                 'subdomain' => $subdomain,
-                'valid_subdomains' => self::VALID_SUBDOMAINS
+                'valid_subdomains' => $validSubdomains,
             ]);
+
             return false;
         }
+
         return true;
     }
 
     /**
      * Kiểm tra origin có hợp lệ không
      *
-     * @param mixed $user
+     * @param  mixed  $user
      * @return bool
      */
     private function checkOrigin($user)
@@ -216,17 +216,18 @@ class BroadcastController extends Controller
             : array_map('trim', explode(',', $statefulDomains));
 
         // Kiểm tra origin có trong danh sách domain được phép không
-        if (!$origin) {
+        if (! $origin) {
             Log::warning('Broadcast authentication failed: No origin header', [
                 'user_id' => $user->id,
-                'ip' => $request->ip()
+                'ip' => $request->ip(),
             ]);
+
             return false;
         }
 
         $originHost = parse_url($origin, PHP_URL_HOST);
         $originPort = parse_url($origin, PHP_URL_PORT);
-        $originHostWithPort = $originHost . ($originPort ? ':' . $originPort : '');
+        $originHostWithPort = $originHost.($originPort ? ':'.$originPort : '');
 
         foreach ($allowedDomains as $allowedDomain) {
             if ($originHost === $allowedDomain || $originHostWithPort === $allowedDomain) {
@@ -239,7 +240,7 @@ class BroadcastController extends Controller
             'origin' => $origin,
             'referer' => $referer,
             'ip' => $request->ip(),
-            'allowed_domains' => $allowedDomains
+            'allowed_domains' => $allowedDomains,
         ]);
 
         return false;
@@ -248,17 +249,18 @@ class BroadcastController extends Controller
     /**
      * Kiểm tra user có thuộc công ty không
      *
-     * @param mixed $user
-     * @param int $companyId
+     * @param  mixed  $user
+     * @param  int  $companyId
      * @return bool
      */
     private function checkCompanyMembership($user, $companyId)
     {
         // Kiểm tra user có company_id không
-        if (!$user->company_id) {
+        if (! $user->company_id) {
             Log::warning('Broadcast authentication failed: User has no company', [
-                'user_id' => $user->id
+                'user_id' => $user->id,
             ]);
+
             return false;
         }
 
@@ -267,8 +269,9 @@ class BroadcastController extends Controller
             Log::warning('Broadcast authentication failed: Company mismatch', [
                 'user_id' => $user->id,
                 'user_company_id' => $user->company_id,
-                'requested_company_id' => $companyId
+                'requested_company_id' => $companyId,
             ]);
+
             return false;
         }
 

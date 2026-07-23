@@ -105,6 +105,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can, canAny } = usePermission();
 const search = ref("");
 const units = ref({
@@ -227,6 +228,8 @@ async function toggleStatus(category) {
 
     reloadData();
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData();

@@ -480,7 +480,10 @@ async function saveProduct() {
                 error.response.data.message || "Dữ liệu sản phẩm không hợp lệ",
             );
         } else {
-            toast.error(error.response?.data?.message || "Có lỗi xảy ra khi lưu sản phẩm");
+            toast.error(
+                error.response?.data?.message ||
+                    "Có lỗi xảy ra khi lưu sản phẩm",
+            );
         }
     }
 }

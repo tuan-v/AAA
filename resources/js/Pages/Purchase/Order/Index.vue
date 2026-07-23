@@ -174,7 +174,11 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import { useActionConfirm } from "@/composables/useActionConfirm";
-import { formatMoney, removeMoneyFormat } from "@/config/helpers";
+import {
+    formatMoney,
+    formatQuantity,
+    removeMoneyFormat,
+} from "@/config/helpers";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
@@ -184,6 +188,7 @@ import "vue3-toastify/dist/index.css";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import PurchaseOrderDetail from "./PurchaseOrderDetail.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const { can } = usePermission();
 const filters = [
@@ -295,6 +300,20 @@ const columns = [
             );
         },
     },
+    {
+        label: "SL SP",
+        render: (row) =>
+            h(
+                "span",
+                { class: "font-semibold text-blue-600" },
+                formatQuantity(
+                    (row.items || []).reduce(
+                        (total, item) => total + Number(item.quantity || 0),
+                        0,
+                    ),
+                ),
+            ),
+    },
 
     {
         label: "Tổng tiền",
@@ -401,11 +420,7 @@ async function confirmApprove() {
 
         item.status = "approved";
 
-        toast.success("Duyệt đơn thành công", {
-            position: "top-right",
-            autoClose: 3000,
-            theme: "colored",
-        });
+        toast.success("Duyệt đơn thành công");
 
         showConfirm.value = false;
         pendingApproveItem.value = null;
@@ -510,6 +525,8 @@ function reloadData() {
 function handlePageChange(page) {
     getData(page);
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData();

@@ -527,6 +527,7 @@ import axios from "axios";
 import { toast } from "vue3-toastify";
 import UserCircleIcon from "@/icons/UserCircleIcon.vue";
 import BellIcon from "@/icons/BellIcon.vue";
+import { getCurrentSubdomain as getSubdomain } from "@/utils/subdomain";
 
 const showDropdown = ref(false);
 const showCategoryDropdown = ref(false);
@@ -551,6 +552,8 @@ const isEchoConnected = ref(false);
 let userChannel = null;
 let companyChannel = null;
 let domainChannel = null;
+let pollingTimer = null;
+const POLLING_INTERVAL_MS = 60000;
 
 const categories = [
     { value: "all", label: "Thông báo tổng", color: "blue" },
@@ -754,15 +757,6 @@ const toggleCategoryDropdown = (e) => {
     showCategoryDropdown.value = !showCategoryDropdown.value;
 };
 
-const getSubdomain = () => {
-    const host = window.location.hostname;
-    const parts = host.split(".");
-    if (parts.length > 2) {
-        return parts[0];
-    }
-    return "main";
-};
-
 const fetchUnreadCounts = async () => {
     try {
         const response = await axios.get("/api/notifications/unread-count");
@@ -798,6 +792,35 @@ const fetchNotifications = async (reset = false) => {
         hasMoreNotifications.value = Boolean(pageData?.next_page_url);
     } catch (error) {
         console.error("Error fetching notifications:", error);
+    }
+};
+
+const stopPolling = () => {
+    if (!pollingTimer) return;
+
+    window.clearInterval(pollingTimer);
+    pollingTimer = null;
+};
+
+const pollNotifications = () => {
+    if (document.hidden) return;
+
+    fetchUnreadCounts();
+    if (showDropdown.value) {
+        fetchNotifications(true);
+    }
+};
+
+const setupPolling = () => {
+    if (pollingTimer) return;
+
+    pollNotifications();
+    pollingTimer = window.setInterval(pollNotifications, POLLING_INTERVAL_MS);
+};
+
+const handleVisibilityChange = () => {
+    if (!document.hidden && !isEchoConnected.value) {
+        pollNotifications();
     }
 };
 
@@ -903,6 +926,7 @@ const setupRealtime = () => {
             "Echo not available - broadcasting disabled, using polling fallback",
         );
         isEchoConnected.value = false;
+        setupPolling();
         return;
     }
 
@@ -913,16 +937,19 @@ const setupRealtime = () => {
 
             pusher.connection.bind("connected", () => {
                 isEchoConnected.value = true;
+                stopPolling();
                 console.log("✅ Echo connected successfully");
             });
 
             pusher.connection.bind("disconnected", () => {
                 isEchoConnected.value = false;
+                setupPolling();
                 console.warn("❌ Echo disconnected");
             });
 
             pusher.connection.bind("failed", () => {
                 isEchoConnected.value = false;
+                setupPolling();
                 console.error(
                     "❌ Echo connection failed - switching to polling",
                 );
@@ -930,6 +957,7 @@ const setupRealtime = () => {
 
             pusher.connection.bind("error", (err) => {
                 isEchoConnected.value = false;
+                setupPolling();
                 console.error("❌ Echo connection error:", err);
             });
             if (pusher.connection.state === "connected") {
@@ -938,6 +966,7 @@ const setupRealtime = () => {
                 pusher.connection.state === "unavailable" ||
                 pusher.connection.state === "failed"
             ) {
+                setupPolling();
                 return;
             }
         }
@@ -969,6 +998,9 @@ const joinChannel = (channel) => {
     return window.Echo.private(channel)
         .listen(".notification.created", (event) => {
             const notification = event;
+            if (!notifications.value.some((item) => item.id === notification.id)) {
+                notifications.value.unshift(notification);
+            }
             window.dispatchEvent(
                 new CustomEvent("notification-received", {
                     detail: notification,
@@ -1020,23 +1052,6 @@ const joinChannel = (channel) => {
                 // Tab đang được kích hoạt, hiển thị toast
                 toast.success(
                     notification.message || "Bạn có một thông báo mới.",
-                    {
-                        onClick: () => {
-                            if (notification.url_link) {
-                                window.location.href = notification.url_link;
-                            } else if (notification.data?.action_url) {
-                                window.location.href =
-                                    notification.data.action_url;
-                            }
-                        },
-                        style: {
-                            cursor:
-                                notification.url_link ||
-                                notification.data?.action_url
-                                    ? "pointer"
-                                    : "default",
-                        },
-                    },
                 );
             }
 
@@ -1075,12 +1090,15 @@ const joinChannel = (channel) => {
 onMounted(() => {
     fetchNotifications(true);
     fetchUnreadCounts();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     setTimeout(() => {
         setupRealtime();
     }, 100);
 });
 
 onUnmounted(() => {
+    stopPolling();
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
     if (userChannel && window.Echo) {
         window.Echo.leave(
             `user.${user.value.id}.${getSubdomain()}.notifications`,

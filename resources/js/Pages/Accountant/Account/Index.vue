@@ -81,6 +81,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import { usePermission } from "@/composables/usePermission";
 import { formatMoney } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const { can } = usePermission();
 const perPage = ref(10);
@@ -304,6 +305,8 @@ function reloadData() {
 
     getData(accounts.value.current_page);
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData();

@@ -107,6 +107,7 @@ import SearchPage from "../../../components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { getStatusLabel } from "@/config/status";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 /* ================= STATE ================= */
 const filterParams = ref({});
 const { can, canAny } = usePermission();
@@ -333,6 +334,8 @@ function reloadData() {
 }
 
 /* init */
+useRealtimeRefresh(reloadData);
+
 onMounted(async () => {
     await Promise.all([getData(), getCurrencies()]);
 });

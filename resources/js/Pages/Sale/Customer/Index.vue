@@ -125,6 +125,7 @@ import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CustomerDetail from "./CustomerDetail.vue";
 import SaleOrderForm from "../Order/SaleOrderForm.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 /* ================= STATE ================= */
 const filterParams = ref({});
 const { can, canAny } = usePermission();
@@ -346,6 +347,8 @@ function reloadData() {
 }
 
 /* init */
+useRealtimeRefresh(reloadData);
+
 onMounted(async () => {
     try {
         const [currencyRes, customerRes, productRes, provinceRes] =

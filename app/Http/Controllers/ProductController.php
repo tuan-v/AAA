@@ -167,24 +167,38 @@ class ProductController extends Controller
         return response()->json($products);
     }
     // API trả về tất cả sản phẩm cho dropdown (không phân trang)
-    public function forSelect()
+    public function forSelect(Request $request)
     {
+        $isPurchaseSelector = $request->input('scope') === 'purchase'
+            && $request->user()?->can('san_pham_mua_hang.xem');
+
         $products = Product::with(['stocks', 'unit'])
             ->where('status', 'active')
-            ->whereHas('stocks', fn ($query) => $query->where('quantity', '>', 0))
+            ->when(! $isPurchaseSelector, fn ($query) =>
+                $query->whereHas('stocks', fn ($stockQuery) =>
+                    $stockQuery->where('quantity', '>', 0)
+                )
+            )
             ->get()
-            ->filter(fn ($product) => (float) $product->stocks->sum('quantity') > 0)
+            ->when(! $isPurchaseSelector, fn ($products) =>
+                $products->filter(fn ($product) =>
+                    (float) $product->stocks->sum('quantity') > 0
+                )
+            )
             ->map(function ($p) {
                 return [
                     'id' => $p->id,
+                    'code' => $p->code,
                     'name' => $p->name,
                     'sku' => $p->sku,
+                    'price' => $p->purchase_price,
                     'sale_price' => $p->sell_price,
                     'stock_quantity' => $p->stocks->sum('quantity'),
                     'allow_decimal' => (bool) $p->unit?->allow_decimal,
                     'unit_name' => $p->unit?->name,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json($products);
     }

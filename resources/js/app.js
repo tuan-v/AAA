@@ -10,6 +10,7 @@ import { setupProgress } from "./plugins/progress";
 // import '../css/app.css'
 import "./bootstrap";
 import "./echo";
+import { setupCompanyDataRealtime } from "./realtime/companyData";
 
 // Setup NProgress
 setupProgress();
@@ -22,11 +23,22 @@ createInertiaApp({
         return pages[`./Pages/${name}.vue`](); // Thêm () để gọi dynamic import
     },
     setup({ el, App, props, plugin }) {
+        setupCompanyDataRealtime(props.initialPage.props.auth?.user);
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
             .use(VueApexCharts)
-            .use(Vue3Toasity, { autoClose: 3000, position: "top-right" })
+            .use(Vue3Toasity, {
+                autoClose: 3500,
+                position: "top-right",
+                closeOnClick: true,
+                pauseOnHover: true,
+                pauseOnFocusLoss: true,
+                draggable: true,
+                hideProgressBar: false,
+                newestOnTop: true,
+                limit: 4,
+            })
             .use(store)
             .use(PrimeVue)
             .mount(el);

@@ -37,8 +37,10 @@ class ProductAvailabilityTest extends TestCase
         $purchase = $this->getJson('/api/purchase/products?per_page=100')->assertOk();
         $warehouse = $this->getJson('/api/warehouse/products?per_page=100')->assertOk();
         $saleSelect = $this->getJson('/api/products/for-select')->assertOk();
+        $purchaseSelect = $this->getJson('/api/products/for-select?scope=purchase')->assertOk();
 
         $this->assertContains($product->id, collect($purchase->json('data'))->pluck('id')->all());
+        $this->assertContains($product->id, collect($purchaseSelect->json())->pluck('id')->all());
         $this->assertNotContains($product->id, collect($warehouse->json('data'))->pluck('id')->all());
         $this->assertNotContains($product->id, collect($saleSelect->json())->pluck('id')->all());
     }

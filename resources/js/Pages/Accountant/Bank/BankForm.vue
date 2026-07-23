@@ -149,10 +149,7 @@ async function submit() {
             },
         });
     }
-    toast.success("Lưu ngân hàng thành công!", {
-        position: "top-right",
-        autoClose: 3000,
-    });
+    toast.success("Lưu ngân hàng thành công!");
     emit("saved");
 }
 </script>

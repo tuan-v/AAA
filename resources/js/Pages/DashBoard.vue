@@ -677,6 +677,7 @@ import DataTable from "@/components/DataTable.vue";
 import { computed, onMounted, reactive, ref } from "vue";
 import axios from "axios";
 import { formatMoney, formatQuantity } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 // ==========================================================================
 // Dữ liệu dashboard được nạp từ API thật: GET /api/dashboard/overview
@@ -1027,6 +1028,8 @@ async function loadDashboard() {
         loading.value = false;
     }
 }
+
+useRealtimeRefresh(loadDashboard);
 
 onMounted(() => {
     loadDashboard();

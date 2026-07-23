@@ -428,6 +428,13 @@ class PurchaseOrderController extends Controller
             if (!$companyCurrency) {
                 throw new \Exception('Công ty chưa cấu hình tiền tệ');
             }
+
+            $exchangeRate = app(\App\Services\CompanyCurrencyService::class)->rate(
+                $company->id,
+                $orderCurrency->id,
+                $request->input('order_date', now())
+            );
+
             $order->update([
                 'supplier_id' => $request->supplier_id,
                 'currency_id' => $request->currency_id,
@@ -509,6 +516,21 @@ class PurchaseOrderController extends Controller
             // Tự động phát sinh công nợ phải trả NCC khi đơn mua được duyệt
         });
 
+        if ($order->created_by && (int) $order->created_by !== (int) auth()->id()) {
+            $this->notificationService->create(
+                (int) $order->created_by,
+                (int) $order->company_id,
+                'Đơn mua đã được duyệt',
+                "Đơn mua {$order->code} của bạn đã được duyệt.",
+                [
+                    'purchase_order_id' => $order->id,
+                    'status' => 'approved',
+                ],
+                '/purchase/orders',
+                category: 'purchase',
+            );
+        }
+
         return response()->json([
             'message' => 'Duyệt đơn thành công'
         ]);
@@ -540,6 +562,22 @@ class PurchaseOrderController extends Controller
             ['status' => 'pending'],
             ['status' => 'cancelled']
         );
+
+        if ($order->created_by) {
+            $this->notificationService->create(
+                (int) $order->created_by,
+                (int) $order->company_id,
+                'Đơn mua đã bị hủy',
+                "Đơn mua {$order->code} của bạn đã bị hủy.",
+                [
+                    'priority' => 'high',
+                    'purchase_order_id' => $order->id,
+                    'status' => 'cancelled',
+                ],
+                '/purchase/orders',
+                category: 'purchase',
+            );
+        }
 
         return response()->json(['message' => 'Hủy đơn mua thành công.']);
     }

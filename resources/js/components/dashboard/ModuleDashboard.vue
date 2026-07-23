@@ -235,6 +235,7 @@ import { computed, onMounted, ref } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import { formatMoney as money } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({ module: { type: String, required: true } });
 const loading = ref(true);
@@ -343,7 +344,7 @@ const statusText = (status) =>
     status ||
     "";
 
-onMounted(async () => {
+const loadDashboard = async () => {
     try {
         const response = await axios.get(`/api/dashboard/${props.module}`);
         data.value = response.data.data;
@@ -353,5 +354,8 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
-});
+};
+
+useRealtimeRefresh(loadDashboard);
+onMounted(loadDashboard);
 </script>

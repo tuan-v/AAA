@@ -105,6 +105,7 @@ import { ref, watch } from "vue";
 import axios from "axios";
 import Modal from "@/components/Modal.vue";
 import { formatMoney as formatMoneyHelper } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({
     modelValue: {
@@ -155,4 +156,8 @@ function closeModal() {
 function formatMoney(value) {
     return formatMoneyHelper(value ?? 0);
 }
+
+useRealtimeRefresh(() => {
+    if (props.modelValue && props.customer?.id) fetchDetailData();
+});
 </script>

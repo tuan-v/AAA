@@ -254,7 +254,7 @@
                     </h3>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
+                        <div class="order-4">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
                             >
@@ -269,6 +269,7 @@
                                     :class="errors.role ? 'border-red-400' : ''"
                                     class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
                                 >
+                                    <option value="" disabled>Chọn vai trò</option>
                                     <option
                                         v-for="role in roles"
                                         :key="role.id"
@@ -284,7 +285,7 @@
                             <p v-if="errors.role" class="mt-1 text-xs text-red-600">{{ errors.role[0] }}</p>
                         </div>
 
-                        <div>
+                        <div class="order-1">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1.5"
                             >
@@ -304,7 +305,7 @@
                             <input type="hidden" v-model="form.company_id" />
                         </div>
 
-                        <div v-if="!isCompanyOwner">
+                        <div v-if="!isCompanyOwner" class="order-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 Phòng ban <span class="text-red-500">*</span>
                             </label>
@@ -323,7 +324,7 @@
                                 {{ errors.department_id[0] }}
                             </p>
                         </div>
-                        <div v-if="!isCompanyOwner">
+                        <div v-if="!isCompanyOwner" class="order-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">
                                 Chức vụ <span class="text-red-500">*</span>
                             </label>
@@ -336,7 +337,7 @@
                             </select>
                             <p v-if="errors.position_id" class="mt-1 text-xs text-red-600">{{ errors.position_id[0] }}</p>
                         </div>
-                        <div v-if="isCompanyOwner" class="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                        <div v-if="isCompanyOwner" class="order-5 sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
                             Giám đốc điều hành toàn công ty nên không thuộc một phòng ban hoặc chức vụ phòng ban cụ thể.
                         </div>
                     </div>
@@ -495,10 +496,7 @@ async function saveUser() {
         } else {
             await axios.post("/api/users/user", form);
         }
-        toast.success("Lưu nhân sự thành công!", {
-            position: "top-right",
-            autoClose: 3000,
-        });
+        toast.success("Lưu nhân sự thành công!");
         emit("saved");
         emit("close");
     } catch (error) {

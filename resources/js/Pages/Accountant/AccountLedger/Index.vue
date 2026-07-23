@@ -27,6 +27,7 @@ import SearchPage from '@/components/SearchPage.vue';
 import DataTable from '@/components/DataTable.vue';
 import Pagination from '@/components/Pagination.vue';
 import { formatMoney, formatDateTime } from '@/config/helpers';
+import { useRealtimeRefresh } from '@/composables/useRealtimeRefresh';
 
 const perPage = ref(10);
 const ledgers = ref({ data: [], total: 0, per_page: 10, current_page: 1, last_page: 1 });
@@ -53,6 +54,8 @@ const getData = debounce(fetchData);
 const handleFilter = params => { filterParams.value = params; getData(1); };
 const handlePageChange = page => getData(page);
 const handlePerPageChange = value => { perPage.value = value; getData(1); };
+useRealtimeRefresh(() => fetchData(ledgers.value.current_page || 1));
+
 onMounted(async () => {
     const { data: accounts } = await axios.get('/api/accountant/accounts/all');
     filters.value[1].options = accounts.map(account => ({ value: account.id, label: `${account.code} - ${account.name}` }));

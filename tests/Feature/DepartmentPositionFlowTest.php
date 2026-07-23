@@ -10,6 +10,7 @@ use Database\Seeders\DepartmentDemoSeeder;
 use Database\Seeders\DepartmentEmployeeDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DepartmentPositionFlowTest extends TestCase
@@ -87,6 +88,54 @@ class DepartmentPositionFlowTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('name')
             ->assertJsonPath('errors.name.0', 'Tên chức vụ đã tồn tại trong công ty.');
+    }
+
+    public function test_position_code_sequence_recovers_when_it_is_behind_existing_codes(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $department = Department::where('company_id', $owner->company_id)->firstOrFail();
+
+        Position::create([
+            'company_id' => $owner->company_id,
+            'department_id' => $department->id,
+            'code' => 'CV-005',
+            'name' => 'Chức vụ đã có mã 005',
+            'status' => 'active',
+        ]);
+
+        DB::table('company_code_sequences')->updateOrInsert(
+            [
+                'company_id' => $owner->company_id,
+                'model_type' => Position::class,
+                'prefix' => 'CV-',
+            ],
+            [
+                'current_number' => 4,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        );
+
+        $maxBefore = Position::where('company_id', $owner->company_id)
+            ->pluck('code')
+            ->reduce(function (int $max, string $code) {
+                return preg_match('/^CV-(\d+)$/', $code, $matches)
+                    ? max($max, (int) $matches[1])
+                    : $max;
+            }, 0);
+
+        $response = $this->actingAs($owner)->postJson('/api/positions', [
+            'department_id' => $department->id,
+            'name' => 'Chức vụ không trùng mã',
+            'description' => null,
+            'status' => 'active',
+        ])->assertCreated();
+
+        $this->assertSame(
+            'CV-'.str_pad((string) ($maxBefore + 1), 3, '0', STR_PAD_LEFT),
+            $response->json('data.code'),
+        );
     }
 
     public function test_department_employee_can_only_access_assigned_module(): void

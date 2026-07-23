@@ -142,10 +142,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from "vue";
+import { computed, watch } from "vue";
 import flatPickr from "vue-flatpickr-component";
 import "flatpickr/dist/flatpickr.css";
-import "flatpickr/dist/themes/material_blue.css";
 import { useAttrs } from "vue";
 
 const attrs = useAttrs();
@@ -235,108 +234,9 @@ watch(internalValue, (newVal) => {
     emit("change", newVal);
 });
 
-onMounted(() => {
-    const inputs = document.querySelectorAll(".flatpickr-calendar");
-    const input_date = document.querySelectorAll("input.asfy_input_date");
-
-    if (input_date.length > 0) {
-        input_date.forEach((item) => {
-            item.style.borderRadius = "0.25rem";
-        });
-    }
-
-    if (inputs.length > 0) {
-        inputs.forEach((input) => {
-            input.style.boxShadow = "none";
-            let flatpickrWeekdays = input.querySelector(".flatpickr-weekdays");
-            if (flatpickrWeekdays) {
-                flatpickrWeekdays.style.margin = "0";
-                flatpickrWeekdays.style.setProperty(
-                    "background",
-                    "#455eff",
-                    "important",
-                );
-                let spanFlatpickrweekdaysday =
-                    flatpickrWeekdays.querySelectorAll(".flatpickr-weekday");
-                spanFlatpickrweekdaysday.forEach((day) => {
-                    day.style.setProperty("color", "#fff", "important");
-                    day.style.setProperty("background", "#455eff", "important");
-                    day.style.setProperty("font-weight", "600", "important");
-                });
-            }
-
-            let flatpickrMonth = input.querySelector(".flatpickr-month");
-            if (flatpickrMonth) {
-                flatpickrMonth.classList.add(
-                    "bg-gradient-to-r",
-                    "from-blue-600",
-                    "to-blue-700",
-                    "shadow-lg",
-                    "hover:shadow-xl",
-                    "transition-shadow",
-                );
-                flatpickrMonth.style.background = "#455eff";
-                let flatpickrCurrentMonthNumInputWrapper =
-                    flatpickrMonth.querySelector(
-                        ".flatpickr-current-month .numInputWrapper input",
-                    );
-                if (flatpickrCurrentMonthNumInputWrapper) {
-                    flatpickrCurrentMonthNumInputWrapper.style.setProperty(
-                        "color",
-                        "#fff",
-                        "important",
-                    );
-                    flatpickrCurrentMonthNumInputWrapper.style.setProperty(
-                        "font-weight",
-                        "600",
-                        "important",
-                    );
-                }
-                let flatpickrMonthDropdownMonths = flatpickrMonth.querySelector(
-                    ".flatpickr-current-month .flatpickr-monthDropdown-months",
-                );
-                if (flatpickrMonthDropdownMonths) {
-                    flatpickrMonthDropdownMonths.style.setProperty(
-                        "background",
-                        "#455eff",
-                        "important",
-                    );
-                }
-            }
-        });
-    }
-});
 </script>
 
 <style scoped>
-:deep(.flatpickr-calendar) {
-    font-family: "Inter", sans-serif;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(216, 211, 211, 0.842);
-    border: 1px solid #e5e7eb;
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
-    :deep(.flatpickr-calendar) {
-        background: #0863e2;
-        border-color: #4b5563;
-        color: white;
-    }
-
-    :deep(.flatpickr-day) {
-        color: white;
-    }
-
-    :deep(.flatpickr-day:hover) {
-        background: #b10694a8;
-    }
-
-    :deep(.flatpickr-disabled) {
-        color: #6b7280;
-    }
-}
-
 /* Animation cho focus state */
 @keyframes pulse-ring {
     0% {

@@ -61,6 +61,7 @@ import { Head, usePage } from "@inertiajs/vue3";
 import DeleteIcon from "../../icons/DeleteIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const filters = [
     {
@@ -184,6 +185,8 @@ function openEdit(permission) {
     selectedPermission.value = permission;
     showModal.value = true;
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     reloadData();

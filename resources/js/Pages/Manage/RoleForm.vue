@@ -307,10 +307,7 @@ async function save() {
             await axios.post("/api/roles", form);
         }
 
-        toast.success("Lưu vai trò thành công!", {
-            position: "top-right",
-            autoClose: 3000,
-        });
+        toast.success("Lưu vai trò thành công!");
 
         emit("saved");
         emit("close");

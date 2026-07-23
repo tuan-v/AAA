@@ -50,7 +50,7 @@
                                 label="Nhà cung cấp"
                                 placeholder="Tìm hoặc chọn nhà cung cấp..."
                                 searchable
-                                allow-create
+                                :allow-create="can('nha_cung_cap.them')"
                                 add-new-text="Thêm nhà cung cấp mới"
                                 :required="true"
                                 @add-new="openSupplierModal"
@@ -220,7 +220,7 @@
                                             append-to-body
                                             placeholder="Chọn sản phẩm..."
                                             searchable
-                                            allow-create
+                                            :allow-create="can('san_pham_mua_hang.them')"
                                             add-new-text="Thêm sản phẩm mới"
                                             class="w-full"
                                             @update:modelValue="
@@ -273,6 +273,7 @@
                                     <input
                                         :value="formatNumber(item.price)"
                                         @input="updatePrice(item, $event)"
+                                        :inputmode="isVndCurrency ? 'numeric' : 'decimal'"
                                         class="w-full border rounded-lg px-2 py-1.5 text-right text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                                         :class="
                                             errors[`items.${index}.price`]
@@ -382,7 +383,6 @@
         </template>
     </Modal>
 
-    <!-- TODO: chỉnh lại đường dẫn import + props cho đúng ProductForm thật của bạn -->
     <Modal v-if="showProductModal" @close="showProductModal = false">
         <template #body>
             <ProductForm
@@ -399,13 +399,13 @@ import { reactive, computed, watch, ref, onMounted } from "vue";
 import { formatMoney, getValidationMessage } from "@/config/helpers";
 import FormSelect from "@/components/FormSelect.vue";
 import SupplierForm from "@/Pages/Purchase/Supplier/SupplierForm.vue";
-// TODO: sửa lại đường dẫn cho đúng component ProductForm thật của bạn
 import ProductForm from "@/Pages/Purchase/Product/ProductForm.vue";
 import Modal from "@/components/Modal.vue";
 import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import InputDate from "@/components/InputDate.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import { usePermission } from "@/composables/usePermission";
 
 const props = defineProps({
     order: { type: Object, default: null },
@@ -414,6 +414,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["saved", "close"]);
+const { can } = usePermission();
 
 const showSupplierModal = ref(false);
 const showProductModal = ref(false);
@@ -475,13 +476,22 @@ const showConvertedAmounts = computed(
     () => currentCurrency.value && companyCurrency.value
         && String(currentCurrency.value.id) !== String(companyCurrency.value.id),
 );
+const isVndCurrency = computed(
+    () => String(currentCurrency.value?.code || "").toUpperCase() === "VND",
+);
 const convertToCompanyCurrency = (amount) =>
     Number(amount || 0) * Number(currentCurrency.value?.exchange_rate || 1);
+const convertFromCompanyCurrency = (amount) => {
+    const exchangeRate = Number(currentCurrency.value?.exchange_rate || 1);
+    return Math.round((Number(amount || 0) / exchangeRate) * 100) / 100;
+};
 
 // ==================== FETCH PRODUCTS ====================
 const fetchAllProducts = async () => {
     try {
-        const { data } = await axios.get("/api/products/for-select");
+        const { data } = await axios.get("/api/products/for-select", {
+            params: { scope: "purchase" },
+        });
         productOptions.value = data.map((p) => ({
             value: String(p.id),
             label: p.code ? `${p.code} - ${p.name}` : p.name,
@@ -500,7 +510,9 @@ function onSelectProduct(item) {
         (p) => p.value === String(item.product_id),
     );
     if (product && (item.price === "" || item.price === null)) {
-        item.price = product.price;
+        // Giá nhập sản phẩm được lưu theo tiền tệ mặc định; đơn mua hiển thị
+        // theo tiền tệ của nhà cung cấp/đơn hàng hiện tại.
+        item.price = convertFromCompanyCurrency(product.price);
     }
     if (product) item.allow_decimal = product.allow_decimal;
 }
@@ -549,32 +561,22 @@ function openProductModal(item) {
 
 // Sau khi tạo sản phẩm mới thành công: thêm vào danh sách option
 // và tự động chọn + điền giá vào đúng dòng vừa bấm "Thêm sản phẩm mới"
-function onProductCreated(newProduct) {
+async function onProductCreated(newProduct) {
     showProductModal.value = false;
     if (!newProduct) return;
 
-    const option = {
-        value: String(newProduct.id),
-        label: newProduct.code
-            ? `${newProduct.code} - ${newProduct.name}`
-            : newProduct.name,
-        price: Number(newProduct.price || 0),
-    };
+    await fetchAllProducts();
+    const option = productOptions.value.find(
+        (product) => product.value === String(newProduct.id),
+    );
 
-    if (!productOptions.value.some((p) => p.value === option.value)) {
-        productOptions.value.push(option);
-    }
-
-    if (activeProductItem.value) {
+    if (activeProductItem.value && option) {
         activeProductItem.value.product_id = option.value;
-        if (
-            activeProductItem.value.price === "" ||
-            activeProductItem.value.price === null
-        ) {
-            activeProductItem.value.price = option.price;
-        }
-        activeProductItem.value = null;
+        activeProductItem.value.price = convertFromCompanyCurrency(option.price);
+        activeProductItem.value.allow_decimal = option.allow_decimal;
     }
+
+    activeProductItem.value = null;
 }
 
 function formatNumber(value) {
@@ -584,12 +586,45 @@ function formatNumber(value) {
 }
 
 function updatePrice(item, event) {
-    item.price = parseNumber(event.target.value);
+    const { displayValue, numericValue } = normalizePriceInput(
+        event.target.value,
+        isVndCurrency.value,
+    );
+    event.target.value = displayValue;
+    item.price = numericValue;
 }
 
 function parseNumber(value) {
     if (!value && value !== 0) return "";
     return Number(String(value).replace(/[^\d]/g, ""));
+}
+
+function normalizePriceInput(value, vndOnly = false) {
+    const raw = String(value ?? "");
+
+    if (vndOnly) {
+        const digits = raw.replace(/\D/g, "");
+        return {
+            displayValue: digits,
+            numericValue: digits === "" ? "" : Number(digits),
+        };
+    }
+
+    const sanitized = raw.replace(/[^\d,]/g, "");
+    const [integerPart = "", ...decimalParts] = sanitized.split(",");
+    const hasComma = sanitized.includes(",");
+    const decimalPart = decimalParts.join("").slice(0, 2);
+    const displayValue = hasComma
+        ? `${integerPart},${decimalPart}`
+        : integerPart;
+    const numericText = decimalPart
+        ? `${integerPart || "0"}.${decimalPart}`
+        : integerPart;
+
+    return {
+        displayValue,
+        numericValue: numericText === "" ? "" : Number(numericText),
+    };
 }
 
 function addItem() {

@@ -167,6 +167,7 @@ import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import DetailButtonIcon from "../../../icons/DetailButtonIcon.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
@@ -368,7 +369,8 @@ const slipActions = [
     {
         title: "Duyệt phiếu",
         icon: CheckIcon,
-        hidden: (row) => row.status !== "pending",
+        hidden: (row) =>
+            !can("phieu_kho.duyet") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({ title: "Duyệt phiếu xuất kho", message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`, confirmText: "Duyệt phiếu", tone: "success" });
@@ -376,11 +378,7 @@ const slipActions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
-                toast.success("Duyệt phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Duyệt phiếu thành công");
 
                 // Load lại dữ liệu giống trang nhập
                 await loadOrder();
@@ -401,7 +399,8 @@ const slipActions = [
     {
         title: "Từ chối",
         icon: DeleteIcon,
-        hidden: (row) => row.status !== "pending",
+        hidden: (row) =>
+            !can("phieu_kho.tu_choi") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({ title: "Từ chối phiếu xuất kho", message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`, confirmText: "Từ chối", tone: "danger" });
@@ -409,11 +408,7 @@ const slipActions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
 
-                toast.success("Từ chối phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Từ chối phiếu thành công");
 
                 // Load lại dữ liệu giống trang nhập
                 await loadOrder();
@@ -434,6 +429,7 @@ const slipActions = [
     {
         title: "Chi tiết",
         icon: DetailButtonIcon,
+        hidden: () => !can("phieu_kho.xem_chi_tiet"),
         onClick: openDetail,
     },
 ];
@@ -441,6 +437,13 @@ async function openDetail(row) {
     selectedSlip.value = row;
     showDetailModal.value = true;
 }
+
+useRealtimeRefresh(async () => {
+    await Promise.all([
+        loadSlips(),
+        orderId ? loadOrder() : Promise.resolve(),
+    ]);
+});
 
 // ===================== INIT
 onMounted(() => {

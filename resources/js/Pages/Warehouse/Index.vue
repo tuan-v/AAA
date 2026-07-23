@@ -76,13 +76,30 @@ import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import WarehouseDetail from "./WarehouseDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 import SearchPage from "@/components/SearchPage.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const { can } = usePermission();
+const filterNames = [
+    "search",
+    "min_inventory_value",
+    "max_inventory_value",
+];
+const initialFilters = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    return filterNames.reduce((result, name) => {
+        const value = urlParams.get(name);
+        if (value !== null && value !== "") {
+            result[name] = value;
+        }
+        return result;
+    }, {});
+};
 const handlePageChange = (page) => {
     getData(page, currentFilters.value);
 };
 const perPage = ref(10);
-const currentFilters = ref({});
+const currentFilters = ref(initialFilters());
 const form = ref({});
 const warehouses = ref({
     data: [],
@@ -105,14 +122,14 @@ const filters = [
     },
     {
         name: "min_inventory_value",
-        type: "number",
+        type: "money",
         min: 0,
         step: 1000,
         placeholder: "Giá trị tồn từ...",
     },
     {
         name: "max_inventory_value",
-        type: "number",
+        type: "money",
         min: 0,
         step: 1000,
         placeholder: "Giá trị tồn đến...",
@@ -272,7 +289,9 @@ async function toggleStatus(warehouse) {
     }
 }
 
+useRealtimeRefresh(reloadData);
+
 onMounted(() => {
-    getData();
+    getData(1, currentFilters.value);
 });
 </script>

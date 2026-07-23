@@ -360,6 +360,7 @@
                                     <input
                                         :value="formatNumber(item.unit_price)"
                                         @input="updateUnitPrice(item, $event)"
+                                        :inputmode="isVndCurrency ? 'numeric' : 'decimal'"
                                         class="w-full border rounded-lg px-2 py-1.5 text-right text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-200"
                                     />
                                     <p v-if="showConvertedAmounts" class="mt-1 text-[11px] text-right text-gray-500">
@@ -590,8 +591,15 @@ const showConvertedAmounts = computed(
     () => currentCurrency.value && companyCurrency.value
         && String(currentCurrency.value.id) !== String(companyCurrency.value.id),
 );
+const isVndCurrency = computed(
+    () => String(currentCurrency.value?.code || "").toUpperCase() === "VND",
+);
 const convertToCompanyCurrency = (amount) =>
     Number(amount || 0) * Number(currentCurrency.value?.exchange_rate || 1);
+const convertFromCompanyCurrency = (amount) => {
+    const exchangeRate = Number(currentCurrency.value?.exchange_rate || 1);
+    return Math.round((Number(amount || 0) / exchangeRate) * 100) / 100;
+};
 
 // ==================== DATA METHODS ====================
 async function loadWards(provinceId) {
@@ -663,7 +671,9 @@ function onSelectProduct(item) {
         return;
     }
 
-    item.unit_price = Number(product.sale_price || 0);
+    // Giá sản phẩm được lưu theo tiền tệ mặc định của công ty. Đơn bán phải
+    // hiển thị theo tiền tệ của khách hàng/đơn hàng hiện tại.
+    item.unit_price = convertFromCompanyCurrency(product.sale_price);
     item.stock_quantity = stock;
     item.allow_decimal = Boolean(product.allow_decimal ?? product.unit?.allow_decimal);
     item.quantity = 1;
@@ -705,7 +715,12 @@ function lineTotalWithVat(item) {
 }
 
 function updateUnitPrice(item, event) {
-    item.unit_price = parseNumber(event.target.value);
+    const { displayValue, numericValue } = normalizePriceInput(
+        event.target.value,
+        isVndCurrency.value,
+    );
+    event.target.value = displayValue;
+    item.unit_price = numericValue;
     calculateItem(item);
 }
 
@@ -737,6 +752,34 @@ async function openCustomerModal() {
     }
 
     showCustomerModal.value = true;
+}
+
+function normalizePriceInput(value, vndOnly = false) {
+    const raw = String(value ?? "");
+
+    if (vndOnly) {
+        const digits = raw.replace(/\D/g, "");
+        return {
+            displayValue: digits,
+            numericValue: digits === "" ? "" : Number(digits),
+        };
+    }
+
+    const sanitized = raw.replace(/[^\d,]/g, "");
+    const [integerPart = "", ...decimalParts] = sanitized.split(",");
+    const hasComma = sanitized.includes(",");
+    const decimalPart = decimalParts.join("").slice(0, 2);
+    const displayValue = hasComma
+        ? `${integerPart},${decimalPart}`
+        : integerPart;
+    const numericText = decimalPart
+        ? `${integerPart || "0"}.${decimalPart}`
+        : integerPart;
+
+    return {
+        displayValue,
+        numericValue: numericText === "" ? "" : Number(numericText),
+    };
 }
 
 function onCustomerCreated(newCustomer) {

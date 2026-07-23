@@ -27,6 +27,16 @@
                     class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
 
+                <input
+                    v-if="item.type === 'money'"
+                    :value="formatMoneyInput(values[item.name])"
+                    type="text"
+                    inputmode="numeric"
+                    :placeholder="item.placeholder || 'Nhập giá trị...'"
+                    class="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    @input="handleMoneyFilterInput(item.name, $event)"
+                />
+
                 <!-- ASYNC SELECT -->
                 <!-- <AsyncSelect v-if="item.type === 'async-select'" v-model="values[item.name]" :apiUrl="item.apiUrl"
                     :placeholder="item.placeholder || 'Tìm kiếm...'" :minChars="item.minChars || 0"
@@ -56,6 +66,7 @@
                     class="custom_input"
                     v-model="values[item.name]"
                     :placeholder="item.placeholder"
+                    :config="item.config || {}"
                 />
 
                 <!-- DATE RANGE -->
@@ -87,6 +98,7 @@ import "@vueform/multiselect/themes/default.css";
 import Tooltip from "./Tooltip.vue";
 import InputDate from "@/components/InputDate.vue";
 import DateRangePicker from "@/components/Datepicker.vue";
+import { formatMoneyInput, unformatMoney } from "@/config/helpers";
 // import AsyncSelect from '@/components/AsyncSelect.vue'
 
 const props = defineProps({
@@ -106,6 +118,12 @@ const values = reactive({});
 let isInitializing = true;
 let debounceTimer = null;
 let skipFirstAutoEmit = true;
+
+const handleMoneyFilterInput = (name, event) => {
+    const numericValue = unformatMoney(event.target.value);
+    values[name] = numericValue;
+    event.target.value = formatMoneyInput(numericValue);
+};
 
 // Format options cho Multiselect
 const formatOptions = (options) => {

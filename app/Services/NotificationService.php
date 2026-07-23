@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\NotificationCreated;
+use App\Models\Company;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -77,15 +78,21 @@ class NotificationService
         ?int $excludeUserId = null,
         ?string $category = 'system'
     ): Collection {
+        $companyOwnerId = Company::query()
+            ->whereKey($companyId)
+            ->value('owner_id');
+
         $userIds = User::query()
             ->where('company_id', $companyId)
+            ->where('status', User::STATUS_ACTIVE)
             ->when($excludeUserId, fn ($query) => $query->whereKeyNot($excludeUserId))
-            ->where(function ($query) use ($permission) {
-                $query->whereHas('permissions', fn ($permissionQuery) =>
-                    $permissionQuery->where('name', $permission)
-                )->orWhereHas('roles.permissions', fn ($permissionQuery) =>
-                    $permissionQuery->where('name', $permission)
-                );
+            ->where(function ($query) use ($permission, $companyOwnerId) {
+                $query
+                    ->when($companyOwnerId, fn ($ownerQuery) => $ownerQuery->whereKey($companyOwnerId))
+                    ->orWhereHas('permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission)
+                    )
+                    ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission)
+                    );
             })
             ->distinct()
             ->pluck('id')
@@ -169,14 +176,18 @@ class NotificationService
 
     private function getSubdomainFromRequest(Request $request): ?string
     {
-        $host = $request->getHost(); // Lấy host từ request
+        $host = strtolower($request->getHost());
+
+        // Local development hosts do not contain a business subdomain.
+        if ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP)) {
+            return 'main';
+        }
         $parts = explode('.', $host);
 
         // Giả sử cấu trúc domain là subdomain.domain.tld
         if (count($parts) >= 3) {
             return $parts[0]; // Trả về phần subdomain
         }
-
 
         return 'main'; // Không có subdomain
     }
@@ -188,11 +199,12 @@ class NotificationService
     {
         $notification = Notification::forUserLogin()->find($notificationId);
 
-        if (!$notification) {
+        if (! $notification) {
             return false;
         }
 
         $notification->markAsRead();
+
         return true;
     }
 
@@ -205,6 +217,7 @@ class NotificationService
         if ($category && $category !== 'all') {
             $query->where('category', $category);
         }
+
         return $query->update(['read_at' => now('Asia/Ho_Chi_Minh')]);
     }
 
@@ -215,7 +228,7 @@ class NotificationService
     {
         $notification = Notification::forUserLogin()->find($notificationId);
 
-        if (!$notification) {
+        if (! $notification) {
             return false;
         }
 

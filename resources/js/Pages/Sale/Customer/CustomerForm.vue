@@ -490,16 +490,11 @@ async function save() {
                 payload,
             );
             emit("saved");
-            toast.success("Sửa khách hàng thành công", {
-                position: "top-right",
-            });
+            toast.success("Sửa khách hàng thành công");
             customer = res.data.data ?? res.data;
         } else {
             const res = await axios.post("/api/sale/customers", payload);
-            toast.success("Thêm khách hàng thành công", {
-                position: "top-right",
-                zIndex: 99999,
-            });
+            toast.success("Thêm khách hàng thành công");
             customer = res.data.data ?? res.data;
         }
 

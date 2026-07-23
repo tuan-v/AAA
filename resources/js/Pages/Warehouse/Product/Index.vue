@@ -124,6 +124,7 @@ import { formatMoney, formatQuantity } from "@/config/helpers";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const filters = ref([
     {
         name: "search",
@@ -410,6 +411,8 @@ async function fetchWarehouses() {
         console.error("Error fetching warehouses:", error);
     }
 }
+useRealtimeRefresh(reloadData);
+
 onMounted(() => {
     getData();
     fetchWarehouses();

@@ -210,15 +210,11 @@ async function saveWarehouse() {
         if (form.id) {
             res = await axios.put(`/api/warehouses/${form.id}`, payload);
 
-            toast.success("Cập nhật kho thành công", {
-                autoClose: 2000,
-            });
+            toast.success("Cập nhật kho thành công");
         } else {
             res = await axios.post("/api/warehouses", payload);
 
-            toast.success("Tạo kho thành công", {
-                autoClose: 2000,
-            });
+            toast.success("Tạo kho thành công");
         }
 
         // Trả warehouse về component cha

@@ -183,6 +183,7 @@ import WarehouseForm from "@/Pages/Warehouse/WarehouseForm.vue";
 import SlipDetail from "./SlipDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
 
 const { can } = usePermission();
@@ -254,11 +255,7 @@ const slipActions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
-                toast.success("Duyệt phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Duyệt phiếu thành công");
                 await loadOrder();
                 await loadSlips();
             } catch (e) {
@@ -282,11 +279,7 @@ const slipActions = [
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
 
-                toast.success("Từ chối phiếu thành công", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    theme: "colored",
-                });
+                toast.success("Từ chối phiếu thành công");
                 await loadOrder();
                 await loadSlips();
             } catch (e) {
@@ -470,6 +463,13 @@ async function submit() {
         loading.value = false;
     }
 }
+
+useRealtimeRefresh(async () => {
+    await Promise.all([
+        loadSlips(),
+        orderId ? loadOrder() : Promise.resolve(),
+    ]);
+});
 
 // =====================
 // INIT

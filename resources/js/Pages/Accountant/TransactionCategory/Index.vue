@@ -71,6 +71,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import TransactionCategoryForm from "./TransactionCategoryForm.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 /* ================= STATE ================= */
 
@@ -256,6 +257,8 @@ async function handleDelete(item) {
 }
 
 /* INIT */
+useRealtimeRefresh(reloadData);
+
 onMounted(() => {
     getData(1);
 });

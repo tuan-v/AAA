@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Warehouse;
 use App\Services\ActivityLogService;
+use App\Services\CompanyCurrencyService;
 use App\Services\CustomerDebtService;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
-use App\Services\OrderQuantityValidationService;
-use Illuminate\Support\Facades\DB;
 use App\Services\NotificationService;
+use App\Services\OrderQuantityValidationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SalesOrderController extends Controller
 {
@@ -32,6 +31,7 @@ class SalesOrderController extends Controller
     private function getCompanyCurrency()
     {
         $company = auth()->user()->company ?? auth()->user()->companies()->first();
+
         return $company ? $company->default_currency : null;
     }
 
@@ -42,13 +42,13 @@ class SalesOrderController extends Controller
             'currency',
             'items',
             'items.product.stocks',
-            'warehouseSlips'
+            'warehouseSlips',
         ])->whereIn('status', [
             'pending',
             'approved',
             'partial',
             'completed',
-            'cancelled'
+            'cancelled',
         ]);
 
         if ($request->filled('status')) {
@@ -110,12 +110,13 @@ class SalesOrderController extends Controller
 
         return response()->json($orders);
     }
+
     public function warehouseIndex(Request $request)
     {
         $orders = SalesOrder::with([
             'customer',
             'currency',
-            'items.product'
+            'items.product',
         ])
             ->whereIn('status', ['approved', 'partial', 'completed'])
             ->latest()
@@ -164,6 +165,7 @@ class SalesOrderController extends Controller
 
         return response()->json($orders);
     }
+
     public function availableForExport(Request $request)
     {
         $orderId = $request->order_id;
@@ -183,6 +185,7 @@ class SalesOrderController extends Controller
 
         return response()->json($warehouses);
     }
+
     public function show($id)
     {
         $companyCurrency = $this->getCompanyCurrency();
@@ -203,7 +206,9 @@ class SalesOrderController extends Controller
         foreach ($order->items as $item) {
             $exported = 0;
             foreach ($order->warehouseSlips as $slip) {
-                if ($slip->status !== 'approved') continue;
+                if ($slip->status !== 'approved') {
+                    continue;
+                }
                 foreach ($slip->items as $slipItem) {
                     if ($slipItem->product_id === $item->product_id) {
                         $exported += $slipItem->quantity;
@@ -235,6 +240,7 @@ class SalesOrderController extends Controller
             'remaining_debt' => $order->remaining_debt ?? 0, // nếu có quan hệ công nợ
         ]);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -312,12 +318,16 @@ class SalesOrderController extends Controller
 
             // Lấy tiền tệ mặc định của công ty
             $company = auth()->user()->company ?? auth()->user()->companies()->first();
-            if (!$company) throw new \Exception('Người dùng chưa thuộc công ty nào');
+            if (! $company) {
+                throw new \Exception('Người dùng chưa thuộc công ty nào');
+            }
 
             $companyCurrency = $company->currencies()->wherePivot('is_default', true)->first();
-            if (!$companyCurrency) throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
+            if (! $companyCurrency) {
+                throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
+            }
 
-            $exchangeRate = app(\App\Services\CompanyCurrencyService::class)->rate(
+            $exchangeRate = app(CompanyCurrencyService::class)->rate(
                 $company->id, $orderCurrency->id, $validated['order_date'] ?? now()
             );
             $last = SalesOrder::latest('id')->first();
@@ -362,14 +372,14 @@ class SalesOrderController extends Controller
                 );
 
                 $order->items()->create([
-                    'product_id'          => $item['product_id'],
-                    'quantity'            => $item['quantity'],
-                    'unit_price'          => $item['unit_price'],
-                    'company_unit_price'  => $companyUnitPrice,
-                    'vat_percent'         => $vatPercent,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'company_unit_price' => $companyUnitPrice,
+                    'vat_percent' => $vatPercent,
                     // amount là thành tiền trước VAT. Không tin giá trị tổng do FE gửi.
-                    'amount'              => round($amount, 2),
-                    'company_amount'      => $companyAmount,
+                    'amount' => round($amount, 2),
+                    'company_amount' => $companyAmount,
                 ]);
                 $subtotal += $amount;
                 $vatAmountTotal += $vatAmount;
@@ -377,9 +387,9 @@ class SalesOrderController extends Controller
             }
 
             $order->update([
-                'subtotal'     => $subtotal,
-                'vat_amount'   => round($vatAmountTotal, 2),
-                'total_amount' => $total
+                'subtotal' => $subtotal,
+                'vat_amount' => round($vatAmountTotal, 2),
+                'total_amount' => $total,
             ]);
 
             DB::commit();
@@ -397,13 +407,15 @@ class SalesOrderController extends Controller
 
             return response()->json([
                 'message' => 'Tạo đơn bán thành công',
-                'id'      => $order->id
+                'id' => $order->id,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+
     public function update(Request $request, $id)
     {
         $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
@@ -411,7 +423,7 @@ class SalesOrderController extends Controller
         if ($order->status !== 'pending') {
 
             return response()->json([
-                'message' => 'Chỉ được chỉnh sửa đơn hàng đang chờ xử lý.'
+                'message' => 'Chỉ được chỉnh sửa đơn hàng đang chờ xử lý.',
             ], 422);
         }
 
@@ -469,27 +481,31 @@ class SalesOrderController extends Controller
 
             // Lấy tiền tệ mặc định của công ty
             $company = auth()->user()->company ?? auth()->user()->companies()->first();
-            if (!$company) throw new \Exception('Người dùng chưa thuộc công ty nào');
+            if (! $company) {
+                throw new \Exception('Người dùng chưa thuộc công ty nào');
+            }
 
             $companyCurrency = $company->currencies()->wherePivot('is_default', true)->first();
-            if (!$companyCurrency) throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
+            if (! $companyCurrency) {
+                throw new \Exception('Công ty chưa cấu hình tiền tệ mặc định');
+            }
 
-            $exchangeRate = app(\App\Services\CompanyCurrencyService::class)->rate(
+            $exchangeRate = app(CompanyCurrencyService::class)->rate(
                 $company->id, $orderCurrency->id, $validated['order_date'] ?? now()
             );
 
             $order->update([
-                'customer_id'           => $validated['customer_id'],
-                'currency_id'           => $validated['currency_id'] ?? null,
-                'exchange_rate'         => $exchangeRate,
-                'province_id'           => $validated['province_id'] ?? null,
-                'ward_id'               => $validated['ward_id'] ?? null,
-                'address_detail'        => $validated['address_detail'] ?? null,
+                'customer_id' => $validated['customer_id'],
+                'currency_id' => $validated['currency_id'] ?? null,
+                'exchange_rate' => $exchangeRate,
+                'province_id' => $validated['province_id'] ?? null,
+                'ward_id' => $validated['ward_id'] ?? null,
+                'address_detail' => $validated['address_detail'] ?? null,
                 'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
-                'note'                  => $validated['note'] ?? null,
-                'subtotal'              => $validated['subtotal'],
-                'vat_amount'            => $validated['vat_amount'],
-                'total_amount'          => $validated['total_amount'],
+                'note' => $validated['note'] ?? null,
+                'subtotal' => $validated['subtotal'],
+                'vat_amount' => $validated['vat_amount'],
+                'total_amount' => $validated['total_amount'],
             ]);
 
             SalesOrderItem::where('sales_order_id', $order->id)->delete();
@@ -508,14 +524,14 @@ class SalesOrderController extends Controller
                 $companyAmount = round($lineAmount * $exchangeRate, 2);
 
                 SalesOrderItem::create([
-                    'sales_order_id'     => $order->id,
-                    'product_id'         => $item['product_id'],
-                    'quantity'           => $item['quantity'],
-                    'unit_price'         => $item['unit_price'],
+                    'sales_order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
                     'company_unit_price' => $companyUnitPrice,
-                    'vat_percent'        => $item['vat_percent'] ?? 0,
-                    'amount'             => round($lineAmount, 2),
-                    'company_amount'     => $companyAmount,
+                    'vat_percent' => $item['vat_percent'] ?? 0,
+                    'amount' => round($lineAmount, 2),
+                    'company_amount' => $companyAmount,
                 ]);
 
                 $lineVat = $lineAmount * ((float) ($item['vat_percent'] ?? 0) / 100);
@@ -534,22 +550,24 @@ class SalesOrderController extends Controller
             return response()->json(['message' => 'Cập nhật đơn hàng thành công.']);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
+
     public function approve($id, CustomerDebtService $customerDebtService)
     {
         $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
 
         if ($order->status !== 'pending') {
             return response()->json([
-                'message' => 'Đơn đã xử lý'
+                'message' => 'Đơn đã xử lý',
             ], 422);
         }
 
-        DB::transaction(function () use ($order, $customerDebtService) {
+        DB::transaction(function () use ($order) {
             $order->update([
-                'status'      => 'approved',
+                'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
@@ -562,11 +580,25 @@ class SalesOrderController extends Controller
             );
         });
 
+        if ($order->created_by && (int) $order->created_by !== (int) auth()->id()) {
+            $this->notificationService->create(
+                (int) $order->created_by,
+                (int) $order->company_id,
+                'Đơn bán đã được duyệt',
+                "Đơn bán {$order->code} của bạn đã được duyệt.",
+                [
+                    'sales_order_id' => $order->id,
+                    'status' => 'approved',
+                ],
+                '/sale/orders',
+                category: 'sale',
+            );
+        }
+
         return response()->json([
-            'message' => 'Duyệt đơn bán thành công'
+            'message' => 'Duyệt đơn bán thành công',
         ]);
     }
-
 
     public function cancel($id)
     {
@@ -595,6 +627,22 @@ class SalesOrderController extends Controller
             ['status' => 'cancelled']
         );
 
+        if ($order->created_by) {
+            $this->notificationService->create(
+                (int) $order->created_by,
+                (int) $order->company_id,
+                'Đơn bán đã bị hủy',
+                "Đơn bán {$order->code} của bạn đã bị hủy.",
+                [
+                    'priority' => 'high',
+                    'sales_order_id' => $order->id,
+                    'status' => 'cancelled',
+                ],
+                '/sale/orders',
+                category: 'sale',
+            );
+        }
+
         return response()->json(['message' => 'Hủy đơn bán thành công.']);
     }
 
@@ -617,13 +665,14 @@ class SalesOrderController extends Controller
 
         return response()->json(['message' => 'Xóa đơn bán thành công.']);
     }
+
     public function stockOutData($id)
     {
         $order = SalesOrder::with([
             'customer',
             'currency',
             'items.product.unit',
-            'warehouseSlips.items'
+            'warehouseSlips.items',
         ])->findOrFail($id);
 
         $companyCurrency = $this->getCompanyCurrency();
@@ -632,7 +681,7 @@ class SalesOrderController extends Controller
             $exported = 0;
             foreach ($order->warehouseSlips as $slip) {
                 // chỉ tính phiếu đã duyệt
-                if (!in_array($slip->status, ['approved', 'pending'])) {
+                if (! in_array($slip->status, ['approved', 'pending'])) {
                     continue;
                 }
                 foreach ($slip->items as $slipItem) {

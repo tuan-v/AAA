@@ -81,6 +81,7 @@ import Lock from "@/icons/Lock.vue";
 import { usePermission } from "@/composables/usePermission";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can } = usePermission();
 const perPage = ref(10);
 const banks = ref({
@@ -236,6 +237,8 @@ function reloadData() {
 
     getData(banks.value.current_page);
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     getData();

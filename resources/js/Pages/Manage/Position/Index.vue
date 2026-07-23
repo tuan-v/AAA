@@ -190,6 +190,7 @@ import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { getValidationMessage } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const permissions = usePage().props.auth.permissions || [],
     can = (p) => permissions.includes(p);
 const departments = ref([]),
@@ -314,6 +315,8 @@ async function remove(p) {
         toast.error(getValidationMessage(e));
     }
 }
+useRealtimeRefresh(() => load(positions.value.current_page || 1));
+
 onMounted(async () => {
     departments.value = (await axios.get("/api/departments/all")).data;
     await load();

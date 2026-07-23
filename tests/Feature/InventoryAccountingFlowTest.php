@@ -51,4 +51,55 @@ class InventoryAccountingFlowTest extends TestCase
         $this->assertDatabaseHas('inventory_movements', ['type' => 'transfer_out']);
         $this->assertDatabaseHas('inventory_movements', ['type' => 'transfer_in']);
     }
+
+    public function test_inventory_movement_ledger_filters_an_inclusive_date_range(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $stock = WarehouseProductStock::firstOrFail();
+        $this->actingAs($owner);
+
+        $oldMovement = InventoryMovement::create([
+            'company_id' => $stock->company_id,
+            'warehouse_id' => $stock->warehouse_id,
+            'product_id' => $stock->product_id,
+            'type' => 'import',
+            'quantity' => 1,
+            'created_by' => $owner->id,
+        ]);
+        $oldMovement->forceFill(['created_at' => '2026-07-01 08:00:00'])->save();
+
+        $inRangeMovement = InventoryMovement::create([
+            'company_id' => $stock->company_id,
+            'warehouse_id' => $stock->warehouse_id,
+            'product_id' => $stock->product_id,
+            'type' => 'export',
+            'quantity' => 1,
+            'created_by' => $owner->id,
+        ]);
+        $inRangeMovement->forceFill(['created_at' => '2026-07-15 18:30:00'])->save();
+
+        $response = $this->getJson(
+            '/api/warehouse/inventory-movements?date_from=2026-07-15&date_to=2026-07-15'
+        )->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($inRangeMovement->id));
+        $this->assertFalse($ids->contains($oldMovement->id));
+
+        $this->getJson(
+            '/api/warehouse/inventory-movements?date_from=2026-07-16&date_to=2026-07-15'
+        )->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+
+        $this->getJson(
+            '/api/warehouse/inventory-movements?date_to='.now()->addDay()->toDateString()
+        )->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+
+        $this->getJson(
+            '/api/warehouse/inventory-movements?date_from='.now()->addDay()->toDateString()
+        )->assertUnprocessable()
+            ->assertJsonValidationErrors('date_from');
+    }
 }

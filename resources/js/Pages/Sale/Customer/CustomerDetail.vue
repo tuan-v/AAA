@@ -496,6 +496,7 @@ import axios from "axios";
 import { getStatusLabel } from "@/config/status";
 import { formatMoney } from "@/config/helpers";
 import SaleOrderDetail from "../Order/SaleOrderDetail.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const customer = ref({});
 const companyCurrency = ref(null);
 const debtSummary = ref({});
@@ -534,7 +535,7 @@ const closeOrderDetail = () => {
     selectedOrder.value = null;
 };
 
-onMounted(async () => {
+const loadCustomer = async () => {
     try {
         const res = await axios.get(
             `/api/sale/customers/${props.customerId}/detail`,
@@ -548,7 +549,10 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
-});
+};
+
+useRealtimeRefresh(loadCustomer);
+onMounted(loadCustomer);
 
 const fullAddress = computed(() => {
     const parts = [

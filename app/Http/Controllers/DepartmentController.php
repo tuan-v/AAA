@@ -32,11 +32,11 @@ class DepartmentController extends Controller
             ->withCount('users')
             ->where('company_id', $this->companyId())
             ->when($validated['search'] ?? null, function ($query, $search) {
-                $query->where(fn ($query) => $query
+                $query->where(fn($query) => $query
                     ->where('name', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%"));
             })
-            ->when($validated['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($validated['status'] ?? null, fn($query, $status) => $query->where('status', $status))
             ->latest('id')
             ->paginate($validated['per_page'] ?? 10);
     }
@@ -58,14 +58,16 @@ class DepartmentController extends Controller
             ->where('status', User::STATUS_ACTIVE)
             ->where(function ($query) use ($companyId) {
                 $query->where('company_id', $companyId)
-                    ->orWhereHas('companies', fn ($companyQuery) =>
+                    ->orWhereHas(
+                        'companies',
+                        fn($companyQuery) =>
                         $companyQuery->where('companies.id', $companyId)
                     );
             })
             ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$ownerId ?: 0])
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'department_id', 'position_id'])
-            ->map(fn ($user) => [
+            ->map(fn($user) => [
                 ...$user->toArray(),
                 'is_company_owner' => (int) $user->id === (int) $ownerId,
             ]);
@@ -120,7 +122,9 @@ class DepartmentController extends Controller
             'manager_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($companyId) {
                 if (! User::query()->whereKey($value)->where(function ($query) use ($companyId) {
                     $query->where('company_id', $companyId)
-                        ->orWhereHas('companies', fn ($companyQuery) =>
+                        ->orWhereHas(
+                            'companies',
+                            fn($companyQuery) =>
                             $companyQuery->where('companies.id', $companyId)
                         );
                 })->exists()) {
@@ -150,7 +154,7 @@ class DepartmentController extends Controller
         $number = 1;
         while ($usedNumbers->has($number)) $number++;
 
-        return 'PB-'.str_pad((string) $number, 3, '0', STR_PAD_LEFT);
+        return 'PB-' . str_pad((string) $number, 3, '0', STR_PAD_LEFT);
     }
 
     private function syncManagerAssignment(Department $department, ?int $oldManagerId = null): void
@@ -168,7 +172,7 @@ class DepartmentController extends Controller
                 'company_id' => $department->company_id,
                 'department_id' => $department->id,
                 'code' => $this->nextPositionCode((int) $department->company_id),
-                'name' => 'Trưởng phòng '.$department->name,
+                'name' => 'Trưởng phòng ' . $department->name,
                 'description' => 'Chức vụ trưởng phòng được tạo tự động.',
                 'status' => 'active',
             ]);
@@ -193,14 +197,7 @@ class DepartmentController extends Controller
 
     private function nextPositionCode(int $companyId): string
     {
-        $usedNumbers = Position::where('company_id', $companyId)->pluck('code')
-            ->map(function ($code) {
-                return preg_match('/^CV-(\d+)$/', (string) $code, $matches) ? (int) $matches[1] : null;
-            })->filter()->flip();
-
-        $number = 1;
-        while ($usedNumbers->has($number)) $number++;
-
-        return 'CV-'.str_pad((string) $number, 3, '0', STR_PAD_LEFT);
+        return app(\App\Services\CodeGeneratorService::class)
+            ->generate(Position::class, 'CV-', 3, $companyId);
     }
 }

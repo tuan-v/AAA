@@ -228,6 +228,7 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import { formatMoney as formatMoneyHelper } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import {
     CheckCircleIcon,
     ArrowUpCircleIcon,
@@ -373,5 +374,6 @@ async function loadData() {
     }
 }
 
+useRealtimeRefresh(loadData);
 onMounted(loadData);
 </script>

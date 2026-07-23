@@ -93,6 +93,7 @@ import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 import { formatMoney, formatDateTime } from "@/config/helpers";
 import { toast } from "vue3-toastify";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can } = usePermission();
 const { confirmAction, promptAction } = useActionConfirm();
 
@@ -422,6 +423,8 @@ function reloadData() {
     showModal.value = false;
     getData(transactions.value.current_page);
 }
+
+useRealtimeRefresh(reloadData);
 
 /* INIT */
 onMounted(async () => {

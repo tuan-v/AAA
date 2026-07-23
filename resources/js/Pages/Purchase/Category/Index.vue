@@ -106,6 +106,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import { usePermission } from "@/composables/usePermission";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can, canAny } = usePermission();
 const page = ref(1);
 const search = ref("");
@@ -245,6 +246,8 @@ async function toggleStatus(category) {
         alert("Không thể đổi trạng thái");
     }
 }
+
+useRealtimeRefresh(reloadData);
 
 onMounted(() => {
     fetchCategories();

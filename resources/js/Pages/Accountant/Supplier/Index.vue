@@ -63,6 +63,7 @@ import SearchPage from "@/components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { formatMoney } from "@/config/helpers";
 import SupplierDetail from "@/Pages/Purchase/Supplier/SupplierDetail.vue";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const suppliers = ref({
     data: [],
@@ -174,6 +175,8 @@ function closeDetail() {
     showDetail.value = false;
     selectedSupplier.value = null;
 }
+
+useRealtimeRefresh(() => fetchData(suppliers.value.current_page || 1));
 
 onMounted(() => {
     getData(1);

@@ -13,9 +13,14 @@ class InventoryMovementController extends Controller
             'warehouse_id' => ['nullable', 'integer'],
             'product_id' => ['nullable', 'integer'],
             'type' => ['nullable', 'in:import,export,transfer_in,transfer_out'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'date_from' => ['nullable', 'date', 'before_or_equal:today'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from', 'before_or_equal:today'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], [
+            'date_from.date' => 'Từ ngày không hợp lệ.',
+            'date_to.date' => 'Đến ngày không hợp lệ.',
+            'date_to.after_or_equal' => 'Đến ngày phải lớn hơn hoặc bằng Từ ngày.',
+            'date_to.before_or_equal' => 'Đến ngày không được lớn hơn ngày hôm nay.',
         ]);
         $companyId = auth()->user()->company_id ?? auth()->user()->companies()->value('companies.id');
         abort_unless($companyId, 403);

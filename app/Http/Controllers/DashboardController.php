@@ -8,6 +8,8 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    private const OVERVIEW_PERMISSION = 'tong_quan.xem';
+
     private const MODULE_PERMISSIONS = [
         'purchase' => 'don_mua.xem',
         'sale' => 'don_ban.xem',
@@ -23,7 +25,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasAnyRole(['Supper Admin', 'Giám đốc'])) {
+        if ($user->can(self::OVERVIEW_PERMISSION)) {
             return Inertia::render('DashBoard');
         }
 
@@ -47,14 +49,14 @@ class DashboardController extends Controller
     public function overview(Request $request)
     {
         abort_unless(
-            $request->user()->hasAnyRole(['Supper Admin', 'Giám đốc']),
+            $request->user()->can(self::OVERVIEW_PERMISSION),
             403,
             'Bạn không có quyền xem tổng quan chung.'
         );
 
         $companyId = $request->user()->company_id;
 
-        if (!$companyId) {
+        if (! $companyId) {
             return response()->json([
                 'success' => false,
                 'message' => 'Tài khoản chưa thuộc công ty nào',
@@ -75,7 +77,7 @@ class DashboardController extends Controller
 
     public function module(Request $request, string $module)
     {
-        if (!in_array($module, ['purchase', 'sale', 'warehouse', 'accountant'], true)) {
+        if (! in_array($module, ['purchase', 'sale', 'warehouse', 'accountant'], true)) {
             return response()->json(['message' => 'Phân hệ tổng quan không hợp lệ.'], 404);
         }
 
@@ -88,7 +90,7 @@ class DashboardController extends Controller
         $companyId = $request->user()->company_id
             ?? $request->user()->companies()->value('companies.id');
 
-        if (!$companyId) {
+        if (! $companyId) {
             return response()->json(['message' => 'Tài khoản chưa thuộc công ty nào.'], 422);
         }
 

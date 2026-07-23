@@ -187,6 +187,7 @@
 import { ref, watch, computed } from "vue";
 import axios from "axios";
 import { formatQuantity } from "@/config/helpers";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({
     slipId: Number,
@@ -210,26 +211,30 @@ const totalQuantity = computed(() =>
     ),
 );
 
+const loadSlip = async (id) => {
+    if (!id) return;
+
+    loading.value = true;
+    slip.value = null;
+    errorMessage.value = "";
+
+    try {
+        const res = await axios.get(`/api/warehouse/slips/${id}`);
+        slip.value = res.data?.data ?? res.data;
+    } catch (error) {
+        errorMessage.value =
+            error.response?.data?.message ||
+            "Không tải được chi tiết phiếu xuất.";
+    } finally {
+        loading.value = false;
+    }
+};
+
+useRealtimeRefresh(() => loadSlip(props.slipId));
+
 watch(
     () => props.slipId,
-    async (id) => {
-        if (!id) return;
-
-        loading.value = true;
-        slip.value = null;
-        errorMessage.value = "";
-
-        try {
-            const res = await axios.get(`/api/warehouse/slips/${id}`);
-            slip.value = res.data?.data ?? res.data;
-        } catch (error) {
-            errorMessage.value =
-                error.response?.data?.message ||
-                "Không tải được chi tiết phiếu xuất.";
-        } finally {
-            loading.value = false;
-        }
-    },
+    loadSlip,
     { immediate: true, flush: "post" },
 );
 
