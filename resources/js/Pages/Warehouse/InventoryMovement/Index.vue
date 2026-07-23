@@ -62,6 +62,15 @@ filterDefinitions.value.find((filter) => filter.name === 'date_from').config = {
 const movements = ref({ data: [], total: 0, per_page: 20, current_page: 1 });
 const labels = { import: 'Nhập kho', export: 'Xuất kho', transfer_out: 'Chuyển ra', transfer_in: 'Chuyển vào' };
 const number = (value, digits = 2) => Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: digits });
+const unitLabel = row => row.product?.unit?.symbol || row.product?.unit?.name || '';
+const currencyLabel = row => row.company_currency?.code || 'VND';
+const quantity = (value, row) => `${number(value, 3)}${unitLabel(row) ? ` ${unitLabel(row)}` : ''}`;
+const money = (value, row) => `${number(value)} ${currencyLabel(row)}`;
+const movementClass = type => ['import', 'transfer_in'].includes(type)
+    ? 'font-semibold text-green-600'
+    : ['export', 'transfer_out'].includes(type)
+        ? 'font-semibold text-red-600'
+        : '';
 const todayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -74,12 +83,12 @@ const columns = [
     { label: 'Thời gian', render: row => h('span', new Date(row.created_at).toLocaleString('vi-VN')) },
     { label: 'Kho', render: row => h('span', row.warehouse?.name || '-') },
     { label: 'Sản phẩm', render: row => h('span', `${row.product?.sku || ''} - ${row.product?.name || '-'}`) },
-    { label: 'Loại', render: row => h('span', labels[row.type] || row.type) },
-    { label: 'Số lượng', render: row => h('span', number(row.quantity, 3)) },
-    { label: 'Đơn giá vốn', render: row => h('span', number(row.unit_cost)) },
-    { label: 'Giá trị', render: row => h('span', number(row.total_value)) },
-    { label: 'Tồn trước → sau', render: row => h('span', `${number(row.quantity_before, 3)} → ${number(row.quantity_after, 3)}`) },
-    { label: 'Giá trị trước → sau', render: row => h('span', `${number(row.value_before)} → ${number(row.value_after)}`) },
+    { label: 'Loại', render: row => h('span', { class: movementClass(row.type) }, labels[row.type] || row.type) },
+    { label: 'Số lượng', render: row => h('span', quantity(row.quantity, row)) },
+    { label: 'Đơn giá vốn', render: row => h('span', money(row.unit_cost, row)) },
+    { label: 'Giá trị', render: row => h('span', money(row.total_value, row)) },
+    { label: 'Tồn trước → sau', render: row => h('span', `${quantity(row.quantity_before, row)} → ${quantity(row.quantity_after, row)}`) },
+    { label: 'Giá trị trước → sau', render: row => h('span', `${money(row.value_before, row)} → ${money(row.value_after, row)}`) },
 ];
 async function load(page = 1) {
     const { data } = await axios.get('/api/warehouse/inventory-movements', {

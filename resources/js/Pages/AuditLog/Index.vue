@@ -48,7 +48,11 @@
             <h3 class="text-xl font-semibold">Chi tiết hoạt động</h3>
         </template>
         <template #body>
+            <div v-if="detailLoading" class="py-12 text-center text-gray-500">
+                Đang tải thông tin truy vết...
+            </div>
             <AuditLogDetail
+                v-else
                 :log="selectedLog"
                 @close="showDetailModal = false"
             />
@@ -69,13 +73,8 @@ import SearchPage from "@/components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { usePermission } from "@/composables/usePermission";
 import AuditLogDetail from "./AuditLogDetail.vue";
-import { View } from "lucide-vue-next";
-import dayjs from "dayjs"; // ← Thêm dòng này
-import relativeTime from "dayjs/plugin/relativeTime"; // ← Để hiển thị "2 giờ trước"
-import "dayjs/locale/vi";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
-dayjs.extend(relativeTime);
-dayjs.locale("vi");
+import { toast } from "vue3-toastify";
 const { can } = usePermission();
 
 const filters = [
@@ -85,16 +84,18 @@ const filters = [
         type: "select",
         placeholder: "Hành động",
         options: [
-            { value: "view", label: "Xem" },
-            { value: "create", label: "Tạo mới" },
+            { value: "create", label: "Thêm mới" },
             { value: "update", label: "Cập nhật" },
             { value: "approve", label: "Duyệt" },
             { value: "reject", label: "Từ chối" },
+            { value: "cancel", label: "Hủy" },
             { value: "delete", label: "Xóa" },
+            { value: "lock", label: "Khóa" },
+            { value: "unlock", label: "Mở khóa" },
         ],
     },
-    { name: "date_from", type: "date", placeholder: "Từ ngày" },
-    { name: "date_to", type: "date", placeholder: "Đến ngày" },
+    { name: "date_from", type: "date", placeholder: "Từ ngày", config: { maxDate: "today" } },
+    { name: "date_to", type: "date", placeholder: "Đến ngày", config: { maxDate: "today" } },
     {
         name: "user_id",
         type: "select",
@@ -104,28 +105,21 @@ const filters = [
 ];
 
 const actionConfig = {
-    view: { text: "Xem", class: "bg-gray-200 text-gray-700" },
-    detail: { text: "Xem chi tiết", class: "bg-pink-100 text-green-700" },
-    create: { text: "Tạo mới", class: "bg-blue-100 text-blue-700" },
+    create: { text: "Thêm mới", class: "bg-blue-100 text-blue-700" },
     update: { text: "Cập nhật", class: "bg-yellow-100 text-yellow-700" },
     approve: { text: "Duyệt", class: "bg-green-100 text-green-700" },
     reject: { text: "Từ chối", class: "bg-red-100 text-red-700" },
+    cancel: { text: "Hủy", class: "bg-orange-100 text-orange-700" },
     delete: { text: "Xóa", class: "bg-gray-200 text-gray-700" },
+    lock: { text: "Khóa", class: "bg-slate-200 text-slate-700" },
+    unlock: { text: "Mở khóa", class: "bg-sky-100 text-sky-700" },
 };
-
-function actionLabel(action) {
-    return actionConfig[action]?.text ?? action;
-}
-
-function shortModelName(modelType) {
-    if (!modelType) return "-";
-    return modelType.split("\\").pop(); // "App\Models\WarehouseSlip" -> "WarehouseSlip"
-}
 
 const logs = ref({ data: [], total: 0, per_page: 10, current_page: 1 });
 const perPage = ref(10);
 const filterParams = ref({});
 const showDetailModal = ref(false);
+const detailLoading = ref(false);
 const selectedLog = ref(null);
 const users = ref([]);
 const columns = [
@@ -136,8 +130,8 @@ const columns = [
     {
         label: "Hành động",
         render: (row) => {
-            const config = actionConfig[row.action] ?? {
-                text: row.action,
+            const config = actionConfig[row.action_key] ?? {
+                text: row.action_label || "Hành động khác",
                 class: "bg-gray-100 text-gray-600",
             };
             return h(
@@ -148,6 +142,11 @@ const columns = [
                 config.text,
             );
         },
+    },
+    {
+        label: "Đối tượng",
+        render: (row) =>
+            h("span", { class: "font-medium text-gray-700" }, `${row.model_label || "Dữ liệu"} #${row.model_id}`),
     },
 
     {
@@ -170,9 +169,19 @@ const actions = [
         icon: DetailButtonIcon,
         title: "Xem chi tiết",
         hidden: () => !can("nhat_ky.xem"),
-        onClick: (row) => {
-            selectedLog.value = row;
+        onClick: async (row) => {
             showDetailModal.value = true;
+            detailLoading.value = true;
+            selectedLog.value = null;
+            try {
+                const response = await axios.get(`/api/audit-logs/${row.id}`);
+                selectedLog.value = response.data;
+            } catch (error) {
+                showDetailModal.value = false;
+                toast.error("Không thể tải chi tiết lịch sử hoạt động.");
+            } finally {
+                detailLoading.value = false;
+            }
         },
     },
 ];

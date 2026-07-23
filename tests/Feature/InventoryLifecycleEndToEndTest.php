@@ -141,6 +141,21 @@ class InventoryLifecycleEndToEndTest extends TestCase
             InventoryMovement::where('product_id', $product->id)->pluck('type')->unique()->values()->all()
         );
 
+        $report = $this->actingAs($accountant)->getJson('/api/accountant/profit-loss-report?from_date=2026-07-01&to_date=2026-07-23&warehouse_id='.$destination->id);
+        $report->assertOk()
+            ->assertJsonPath('summary.sales_count', 1)
+            ->assertJsonPath('summary.import_slips_count', 0)
+            ->assertJsonPath('summary.sold_products_count', 1)
+            ->assertJsonPath('summary.revenue', 600000)
+            ->assertJsonPath('sales.0.order_code', SalesOrder::findOrFail($saleOrderId)->code)
+            ->assertJsonCount(1, 'sales');
+        $this->assertGreaterThan(0, (float) $report->json('summary.cost_of_goods'));
+        $this->assertEqualsWithDelta(
+            (float) $report->json('summary.revenue') - (float) $report->json('summary.cost_of_goods'),
+            (float) $report->json('summary.gross_profit'),
+            0.01
+        );
+
         $bank = Account::where('code', 'NH-DEMO')->firstOrFail();
         $cash = Account::where('code', 'TM-DEMO')->firstOrFail();
         $bankBefore = (float) $bank->current_balance;

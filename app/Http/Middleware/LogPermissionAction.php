@@ -5,31 +5,36 @@ namespace App\Http\Middleware;
 use App\Models\ActivityLog;
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\AuditLog;
+use Illuminate\Database\Eloquent\Model;
 
 class LogPermissionAction
 {
-    // Các action chỉ đọc, không cần snapshot old/new (tránh log rác không cần thiết)
-    private array $readOnlyActions = ['xem', 'xem_chi_tiet', 'xem_lich_su', 'chon'];
-
     public function handle(Request $request, Closure $next)
     {
         $permission = $this->resolvePermissionFromRoute($request);
 
-        // Không có permission nào gắn ở route này -> bỏ qua, không log
-        if (! $permission || ! $request->user()) {
+        // Nhật ký nghiệp vụ chỉ ghi hành động làm thay đổi dữ liệu, không ghi thao tác xem.
+        if (! $permission || ! $request->user() || in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             return $next($request);
         }
 
         [$prefix, $action] = $this->splitPermission($permission);
+        $canonicalAction = ActivityLog::canonicalAction($action);
+        if (! $canonicalAction) {
+            return $next($request);
+        }
 
         $modelClass = config("audit_models.$prefix");
+        if (! $modelClass || ! is_subclass_of($modelClass, Model::class)) {
+            return $next($request);
+        }
 
         // Chụp snapshot TRƯỚC khi controller chạy (route model binding đã resolve xong ở giai đoạn này)
         $oldValues = null;
-        $modelInstance = $this->resolveBoundModel($request, $modelClass);
+        $modelInstance = $this->resolveModel($request, $modelClass);
+        $startedAt = now()->subSecond();
 
-        if ($modelInstance && $action !== 'them') {
+        if ($modelInstance && $canonicalAction !== 'create') {
             $oldValues = $modelInstance->toArray();
         }
 
@@ -43,16 +48,20 @@ class LogPermissionAction
         $newValues = null;
         $modelId = $modelInstance?->getKey();
 
-        if ($action === 'them') {
+        if ($canonicalAction === 'create') {
             // Với create, lấy id/data từ response trả về (giả định controller trả {data: model})
             $payload = json_decode($response->getContent(), true);
             $created = $payload['data'] ?? $payload;
             $modelId = is_array($created) ? ($created['id'] ?? null) : null;
             $newValues = is_array($created) ? $created : null;
-        } elseif (! in_array($action, $this->readOnlyActions) && $modelClass && $modelId) {
+        } elseif ($modelId) {
             // update/approve/reject/lock/unlock... -> load lại để lấy giá trị mới
             $fresh = $modelClass::find($modelId);
             $newValues = $fresh?->toArray();
+
+            if ($canonicalAction === 'lock' && ($oldValues['status'] ?? null) === 'inactive' && ($newValues['status'] ?? null) === 'active') {
+                $canonicalAction = 'unlock';
+            }
         }
 
         // Route danh sách không bind một model cụ thể nên không có model_id.
@@ -61,15 +70,30 @@ class LogPermissionAction
             return $response;
         }
 
+        // Một số luồng nghiệp vụ tự ghi log chi tiết trong service/controller.
+        // Không tạo thêm bản ghi trùng từ middleware cho cùng request.
+        $alreadyLogged = ActivityLog::query()
+            ->where('company_id', $request->user()->company_id)
+            ->where('user_id', $request->user()->id)
+            ->where('model_type', $modelClass)
+            ->where('model_id', $modelId)
+            ->whereIn('action', ActivityLog::aliasesFor($canonicalAction))
+            ->where('created_at', '>=', $startedAt)
+            ->exists();
+
+        if ($alreadyLogged) {
+            return $response;
+        }
+
         ActivityLog::create([
             'company_id' => $request->user()->company_id,
             'user_id' => $request->user()->id,
-            'action' => $action,
-            'model_type' => $modelClass ?? 'Unknown',
+            'action' => $canonicalAction,
+            'model_type' => $modelClass,
             'model_id' => $modelId,
             'old_values' => $oldValues,
             'new_values' => $newValues,
-            'description' => $this->buildDescription($action, $prefix),
+            'description' => $this->buildDescription($canonicalAction, $prefix, $modelId),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -96,25 +120,34 @@ class LogPermissionAction
         return [substr($permission, 0, $pos), substr($permission, $pos + 1)];
     }
 
-    private function resolveBoundModel(Request $request, ?string $modelClass)
+    private function resolveModel(Request $request, string $modelClass): ?Model
     {
-        if (! $modelClass) return null;
-
         foreach ($request->route()->parameters() as $value) {
             if ($value instanceof $modelClass) {
                 return $value;
             }
         }
+
+        foreach ($request->route()->parameters() as $value) {
+            if (! is_numeric($value)) {
+                continue;
+            }
+
+            $model = $modelClass::query()->find((int) $value);
+            if ($model && (! isset($model->company_id) || (int) $model->company_id === (int) $request->user()->company_id)) {
+                return $model;
+            }
+        }
+
         return null;
     }
 
-    private function buildDescription(string $action, string $prefix): string
+    private function buildDescription(string $action, string $prefix, int|string $modelId): string
     {
         $labels = [
-            'xem' => 'Xem', 'xem_chi_tiet' => 'Xem chi tiết', 'them' => 'Thêm',
-            'sua' => 'Cập nhật', 'xoa' => 'Xóa', 'duyet' => 'Duyệt',
-            'tu_choi' => 'Từ chối', 'khoa' => 'Khóa', 'mo_khoa' => 'Mở khóa',
-            'huy' => 'Hủy', 'xem_lich_su' => 'Xem lịch sử',
+            'create' => 'Thêm mới', 'update' => 'Cập nhật', 'delete' => 'Xóa',
+            'approve' => 'Duyệt', 'reject' => 'Từ chối', 'lock' => 'Khóa',
+            'unlock' => 'Mở khóa', 'cancel' => 'Hủy',
         ];
 
         $modules = [
@@ -131,6 +164,6 @@ class LogPermissionAction
             'loai_giao_dich' => 'loại giao dịch', 'giao_dich' => 'giao dịch',
         ];
 
-        return ($labels[$action] ?? ucfirst($action)).' '.($modules[$prefix] ?? str_replace('_', ' ', $prefix));
+        return ($labels[$action] ?? 'Thao tác').' '.($modules[$prefix] ?? str_replace('_', ' ', $prefix))." #{$modelId}";
     }
 }

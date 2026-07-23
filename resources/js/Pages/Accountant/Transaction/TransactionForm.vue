@@ -30,44 +30,47 @@
         <div class="tx-body">
             <!-- RELATED ORDER -->
             <div class="section-label">Đơn hàng liên quan</div>
-            <div v-if="form.type === 'receipt'" class="grid2">
+            <div v-if="form.type === 'receipt' && !requiresSupplier" class="grid2">
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-user"></i>Khách hàng
+                        <span class="required">*</span>
                     </label>
-                    <select
+                    <FormSelect
                         v-model="form.customer_id"
-                        class="input"
-                        @change="onCustomerChange"
-                    >
-                        <option value="">Chọn khách hàng</option>
-                        <option
-                            v-for="c in customers || []"
-                            :key="c.id"
-                            :value="c.id"
-                        >
-                            {{ c.code }} - {{ c.name }}
-                        </option>
-                    </select>
+                        :options="customerOptions"
+                        placeholder="Chọn khách hàng"
+                        :error="errors.customer_id || ''"
+                        @update:model-value="onCustomerChange"
+                    />
                 </div>
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn bán
+                        <span class="required">*</span>
                     </label>
-                    <select
+                    <FormSelect
                         v-model="form.sales_order_id"
-                        class="input"
-                        @change="onSalesOrderChange"
-                    >
-                        <option value="">Chọn đơn bán</option>
-                        <option
-                            v-for="o in orderOptions"
-                            :key="o.id"
-                            :value="o.id"
-                        >
-                            {{ o.label }}
-                        </option>
-                    </select>
+                        :options="orderSelectOptions"
+                        placeholder="Chọn đơn bán"
+                        :error="errors.sales_order_id || ''"
+                        @update:model-value="onSalesOrderChange"
+                    />
+                </div>
+            </div>
+
+            <div v-if="form.type === 'receipt' && requiresSupplier" class="grid2">
+                <div class="field">
+                    <label class="label">
+                        <i class="ti ti-building-store"></i>Nhà cung cấp
+                        <span class="required">*</span>
+                    </label>
+                    <FormSelect
+                        v-model="form.supplier_id"
+                        :options="supplierOptions"
+                        placeholder="Chọn nhà cung cấp"
+                        :error="errors.supplier_id || ''"
+                    />
                 </div>
             </div>
 
@@ -75,40 +78,28 @@
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-building-store"></i>Nhà cung cấp
+                        <span class="required">*</span>
                     </label>
-                    <select
+                    <FormSelect
                         v-model="form.supplier_id"
-                        class="input"
-                        @change="onSupplierChange"
-                    >
-                        <option value="">Chọn nhà cung cấp</option>
-                        <option
-                            v-for="s in suppliers || []"
-                            :key="s.id"
-                            :value="s.id"
-                        >
-                            {{ s.code }} - {{ s.name }}
-                        </option>
-                    </select>
+                        :options="supplierOptions"
+                        placeholder="Chọn nhà cung cấp"
+                        :error="errors.supplier_id || ''"
+                        @update:model-value="onSupplierChange"
+                    />
                 </div>
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn mua
+                        <span class="required">*</span>
                     </label>
-                    <select
+                    <FormSelect
                         v-model="form.purchase_order_id"
-                        class="input"
-                        @change="onPurchaseOrderChange"
-                    >
-                        <option value="">Chọn đơn mua</option>
-                        <option
-                            v-for="o in orderOptions"
-                            :key="o.id"
-                            :value="o.id"
-                        >
-                            {{ o.label }}
-                        </option>
-                    </select>
+                        :options="orderSelectOptions"
+                        placeholder="Chọn đơn mua"
+                        :error="errors.purchase_order_id || ''"
+                        @update:model-value="onPurchaseOrderChange"
+                    />
                 </div>
             </div>
 
@@ -139,17 +130,12 @@
                 <label class="label">
                     <i class="ti ti-tag"></i>Loại thanh toán <span class="required">*</span>
                 </label>
-                <select v-model="form.category_id" class="input">
-                    <option value="">Chọn loại</option>
-                    <option
-                        v-for="c in filteredCategories"
-                        :key="c.id"
-                        :value="c.id"
-                    >
-                        {{ c.name }}
-                    </option>
-                </select>
-                <p v-if="errors.category_id" class="field-error">{{ errors.category_id }}</p>
+                <FormSelect
+                    v-model="form.category_id"
+                    :options="categoryOptions"
+                    placeholder="Chọn loại thanh toán"
+                    :error="errors.category_id || ''"
+                />
                 <p v-if="categoryMismatchMessage" class="category-error">
                     <i class="ti ti-alert-circle"></i>
                     {{ categoryMismatchMessage }}
@@ -158,15 +144,16 @@
             <div class="field">
                 <label class="label">
                     <i class="ti ti-wallet"></i>Hình thức giao dịch
+                    <span class="required">*</span>
                 </label>
-                <select
+                <FormSelect
                     v-model="form.payment_method"
-                    class="input"
+                    :options="paymentMethodOptions"
+                    placeholder="Chọn hình thức giao dịch"
+                    :can-clear="false"
                     :disabled="form.type === 'transfer'"
-                >
-                    <option value="cash">Tiền mặt</option>
-                    <option value="bank_transfer">Chuyển khoản</option>
-                </select>
+                    :error="errors.payment_method || ''"
+                />
                 <p v-if="form.type === 'transfer'" class="hint-text">
                     Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.
                 </p>
@@ -176,23 +163,39 @@
             <!-- ACCOUNTS -->
             <div class="section-label">Tài khoản</div>
 
+            <div v-if="!filteredAccounts.length" class="account-empty-state">
+                <div>
+                    <strong>Chưa có tài khoản phù hợp</strong>
+                    <p>
+                        Hãy tạo tài khoản {{ form.payment_method === "cash" ? "tiền mặt" : "ngân hàng" }} để tiếp tục giao dịch.
+                    </p>
+                </div>
+                <button
+                    v-if="canCreateAccount"
+                    type="button"
+                    class="btn-create-account"
+                    @click="openAccountCreate(defaultAccountTarget)"
+                >
+                    <i class="ti ti-plus"></i>
+                    Tạo tài khoản
+                </button>
+            </div>
+
             <div class="grid2">
                 <!-- RECEIPT: to_account -->
                 <div v-if="form.type === 'receipt'" class="field">
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản nhận <span class="required">*</span>
                     </label>
-                    <select v-model="form.to_account_id" class="input">
-                        <option value="">Chọn tài khoản</option>
-                        <option
-                            v-for="a in filteredAccounts"
-                            :key="a.id"
-                            :value="a.id"
-                        >
-                            {{ accountLabel(a) }}
-                        </option>
-                    </select>
-                    <p v-if="errors.to_account_id" class="field-error">{{ errors.to_account_id }}</p>
+                    <FormSelect
+                        v-model="form.to_account_id"
+                        :options="accountOptions"
+                        placeholder="Chọn tài khoản nhận"
+                        :allow-create="canCreateAccount"
+                        add-new-text="Tạo tài khoản mới"
+                        :error="errors.to_account_id || ''"
+                        @add-new="openAccountCreate('to_account_id')"
+                    />
                 </div>
 
                 <!-- PAYMENT: from_account -->
@@ -200,17 +203,15 @@
                     <label class="label">
                         <i class="ti ti-building-bank"></i>Tài khoản chi <span class="required">*</span>
                     </label>
-                    <select v-model="form.from_account_id" class="input">
-                        <option value="">Chọn tài khoản</option>
-                        <option
-                            v-for="a in filteredAccounts"
-                            :key="a.id"
-                            :value="a.id"
-                        >
-                            {{ accountLabel(a) }}
-                        </option>
-                    </select>
-                    <p v-if="errors.from_account_id" class="field-error">{{ errors.from_account_id }}</p>
+                    <FormSelect
+                        v-model="form.from_account_id"
+                        :options="accountOptions"
+                        placeholder="Chọn tài khoản chi"
+                        :allow-create="canCreateAccount"
+                        add-new-text="Tạo tài khoản mới"
+                        :error="errors.from_account_id || ''"
+                        @add-new="openAccountCreate('from_account_id')"
+                    />
                     <p v-if="selectedPaymentAccount" class="account-balance">
                         <i class="ti ti-wallet"></i>
                         Số dư khả dụng:
@@ -226,33 +227,34 @@
                         <label class="label">
                             <i class="ti ti-building-bank"></i>Tài khoản chuyển <span class="required">*</span>
                         </label>
-                        <select v-model="form.from_account_id" class="input">
-                            <option value="">Chọn tài khoản</option>
-                            <option
-                                v-for="a in filteredAccounts"
-                                :key="a.id"
-                                :value="a.id"
-                            >
-                                {{ accountLabel(a) }}
-                            </option>
-                        </select>
-                        <p v-if="errors.from_account_id" class="field-error">{{ errors.from_account_id }}</p>
+                        <FormSelect
+                            v-model="form.from_account_id"
+                            :options="accountOptions"
+                            placeholder="Chọn tài khoản chuyển"
+                            :allow-create="canCreateAccount"
+                            add-new-text="Tạo tài khoản mới"
+                            :error="errors.from_account_id || ''"
+                            @add-new="openAccountCreate('from_account_id')"
+                        />
+                        <p v-if="selectedSourceAccount" class="account-balance">
+                            <i class="ti ti-wallet"></i>
+                            Số dư khả dụng:
+                            <strong>{{ formatAccountBalance(selectedSourceAccount) }}</strong>
+                        </p>
                     </div>
                     <div class="field">
                         <label class="label">
                             <i class="ti ti-building-bank"></i>Tài khoản nhận <span class="required">*</span>
                         </label>
-                        <select v-model="form.to_account_id" class="input">
-                            <option value="">Chọn tài khoản</option>
-                            <option
-                                v-for="a in filteredAccounts"
-                                :key="a.id"
-                                :value="a.id"
-                            >
-                                {{ accountLabel(a) }}
-                            </option>
-                        </select>
-                        <p v-if="errors.to_account_id" class="field-error">{{ errors.to_account_id }}</p>
+                        <FormSelect
+                            v-model="form.to_account_id"
+                            :options="accountOptions"
+                            placeholder="Chọn tài khoản nhận"
+                            :allow-create="canCreateAccount"
+                            add-new-text="Tạo tài khoản mới"
+                            :error="errors.to_account_id || ''"
+                            @add-new="openAccountCreate('to_account_id')"
+                        />
                     </div>
                 </template>
             </div>
@@ -274,6 +276,8 @@
                             inputmode="numeric"
                             pattern="[0-9]*"
                             class="input"
+                            :class="{ 'input-error': errors.amount }"
+                            :aria-invalid="Boolean(errors.amount)"
                             placeholder="0"
                         />
                         <span class="currency-badge">
@@ -293,7 +297,10 @@
                 <input
                     v-model="form.transaction_date"
                     type="date"
+                    :max="today()"
                     class="input"
+                    :class="{ 'input-error': errors.transaction_date }"
+                    :aria-invalid="Boolean(errors.transaction_date)"
                 />
                 <p v-if="errors.transaction_date" class="field-error">{{ errors.transaction_date }}</p>
             </div>
@@ -308,9 +315,13 @@
                 <textarea
                     v-model="form.description"
                     class="input"
+                    :class="{ 'input-error': errors.description }"
+                    :aria-invalid="Boolean(errors.description)"
                     rows="3"
+                    maxlength="2000"
                     placeholder="Nhập nội dung giao dịch..."
                 ></textarea>
+                <p v-if="errors.description" class="field-error">{{ errors.description }}</p>
             </div>
         </div>
 
@@ -329,6 +340,17 @@
             </button>
         </div>
     </div>
+
+    <Modal v-if="showAccountModal" @close="showAccountModal = false">
+        <template #body>
+            <AccountForm
+                :default-type="newAccountType"
+                :default-currency-id="form.currency_id"
+                @saved="onAccountCreated"
+                @close="showAccountModal = false"
+            />
+        </template>
+    </Modal>
 </template>
 
 <script setup>
@@ -336,6 +358,10 @@ import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
 import { formatMoney, getValidationMessage } from "@/config/helpers";
 import { toast } from "vue3-toastify";
+import FormSelect from "@/components/FormSelect.vue";
+import Modal from "@/components/Modal.vue";
+import AccountForm from "@/Pages/Accountant/Account/AccountForm.vue";
+import { usePermission } from "@/composables/usePermission";
 
 const props = defineProps({
     transaction: { type: Object, default: null },
@@ -346,9 +372,21 @@ const props = defineProps({
     suppliers: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(["saved", "close"]);
+const emit = defineEmits(["saved", "close", "account-created"]);
+const { can } = usePermission();
 
 const saving = ref(false);
+const validationAttempted = ref(false);
+const showAccountModal = ref(false);
+const accountTargetField = ref("to_account_id");
+const localAccounts = ref([]);
+const canCreateAccount = computed(() => can("tai_khoan.them"));
+const newAccountType = computed(() =>
+    form.payment_method === "cash" ? "cash" : "bank",
+);
+const defaultAccountTarget = computed(() =>
+    form.type === "receipt" ? "to_account_id" : "from_account_id",
+);
 const errors = reactive({});
 
 function setFieldErrors(values = {}) {
@@ -358,11 +396,32 @@ function setFieldErrors(values = {}) {
     });
 }
 
-function validateForm() {
+function validateForm(markAttempted = true) {
+    if (markAttempted) validationAttempted.value = true;
     const next = {};
     if (!form.category_id) next.category_id = "Vui lòng chọn loại thanh toán.";
+    if (categoryMismatchMessage.value) next.category_id = categoryMismatchMessage.value;
+    if (!form.payment_method) next.payment_method = "Vui lòng chọn hình thức giao dịch.";
     if (!Number(form.amount) || Number(form.amount) <= 0) next.amount = "Số tiền phải lớn hơn 0.";
     if (!form.transaction_date) next.transaction_date = "Vui lòng chọn ngày giao dịch.";
+    if (form.transaction_date && form.transaction_date > today()) {
+        next.transaction_date = "Ngày giao dịch không được lớn hơn ngày hôm nay.";
+    }
+    if ((form.description || "").length > 2000) {
+        next.description = "Nội dung không được vượt quá 2.000 ký tự.";
+    }
+    if (requiresCustomer.value && !form.customer_id) {
+        next.customer_id = "Vui lòng chọn khách hàng.";
+    }
+    if (requiresSalesOrder.value && !form.sales_order_id) {
+        next.sales_order_id = "Vui lòng chọn đơn bán đã duyệt.";
+    }
+    if (requiresSupplier.value && !form.supplier_id) {
+        next.supplier_id = "Vui lòng chọn nhà cung cấp.";
+    }
+    if (requiresPurchaseOrder.value && !form.purchase_order_id) {
+        next.purchase_order_id = "Vui lòng chọn đơn mua đã duyệt.";
+    }
     if (form.type === "receipt" && !form.to_account_id) next.to_account_id = "Vui lòng chọn tài khoản nhận.";
     if (form.type === "payment" && !form.from_account_id) next.from_account_id = "Vui lòng chọn tài khoản chi.";
     if (form.type === "transfer") {
@@ -372,6 +431,23 @@ function validateForm() {
             next.to_account_id = "Tài khoản nhận phải khác tài khoản chuyển.";
         }
     }
+
+    const sourceAccount = selectedSourceAccount.value;
+    if (sourceAccount && Number(form.amount) > 0) {
+        const requiredAmount = amountInSourceAccountCurrency.value;
+        if (requiredAmount > Number(sourceAccount.current_balance || 0)) {
+            next.amount = `Số tiền vượt quá số dư khả dụng của tài khoản (${formatAccountBalance(sourceAccount)}).`;
+        }
+    }
+
+    if (
+        (form.sales_order_id || form.purchase_order_id) &&
+        selectedOrderRemaining.value !== null &&
+        Number(form.amount) > selectedOrderRemaining.value
+    ) {
+        next.amount = `Số tiền không được vượt quá công nợ còn lại của đơn (${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}).`;
+    }
+
     setFieldErrors(next);
     return Object.keys(next).length === 0;
 }
@@ -400,6 +476,19 @@ function handleAmountKeydown(event) {
     }
 }
 
+function businessErrorFields(message = "") {
+    if (/số tiền|số dư|công nợ/i.test(message)) return { amount: message };
+    if (/nhà cung cấp/i.test(message) && !/đơn mua/i.test(message)) return { supplier_id: message };
+    if (/đơn mua/i.test(message)) return { purchase_order_id: message };
+    if (/khách hàng/i.test(message) && !/đơn bán/i.test(message)) return { customer_id: message };
+    if (/đơn bán/i.test(message)) return { sales_order_id: message };
+    if (/tài khoản nguồn|tài khoản chi/i.test(message)) return { from_account_id: message };
+    if (/tài khoản nhận|tài khoản đích/i.test(message)) return { to_account_id: message };
+    if (/ngày giao dịch/i.test(message)) return { transaction_date: message };
+    if (/loại thanh toán/i.test(message)) return { category_id: message };
+    return {};
+}
+
 const isEdit = computed(() => !!props.transaction?.id);
 
 const typeOptions = [
@@ -416,6 +505,33 @@ const normalizedCurrencies = computed(() =>
     Array.isArray(props.currencies)
         ? props.currencies
         : props.currencies?.data || [],
+);
+
+const customerOptions = computed(() => {
+    const rows = Array.isArray(props.customers)
+        ? props.customers
+        : props.customers?.data || [];
+    return rows.map((customer) => ({
+        value: customer.id,
+        label: [customer.code, customer.name].filter(Boolean).join(" - "),
+    }));
+});
+
+const supplierOptions = computed(() => {
+    const rows = Array.isArray(props.suppliers)
+        ? props.suppliers
+        : props.suppliers?.data || [];
+    return rows.map((supplier) => ({
+        value: supplier.id,
+        label: [supplier.code, supplier.name].filter(Boolean).join(" - "),
+    }));
+});
+
+const orderSelectOptions = computed(() =>
+    orderOptions.value.map((order) => ({
+        value: order.id,
+        label: order.label,
+    })),
 );
 
 const selectedCurrency = computed(() => {
@@ -484,6 +600,18 @@ const filteredCategories = computed(() => {
     );
 });
 
+const categoryOptions = computed(() =>
+    filteredCategories.value.map((category) => ({
+        value: category.id,
+        label: category.name,
+    })),
+);
+
+const paymentMethodOptions = [
+    { value: "cash", label: "Tiền mặt" },
+    { value: "bank_transfer", label: "Chuyển khoản" },
+];
+
 const selectedCategory = computed(() => {
     if (!form.category_id) return null;
     return (
@@ -493,6 +621,16 @@ const selectedCategory = computed(() => {
     );
 });
 
+const selectedCategoryCode = computed(() => selectedCategory.value?.code || "");
+const requiresCustomer = computed(() => selectedCategoryCode.value === "THU_KH");
+const requiresSalesOrder = computed(() => selectedCategoryCode.value === "THU_KH");
+const requiresSupplier = computed(() =>
+    ["CHI_NCC", "TAM_UNG_NCC", "HOAN_TAM_UNG_NCC"].includes(
+        selectedCategoryCode.value,
+    ),
+);
+const requiresPurchaseOrder = computed(() => selectedCategoryCode.value === "CHI_NCC");
+
 // Thông báo lỗi khi category đã chọn không khớp loại giao dịch hiện tại
 // (phòng trường hợp dữ liệu cũ khi sửa giao dịch, hoặc select chưa lọc kịp)
 const categoryMismatchMessage = computed(() => {
@@ -501,9 +639,7 @@ const categoryMismatchMessage = computed(() => {
     const expectedType = TYPE_TO_CATEGORY_TYPE[form.type];
     if (cat.type !== expectedType) {
         const catLabel = CATEGORY_TYPE_LABELS[cat.type] || cat.type;
-        return toast.error(
-            `Loại thanh toán "${cat.name}" chỉ dùng cho giao dịch ${catLabel}, không phù hợp với giao dịch bạn đang tạo.`,
-        );
+        return `Loại thanh toán "${cat.name}" chỉ dùng cho giao dịch ${catLabel}, không phù hợp với giao dịch bạn đang tạo.`;
     }
     return "";
 });
@@ -532,9 +668,16 @@ const form = reactive({
     description: "",
 });
 
-const normalizedAccounts = computed(() =>
-    Array.isArray(props.accounts) ? props.accounts : props.accounts?.data || [],
+watch(
+    () => props.accounts,
+    (accounts) => {
+        const rows = Array.isArray(accounts) ? accounts : accounts?.data || [];
+        localAccounts.value = [...rows];
+    },
+    { immediate: true, deep: true },
 );
+
+const normalizedAccounts = computed(() => localAccounts.value);
 
 const filteredAccounts = computed(() => {
     if (form.payment_method === "cash") {
@@ -554,13 +697,74 @@ function accountLabel(account) {
         .join(" - ");
 }
 
-const selectedPaymentAccount = computed(() => {
-    if (form.type !== "payment" || !form.from_account_id) return null;
+const accountOptions = computed(() =>
+    filteredAccounts.value.map((account) => ({
+        value: account.id,
+        label: accountLabel(account),
+    })),
+);
+
+function openAccountCreate(targetField) {
+    accountTargetField.value = targetField;
+    showAccountModal.value = true;
+}
+
+async function onAccountCreated(createdAccount) {
+    try {
+        const response = await axios.get("/api/accountant/accounts/all");
+        localAccounts.value = Array.isArray(response.data)
+            ? response.data
+            : response.data?.data || [];
+
+        const accountId = createdAccount?.id;
+        const newAccount = localAccounts.value.find(
+            (account) => Number(account.id) === Number(accountId),
+        );
+
+        if (newAccount) {
+            form[accountTargetField.value] = newAccount.id;
+            form.currency_id =
+                newAccount.currency_id || newAccount.currency?.id || form.currency_id;
+            const currency = normalizedCurrencies.value.find(
+                (item) => Number(item.id) === Number(form.currency_id),
+            );
+            form.exchange_rate = Number(currency?.exchange_rate || 1);
+            emit("account-created", newAccount);
+        }
+    } catch (error) {
+        toast.error("Đã tạo tài khoản nhưng chưa thể tải lại danh sách tài khoản.");
+    } finally {
+        showAccountModal.value = false;
+    }
+}
+
+const selectedSourceAccount = computed(() => {
+    if (!["payment", "transfer"].includes(form.type) || !form.from_account_id) return null;
     return (
         normalizedAccounts.value.find(
             (account) => Number(account.id) === Number(form.from_account_id),
         ) || null
     );
+});
+
+const selectedPaymentAccount = computed(() =>
+    form.type === "payment" ? selectedSourceAccount.value : null,
+);
+
+const amountInSourceAccountCurrency = computed(() => {
+    const account = selectedSourceAccount.value;
+    const amount = Number(form.amount || 0);
+    if (!account || !amount) return 0;
+
+    const accountCurrencyId = account.currency_id || account.currency?.id;
+    if (Number(accountCurrencyId) === Number(form.currency_id)) return amount;
+
+    const accountCurrency = normalizedCurrencies.value.find(
+        (currency) => Number(currency.id) === Number(accountCurrencyId),
+    );
+    const transactionRate = Number(form.exchange_rate || selectedCurrency.value?.exchange_rate || 1);
+    const accountRate = Number(account.currency?.exchange_rate || accountCurrency?.exchange_rate || 1);
+    return accountRate > 0 ? (amount * transactionRate) / accountRate : Number.POSITIVE_INFINITY;
 });
 
 function formatAccountBalance(account) {
@@ -569,7 +773,7 @@ function formatAccountBalance(account) {
     return `${formatMoney(Number(account.current_balance || 0))} ${currencyLabel}`.trim();
 }
 
-watch([() => form.payment_method, () => props.accounts], () => {
+watch([() => form.payment_method, () => localAccounts.value], () => {
     const allowedIds = new Set(
         filteredAccounts.value.map((account) => Number(account.id)),
     );
@@ -584,6 +788,8 @@ watch([() => form.payment_method, () => props.accounts], () => {
 });
 
 function resetForm() {
+    validationAttempted.value = false;
+    setFieldErrors({});
     Object.assign(form, {
         id: null,
         code: "",
@@ -647,6 +853,27 @@ watch(
     { immediate: true },
 );
 
+watch(
+    [
+        () => form.type,
+        () => form.category_id,
+        () => form.payment_method,
+        () => form.customer_id,
+        () => form.supplier_id,
+        () => form.sales_order_id,
+        () => form.purchase_order_id,
+        () => form.from_account_id,
+        () => form.to_account_id,
+        () => form.amount,
+        () => form.transaction_date,
+        () => form.description,
+        () => selectedOrderRemaining.value,
+    ],
+    () => {
+        if (validationAttempted.value) validateForm(false);
+    },
+);
+
 // Khi đổi loại giao dịch (receipt/payment/transfer): reset các field liên quan
 // gồm cả category_id, vì category cũ có thể không còn phù hợp với loại mới.
 watch(
@@ -699,7 +926,11 @@ async function loadOrderOptions() {
             }
 
             const res = await axios.get("/api/sale/orders", {
-                params: { customer_id: form.customer_id },
+                params: {
+                    customer_id: form.customer_id,
+                    transaction_eligible: 1,
+                    per_page: 100,
+                },
             });
 
             orderOptions.value = (res.data.data || []).map((order) => ({
@@ -727,7 +958,11 @@ async function loadOrderOptions() {
             }
 
             const res = await axios.get("/api/purchase/orders", {
-                params: { supplier_id: form.supplier_id },
+                params: {
+                    supplier_id: form.supplier_id,
+                    transaction_eligible: 1,
+                    per_page: 100,
+                },
             });
 
             orderOptions.value = (res.data.data || []).map((order) => ({
@@ -830,13 +1065,13 @@ watch(
         () => form.type,
         () => form.from_account_id,
         () => form.to_account_id,
-        () => props.accounts,
+        () => localAccounts.value,
     ],
     () => {
         if (form.sales_order_id || form.purchase_order_id) return;
         const accountId =
             form.type === "receipt" ? form.to_account_id : form.from_account_id;
-        const account = (props.accounts || []).find(
+        const account = normalizedAccounts.value.find(
             (item) => Number(item.id) === Number(accountId),
         );
         if (!account) return;
@@ -894,9 +1129,16 @@ async function save() {
         emit("saved");
     } catch (error) {
         console.error(error);
-        setFieldErrors(error.response?.data?.errors || {});
+        validationAttempted.value = true;
+        const message = getValidationMessage(error, "Không thể lưu giao dịch.");
+        const serverErrors = error.response?.data?.errors || {};
+        setFieldErrors(
+            Object.keys(serverErrors).length
+                ? serverErrors
+                : businessErrorFields(message),
+        );
         // Bắt lỗi nghiệp vụ từ BE (vd category không khớp loại giao dịch) trả về qua message
-        toast.error(getValidationMessage(error, "Không thể lưu giao dịch."));
+        toast.error(message);
     } finally {
         saving.value = false;
     }
@@ -906,6 +1148,10 @@ async function save() {
 <style scoped>
 .required { color: #dc2626; margin-left: 2px; }
 .field-error { margin-top: 6px; color: #dc2626; font-size: 12px; line-height: 1.4; }
+.input-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
 /* ── Container ── */
 .tx-modal {
     background: #fff;
@@ -1119,6 +1365,39 @@ textarea.input {
     border: 1px solid #bbf7d0;
     border-radius: 8px;
     font-size: 12.5px;
+}
+
+.account-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    font-size: 13px;
+}
+.account-empty-state p {
+    margin-top: 2px;
+    color: #a16207;
+    font-size: 12px;
+}
+.btn-create-account {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    color: #fff;
+    background: #2563eb;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.btn-create-account:hover {
+    background: #1d4ed8;
 }
 
 /* ── Footer ── */

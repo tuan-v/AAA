@@ -69,6 +69,10 @@ class PurchaseToPaymentEndToEndTest extends TestCase
             ->postJson("/api/purchase/orders/{$orderId}/approve")
             ->assertOk();
         $this->assertSame('approved', PurchaseOrder::findOrFail($orderId)->status);
+        $this->actingAs($warehouseUser)
+            ->getJson('/api/warehouse/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.items.0.product.unit.symbol', $product->unit->symbol);
         $this->assertEquals($stockBefore, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('quantity'));
         $this->assertEquals($debtBefore, SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
 
@@ -77,13 +81,31 @@ class PurchaseToPaymentEndToEndTest extends TestCase
             'warehouse_id' => $warehouse->id,
             'purchase_order_id' => $orderId,
             'note' => 'Nhập kho luồng E2E',
-            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertOk()->json('slip.id');
+
+        // Tạo trước phiếu nhập phần còn lại nhưng chưa duyệt để bảo đảm
+        // trạng thái đơn chỉ dựa trên số lượng của các phiếu đã duyệt.
+        $remainingSlipId = $this->actingAs($warehouseUser)->postJson('/api/warehouse/slips', [
+            'type' => 'import',
+            'warehouse_id' => $warehouse->id,
+            'purchase_order_id' => $orderId,
+            'note' => 'Nhập phần còn lại',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
         ])->assertOk()->json('slip.id');
 
         $this->actingAs($warehouseUser)
             ->postJson("/api/warehouse/slips/{$slipId}/approve")
             ->assertOk();
+        $this->assertSame('partial', PurchaseOrder::findOrFail($orderId)->status);
+        $this->assertEquals(1, PurchaseOrder::findOrFail($orderId)->items()->firstOrFail()->received_quantity);
+        $this->assertEquals($stockBefore + 1, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('quantity'));
+
+        $this->actingAs($warehouseUser)
+            ->postJson("/api/warehouse/slips/{$remainingSlipId}/approve")
+            ->assertOk();
         $this->assertSame('completed', PurchaseOrder::findOrFail($orderId)->status);
+        $this->assertEquals(2, PurchaseOrder::findOrFail($orderId)->items()->firstOrFail()->received_quantity);
         $this->assertEquals($stockBefore + 2, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('quantity'));
         $this->assertEquals($debtBefore + 220000, SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
 

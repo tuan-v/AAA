@@ -42,6 +42,7 @@ class SalesOrderController extends Controller
             'currency',
             'items',
             'items.product.stocks',
+            'items.product.unit',
             'warehouseSlips',
         ])->whereIn('status', [
             'pending',
@@ -51,7 +52,9 @@ class SalesOrderController extends Controller
             'cancelled',
         ]);
 
-        if ($request->filled('status')) {
+        if ($request->boolean('transaction_eligible')) {
+            $query->whereIn('status', ['approved', 'partial', 'completed']);
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -117,6 +120,7 @@ class SalesOrderController extends Controller
             'customer',
             'currency',
             'items.product',
+            'items.product.unit',
         ])
             ->whereIn('status', ['approved', 'partial', 'completed'])
             ->latest()
@@ -204,6 +208,8 @@ class SalesOrderController extends Controller
 
         // Tính toán thêm exported quantity
         foreach ($order->items as $item) {
+            $item->unit_name = $item->product?->unit?->symbol
+                ?: $item->product?->unit?->name;
             $exported = 0;
             foreach ($order->warehouseSlips as $slip) {
                 if ($slip->status !== 'approved') {

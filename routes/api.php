@@ -27,6 +27,7 @@ use App\Http\Controllers\WarehouseInventoryController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\Accountant\AccountLedgerController;
+use App\Http\Controllers\Accountant\ProfitLossReportController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -257,6 +258,8 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     |--------------------------------------------------------------------------
     */
     Route::prefix('accountant')->group(function () {
+        Route::get('/profit-loss-report', [ProfitLossReportController::class, 'index'])
+            ->middleware('permission:giao_dich.xem');
         Route::controller(CurrencyController::class)->prefix('currencies')->group(function () {
             Route::get('/', 'index')->middleware('permission:tien_te.xem');
             Route::get('/all', 'all')->middleware('permission:tien_te.xem');

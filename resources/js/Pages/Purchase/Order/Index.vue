@@ -256,7 +256,6 @@ const onSupplierCreated = async (newSupplier) => {
     // Modal PurchaseOrderForm vẫn đang mở, không cần làm gì thêm
     // Buộc cập nhật lại form (quan trọng)
     selectedOrder.value = { ...selectedOrder.value }; // trigger reactivity
-
 };
 const suppliers = ref([]);
 const products = ref([]);
@@ -272,6 +271,26 @@ const handlePerPageChange = (value) => {
     getData(1);
 };
 const selectedOrder = ref(null);
+
+function formatOrderQuantity(row) {
+    const quantitiesByUnit = new Map();
+
+    for (const item of row.items || []) {
+        const unit =
+            item.product?.unit?.symbol || item.product?.unit?.name || "";
+        quantitiesByUnit.set(
+            unit,
+            (quantitiesByUnit.get(unit) || 0) + Number(item.quantity || 0),
+        );
+    }
+
+    return [...quantitiesByUnit.entries()]
+        .map(
+            ([unit, quantity]) =>
+                `${formatQuantity(quantity)}${unit ? ` ${unit}` : ""}`,
+        )
+        .join(", ");
+}
 
 const columns = [
     {
@@ -302,21 +321,18 @@ const columns = [
     },
     {
         label: "SL SP",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
                 { class: "font-semibold text-blue-600" },
-                formatQuantity(
-                    (row.items || []).reduce(
-                        (total, item) => total + Number(item.quantity || 0),
-                        0,
-                    ),
-                ),
+                formatOrderQuantity(row),
             ),
     },
 
     {
         label: "Tổng tiền",
+        align: "text-right",
         render: (row) => {
             const value = new Intl.NumberFormat("vi-VN").format(
                 row.total_amount ?? 0,
@@ -327,7 +343,7 @@ const columns = [
             return h(
                 "span",
                 {
-                    class: "font-semibold ",
+                    class: "font-semibold",
                 },
                 `${value} ${symbol}`,
             );
@@ -336,6 +352,7 @@ const columns = [
 
     {
         label: "Trạng thái",
+        align: "text-center",
 
         render: (row) => {
             const status = statusConfig[row.status] ?? statusConfig.pending;
@@ -363,8 +380,7 @@ const actions = [
             openEdit(item);
         },
         hidden: (item) =>
-            !can("don_mua.sua") ||
-            HIDDEN_EDIT_STATUSES.includes(item.status),
+            !can("don_mua.sua") || HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: CheckIcon,
@@ -392,8 +408,7 @@ const actions = [
         confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("don_mua.huy") ||
-            HIDDEN_EDIT_STATUSES.includes(item.status),
+            !can("don_mua.huy") || HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DetailButtonIcon,
@@ -455,7 +470,9 @@ async function fetchSuppliers() {
 }
 
 async function fetchProducts() {
-    const res = await axios.get("/api/purchase/products", { params: { per_page: 100 } });
+    const res = await axios.get("/api/purchase/products", {
+        params: { per_page: 100 },
+    });
 
     products.value = res.data.data;
 }

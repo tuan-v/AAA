@@ -33,7 +33,7 @@ return [
     'danh_muc_kho' => \App\Models\Category::class,
     'don_vi_kho' => \App\Models\Unit::class,
     'phieu_kho' => \App\Models\WarehouseSlip::class,
-    'chuyen_kho' => \App\Models\WarehouseSlip::class,
+    'chuyen_kho' => \App\Models\WarehouseTransfer::class,
 
     // ==================== MUA HÀNG (PURCHASE) ====================
     'nha_cung_cap' => \App\Models\Supplier::class,

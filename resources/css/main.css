@@ -201,7 +201,15 @@ layer(base);
 }
 
 /* Toast dùng chung toàn hệ thống */
+:root {
+    /* Luôn cao hơn modal, confirm dialog, datepicker và dropdown của hệ thống. */
+    --toastify-z-index: 2147483647 !important;
+}
+
 .Toastify__toast-container {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    isolation: isolate;
     width: min(390px, calc(100vw - 24px)) !important;
     padding: 12px !important;
 }

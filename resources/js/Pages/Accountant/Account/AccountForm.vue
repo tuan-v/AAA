@@ -176,6 +176,14 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    defaultType: {
+        type: String,
+        default: "cash",
+    },
+    defaultCurrencyId: {
+        type: [String, Number],
+        default: "",
+    },
 });
 
 const emit = defineEmits(["saved", "close"]);
@@ -189,8 +197,8 @@ const form = ref({
     id: null,
     code: "",
     name: "",
-    type: "cash",
-    currency_id: "",
+    type: props.defaultType,
+    currency_id: props.defaultCurrencyId,
     opening_balance: 0,
     bank_id: null,
     bank_account_no: "",
@@ -221,8 +229,8 @@ watch(
                 id: null,
                 code: "",
                 name: "",
-                type: "cash",
-                currency_id: "",
+                type: props.defaultType,
+                currency_id: props.defaultCurrencyId,
                 opening_balance: 0,
                 bank_id: null,
                 bank_account_no: "",
@@ -253,20 +261,21 @@ async function saveAccount() {
     errors.value = {};
 
     try {
+        let response;
         if (form.value.id) {
-            await axios.put(
+            response = await axios.put(
                 `/api/accountant/accounts/${form.value.id}`,
                 form.value,
             );
 
             toast.success("Cập nhật tài khoản thành công");
         } else {
-            await axios.post("/api/accountant/accounts", form.value);
+            response = await axios.post("/api/accountant/accounts", form.value);
 
             toast.success("Thêm tài khoản thành công");
         }
 
-        emit("saved");
+        emit("saved", response.data?.data || response.data);
         emit("close");
     } catch (error) {
         if (error.response?.status === 422) {
@@ -289,6 +298,10 @@ async function loadData() {
     currencies.value = currencyRes.data.data ?? currencyRes.data;
 
     banks.value = bankRes.data.data ?? bankRes.data;
+
+    if (!form.value.currency_id && currencies.value.length) {
+        form.value.currency_id = currencies.value[0].id;
+    }
 }
 
 onMounted(loadData);

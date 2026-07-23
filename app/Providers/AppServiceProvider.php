@@ -286,6 +286,12 @@ class AppServiceProvider extends ServiceProvider
                     'path' => '/accountant/account-ledgers',
                 ] : null,
 
+                $this->can('giao_dich.xem') ? [
+                    'icon' => 'BarChartIcon',
+                    'name' => 'Báo cáo lãi lỗ',
+                    'path' => '/accountant/profit-loss-report',
+                ] : null,
+
                 $this->can('cong_no_khach_hang.xem') ? [
                     'icon' => 'UserIcon',
                     'name' => 'Công nợ khách hàng',

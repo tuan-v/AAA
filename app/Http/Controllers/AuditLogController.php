@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AuditLogController extends Controller
 {
@@ -11,7 +12,17 @@ class AuditLogController extends Controller
     {
         $companyId = $this->companyId($request);
 
-        $query = ActivityLog::query()->forCompany($companyId)->with('user:id,name')
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'action' => ['nullable', Rule::in(array_keys(ActivityLog::ACTION_ALIASES))],
+            'model_type' => ['nullable', 'string', 'max:255'],
+            'user_id' => ['nullable', 'integer'],
+            'date_from' => ['nullable', 'date', 'before_or_equal:today'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from', 'before_or_equal:today'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $query = ActivityLog::query()->forCompany($companyId)->trackable()->with('user:id,name')
             ->select([
                 'id',
                 'user_id',
@@ -19,14 +30,12 @@ class AuditLogController extends Controller
                 'description',
                 'model_type',
                 'model_id',
-                'old_values',
-                'new_values',
                 'ip_address',
                 'created_at'
             ]);
 
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
                     ->orWhere('model_type', 'like', "%{$search}%")
@@ -34,8 +43,8 @@ class AuditLogController extends Controller
             });
         }
 
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
+        if (! empty($validated['action'])) {
+            $query->whereIn('action', ActivityLog::aliasesFor($validated['action']));
         }
 
         if ($request->filled('model_type')) {
@@ -55,21 +64,12 @@ class AuditLogController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $perPage = $request->get('per_page', 15);
+        $perPage = (int) ($validated['per_page'] ?? 15);
 
         $logs = $query->latest()->paginate($perPage);
 
         // === FORMAT THỜI GIAN ===
-        $logs->getCollection()->transform(function ($log) {
-            $createdAt = $log->created_at;
-
-            // Định dạng đúng như bạn muốn
-            $log->created_at_formatted = $createdAt
-                ? $createdAt->format('d/m/Y H:i:s')
-                : null;
-
-            return $log;
-        });
+        $logs->getCollection()->transform(fn (ActivityLog $log) => $this->present($log));
 
         return $logs;
     }
@@ -90,11 +90,14 @@ class AuditLogController extends Controller
 
         $logs = ActivityLog::query()
             ->forCompany($this->companyId($request))
+            ->trackable()
             ->with('user:id,name')
             ->where('model_type', $fullModelType)
             ->where('model_id', $request->model_id)
             ->orderBy('created_at', 'asc') // theo trình tự thời gian, dễ theo dõi diễn biến
             ->get();
+
+        $logs->transform(fn (ActivityLog $log) => $this->present($log));
 
         return response()->json(['data' => $logs]);
     }
@@ -102,8 +105,9 @@ class AuditLogController extends Controller
     public function show(ActivityLog $auditLog)
     {
         abort_unless((int) $auditLog->company_id === $this->companyId(request()), 404);
+        abort_unless(ActivityLog::canonicalAction($auditLog->action) && $auditLog->model_id > 0, 404);
 
-        return $auditLog->load('user:id,name');
+        return $this->present($auditLog->load('user:id,name'));
     }
 
     private function companyId(Request $request): int
@@ -112,5 +116,20 @@ class AuditLogController extends Controller
         abort_unless($companyId, 403, 'Tài khoản chưa thuộc công ty nào.');
 
         return (int) $companyId;
+    }
+
+    private function present(ActivityLog $log): ActivityLog
+    {
+        $canonicalAction = ActivityLog::canonicalAction($log->action);
+
+        $log->setAttribute('action_key', $canonicalAction);
+        $log->setAttribute('action_label', ActivityLog::actionLabel($log->action));
+        $log->setAttribute('model_label', ActivityLog::modelLabel($log->model_type));
+        $log->setAttribute(
+            'created_at_formatted',
+            $log->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i:s')
+        );
+
+        return $log;
     }
 }

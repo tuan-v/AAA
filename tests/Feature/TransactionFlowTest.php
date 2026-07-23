@@ -10,6 +10,7 @@ use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\SalesOrder;
 use App\Models\TransactionCategory;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,7 +43,13 @@ class TransactionFlowTest extends TestCase
             'guard_name' => 'web',
             'description' => 'Xem giao dịch',
         ]);
-        $user->givePermissionTo($viewPermission);
+        $createPermission = Permission::create([
+            'name' => 'giao_dich.them', 'guard_name' => 'web', 'description' => 'Thêm giao dịch',
+        ]);
+        $updatePermission = Permission::create([
+            'name' => 'giao_dich.sua', 'guard_name' => 'web', 'description' => 'Sửa giao dịch',
+        ]);
+        $user->givePermissionTo([$viewPermission, $createPermission, $updatePermission]);
 
         $category = TransactionCategory::create([
             'company_id' => $company->id, 'code' => 'THU_KHAC', 'name' => 'Thu khác', 'type' => 'income', 'status' => 'active',
@@ -96,6 +103,72 @@ class TransactionFlowTest extends TestCase
         $transferCategory = TransactionCategory::create([
             'company_id' => $company->id, 'code' => 'CHUYEN_KHOAN', 'name' => 'Chuyển tiền nội bộ', 'type' => 'transfer', 'status' => 'active',
         ]);
+        $supplierPaymentCategory = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'CHI_NCC', 'name' => 'Thanh toán nhà cung cấp',
+            'type' => 'expense', 'status' => 'active',
+        ]);
+        $otherPaymentCategory = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'CHI_KHAC', 'name' => 'Chi khác',
+            'type' => 'expense', 'status' => 'active',
+        ]);
+
+        $this->assertThrows(fn () => $service->create([
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $supplierPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ]), \InvalidArgumentException::class);
+
+        $this->postJson('/api/accountant/transactions', [
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $supplierPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Thanh toán nhà cung cấp bắt buộc phải chọn nhà cung cấp.');
+
+        $legacyInvalidTransaction = Transaction::create([
+            'company_id' => $company->id,
+            'code' => 'GD-LEGACY-INVALID',
+            'transaction_date' => '2026-07-20',
+            'type' => 'payment',
+            'payment_method' => 'bank_transfer',
+            'category_id' => $supplierPaymentCategory->id,
+            'currency_id' => $currency->id,
+            'amount' => 10,
+            'exchange_rate' => 1,
+            'amount_base' => 10,
+            'from_account_id' => $bankSource->id,
+            'status' => 'pending',
+            'created_by' => $user->id,
+        ]);
+        $this->assertThrows(
+            fn () => $service->approve($legacyInvalidTransaction->id),
+            \InvalidArgumentException::class,
+        );
+
+        $this->assertThrows(fn () => $service->create([
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 151,
+            'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ]), \InvalidArgumentException::class);
+
+        $pendingPayment = $service->create([
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ]);
+        $this->putJson("/api/accountant/transactions/{$pendingPayment->id}", [
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 151,
+            'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', "Số tiền vượt quá số dư khả dụng của tài khoản 'NH00'.");
+        $service->delete($pendingPayment->id);
+
+        $this->assertThrows(fn () => $service->create([
+            ...$payload,
+            'transaction_date' => now()->addDay()->toDateString(),
+        ]), \InvalidArgumentException::class);
+
         $internalTransfer = $service->create([
             'type' => 'transfer', 'payment_method' => 'bank_transfer', 'amount' => 50,
             'currency_id' => $currency->id, 'category_id' => $transferCategory->id,

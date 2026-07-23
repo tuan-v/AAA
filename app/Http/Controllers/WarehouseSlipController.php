@@ -339,23 +339,22 @@ class WarehouseSlipController extends Controller
         //     })
         //     ->groupBy('product_id')
         //     ->pluck('total', 'product_id');
-        $importedMap = $this->getReceivedMap($orderId);
-        $totalItems = 0;
-        $importedItems = 0;
+        $importedMap = $this->getApprovedReceivedMap($orderId);
         $completed = true;
         $hasAny = false;
 
         foreach ($order->items as $item) {
 
-            $totalItems += $item->quantity;
+            $importedQty = (float) ($importedMap[$item->product_id] ?? 0);
 
-            $importedQty = $importedMap[$item->product_id] ?? 0;
+            // Lưu snapshot số lượng thực nhận để mọi báo cáo/API đọc trực tiếp
+            // từ purchase_order_items vẫn khớp các phiếu nhập đã duyệt.
+            $item->received_quantity = $importedQty;
+            $item->save();
 
             if ($importedQty > 0) {
                 $hasAny = true;
             }
-
-            $importedItems += $importedQty;
 
             if ($importedQty < $item->quantity) {
                 $completed = false;
@@ -534,6 +533,8 @@ class WarehouseSlipController extends Controller
                     $valueBefore = (float) $stock->stock_value;
 
                     $item->company_price = $avgCost;
+                    $item->cost_price = $avgCost;
+                    $item->cost_amount = round((float) $item->quantity * $avgCost, 2);
                     $item->save();
 
                     $stock->quantity = max(
@@ -642,7 +643,7 @@ class WarehouseSlipController extends Controller
             'message' => 'Từ chối phiếu thành công'
         ]);
     }
-    private function getReceivedMap($purchaseOrderId)
+    private function getApprovedReceivedMap($purchaseOrderId)
     {
         return WarehouseSlipItem::query()
             ->selectRaw('product_id, SUM(quantity) as total')
@@ -651,7 +652,7 @@ class WarehouseSlipController extends Controller
                     ->from('warehouse_slips')
                     ->where('purchase_order_id', $purchaseOrderId)
                     ->where('type', 'import')
-                    ->whereIn('status', ['pending', 'approved']);
+                    ->where('status', 'approved');
             })
             ->groupBy('product_id')
             ->pluck('total', 'product_id');

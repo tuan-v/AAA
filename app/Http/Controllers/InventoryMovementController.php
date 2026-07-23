@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\InventoryMovement;
+use App\Models\Company;
 use Illuminate\Http\Request;
 
 class InventoryMovementController extends Controller
@@ -25,7 +26,11 @@ class InventoryMovementController extends Controller
         $companyId = auth()->user()->company_id ?? auth()->user()->companies()->value('companies.id');
         abort_unless($companyId, 403);
 
-        return InventoryMovement::with(['warehouse:id,name,code', 'product:id,name,sku'])
+        $movements = InventoryMovement::with([
+            'warehouse:id,name,code',
+            'product:id,name,sku,unit_id',
+            'product.unit:id,name,symbol',
+        ])
             ->where('company_id', $companyId)
             ->when($validated['warehouse_id'] ?? null, fn ($q, $id) => $q->where('warehouse_id', $id))
             ->when($validated['product_id'] ?? null, fn ($q, $id) => $q->where('product_id', $id))
@@ -33,5 +38,12 @@ class InventoryMovementController extends Controller
             ->when($validated['date_from'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '>=', $date))
             ->when($validated['date_to'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '<=', $date))
             ->latest('id')->paginate($validated['per_page'] ?? 20);
+
+        $currency = Company::find($companyId)?->default_currency;
+        $movements->getCollection()->each(function (InventoryMovement $movement) use ($currency) {
+            $movement->setAttribute('company_currency', $currency?->only(['id', 'code', 'name', 'symbol']));
+        });
+
+        return $movements;
     }
 }

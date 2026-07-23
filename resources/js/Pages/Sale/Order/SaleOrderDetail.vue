@@ -184,10 +184,14 @@
                             </td>
                             <td class="border p-3 text-center">
                                 {{ formatQuantity(item.quantity) }}
+                                <span v-if="unitLabel(item)" class="ml-1 font-medium text-gray-500">{{ unitLabel(item) }}</span>
                             </td>
                             <td class="border p-3 text-center text-green-600">
-                                {{ formatQuantity(item.exported_quantity) }} /
+                                {{ formatQuantity(item.exported_quantity) }}
+                                <span v-if="unitLabel(item)" class="ml-1">{{ unitLabel(item) }}</span>
+                                /
                                 {{ formatQuantity(item.quantity) }}
+                                <span v-if="unitLabel(item)" class="ml-1">{{ unitLabel(item) }}</span>
                             </td>
                             <td class="border p-3 text-right">
                                 {{
@@ -244,6 +248,9 @@
 <script setup>
 import { computed } from "vue";
 import { formatMoney, formatQuantity } from "@/config/helpers";
+
+const unitLabel = (item) =>
+    item?.unit_name || item?.product?.unit?.symbol || item?.product?.unit?.name || "";
 
 const emit = defineEmits(["close", "duplicate"]);
 

@@ -224,6 +224,22 @@ const orderKey = ref(0); // Dùng để force re-render form khi cần
 const showConfirm = ref(false);
 const pendingApproveItem = ref(null);
 
+function formatOrderQuantity(row) {
+    const quantitiesByUnit = new Map();
+
+    for (const item of row.items || []) {
+        const unit = item.product?.unit?.symbol || item.product?.unit?.name || "";
+        quantitiesByUnit.set(
+            unit,
+            (quantitiesByUnit.get(unit) || 0) + Number(item.quantity || 0),
+        );
+    }
+
+    return [...quantitiesByUnit.entries()]
+        .map(([unit, quantity]) => `${formatQuantity(quantity)}${unit ? ` ${unit}` : ""}`)
+        .join(", ");
+}
+
 // Columns
 const columns = [
     { key: "code", label: "Mã đơn" },
@@ -249,15 +265,17 @@ const columns = [
     },
     {
         label: "SL SP",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
                 { class: "font-semibold text-blue-600" },
-                formatQuantity(row.total_quantity),
+                formatOrderQuantity(row),
             ),
     },
     {
         label: "Tổng tiền",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
@@ -267,6 +285,7 @@ const columns = [
     },
     {
         label: "Công nợ",
+        align: "text-right",
         render: (row) =>
             h(
                 "span",
@@ -281,6 +300,7 @@ const columns = [
     },
     {
         label: "Trạng thái",
+        align: "text-center",
         render: (row) => {
             const status = statusConfig[row?.status];
 

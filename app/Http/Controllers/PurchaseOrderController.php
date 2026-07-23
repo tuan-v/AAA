@@ -49,7 +49,8 @@ class PurchaseOrderController extends Controller
             'supplier',
             'currency',
             'items',
-            'items.product'
+            'items.product',
+            'items.product.unit'
         ])->whereIn('status', [
             'pending',
             'approved',
@@ -58,7 +59,9 @@ class PurchaseOrderController extends Controller
             'cancelled'
         ]);
 
-        if ($request->filled('status')) {
+        if ($request->boolean('transaction_eligible')) {
+            $query->whereIn('status', ['approved', 'partial', 'completed']);
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -116,7 +119,8 @@ class PurchaseOrderController extends Controller
             'supplier',
             'currency',
             'items',
-            'items.product'
+            'items.product',
+            'items.product.unit'
         ]);
 
         $query->whereIn('status', [
@@ -176,6 +180,7 @@ class PurchaseOrderController extends Controller
             'supplier',
             'currency',
             'items.product',
+            'items.product.unit',
             'createdBy',
             'approvedBy',
             'warehouseSlips',
@@ -185,6 +190,9 @@ class PurchaseOrderController extends Controller
         $companyCurrency = $this->getCompanyCurrency();
 
         foreach ($order->items as $item) {
+
+            $item->unit_name = $item->product?->unit?->symbol
+                ?: $item->product?->unit?->name;
 
             $received = 0;
 

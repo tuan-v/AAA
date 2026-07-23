@@ -40,7 +40,7 @@
                     <div>
                         <p class="stat-card__label">Tổng số lượng tồn</p>
                         <p class="stat-card__value">
-                            {{ formatNumber(summary.total_quantity) }}
+                            {{ totalQuantityWithUnits }}
                         </p>
                     </div>
                 </div>
@@ -146,7 +146,6 @@
                                 <th>Sản phẩm</th>
                                 <th>Mã</th>
                                 <th>Danh mục</th>
-                                <th>Đơn vị</th>
                                 <th class="text-right">Số lượng tồn</th>
                                 <th class="text-right">Giá vốn bình quân</th>
                                 <th class="text-right">Giá trị tồn</th>
@@ -164,9 +163,13 @@
                                 <td>
                                     {{ stock.product?.category?.name ?? "-" }}
                                 </td>
-                                <td>{{ stock.product?.unit?.name ?? "-" }}</td>
                                 <td class="text-right">
-                                    {{ formatQuantity(stock.quantity) }}
+                                    {{
+                                        quantityWithUnit(
+                                            stock.quantity,
+                                            stock.product?.unit,
+                                        )
+                                    }}
                                 </td>
                                 <td class="text-right">
                                     {{
@@ -186,7 +189,7 @@
                                 </td>
                             </tr>
                             <tr v-if="filteredStocks.length === 0">
-                                <td colspan="7" class="text-center text-muted">
+                                <td colspan="6" class="text-center text-muted">
                                     Không có sản phẩm tồn kho
                                 </td>
                             </tr>
@@ -212,10 +215,10 @@
                                 <th>Mã phiếu</th>
                                 <th>Loại</th>
                                 <th>Trạng thái</th>
-                                <th>Số SP</th>
+                                <th class="text-right">Số mặt hàng</th>
                                 <th>Người tạo</th>
                                 <th>Người duyệt</th>
-                                <th>Ngày tạo</th>
+                                <th class="text-right">Ngày tạo</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -237,8 +240,17 @@
                                         }}
                                     </span>
                                 </td>
-                                <td>{{ slipStatusText(slip.status) }}</td>
-                                <td>{{ slip.items?.length ?? 0 }}</td>
+                                <td>
+                                    <span
+                                        class="badge"
+                                        :class="slipStatusClass(slip.status)"
+                                    >
+                                        {{ slipStatusText(slip.status) }}
+                                    </span>
+                                </td>
+                                <td class="text-right">
+                                    {{ slip.items?.length ?? 0 }}
+                                </td>
                                 <td>
                                     {{
                                         slip.created_by?.name ??
@@ -253,7 +265,9 @@
                                         "-"
                                     }}
                                 </td>
-                                <td>{{ formatDate(slip.created_at) }}</td>
+                                <td class="text-right">
+                                    {{ formatDate(slip.created_at) }}
+                                </td>
                             </tr>
                             <tr v-if="filteredSlips.length === 0">
                                 <td colspan="7" class="text-center text-muted">
@@ -263,7 +277,6 @@
                         </tbody>
                     </table>
                 </div>
-
             </div>
         </template>
     </div>
@@ -296,6 +309,33 @@ const tabs = [
     { key: "stocks", label: "Tồn kho sản phẩm", icon: "ti-package" },
     { key: "slips", label: "Phiếu nhập/xuất", icon: "ti-file-invoice" },
 ];
+
+const unitLabel = (unit) => unit?.symbol || unit?.name || "";
+const quantityWithUnit = (quantity, unit) =>
+    `${formatQuantity(quantity)}${unitLabel(unit) ? ` ${unitLabel(unit)}` : ""}`;
+
+const totalQuantityWithUnits = computed(() => {
+    const quantitiesByUnit = new Map();
+
+    for (const stock of warehouse.value.stocks || []) {
+        const unit = unitLabel(stock.product?.unit);
+        quantitiesByUnit.set(
+            unit,
+            (quantitiesByUnit.get(unit) || 0) + Number(stock.quantity || 0),
+        );
+    }
+
+    if (!quantitiesByUnit.size) {
+        return formatQuantity(summary.value.total_quantity || 0);
+    }
+
+    return [...quantitiesByUnit.entries()]
+        .map(
+            ([unit, quantity]) =>
+                `${formatQuantity(quantity)}${unit ? ` ${unit}` : ""}`,
+        )
+        .join(", ");
+});
 
 const fetchDetail = async (id) => {
     loading.value = true;
@@ -349,12 +389,18 @@ const slipStatusText = (status) => {
     const map = {
         pending: "Chờ duyệt",
         approved: "Đã duyệt",
-        rejected: "Đã từ chối",
+        rejected: "Từ chối",
     };
     return map[status] ?? status;
 };
 
-const formatNumber = (n) => formatMoney(n ?? 0);
+const slipStatusClass = (status) =>
+    ({
+        pending: "badge--status-pending",
+        approved: "badge--status-approved",
+        rejected: "badge--status-rejected",
+    })[status] || "badge--status-default";
+
 const formatMoneyLocal = (amount, symbol = "₫") =>
     formatMoney(Math.round(amount ?? 0), { code: "VND", symbol });
 const formatDate = (date) => {
@@ -584,9 +630,28 @@ const formatDate = (date) => {
     background: #fff4e6;
     color: #e8590c;
 }
+.badge--status-pending {
+    background: #fef9c3;
+    color: #a16207;
+}
+.badge--status-approved {
+    background: #dcfce7;
+    color: #15803d;
+}
+.badge--status-rejected {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.badge--status-default {
+    background: #f3f4f6;
+    color: #4b5563;
+}
 
+.data-table th.text-right,
+.data-table td.text-right,
 .text-right {
     text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 .text-center {
     text-align: center;
@@ -597,5 +662,4 @@ const formatDate = (date) => {
 .font-bold {
     font-weight: 700;
 }
-
 </style>

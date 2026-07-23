@@ -56,6 +56,7 @@
                 :customers="customers"
                 :suppliers="suppliers"
                 @saved="reloadData"
+                @account-created="handleAccountCreated"
                 @close="showModal = false"
             />
         </template>
@@ -422,6 +423,17 @@ const getData = debounce(fetchData, 300);
 function reloadData() {
     showModal.value = false;
     getData(transactions.value.current_page);
+}
+
+function handleAccountCreated(account) {
+    const index = accounts.value.findIndex(
+        (item) => Number(item.id) === Number(account.id),
+    );
+    if (index === -1) {
+        accounts.value.push(account);
+    } else {
+        accounts.value[index] = account;
+    }
 }
 
 useRealtimeRefresh(reloadData);

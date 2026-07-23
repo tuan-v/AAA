@@ -11,9 +11,11 @@ use App\Models\SalesOrder;
 use App\Models\SupplierDebt;
 use App\Models\Supplier;
 use App\Models\Transaction;
+use App\Models\TransactionCategory;
 use App\Models\WarehouseSlip;
 use App\Repositories\TransactionRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class TransactionService extends BaseService
 {
@@ -44,6 +46,7 @@ class TransactionService extends BaseService
     {
         $data = $this->normalizeAndValidateRelations($data);
         $this->validateInput($data);
+        $this->validateAvailableBalance($data);
         $this->validateRequestedOutstanding($data);
 
         $transaction = DB::transaction(function () use ($data) {
@@ -113,6 +116,7 @@ class TransactionService extends BaseService
     {
         $data = $this->normalizeAndValidateRelations($data);
         $this->validateInput($data);
+        $this->validateAvailableBalance($data);
         $this->validateRequestedOutstanding($data);
 
         return DB::transaction(function () use ($transactionId, $data) {
@@ -197,6 +201,10 @@ class TransactionService extends BaseService
                 );
             }
 
+            // Giao dịch cũ có thể được tạo trước khi các quy tắc validation hiện tại tồn tại.
+            // Luôn kiểm tra lại toàn bộ quan hệ/nghiệp vụ trước khi tác động số dư và công nợ.
+            $approvalData = $this->normalizeAndValidateRelations($transaction->attributesToArray());
+            $this->validateInput($approvalData);
             $this->validateOutstandingDebt($transaction);
 
             // Toàn bộ tác động số liệu chỉ xảy ra ở đây, khi duyệt
@@ -368,6 +376,9 @@ class TransactionService extends BaseService
         if (! empty($data['sales_order_id'])) {
             $order = SalesOrder::whereKey($data['sales_order_id'])->where('company_id', $companyId)->first();
             if (! $order) throw new \InvalidArgumentException('Đơn bán không thuộc công ty hiện tại.');
+            if (! in_array($order->status, ['approved', 'partial', 'completed'], true)) {
+                throw new \InvalidArgumentException('Chỉ được tạo giao dịch cho đơn bán đã duyệt.');
+            }
             if ((int) $order->customer_id !== (int) ($data['customer_id'] ?? 0)) throw new \InvalidArgumentException('Đơn bán không thuộc khách hàng đã chọn.');
             if ((int) $order->currency_id !== (int) $data['currency_id']) throw new \InvalidArgumentException('Tiền tệ giao dịch phải trùng với tiền tệ đơn bán.');
         }
@@ -375,6 +386,9 @@ class TransactionService extends BaseService
         if (! empty($data['purchase_order_id'])) {
             $order = PurchaseOrder::whereKey($data['purchase_order_id'])->where('company_id', $companyId)->first();
             if (! $order) throw new \InvalidArgumentException('Đơn mua không thuộc công ty hiện tại.');
+            if (! in_array($order->status, ['approved', 'partial', 'completed'], true)) {
+                throw new \InvalidArgumentException('Chỉ được tạo giao dịch cho đơn mua đã duyệt.');
+            }
             if ((int) $order->supplier_id !== (int) ($data['supplier_id'] ?? 0)) throw new \InvalidArgumentException('Đơn mua không thuộc nhà cung cấp đã chọn.');
             if ((int) $order->currency_id !== (int) $data['currency_id']) throw new \InvalidArgumentException('Tiền tệ giao dịch phải trùng với tiền tệ đơn mua.');
         }
@@ -423,6 +437,14 @@ class TransactionService extends BaseService
             throw new \InvalidArgumentException('Tỷ giá không hợp lệ.');
         }
 
+        if (empty($data['transaction_date']) || ! strtotime((string) $data['transaction_date'])) {
+            throw new \InvalidArgumentException('Ngày giao dịch không hợp lệ.');
+        }
+
+        if (Carbon::parse($data['transaction_date'])->startOfDay()->isAfter(today())) {
+            throw new \InvalidArgumentException('Ngày giao dịch không được lớn hơn ngày hôm nay.');
+        }
+
         $type = $data['type'];
 
         if (!in_array($type, ['receipt', 'payment', 'transfer'], true)) {
@@ -452,7 +474,7 @@ class TransactionService extends BaseService
                 );
             }
 
-            if ($data['from_account_id'] === $data['to_account_id']) {
+            if ((int) $data['from_account_id'] === (int) $data['to_account_id']) {
                 throw new \InvalidArgumentException(
                     'Tài khoản nguồn và đích không được trùng nhau.'
                 );
@@ -524,6 +546,10 @@ class TransactionService extends BaseService
             );
         }
 
+        if (!empty($data['sales_order_id']) && $type !== 'receipt') {
+            throw new \InvalidArgumentException('Đơn bán chỉ được gắn với giao dịch thu tiền.');
+        }
+
         if ($type === 'receipt' && !empty($data['customer_id']) && empty($data['sales_order_id'])) {
             throw new \InvalidArgumentException('Thu tiền khách hàng bắt buộc phải chọn đơn bán.');
         }
@@ -534,12 +560,80 @@ class TransactionService extends BaseService
             );
         }
 
-        if ($type === 'payment' && !empty($data['supplier_id']) && empty($data['purchase_order_id'])) {
-            throw new \InvalidArgumentException('Thanh toán nhà cung cấp bắt buộc phải chọn đơn mua.');
+        if (!empty($data['purchase_order_id']) && $type !== 'payment') {
+            throw new \InvalidArgumentException('Đơn mua chỉ được gắn với giao dịch chi tiền.');
         }
 
         // MỚI: chặn category không khớp loại giao dịch (thu/chi/chuyển khoản)
         $this->validateCategoryType($type, $data['category_id'] ?? null);
+        $this->validateCategoryRelations($data);
+    }
+
+    private function validateCategoryRelations(array $data): void
+    {
+        $category = TransactionCategory::whereKey($data['category_id'] ?? null)
+            ->where('company_id', $this->companyId())
+            ->first();
+
+        if (! $category) {
+            throw new \InvalidArgumentException('Loại thanh toán không hợp lệ hoặc không thuộc công ty hiện tại.');
+        }
+
+        $requiredFields = match ($category->code) {
+            'THU_KH' => [
+                'customer_id' => 'Thu tiền khách hàng bắt buộc phải chọn khách hàng.',
+                'sales_order_id' => 'Thu tiền khách hàng bắt buộc phải chọn đơn bán đã duyệt.',
+            ],
+            'CHI_NCC' => [
+                'supplier_id' => 'Thanh toán nhà cung cấp bắt buộc phải chọn nhà cung cấp.',
+                'purchase_order_id' => 'Thanh toán nhà cung cấp bắt buộc phải chọn đơn mua đã duyệt.',
+            ],
+            'TAM_UNG_NCC', 'HOAN_TAM_UNG_NCC' => [
+                'supplier_id' => 'Nghiệp vụ nhà cung cấp bắt buộc phải chọn nhà cung cấp.',
+            ],
+            default => [],
+        };
+
+        foreach ($requiredFields as $field => $message) {
+            if (empty($data[$field])) {
+                throw new \InvalidArgumentException($message);
+            }
+        }
+    }
+
+    private function validateAvailableBalance(array $data): void
+    {
+        if (($data['type'] ?? null) === 'receipt') {
+            return;
+        }
+
+        $accountId = $data['from_account_id'] ?? null;
+        $account = Account::with('currency')
+            ->whereKey($accountId)
+            ->where('company_id', $this->companyId())
+            ->first();
+
+        if (! $account) {
+            throw new \InvalidArgumentException('Tài khoản nguồn không hợp lệ.');
+        }
+
+        $transaction = new Transaction([
+            'type' => $data['type'],
+            'currency_id' => $data['currency_id'],
+            'amount' => $data['amount'],
+            'exchange_rate' => $data['exchange_rate'],
+            'amount_base' => round(
+                (float) $data['amount'] * (float) $data['exchange_rate'],
+                self::DEFAULT_DECIMALS,
+            ),
+        ]);
+        $requiredAmount = $this->convertToAccountCurrency($transaction, $account);
+
+        if (round((float) $account->current_balance, self::DEFAULT_DECIMALS) < $requiredAmount) {
+            throw new \InvalidArgumentException(
+                "Số tiền vượt quá số dư khả dụng của tài khoản '{$account->code}'."
+            );
+        }
     }
 
     /**

@@ -116,6 +116,9 @@ Route::prefix('/accountant')->group(function () {
     Route::get('/account-ledgers', function () {
         return Inertia::render('Accountant/AccountLedger/Index');
     })->middleware('permission:giao_dich.xem');
+    Route::get('/profit-loss-report', function () {
+        return Inertia::render('Accountant/Report/ProfitLoss');
+    })->middleware('permission:giao_dich.xem');
 });
 Route::get('/permission', function () {
     return Inertia::render(
