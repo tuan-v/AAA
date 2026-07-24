@@ -99,11 +99,22 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->whereBetween('created_at', [$monthStart, $monthEnd])
             ->count();
 
+        $activeWarehouseProducts = Product::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('id', DB::table('warehouse_product_stocks')
+                ->select('product_id')
+                ->where('company_id', $companyId)
+                ->groupBy('product_id')
+                ->havingRaw('SUM(quantity) > 0'))
+            ->count();
+
         return [
             'users' => User::where('company_id', $companyId)->count(),
             'customers' => Customer::where('company_id', $companyId)->where('status', 'active')->count(),
             'suppliers' => Supplier::where('company_id', $companyId)->where('status', 'active')->count(),
             'products' => Product::where('company_id', $companyId)->where('status', 'active')->count(),
+            'warehouse_products' => $activeWarehouseProducts,
             'warehouses' => Warehouse::where('company_id', $companyId)->where('status', 'active')->count(),
             'sales_orders_this_month' => $salesOrdersThisMonth,
             'purchase_orders_this_month' => $purchaseOrdersThisMonth,

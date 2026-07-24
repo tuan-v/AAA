@@ -81,16 +81,21 @@ class DemoDataSeeder extends Seeder
                         'is_protected' => false,
                     ]
                 );
-                $role->syncPermissions(
-                    DB::table('permissions')
+                $rolePermissions = DB::table('permissions')
                         ->where(function ($query) use ($modules) {
                             foreach ($modules as $module) {
                                 $query->orWhere('name', 'like', $module.'.%');
                             }
                         })
                         ->pluck('name')
-                        ->all()
-                );
+                        ->when(
+                            $roleName === 'Quản lý nhân sự',
+                            fn ($permissions) => $permissions->reject(
+                                fn ($permission) => in_array($permission, ['nhan_su.duyet', 'nhan_su.tu_choi'], true)
+                            )
+                        )
+                        ->all();
+                $role->syncPermissions($rolePermissions);
             }
 
             foreach ([
@@ -109,7 +114,7 @@ class DemoDataSeeder extends Seeder
                 $user->syncRoles([$role]);
             }
 
-            $province = Province::firstOrCreate(['code' => '01'], ['name' => 'Thành phố Hà Nội']);
+            $province = Province::firstOrCreate(['code' => '1'], ['name' => 'Thành phố Hà Nội']);
             $ward = Ward::firstOrCreate(['code' => '00001'], ['province_id' => $province->id, 'name' => 'Phường Hoàn Kiếm']);
             $addressId = DB::table('addresses')->updateOrInsert(
                 ['province_id' => $province->id, 'ward_id' => $ward->id, 'address_detail' => 'Kho số 1'],
@@ -139,7 +144,7 @@ class DemoDataSeeder extends Seeder
 
             $warehouse = Warehouse::updateOrCreate(['company_id' => $company->id, 'code' => 'KHO-DEMO'], [
                 'name' => 'Kho trung tâm', 'address_id' => $address->id, 'address_detail' => 'Kho số 1',
-                'province_code' => $province->code, 'ward_code' => $ward->code,
+                'province_code' => (string) $province->id, 'ward_code' => (string) $ward->id,
                 'total_inventory_value' => 12250000, 'status' => 'active',
             ]);
             foreach ($products as $index => $product) {

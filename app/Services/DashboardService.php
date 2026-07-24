@@ -84,7 +84,7 @@ class DashboardService
             'warehouse' => [
                 'metrics' => [
                     ['label' => 'Kho hoạt động', 'value' => $overview['operations']['warehouses'], 'type' => 'number'],
-                    ['label' => 'Sản phẩm hoạt động', 'value' => $overview['operations']['products'], 'type' => 'number'],
+                    ['label' => 'Sản phẩm hoạt động', 'value' => $overview['operations']['warehouse_products'], 'type' => 'number'],
                     ['label' => 'Sản phẩm sắp hết', 'value' => count($overview['low_stock_products']), 'type' => 'number'],
                     ['label' => 'Đơn tháng này', 'value' => $overview['operations']['orders_this_month'], 'type' => 'number'],
                 ],

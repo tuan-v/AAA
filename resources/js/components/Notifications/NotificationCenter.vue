@@ -553,6 +553,8 @@ let userChannel = null;
 let companyChannel = null;
 let domainChannel = null;
 let pollingTimer = null;
+let notificationsInitialized = false;
+const knownNotificationIds = new Set();
 const POLLING_INTERVAL_MS = 60000;
 
 const categories = [
@@ -768,6 +770,26 @@ const fetchUnreadCounts = async () => {
     }
 };
 
+const showNotificationToast = (notification) => {
+    const message = notification.message || "Bạn có một thông báo mới.";
+    const toastType = notification.data?.toast_type;
+
+    if (
+        toastType === "error" ||
+        notification.data?.event_type === "employee_rejected"
+    ) {
+        toast.error(message);
+        return;
+    }
+
+    if (toastType === "warning") {
+        toast.warning(message);
+        return;
+    }
+
+    toast.success(message);
+};
+
 const fetchNotifications = async (reset = false) => {
     try {
         if (reset) {
@@ -783,6 +805,22 @@ const fetchNotifications = async (reset = false) => {
         const newNotifications = Array.isArray(pageData?.data)
             ? pageData.data
             : [];
+
+        if (notificationsInitialized) {
+            newNotifications
+                .filter(
+                    (notification) =>
+                        !notification.read_at &&
+                        !knownNotificationIds.has(notification.id),
+                )
+                .reverse()
+                .forEach(showNotificationToast);
+        }
+
+        newNotifications.forEach((notification) =>
+            knownNotificationIds.add(notification.id),
+        );
+        notificationsInitialized = true;
 
         if (reset) {
             notifications.value = newNotifications;
@@ -806,9 +844,7 @@ const pollNotifications = () => {
     if (document.hidden) return;
 
     fetchUnreadCounts();
-    if (showDropdown.value) {
-        fetchNotifications(true);
-    }
+    fetchNotifications(true);
 };
 
 const setupPolling = () => {
@@ -998,9 +1034,10 @@ const joinChannel = (channel) => {
     return window.Echo.private(channel)
         .listen(".notification.created", (event) => {
             const notification = event;
-            if (!notifications.value.some((item) => item.id === notification.id)) {
-                notifications.value.unshift(notification);
-            }
+            if (knownNotificationIds.has(notification.id)) return;
+
+            knownNotificationIds.add(notification.id);
+            notifications.value.unshift(notification);
             window.dispatchEvent(
                 new CustomEvent("notification-received", {
                     detail: notification,
@@ -1050,9 +1087,7 @@ const joinChannel = (channel) => {
                 }
             } else {
                 // Tab đang được kích hoạt, hiển thị toast
-                toast.success(
-                    notification.message || "Bạn có một thông báo mới.",
-                );
+                showNotificationToast(notification);
             }
 
             fetchUnreadCounts();

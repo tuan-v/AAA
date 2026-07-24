@@ -518,14 +518,6 @@ async function toggleStatus(user) {
 }
 
 async function approveUser(user) {
-    const confirmed = await confirmAction({
-        title: "Duyệt tài khoản",
-        message: `Duyệt và kích hoạt tài khoản của ${user.name}?`,
-        confirmText: "Duyệt tài khoản",
-        tone: "success",
-    });
-    if (!confirmed) return;
-
     try {
         await axios.patch(`/api/users/${user.id}/approve`);
         user.status = "active";

@@ -347,7 +347,12 @@ class PurchaseOrderController extends Controller
                 $company->id,
                 'Đơn mua mới chờ duyệt',
                 "Đơn mua {$order->code} vừa được tạo và đang chờ duyệt.",
-                ['purchase_order_id' => $order->id],
+                [
+                    'purchase_order_id' => $order->id,
+                    'status' => 'pending',
+                    'event_type' => 'purchase_order_created',
+                    'toast_type' => 'warning',
+                ],
                 '/purchase/orders',
                 auth()->id(),
                 'purchase'
@@ -533,6 +538,8 @@ class PurchaseOrderController extends Controller
                 [
                     'purchase_order_id' => $order->id,
                     'status' => 'approved',
+                    'event_type' => 'purchase_order_approved',
+                    'toast_type' => 'success',
                 ],
                 '/purchase/orders',
                 category: 'purchase',
@@ -581,6 +588,8 @@ class PurchaseOrderController extends Controller
                     'priority' => 'high',
                     'purchase_order_id' => $order->id,
                     'status' => 'cancelled',
+                    'event_type' => 'purchase_order_cancelled',
+                    'toast_type' => 'error',
                 ],
                 '/purchase/orders',
                 category: 'purchase',

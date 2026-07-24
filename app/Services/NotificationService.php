@@ -83,8 +83,12 @@ class NotificationService
             ->value('owner_id');
 
         $userIds = User::query()
-            ->where('company_id', $companyId)
             ->where('status', User::STATUS_ACTIVE)
+            ->where(function ($companyQuery) use ($companyId) {
+                $companyQuery
+                    ->where('company_id', $companyId)
+                    ->orWhereHas('companies', fn ($query) => $query->whereKey($companyId));
+            })
             ->when($excludeUserId, fn ($query) => $query->whereKeyNot($excludeUserId))
             ->where(function ($query) use ($permission, $companyOwnerId) {
                 $query

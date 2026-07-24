@@ -17,6 +17,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->useLangPath(base_path('lang'));
+
         $this->app->singleton(CurrencyService::class);
 
         $this->app->singleton(CodeGeneratorService::class);

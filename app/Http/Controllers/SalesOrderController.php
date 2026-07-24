@@ -405,7 +405,12 @@ class SalesOrderController extends Controller
                 $company->id,
                 'Đơn bán mới chờ duyệt',
                 "Đơn bán {$order->code} vừa được tạo và đang chờ duyệt.",
-                ['sales_order_id' => $order->id],
+                [
+                    'sales_order_id' => $order->id,
+                    'status' => 'pending',
+                    'event_type' => 'sales_order_created',
+                    'toast_type' => 'warning',
+                ],
                 '/sale/orders',
                 auth()->id(),
                 'sale'
@@ -595,6 +600,8 @@ class SalesOrderController extends Controller
                 [
                     'sales_order_id' => $order->id,
                     'status' => 'approved',
+                    'event_type' => 'sales_order_approved',
+                    'toast_type' => 'success',
                 ],
                 '/sale/orders',
                 category: 'sale',
@@ -643,6 +650,8 @@ class SalesOrderController extends Controller
                     'priority' => 'high',
                     'sales_order_id' => $order->id,
                     'status' => 'cancelled',
+                    'event_type' => 'sales_order_cancelled',
+                    'toast_type' => 'error',
                 ],
                 '/sale/orders',
                 category: 'sale',

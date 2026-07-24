@@ -8,6 +8,7 @@ use App\Models\SalesOrder;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ModuleDashboardTest extends TestCase
@@ -63,6 +64,32 @@ class ModuleDashboardTest extends TestCase
                     'data' => ['metrics', 'trend', 'recent', 'ranking', 'currency'],
                 ]);
         }
+    }
+
+    public function test_warehouse_dashboard_counts_only_active_products_with_positive_stock(): void
+    {
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $expected = DB::table('products')
+            ->where('products.company_id', $user->company_id)
+            ->where('products.status', 'active')
+            ->whereIn('products.id', DB::table('warehouse_product_stocks')
+                ->select('product_id')
+                ->where('company_id', $user->company_id)
+                ->groupBy('product_id')
+                ->havingRaw('SUM(quantity) > 0'))
+            ->count();
+
+        $metrics = collect($this->actingAs($user)
+            ->getJson('/api/dashboard/warehouse')
+            ->assertOk()
+            ->json('data.metrics'));
+
+        $this->assertSame(
+            $expected,
+            $metrics->firstWhere('label', 'Sản phẩm hoạt động')['value']
+        );
     }
 
     public function test_module_user_cannot_access_overall_or_another_module_dashboard(): void

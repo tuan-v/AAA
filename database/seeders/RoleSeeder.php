@@ -54,6 +54,25 @@ class RoleSeeder extends Seeder
             ]);
         }
 
+        foreach ([
+            'Quản lý nhân sự',
+            'Quản lý mua hàng',
+            'Quản lý kho',
+            'Quản lý bán hàng',
+            'Quản lý kế toán',
+        ] as $managerRole) {
+            Role::updateOrCreate([
+                'name' => $managerRole,
+                'guard_name' => 'web',
+            ], [
+                'description' => "{$managerRole} hệ thống",
+                'company_id' => null,
+                'type' => 'system',
+                'hierarchy_level' => 50,
+                'is_protected' => false,
+            ]);
+        }
+
         $director = Role::where('guard_name', 'web')
             ->whereIn('name', ['Giám đốc', 'Director'])
             ->orderByRaw("CASE WHEN name = 'Giám đốc' THEN 0 ELSE 1 END")

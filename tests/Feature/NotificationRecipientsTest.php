@@ -39,6 +39,13 @@ class NotificationRecipientsTest extends TestCase
         ]);
         $approver->givePermissionTo('don_ban.duyet');
 
+        $linkedApprover = User::factory()->create([
+            'company_id' => null,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $linkedApprover->companies()->attach($company->id);
+        $linkedApprover->givePermissionTo('don_ban.duyet');
+
         $inactiveApprover = User::factory()->create([
             'company_id' => $company->id,
             'status' => User::STATUS_BLOCKED,
@@ -62,7 +69,7 @@ class NotificationRecipientsTest extends TestCase
         );
 
         $this->assertEqualsCanonicalizing(
-            [$owner->id, $approver->id],
+            [$owner->id, $approver->id, $linkedApprover->id],
             $notifications->pluck('user_id')->all(),
         );
         $this->assertFalse($notifications->contains('user_id', $creator->id));

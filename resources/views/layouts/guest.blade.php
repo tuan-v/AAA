@@ -14,7 +14,7 @@
     <link rel="shortcut icon" href="{{ asset('Laravel.png') }}" type="image/x-icon">
 
     <!-- Scripts -->
-    @vite(['resources/css/main.css', 'resources/js/app.js'])
+    @vite('resources/css/main.css')
 </head>
 
 <body class="font-sans text-gray-900 antialiased">

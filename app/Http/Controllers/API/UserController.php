@@ -416,6 +416,7 @@ class UserController extends Controller
 
     public function approve(Request $request, User $user)
     {
+        abort_unless($this->canReviewEmployee($request), 403, 'Chỉ Giám đốc mới có thể duyệt nhân sự.');
         abort_unless(
             $request->user()->isSystem()
                 || $user->companies->contains($request->user()->company_id),
@@ -426,6 +427,31 @@ class UserController extends Controller
 
         $user->update(['status' => User::STATUS_ACTIVE]);
 
+        $notificationRecipients = collect([
+            $user->creater_id,
+            $user->last_resubmitted_by,
+        ])->filter()
+            ->map(fn($id) => (int) $id)
+            ->reject(fn($id) => $id === (int) $request->user()->id)
+            ->unique();
+
+        foreach ($notificationRecipients as $recipientId) {
+            $this->notificationService->create(
+                $recipientId,
+                (int) $request->user()->company_id,
+                'Yêu cầu thêm nhân sự đã được duyệt',
+                "Tài khoản {$user->name} đã được {$request->user()->name} duyệt và kích hoạt.",
+                [
+                    'user_id' => $user->id,
+                    'status' => $user->status,
+                    'event_type' => 'employee_approved',
+                    'toast_type' => 'success',
+                ],
+                '/user',
+                category: 'management'
+            );
+        }
+
         return response()->json([
             'message' => 'Duyệt tài khoản thành công.',
             'data' => ['id' => $user->id, 'status' => $user->status],
@@ -434,6 +460,7 @@ class UserController extends Controller
 
     public function reject(Request $request, User $user)
     {
+        abort_unless($this->canReviewEmployee($request), 403, 'Chỉ Giám đốc mới có thể từ chối nhân sự.');
         abort_unless(
             $request->user()->isSystem()
                 || $user->companies->contains($request->user()->company_id),
@@ -482,7 +509,13 @@ class UserController extends Controller
                 $isFinal
                     ? "Tài khoản {$user->name} đã bị từ chối dứt điểm: {$validated['reason']}"
                     : "Tài khoản {$user->name} cần chỉnh sửa (lần {$rejectionCount}/3): {$validated['reason']}",
-                ['user_id' => $user->id, 'status' => $nextStatus, 'reason' => $validated['reason']],
+                [
+                    'user_id' => $user->id,
+                    'status' => $nextStatus,
+                    'reason' => $validated['reason'],
+                    'event_type' => 'employee_rejected',
+                    'toast_type' => 'error',
+                ],
                 '/user',
                 category: 'management'
             );
@@ -546,6 +579,16 @@ class UserController extends Controller
             403,
             'Bạn không thể chỉnh sửa tài khoản có vai trò cao hơn mình.'
         );
+    }
+
+    private function canReviewEmployee(Request $request): bool
+    {
+        $actor = $request->user();
+        $companyOwnerId = Company::whereKey($actor->company_id)->value('owner_id');
+
+        return $actor->isSystem()
+            || $actor->hasAnyRole(['Supper Admin', 'Giám đốc'])
+            || (int) $actor->id === (int) $companyOwnerId;
     }
 
     public function makeSystem($id)

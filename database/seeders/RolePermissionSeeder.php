@@ -5,11 +5,14 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $admin = Role::findByName('Supper Admin');
 
         $admin->syncPermissions(Permission::all());
@@ -57,5 +60,29 @@ class RolePermissionSeeder extends Seeder
         foreach ($employeePermissions as $roleName => $permissions) {
             Role::findByName($roleName)->syncPermissions($permissions);
         }
+
+        $managerModules = [
+            'Quản lý nhân sự' => ['nhan_su', 'phong_ban', 'chuc_vu', 'vai_tro', 'quyen', 'nhat_ky'],
+            'Quản lý mua hàng' => ['nha_cung_cap', 'danh_muc_mua_hang', 'don_vi_mua_hang', 'san_pham_mua_hang', 'don_mua'],
+            'Quản lý kho' => ['kho', 'danh_muc_kho', 'don_vi_kho', 'san_pham_kho', 'phieu_kho', 'chuyen_kho'],
+            'Quản lý bán hàng' => ['khach_hang', 'don_ban'],
+            'Quản lý kế toán' => ['tien_te', 'ngan_hang', 'tai_khoan', 'loai_giao_dich', 'giao_dich', 'cong_no_khach_hang', 'cong_no_nha_cung_cap'],
+        ];
+
+        foreach ($managerModules as $roleName => $modules) {
+            $permissions = Permission::query()
+                ->where(function ($query) use ($modules) {
+                    foreach ($modules as $module) {
+                        $query->orWhere('name', 'like', $module.'.%');
+                    }
+                })
+                ->pluck('name')
+                ->reject(fn ($permission) => $roleName === 'Quản lý nhân sự'
+                    && in_array($permission, ['nhan_su.duyet', 'nhan_su.tu_choi'], true));
+
+            Role::findByName($roleName)->syncPermissions($permissions);
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

@@ -12,7 +12,7 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="shortcut icon" href="https://asfy.vn/resource/asfy-images/asfy-logo.svg" type="image/x-icon">
     <!-- Scripts -->
-    @vite(['resources/css/main.css', 'resources/js/app.js'])
+    @vite('resources/css/main.css')
     <style>
         body {
             font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,

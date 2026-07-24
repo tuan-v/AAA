@@ -49,17 +49,19 @@ class LogPermissionAction
         $modelId = $modelInstance?->getKey();
 
         if ($canonicalAction === 'create') {
-            // Với create, lấy id/data từ response trả về (giả định controller trả {data: model})
+            // Các API cũ trả model ở nhiều khóa khác nhau (data, user hoặc payload gốc).
             $payload = json_decode($response->getContent(), true);
-            $created = $payload['data'] ?? $payload;
-            $modelId = is_array($created) ? ($created['id'] ?? null) : null;
-            $newValues = is_array($created) ? $created : null;
+            $created = $this->resolveCreatedModelPayload($payload);
+            $modelId = $created['id'] ?? null;
+            $newValues = $created;
         } elseif ($modelId) {
             // update/approve/reject/lock/unlock... -> load lại để lấy giá trị mới
             $fresh = $modelClass::find($modelId);
             $newValues = $fresh?->toArray();
 
-            if ($canonicalAction === 'lock' && ($oldValues['status'] ?? null) === 'inactive' && ($newValues['status'] ?? null) === 'active') {
+            if ($canonicalAction === 'lock'
+                && ($oldValues['status'] ?? null) !== 'active'
+                && ($newValues['status'] ?? null) === 'active') {
                 $canonicalAction = 'unlock';
             }
         }
@@ -99,6 +101,25 @@ class LogPermissionAction
         ]);
 
         return $response;
+    }
+
+    private function resolveCreatedModelPayload(mixed $payload): ?array
+    {
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        if (isset($payload['id'])) {
+            return $payload;
+        }
+
+        foreach (['data', 'user'] as $key) {
+            if (isset($payload[$key]) && is_array($payload[$key]) && isset($payload[$key]['id'])) {
+                return $payload[$key];
+            }
+        }
+
+        return null;
     }
 
     private function resolvePermissionFromRoute(Request $request): ?string
