@@ -105,17 +105,19 @@ class AppServiceProvider extends ServiceProvider
             $this->can('quyen.xem') ||
             $this->can('nhat_ky.xem');
 
-        if (! $canSeeManagement) {
+        $canSeeOverview = $this->can('tong_quan.xem');
+
+        if (! $canSeeManagement && ! $canSeeOverview) {
             return [];
         }
 
-        $menuItems = [
-            [
+        $menuItems = array_values(array_filter([
+            $canSeeOverview ? [
                 'icon' => 'GridIcon',
                 'name' => 'Tổng quan',
                 'path' => '/dashboard',
-            ],
-            [
+            ] : null,
+            $canSeeManagement ? [
                 'icon' => 'GridIcon',
                 'name' => 'Quản lý',
                 'subItems' => array_values(array_filter([
@@ -155,8 +157,8 @@ class AppServiceProvider extends ServiceProvider
                         'path' => '/audit-logs',
                     ] : null,
                 ])),
-            ],
-        ];
+            ] : null,
+        ]));
 
         return [
             [

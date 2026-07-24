@@ -24,7 +24,7 @@ class LogPermissionAction
             return $next($request);
         }
 
-        $modelClass = config("audit_models.$prefix");
+        $modelClass = $this->resolveModelClass($request, $prefix);
         if (! $modelClass || ! is_subclass_of($modelClass, Model::class)) {
             return $next($request);
         }
@@ -93,7 +93,7 @@ class LogPermissionAction
             'model_id' => $modelId,
             'old_values' => $oldValues,
             'new_values' => $newValues,
-            'description' => $this->buildDescription($canonicalAction, $prefix, $modelId),
+            'description' => $this->buildDescription($canonicalAction, $modelClass, $modelId),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -142,7 +142,22 @@ class LogPermissionAction
         return null;
     }
 
-    private function buildDescription(string $action, string $prefix, int|string $modelId): string
+    private function resolveModelClass(Request $request, string $permissionPrefix): ?string
+    {
+        $controller = $request->route()->getController();
+
+        if ($controller instanceof \App\Http\Controllers\DepartmentController) {
+            return \App\Models\Department::class;
+        }
+
+        if ($controller instanceof \App\Http\Controllers\PositionController) {
+            return \App\Models\Position::class;
+        }
+
+        return config("audit_models.$permissionPrefix");
+    }
+
+    private function buildDescription(string $action, string $modelClass, int|string $modelId): string
     {
         $labels = [
             'create' => 'Thêm mới', 'update' => 'Cập nhật', 'delete' => 'Xóa',
@@ -150,20 +165,8 @@ class LogPermissionAction
             'unlock' => 'Mở khóa', 'cancel' => 'Hủy',
         ];
 
-        $modules = [
-            'nhan_su' => 'nhân sự', 'vai_tro' => 'vai trò', 'quyen' => 'quyền',
-            'nhat_ky' => 'nhật ký hoạt động', 'kho' => 'kho', 'san_pham_kho' => 'sản phẩm kho',
-            'danh_muc_kho' => 'danh mục kho', 'don_vi_kho' => 'đơn vị kho', 'phieu_kho' => 'phiếu kho',
-            'chuyen_kho' => 'chuyển kho', 'nha_cung_cap' => 'nhà cung cấp',
-            'danh_muc_mua_hang' => 'danh mục mua hàng', 'don_vi_mua_hang' => 'đơn vị mua hàng',
-            'san_pham_mua_hang' => 'sản phẩm mua hàng', 'don_mua' => 'đơn mua',
-            'khach_hang' => 'khách hàng', 'don_ban' => 'đơn bán', 'tien_te' => 'tiền tệ',
-            'ngan_hang' => 'ngân hàng', 'tai_khoan' => 'tài khoản',
-            'cong_no_khach_hang' => 'công nợ khách hàng',
-            'cong_no_nha_cung_cap' => 'công nợ nhà cung cấp',
-            'loai_giao_dich' => 'loại giao dịch', 'giao_dich' => 'giao dịch',
-        ];
+        $modelLabel = ActivityLog::modelLabel($modelClass);
 
-        return ($labels[$action] ?? 'Thao tác').' '.($modules[$prefix] ?? str_replace('_', ' ', $prefix))." #{$modelId}";
+        return ($labels[$action] ?? 'Thao tác').' '.mb_strtolower($modelLabel)." #{$modelId}";
     }
 }

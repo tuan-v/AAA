@@ -12,7 +12,7 @@
                 </p>
             </div>
             <button
-                v-if="can('nhan_su.them')"
+                v-if="can('chuc_vu.them')"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-white"
                 @click="openCreate"
             >
@@ -191,6 +191,9 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { getValidationMessage } from "@/config/helpers";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction } = useActionConfirm();
 const permissions = usePage().props.auth.permissions || [],
     can = (p) => permissions.includes(p);
 const departments = ref([]),
@@ -306,7 +309,8 @@ async function save() {
     }
 }
 async function remove(p) {
-    if (!confirm(`Xóa chức vụ “${p.name}”?`)) return;
+    const confirmed = await confirmAction({ title: "Xóa chức vụ", message: `Bạn có chắc muốn xóa chức vụ “${p.name}”?`, confirmText: "Xóa chức vụ", tone: "danger" });
+    if (!confirmed) return;
     try {
         await axios.delete(`/api/positions/${p.id}`);
         toast.success("Đã xóa chức vụ");

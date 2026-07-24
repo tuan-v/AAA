@@ -189,7 +189,7 @@ import DeleteIcon from "../../../icons/DeleteIcon.vue";
 import PurchaseOrderDetail from "./PurchaseOrderDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
-
+import XIcon from "@/icons/XIcon.vue";
 const { can } = usePermission();
 const filters = [
     {
@@ -400,7 +400,7 @@ const actions = [
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
-        icon: DeleteIcon,
+        icon: XIcon,
         title: "Hủy đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),

@@ -136,10 +136,10 @@ function formatDate(value) {
     return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value));
 }
 function statusText(status) {
-    return ({ active: 'Đang hoạt động', inactive: 'Ngừng hoạt động', blocked: 'Đã khóa', pending: 'Chờ kích hoạt' })[status] || 'Chưa xác định';
+    return ({ active: 'Đang hoạt động', inactive: 'Ngừng hoạt động', blocked: 'Đã khóa', pending: 'Chờ kích hoạt', pending_edit: 'Cần chỉnh sửa', rejected_final: 'Từ chối dứt điểm', expired: 'Đã hết hạn' })[status] || 'Chưa xác định';
 }
 function statusClass(status) {
-    return ({ active: 'bg-emerald-400/20 text-emerald-100', inactive: 'bg-slate-400/20 text-slate-100', blocked: 'bg-red-400/20 text-red-100', pending: 'bg-amber-400/20 text-amber-100' })[status] || 'bg-white/10 text-white';
+    return ({ active: 'bg-emerald-400/20 text-emerald-100', inactive: 'bg-slate-400/20 text-slate-100', blocked: 'bg-red-400/20 text-red-100', pending: 'bg-amber-400/20 text-amber-100', pending_edit: 'bg-orange-400/20 text-orange-100' })[status] || 'bg-white/10 text-white';
 }
 function actionText(action) {
     return ({ them: 'Tạo mới', create: 'Tạo mới', sua: 'Cập nhật', update: 'Cập nhật', xoa: 'Xóa', delete: 'Xóa', xem: 'Xem dữ liệu', xem_chi_tiet: 'Xem chi tiết', duyet: 'Phê duyệt', approve: 'Phê duyệt', tu_choi: 'Từ chối', reject: 'Từ chối', khoa: 'Khóa', lock: 'Khóa', mo_khoa: 'Mở khóa', unlock: 'Mở khóa', huy: 'Hủy' })[action] || action || 'Thao tác';

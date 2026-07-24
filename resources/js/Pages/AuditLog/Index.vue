@@ -7,10 +7,7 @@
             :items="[{ text: 'Lịch sử hoạt động', link: null }]"
         />
 
-        <div
-            v-if="!can('nhat_ky.xem')"
-            class="p-10 text-center text-gray-500"
-        >
+        <div v-if="!can('nhat_ky.xem')" class="p-10 text-center text-gray-500">
             Bạn không có quyền truy cập trang này.
         </div>
 
@@ -94,8 +91,18 @@ const filters = [
             { value: "unlock", label: "Mở khóa" },
         ],
     },
-    { name: "date_from", type: "date", placeholder: "Từ ngày", config: { maxDate: "today" } },
-    { name: "date_to", type: "date", placeholder: "Đến ngày", config: { maxDate: "today" } },
+    {
+        name: "date_from",
+        type: "date",
+        placeholder: "Từ ngày",
+        config: { maxDate: "today" },
+    },
+    {
+        name: "date_to",
+        type: "date",
+        placeholder: "Đến ngày",
+        config: { maxDate: "today" },
+    },
     {
         name: "user_id",
         type: "select",
@@ -110,7 +117,7 @@ const actionConfig = {
     approve: { text: "Duyệt", class: "bg-green-100 text-green-700" },
     reject: { text: "Từ chối", class: "bg-red-100 text-red-700" },
     cancel: { text: "Hủy", class: "bg-orange-100 text-orange-700" },
-    delete: { text: "Xóa", class: "bg-gray-200 text-gray-700" },
+    delete: { text: "Xóa", class: "bg-red-200 text-red-700" },
     lock: { text: "Khóa", class: "bg-slate-200 text-slate-700" },
     unlock: { text: "Mở khóa", class: "bg-sky-100 text-sky-700" },
 };
@@ -143,12 +150,6 @@ const columns = [
             );
         },
     },
-    {
-        label: "Đối tượng",
-        render: (row) =>
-            h("span", { class: "font-medium text-gray-700" }, `${row.model_label || "Dữ liệu"} #${row.model_id}`),
-    },
-
     {
         key: "description",
         label: "Mô tả",

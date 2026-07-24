@@ -200,7 +200,7 @@ const allNavItems = [
         name: "TRANG CHỦ",
         module: "hr",
         route: "/dashboard",
-        permissions: ["nhan_su.xem", "vai_tro.xem", "quyen.xem", "nhat_ky.xem"],
+        permissions: ["tong_quan.xem"],
     },
     {
         name: "MUA HÀNG",

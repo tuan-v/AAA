@@ -129,6 +129,9 @@
 import { reactive, computed, watch, ref } from "vue";
 import axios from "axios";
 import { toast } from "vue3-toastify";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { alertAction } = useActionConfirm();
 
 const props = defineProps({
     category: { type: Object, default: null },
@@ -218,9 +221,7 @@ async function save() {
         if (e.response?.status === 422) {
             errors.value = e.response.data.errors ?? {};
         } else {
-            alert(
-                e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.",
-            );
+            await alertAction({ title: "Không thể lưu", message: e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.", confirmText: "Đã hiểu", tone: "danger" });
         }
     } finally {
         saving.value = false;

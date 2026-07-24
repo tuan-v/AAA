@@ -18,9 +18,15 @@
                             <textarea v-model="state.inputValue" rows="3" :placeholder="state.inputPlaceholder" class="w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2" :class="state.error ? 'border-red-400 focus:ring-red-100' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-100'" autofocus></textarea>
                             <p v-if="state.error" class="mt-1.5 text-xs text-red-600">{{ state.error }}</p>
                         </div>
+                        <div v-if="state.choiceLabel" class="mt-5">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">{{ state.choiceLabel }}</label>
+                            <select v-model="state.choiceValue" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                                <option v-for="option in state.choiceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
-                        <button type="button" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="cancel">{{ state.cancelText }}</button>
+                        <button v-if="state.mode !== 'alert'" type="button" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="cancel">{{ state.cancelText }}</button>
                         <button type="button" class="rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm" :class="tone.buttonClass" @click="accept">{{ state.confirmText }}</button>
                     </div>
                 </section>

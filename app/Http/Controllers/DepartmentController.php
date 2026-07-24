@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Position;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     private function companyId(): int
     {
         $id = auth()->user()->company_id;
@@ -86,6 +90,16 @@ class DepartmentController extends Controller
             return $department->fresh('manager:id,name');
         });
 
+        $this->notificationService->createForHigherRoleUsers(
+            $request->user(),
+            $companyId,
+            'Phòng ban mới được tạo',
+            "{$request->user()->name} đã tạo phòng ban {$department->name}.",
+            ['department_id' => $department->id],
+            '/departments',
+            'management'
+        );
+
         return response()->json([
             'message' => 'Thêm phòng ban thành công.',
             'data' => $department,
@@ -103,13 +117,41 @@ class DepartmentController extends Controller
         return response()->json(['message' => 'Cập nhật phòng ban thành công.', 'data' => $department->fresh('manager:id,name')]);
     }
 
-    public function destroy(Department $department)
+    public function destroy(Request $request, Department $department)
     {
         abort_unless((int) $department->company_id === $this->companyId(), 404);
-        if ($department->users()->exists() || $department->positions()->exists()) {
+        if ($department->users()->exists() || $department->positions()->whereHas('users')->exists()) {
             return response()->json(['message' => 'Phòng ban đã có nhân sự, chỉ có thể ngừng hoạt động.'], 422);
         }
-        $department->delete();
+
+        $departmentData = [
+            'id' => $department->id,
+            'name' => $department->name,
+            'company_id' => (int) $department->company_id,
+        ];
+
+        DB::transaction(function () use ($department, $request) {
+            $positions = $department->positions()->get();
+
+            foreach ($positions as $position) {
+                $this->recordDeletion($request, $position, 'chức vụ');
+            }
+
+            $this->recordDeletion($request, $department, 'phòng ban');
+            $department->positions()->delete();
+            $department->delete();
+        });
+
+        $this->notificationService->createForHigherRoleUsers(
+            $request->user(),
+            $departmentData['company_id'],
+            'Phòng ban đã bị xóa',
+            "{$request->user()->name} đã xóa phòng ban {$departmentData['name']}.",
+            ['department_id' => $departmentData['id'], 'department_name' => $departmentData['name']],
+            '/departments',
+            'management'
+        );
+
         return response()->json(['message' => 'Xóa phòng ban thành công.']);
     }
 
@@ -199,5 +241,21 @@ class DepartmentController extends Controller
     {
         return app(\App\Services\CodeGeneratorService::class)
             ->generate(Position::class, 'CV-', 3, $companyId);
+    }
+
+    private function recordDeletion(Request $request, \Illuminate\Database\Eloquent\Model $model, string $label): void
+    {
+        ActivityLog::create([
+            'company_id' => $request->user()->company_id,
+            'user_id' => $request->user()->id,
+            'action' => 'delete',
+            'model_type' => $model::class,
+            'model_id' => $model->getKey(),
+            'old_values' => $model->toArray(),
+            'new_values' => null,
+            'description' => "Xóa {$label} #{$model->getKey()}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
     }
 }

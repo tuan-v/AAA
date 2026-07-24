@@ -9,7 +9,8 @@ class PermissionSeeder extends Seeder
 {
     private array $modules = [
         'tong_quan' => 'tổng quan trang chủ',
-        'nhan_su' => 'nhân sự', 'vai_tro' => 'vai trò', 'quyen' => 'quyền',
+        'nhan_su' => 'nhân sự', 'phong_ban' => 'phòng ban', 'chuc_vu' => 'chức vụ',
+        'vai_tro' => 'vai trò', 'quyen' => 'quyền',
         'nhat_ky' => 'nhật ký hoạt động', 'tai_khoan' => 'tài khoản',
         'ngan_hang' => 'ngân hàng', 'tien_te' => 'tiền tệ',
         'cong_no_khach_hang' => 'công nợ khách hàng',
@@ -38,6 +39,10 @@ class PermissionSeeder extends Seeder
             'nhan_su.them',
             'nhan_su.sua',
             'nhan_su.xoa',
+            'nhan_su.duyet',
+            'nhan_su.tu_choi',
+            'phong_ban.them',
+            'chuc_vu.them',
             'vai_tro.xem',
             'vai_tro.them',
             'vai_tro.sua',

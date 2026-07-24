@@ -62,6 +62,9 @@ import DeleteIcon from "../../icons/DeleteIcon.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction } = useActionConfirm();
 
 const filters = [
     {
@@ -133,7 +136,8 @@ const actions = [
         class: "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700",
         hidden: () => !can("quyen.xoa"),
         onClick: async (item) => {
-            if (!confirm(`Bạn có chắc muốn xóa quyền "${item.name}"?`)) {
+            const confirmed = await confirmAction({ title: "Xóa quyền", message: `Bạn có chắc muốn xóa quyền "${item.name}"?`, confirmText: "Xóa quyền", tone: "danger" });
+            if (!confirmed) {
                 return;
             }
 

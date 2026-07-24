@@ -524,6 +524,9 @@ import { formatMoney, formatDate } from "@/config/helpers";
 import { router } from "@inertiajs/vue3";
 import PurchaseOrderDetail from "../Order/PurchaseOrderDetail.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { alertAction } = useActionConfirm();
 const supplier = ref({});
 const companyCurrency = ref(null);
 const debtSummary = ref({});
@@ -548,10 +551,7 @@ const viewOrder = async (id) => {
         selectedOrder.value = response.data?.data ?? response.data;
     } catch (error) {
         showOrderDetail.value = false;
-        window.alert(
-            error.response?.data?.message ||
-                "Không tải được chi tiết đơn mua hàng.",
-        );
+        await alertAction({ title: "Không thể tải chi tiết", message: error.response?.data?.message || "Không tải được chi tiết đơn mua hàng.", confirmText: "Đã hiểu", tone: "danger" });
     }
 };
 const closeOrderDetail = () => {

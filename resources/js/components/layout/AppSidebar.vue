@@ -25,25 +25,18 @@
                 <div class="flex items-center gap-2">
                     <!-- LOGO -->
                     <img
-                        v-if="
-                            user?.company?.logo &&
-                            (isExpanded || isHovered || isMobileOpen)
-                        "
-                        :src="user.company.logo"
-                            class="h-10 w-10 rounded-xl border border-slate-200 object-cover shadow-sm"
-                    />
-
-                    <!-- fallback logo -->
-                    <img
-                        v-else-if="isExpanded || isHovered || isMobileOpen"
-                        src="/resource/asfy-images/asfy-logo.png"
-                        class="h-9"
+                        v-if="isExpanded || isHovered || isMobileOpen"
+                        :src="companyLogo"
+                        :alt="`Logo ${companyName}`"
+                        class="h-10 w-10 rounded-xl border border-slate-200 object-contain shadow-sm dark:border-gray-700"
                     />
 
                     <!-- mini mode -->
                     <img
                         v-else
-                        src="/resource/asfy-images/asfy-logo.png"
+                        :src="companyLogo"
+                        :alt="`Logo ${companyName}`"
+                        class="rounded-lg border border-slate-200 object-contain shadow-sm dark:border-gray-700"
                         width="32"
                         height="32"
                     />
@@ -53,7 +46,7 @@
                         v-if="isExpanded || isHovered || isMobileOpen"
                         class="max-w-[180px] truncate text-sm font-bold text-slate-800 dark:text-gray-200"
                     >
-                        {{ user?.company?.name }}
+                        {{ companyName }}
                     </span>
                 </div>
             </Link>
@@ -394,6 +387,10 @@ const moduleName = computed(() => {
     return "Hệ thống";
 });
 const user = computed(() => page.props.auth?.user);
+const companyLogo = computed(
+    () => user.value?.company?.logo || "/resource/asfy-images/asfy-logo.png",
+);
+const companyName = computed(() => user.value?.company?.name || "Công ty");
 const menus = computed(() => {
     return page.props.auth?.menuItems || [];
 });

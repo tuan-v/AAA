@@ -109,6 +109,42 @@ class NotificationService
         );
     }
 
+    public function createForHigherRoleUsers(
+        User $actor,
+        int $companyId,
+        string $title,
+        string $message,
+        ?array $data = null,
+        ?string $urlLink = null,
+        ?string $category = 'management'
+    ): Collection {
+        $companyOwnerId = Company::query()->whereKey($companyId)->value('owner_id');
+        $actorLevel = $actor->highestRoleLevel();
+
+        $userIds = User::query()
+            ->where('company_id', $companyId)
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereKeyNot($actor->id)
+            ->where(function ($query) use ($companyOwnerId, $actorLevel) {
+                $query
+                    ->when($companyOwnerId, fn($ownerQuery) => $ownerQuery->whereKey($companyOwnerId))
+                    ->orWhereHas('roles', fn($roleQuery) => $roleQuery->where('hierarchy_level', '>', $actorLevel));
+            })
+            ->distinct()
+            ->pluck('id')
+            ->all();
+
+        return $this->createForUsers(
+            $userIds,
+            $companyId,
+            $title,
+            $message,
+            $data,
+            $urlLink,
+            category: $category
+        );
+    }
+
     /**
      * Tạo thông báo cho tất cả user trong company
      */

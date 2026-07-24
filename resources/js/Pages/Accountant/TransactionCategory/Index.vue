@@ -72,6 +72,9 @@ import DeleteIcon from "@/icons/DeleteIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import TransactionCategoryForm from "./TransactionCategoryForm.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction, alertAction } = useActionConfirm();
 
 /* ================= STATE ================= */
 
@@ -228,7 +231,8 @@ async function toggleStatus(item) {
     const nextStatus = item.status === 1 ? 0 : 1;
     const label = nextStatus === 1 ? "mở" : "khóa";
 
-    if (!confirm(`Xác nhận ${label} loại giao dịch "${item.name}"?`)) return;
+    const confirmed = await confirmAction({ title: "Đổi trạng thái loại giao dịch", message: `Xác nhận ${label} loại giao dịch "${item.name}"?`, confirmText: label === "mở" ? "Mở" : "Khóa", tone: label === "mở" ? "success" : "danger" });
+    if (!confirmed) return;
 
     try {
         await axios.put(`/api/accountant/transaction-categories/${item.id}`, {
@@ -236,23 +240,21 @@ async function toggleStatus(item) {
         });
         getData(categories.value.current_page);
     } catch (e) {
-        alert(e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.");
+        await alertAction({ title: "Không thể cập nhật", message: e.response?.data?.message ?? "Có lỗi xảy ra, vui lòng thử lại.", confirmText: "Đã hiểu", tone: "danger" });
     }
 }
 
 /* xóa - chỉ thành công nếu backend xác nhận chưa được sử dụng */
 async function handleDelete(item) {
-    if (!confirm(`Xác nhận xóa loại giao dịch "${item.name}"?`)) return;
+    const confirmed = await confirmAction({ title: "Xóa loại giao dịch", message: `Xác nhận xóa loại giao dịch "${item.name}"?`, confirmText: "Xóa", tone: "danger" });
+    if (!confirmed) return;
 
     try {
         await axios.delete(`/api/accountant/transaction-categories/${item.id}`);
         getData(categories.value.current_page);
     } catch (e) {
         // Backend nên trả 422 kèm message rõ ràng khi category đã được dùng
-        alert(
-            e.response?.data?.message ??
-                "Không thể xóa loại giao dịch này (có thể đã được sử dụng).",
-        );
+        await alertAction({ title: "Không thể xóa", message: e.response?.data?.message ?? "Không thể xóa loại giao dịch này (có thể đã được sử dụng).", confirmText: "Đã hiểu", tone: "danger" });
     }
 }
 

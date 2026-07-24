@@ -185,7 +185,7 @@ import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { formatQuantity, getValidationMessage } from "@/config/helpers";
-
+import XIcon from "@/icons/XIcon.vue";
 const { can } = usePermission();
 const { confirmAction } = useActionConfirm();
 const showDetailModal = ref(false);
@@ -250,7 +250,12 @@ const slipActions = [
         hidden: (row) => !can("phieu_kho.duyet") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
-            const confirmed = await confirmAction({ title: "Duyệt phiếu nhập kho", message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`, confirmText: "Duyệt phiếu", tone: "success" });
+            const confirmed = await confirmAction({
+                title: "Duyệt phiếu nhập kho",
+                message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`,
+                confirmText: "Duyệt phiếu",
+                tone: "success",
+            });
             if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -270,11 +275,16 @@ const slipActions = [
 
     {
         title: "Từ chối",
-        icon: DeleteIcon,
+        icon: XIcon,
         hidden: (row) => !can("phieu_kho.tu_choi") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
-            const confirmed = await confirmAction({ title: "Từ chối phiếu nhập kho", message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`, confirmText: "Từ chối", tone: "danger" });
+            const confirmed = await confirmAction({
+                title: "Từ chối phiếu nhập kho",
+                message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`,
+                confirmText: "Từ chối",
+                tone: "danger",
+            });
             if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -465,10 +475,7 @@ async function submit() {
 }
 
 useRealtimeRefresh(async () => {
-    await Promise.all([
-        loadSlips(),
-        orderId ? loadOrder() : Promise.resolve(),
-    ]);
+    await Promise.all([loadSlips(), orderId ? loadOrder() : Promise.resolve()]);
 });
 
 // =====================

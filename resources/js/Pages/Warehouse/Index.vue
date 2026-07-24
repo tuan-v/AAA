@@ -77,6 +77,9 @@ import WarehouseDetail from "./WarehouseDetail.vue";
 import { usePermission } from "@/composables/usePermission";
 import SearchPage from "@/components/SearchPage.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction, alertAction } = useActionConfirm();
 
 const { can } = usePermission();
 const filterNames = [
@@ -219,11 +222,11 @@ function openEdit(warehouse) {
     showModal.value = true;
 }
 
-function openDetail(warehouse) {
+async function openDetail(warehouse) {
     const id = warehouse.id || warehouse.warehouse_id;
 
     if (!id) {
-        alert("Không tìm thấy mã kho!");
+        await alertAction({ title: "Không thể mở chi tiết", message: "Không tìm thấy mã kho!", confirmText: "Đã hiểu", tone: "danger" });
         return;
     }
 
@@ -271,7 +274,8 @@ async function toggleStatus(warehouse) {
         ? "Bạn muốn khóa kho này?"
         : "Bạn muốn mở khóa kho này?";
 
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await confirmAction({ title: "Đổi trạng thái kho", message: confirmMsg, confirmText: newStatus === "inactive" ? "Khóa kho" : "Mở kho", tone: newStatus === "inactive" ? "danger" : "success" });
+    if (!confirmed) return;
 
     try {
         await axios.patch(`/api/warehouses/${warehouse.id}/status`, {
@@ -285,7 +289,7 @@ async function toggleStatus(warehouse) {
         }
     } catch (error) {
         console.error(error);
-        alert("Cập nhật thất bại");
+        await alertAction({ title: "Cập nhật thất bại", message: error.response?.data?.message || "Không thể cập nhật trạng thái kho.", confirmText: "Đã hiểu", tone: "danger" });
     }
 }
 

@@ -499,6 +499,18 @@ const getActionClass = (action, item) => {
             : "bg-green-100 text-green-700 border-green-200";
     }
 
+    if (action.type === "approve") {
+        return "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200";
+    }
+
+    if (action.type === "reject") {
+        return "bg-red-100 text-red-700 border-red-200 hover:bg-red-200";
+    }
+
+    if (action.type === "resubmit") {
+        return "bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200";
+    }
+
     if (action.type === "detail") {
         return "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200";
     }

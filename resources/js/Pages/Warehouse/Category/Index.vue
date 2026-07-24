@@ -107,6 +107,9 @@ import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { alertAction } = useActionConfirm();
 const { can, canAny } = usePermission();
 const page = ref(1);
 const search = ref("");
@@ -238,7 +241,7 @@ async function toggleStatus(category) {
         await getData(categories.value.current_page);
     } catch (error) {
         console.error(error);
-        alert("Không thể đổi trạng thái");
+        await alertAction({ title: "Không thể đổi trạng thái", message: error.response?.data?.message || "Không thể đổi trạng thái danh mục.", confirmText: "Đã hiểu", tone: "danger" });
     }
 }
 

@@ -87,7 +87,11 @@
                             <input
                                 type="number"
                                 min="0"
-                                :step="item.product?.unit?.allow_decimal ? '0.01' : '1'"
+                                :step="
+                                    item.product?.unit?.allow_decimal
+                                        ? '0.01'
+                                        : '1'
+                                "
                                 :max="
                                     item.quantity -
                                     (item.exported_quantity || 0)
@@ -96,7 +100,13 @@
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                             />
-                            <p class="mt-1 text-xs text-gray-500 text-center">{{ item.product?.unit?.allow_decimal ? 'Cho phép số lẻ' : 'Chỉ được nhập số nguyên' }}</p>
+                            <p class="mt-1 text-xs text-gray-500 text-center">
+                                {{
+                                    item.product?.unit?.allow_decimal
+                                        ? "Cho phép số lẻ"
+                                        : "Chỉ được nhập số nguyên"
+                                }}
+                            </p>
                         </td>
                     </tr>
                 </tbody>
@@ -154,7 +164,7 @@ import axios from "axios";
 import { ref, computed, onMounted, h } from "vue";
 import { Head } from "@inertiajs/vue3";
 import { toast } from "vue3-toastify";
-
+import XIcon from "@/icons/XIcon.vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
@@ -321,7 +331,9 @@ async function submit() {
         });
         await loadSlips();
     } catch (e) {
-        toast.error(getValidationMessage(e, "Không thể tạo phiếu xuất warehouse."));
+        toast.error(
+            getValidationMessage(e, "Không thể tạo phiếu xuất warehouse."),
+        );
     } finally {
         loading.value = false;
     }
@@ -369,11 +381,15 @@ const slipActions = [
     {
         title: "Duyệt phiếu",
         icon: CheckIcon,
-        hidden: (row) =>
-            !can("phieu_kho.duyet") || row.status !== "pending",
+        hidden: (row) => !can("phieu_kho.duyet") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
-            const confirmed = await confirmAction({ title: "Duyệt phiếu xuất kho", message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`, confirmText: "Duyệt phiếu", tone: "success" });
+            const confirmed = await confirmAction({
+                title: "Duyệt phiếu xuất kho",
+                message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`}?`,
+                confirmText: "Duyệt phiếu",
+                tone: "success",
+            });
             if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
@@ -398,12 +414,16 @@ const slipActions = [
 
     {
         title: "Từ chối",
-        icon: DeleteIcon,
-        hidden: (row) =>
-            !can("phieu_kho.tu_choi") || row.status !== "pending",
+        icon: XIcon,
+        hidden: (row) => !can("phieu_kho.tu_choi") || row.status !== "pending",
         confirm: false,
         onClick: async (row) => {
-            const confirmed = await confirmAction({ title: "Từ chối phiếu xuất kho", message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`, confirmText: "Từ chối", tone: "danger" });
+            const confirmed = await confirmAction({
+                title: "Từ chối phiếu xuất kho",
+                message: `Bạn có chắc muốn từ chối phiếu ${row.code || `#${row.id}`}?`,
+                confirmText: "Từ chối",
+                tone: "danger",
+            });
             if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/reject`);
@@ -439,10 +459,7 @@ async function openDetail(row) {
 }
 
 useRealtimeRefresh(async () => {
-    await Promise.all([
-        loadSlips(),
-        orderId ? loadOrder() : Promise.resolve(),
-    ]);
+    await Promise.all([loadSlips(), orderId ? loadOrder() : Promise.resolve()]);
 });
 
 // ===================== INIT

@@ -130,6 +130,39 @@ class DemoModuleRolesTest extends TestCase
         $this->assertFalse($names->contains('Supper Admin'));
     }
 
+    public function test_lower_role_cannot_update_or_lock_a_higher_role_account(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $hr = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $director = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $this->actingAs($hr)
+            ->putJson("/api/users/user/{$director->id}", [])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Bạn không thể chỉnh sửa tài khoản có vai trò cao hơn mình.');
+
+        $this->actingAs($hr)
+            ->patchJson("/api/users/{$director->id}/status", ['status' => User::STATUS_BLOCKED])
+            ->assertForbidden();
+
+        $this->assertSame(User::STATUS_ACTIVE, $director->fresh()->status);
+    }
+
+    public function test_user_list_marks_higher_role_accounts_as_unmanageable(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $hr = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $director = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $response = $this->actingAs($hr)->getJson('/api/users/user')->assertOk();
+        $listedDirector = collect($response->json('data'))->firstWhere('id', $director->id);
+
+        $this->assertNotNull($listedDirector);
+        $this->assertFalse($listedDirector['can_be_managed']);
+    }
+
     public function test_used_warehouse_can_update_its_basic_information(): void
     {
         $this->seed(DatabaseSeeder::class);

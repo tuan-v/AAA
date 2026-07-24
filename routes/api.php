@@ -48,9 +48,13 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     */
     Route::controller(UserController::class)->prefix('users')->group(function () {
         Route::get('/user', 'index')->middleware('permission:nhan_su.xem');
+        Route::get('/roles', 'role')->middleware('permission:nhan_su.xem');
         Route::get('/user/{id}', 'show')->middleware('permission:nhan_su.xem');
         Route::post('/user', 'store')->middleware('permission:nhan_su.them');
         Route::put('/user/{id}', 'update')->middleware('permission:nhan_su.sua');
+        Route::patch('/{user}/approve', 'approve')->middleware('permission:nhan_su.duyet');
+        Route::patch('/{user}/reject', 'reject')->middleware('permission:nhan_su.tu_choi');
+        Route::patch('/{user}/resubmit', 'resubmit')->middleware('permission:nhan_su.sua');
         Route::delete('/user/{id}', 'destroy')->middleware('permission:nhan_su.xoa');
         Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:nhan_su.khoa');
     });
@@ -59,7 +63,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::get('/', 'index')->middleware('permission:nhan_su.xem');
         Route::get('/all', 'all')->middleware('permission:nhan_su.xem');
         Route::get('/managers', 'managers')->middleware('permission:nhan_su.xem');
-        Route::post('/', 'store')->middleware('permission:nhan_su.them');
+        Route::post('/', 'store')->middleware('permission:phong_ban.them');
         Route::put('/{department}', 'update')->middleware('permission:nhan_su.sua');
         Route::delete('/{department}', 'destroy')->middleware('permission:nhan_su.xoa');
     });
@@ -67,7 +71,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     Route::controller(PositionController::class)->prefix('positions')->group(function () {
         Route::get('/', 'index')->middleware('permission:nhan_su.xem');
         Route::get('/all', 'all')->middleware('permission:nhan_su.xem');
-        Route::post('/', 'store')->middleware('permission:nhan_su.them');
+        Route::post('/', 'store')->middleware('permission:chuc_vu.them');
         Route::put('/{position}', 'update')->middleware('permission:nhan_su.sua');
         Route::delete('/{position}', 'destroy')->middleware('permission:nhan_su.xoa');
     });

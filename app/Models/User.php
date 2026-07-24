@@ -28,6 +28,11 @@ class User extends Authenticatable
     const STATUS_INACTIVE = 'inactive';
     const STATUS_BLOCKED = 'blocked';
     const STATUS_PENDING = 'pending';
+    const STATUS_PENDING_EDIT = 'pending_edit';
+    const STATUS_REJECTED_FINAL = 'rejected_final';
+    const STATUS_EXPIRED = 'expired';
+    const MAX_REJECTION_COUNT = 3;
+    const RESUBMIT_EXPIRY_DAYS = 30;
     protected $table = 'users';
     protected $fillable = [
         'email',
@@ -43,6 +48,14 @@ class User extends Authenticatable
         'avatar',
         'creater_id',
         'status',
+        'rejection_reason',
+        'rejected_by',
+        'rejected_at',
+        'rejection_count',
+        'rejection_type',
+        'resubmit_expires_at',
+        'last_resubmitted_by',
+        'last_resubmitted_at',
         'zalo_verified',
         'zalo_verified_at',
         'zalo_user_id',
@@ -63,6 +76,32 @@ class User extends Authenticatable
     public function isSystem(): bool
     {
         return $this->type === self::TYPE_SYSTEM;
+    }
+    public function highestRoleLevel(): int
+    {
+        return (int) $this->roles()->max('hierarchy_level');
+    }
+    public function canManageUser(User $target): bool
+    {
+        if ((int) $this->id === (int) $target->id) {
+            return true;
+        }
+        if ($this->isSystem() || $this->hasRole('Supper Admin')) {
+            return true;
+        }
+        return $this->highestRoleLevel() >= $target->highestRoleLevel();
+    }
+    public function isManagementLevel(): bool
+    {
+        return $this->isSystem()
+            || $this->hasRole('Supper Admin')
+            || $this->highestRoleLevel() >= 30;
+    }
+
+    public function canHandleEmployeeCorrection(): bool
+    {
+        return $this->hasAnyRole(['Quản lý nhân sự', 'HR'])
+            && $this->can('nhan_su.sua');
     }
     public function scopeVisibleFor($query, $user)
     {
@@ -108,8 +147,20 @@ class User extends Authenticatable
             'zalo_verified' => 'boolean',
             'zalo_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'resubmit_expires_at' => 'datetime',
+            'last_resubmitted_at' => 'datetime',
+            'rejection_count' => 'integer',
             'password' => 'hashed',
         ];
+    }
+
+    public function canBeResubmitted(): bool
+    {
+        return $this->status === self::STATUS_PENDING_EDIT
+            && $this->rejection_type !== 'reject_final'
+            && $this->rejection_count < self::MAX_REJECTION_COUNT
+            && (! $this->resubmit_expires_at || $this->resubmit_expires_at->isFuture());
     }
 
     /**

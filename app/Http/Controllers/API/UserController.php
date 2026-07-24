@@ -18,7 +18,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::query()
-            ->with(['company:id,name', 'roles:id,name', 'departmentRecord:id,code,name', 'positionRecord:id,department_id,code,name'])
+            ->with(['company:id,name', 'roles:id,name,hierarchy_level', 'departmentRecord:id,code,name', 'positionRecord:id,department_id,code,name'])
             ->visibleFor(auth()->user());              // giữ scope quyền xem
 
         // Lọc theo công ty
@@ -57,8 +57,16 @@ class UserController extends Controller
 
         $users = $query->orderBy('id', 'desc')->paginate($perPage);
         $ownerId = Company::whereKey(auth()->user()->company_id)->value('owner_id');
-        $users->getCollection()->transform(function ($user) use ($ownerId) {
+        $actor = $request->user();
+        $users->getCollection()->transform(function ($user) use ($ownerId, $actor) {
             $user->is_company_owner = (int) $user->id === (int) $ownerId;
+            $user->can_be_managed = $actor->canManageUser($user);
+            $user->can_resubmit = $user->canBeResubmitted()
+                && $actor->canHandleEmployeeCorrection()
+                && $actor->canManageUser($user);
+            $user->can_edit_pending_edit = $user->canBeResubmitted()
+                && $actor->canHandleEmployeeCorrection()
+                && $actor->canManageUser($user);
 
             return $user;
         });
@@ -66,17 +74,36 @@ class UserController extends Controller
         return response()->json($users);
     }
 
-    public function role()
+    public function role(Request $request)
     {
-        return Role::query()->visibleTo(auth()->user())->orderByDesc('hierarchy_level')->get();
+        $currentUser = $request->user();
+        $roles = Role::query()
+            ->visibleTo($currentUser)
+            ->where(function ($query) use ($currentUser) {
+                $query->where('type', 'system')
+                    ->orWhere(fn($query) => $query
+                        ->where('type', 'user')
+                        ->where('company_id', $currentUser->company_id));
+            })
+            ->when(! $currentUser->hasRole('Supper Admin'), fn($query) => $query->where('is_protected', false))
+            ->orderByDesc('hierarchy_level')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'system' => $roles->where('type', 'system')->values(),
+                'user' => $roles->where('type', 'user')->values(),
+            ],
+        ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $user = User::query()
             ->visibleFor(auth()->user())
             ->with([
-                'roles:id,name',
+                'roles:id,name,hierarchy_level',
                 'company:id,name,email,phone,address',
                 'departmentRecord:id,code,name',
                 'positionRecord:id,code,name',
@@ -114,6 +141,13 @@ class UserController extends Controller
         return response()->json([
             ...$user->toArray(),
             'is_company_owner' => (int) $user->id === (int) $ownerId,
+            'can_be_managed' => $request->user()->canManageUser($user),
+            'can_resubmit' => $user->canBeResubmitted()
+                && $request->user()->canHandleEmployeeCorrection()
+                && $request->user()->canManageUser($user),
+            'can_edit_pending_edit' => $user->canBeResubmitted()
+                && $request->user()->canHandleEmployeeCorrection()
+                && $request->user()->canManageUser($user),
             'activities' => $activities,
             'recent_sessions' => $recentSessions,
             'activity_count' => ActivityLog::query()
@@ -192,17 +226,25 @@ class UserController extends Controller
             ->first();
         abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
 
+        $actor = $request->user();
+        $companyOwnerId = Company::whereKey($actor->company_id)->value('owner_id');
+        $requiresApproval = ! $actor->isSystem()
+            && ! $actor->hasRole('Supper Admin')
+            && ! $actor->hasRole('Giám đốc')
+            && (int) $actor->id !== (int) $companyOwnerId;
+
         $user = User::create([
             'name' => $validated['name'],
             'username' => $validated['username'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'password' => bcrypt($validated['password']),
-            'status' => User::STATUS_ACTIVE,
+            'status' => $requiresApproval ? User::STATUS_PENDING : User::STATUS_ACTIVE,
             'mode' => 'company',
             'company_id' => auth()->user()->company_id,
             'department_id' => $validated['department_id'],
             'position_id' => $validated['position_id'],
+            'creater_id' => $actor->id,
         ]);
 
         $user->companies()->syncWithoutDetaching([
@@ -211,19 +253,23 @@ class UserController extends Controller
 
         $user->syncRoles([$assignableRole]);
 
-        $this->notificationService->createForPermission(
-            'nhan_su.xem',
-            (int) auth()->user()->company_id,
-            'Nhân sự mới được thêm',
-            "Tài khoản {$user->name} vừa được thêm vào công ty.",
-            ['user_id' => $user->id],
-            '/manage/user',
-            auth()->id(),
-            'management'
-        );
+        if ($requiresApproval) {
+            $this->notificationService->createForHigherRoleUsers(
+                $actor,
+                (int) $actor->company_id,
+                'Nhân sự mới chờ duyệt',
+                "{$actor->name} đã thêm tài khoản {$user->name} và đang chờ duyệt.",
+                ['user_id' => $user->id, 'status' => User::STATUS_PENDING],
+                '/user',
+                'management'
+            );
+        }
 
         return response()->json([
-            'message' => 'Thêm tài khoản thành công',
+            'message' => $requiresApproval
+                ? 'Đã tạo tài khoản và gửi yêu cầu chờ duyệt.'
+                : 'Đã thêm và kích hoạt tài khoản thành công.',
+            'requires_approval' => $requiresApproval,
             'user' => $user,
         ], 201);
     }
@@ -233,6 +279,25 @@ class UserController extends Controller
     {
         $user = User::visibleFor(auth()->user())
             ->findOrFail($id);
+        abort_unless(
+            ! in_array($user->status, [User::STATUS_REJECTED_FINAL, User::STATUS_EXPIRED], true),
+            422,
+            'Yêu cầu đã kết thúc và không thể chỉnh sửa.'
+        );
+        abort_unless(
+            ! ($user->status === User::STATUS_PENDING && $user->last_resubmitted_at),
+            422,
+            'Yêu cầu đã được gửi duyệt lại và không thể chỉnh sửa trong lúc chờ phê duyệt.'
+        );
+        $this->authorizeUserManagement($request, $user);
+        if ($user->status === User::STATUS_PENDING_EDIT) {
+            abort_unless(
+                $request->user()->canHandleEmployeeCorrection()
+                    && $request->user()->canManageUser($user),
+                403,
+                'Chỉ Quản lý nhân sự được sửa yêu cầu này.'
+            );
+        }
         $isCompanyOwner = (int) Company::whereKey(auth()->user()->company_id)->value('owner_id') === (int) $user->id;
 
         $validated = $request->validate([
@@ -258,6 +323,7 @@ class UserController extends Controller
                     User::STATUS_INACTIVE,
                     User::STATUS_BLOCKED,
                     User::STATUS_PENDING,
+                    User::STATUS_PENDING_EDIT,
                 ]),
             ],
             'role' => 'required|exists:roles,name',
@@ -289,7 +355,9 @@ class UserController extends Controller
             'username' => $validated['username'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
-            'status' => $validated['status'],
+            'status' => in_array($user->status, [User::STATUS_PENDING, User::STATUS_PENDING_EDIT], true)
+                ? $user->status
+                : $validated['status'],
             'department_id' => $isCompanyOwner ? null : $validated['department_id'],
             'position_id' => $isCompanyOwner ? null : $validated['position_id'],
         ];
@@ -318,6 +386,13 @@ class UserController extends Controller
             403
         );
 
+        $this->authorizeUserManagement($request, $user);
+        abort_unless(
+            in_array($user->status, [User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_BLOCKED], true),
+            422,
+            'Tài khoản chưa được kích hoạt nên không thể khóa hoặc mở khóa.'
+        );
+
         $request->validate([
             'status' => [
                 'required',
@@ -337,6 +412,140 @@ class UserController extends Controller
         return response()->json([
             'message' => 'Cập nhật trạng thái thành công',
         ]);
+    }
+
+    public function approve(Request $request, User $user)
+    {
+        abort_unless(
+            $request->user()->isSystem()
+                || $user->companies->contains($request->user()->company_id),
+            403
+        );
+        $this->authorizeUserManagement($request, $user);
+        abort_unless($user->status === User::STATUS_PENDING, 422, 'Tài khoản này không ở trạng thái chờ duyệt.');
+
+        $user->update(['status' => User::STATUS_ACTIVE]);
+
+        return response()->json([
+            'message' => 'Duyệt tài khoản thành công.',
+            'data' => ['id' => $user->id, 'status' => $user->status],
+        ]);
+    }
+
+    public function reject(Request $request, User $user)
+    {
+        abort_unless(
+            $request->user()->isSystem()
+                || $user->companies->contains($request->user()->company_id),
+            403
+        );
+        $this->authorizeUserManagement($request, $user);
+        abort_unless($user->status === User::STATUS_PENDING, 422, 'Tài khoản này không ở trạng thái chờ duyệt.');
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+            'rejection_type' => ['required', Rule::in(['reject_and_return', 'reject_final'])],
+        ], [
+            'reason.required' => 'Vui lòng nhập lý do từ chối.',
+            'reason.min' => 'Lý do từ chối phải có ít nhất 5 ký tự.',
+            'reason.max' => 'Lý do từ chối không được vượt quá 1.000 ký tự.',
+        ]);
+
+        $rejectionCount = $user->rejection_count + 1;
+        $isFinal = $validated['rejection_type'] === 'reject_final'
+            || $rejectionCount >= User::MAX_REJECTION_COUNT;
+        $nextStatus = $isFinal ? User::STATUS_REJECTED_FINAL : User::STATUS_PENDING_EDIT;
+
+        $user->update([
+            'status' => $nextStatus,
+            'rejection_reason' => $validated['reason'],
+            'rejected_by' => $request->user()->id,
+            'rejected_at' => now(),
+            'rejection_count' => $rejectionCount,
+            'rejection_type' => $isFinal ? 'reject_final' : 'reject_and_return',
+            'resubmit_expires_at' => $isFinal ? null : now()->addDays(User::RESUBMIT_EXPIRY_DAYS),
+        ]);
+
+        $notificationRecipients = collect([
+            $user->creater_id,
+            $user->last_resubmitted_by,
+        ])->filter()
+            ->map(fn($id) => (int) $id)
+            ->reject(fn($id) => $id === (int) $request->user()->id)
+            ->unique();
+
+        foreach ($notificationRecipients as $recipientId) {
+            $this->notificationService->create(
+                $recipientId,
+                (int) $request->user()->company_id,
+                'Yêu cầu thêm nhân sự bị từ chối',
+                $isFinal
+                    ? "Tài khoản {$user->name} đã bị từ chối dứt điểm: {$validated['reason']}"
+                    : "Tài khoản {$user->name} cần chỉnh sửa (lần {$rejectionCount}/3): {$validated['reason']}",
+                ['user_id' => $user->id, 'status' => $nextStatus, 'reason' => $validated['reason']],
+                '/user',
+                category: 'management'
+            );
+        }
+
+        return response()->json([
+            'message' => $isFinal
+                ? 'Đã từ chối dứt điểm yêu cầu.'
+                : 'Đã trả yêu cầu về để chỉnh sửa.',
+            'data' => ['id' => $user->id, 'status' => $user->status],
+        ]);
+    }
+
+    public function resubmit(Request $request, User $user)
+    {
+        abort_unless(
+            $user->companies->contains($request->user()->company_id)
+                && $request->user()->canHandleEmployeeCorrection()
+                && $request->user()->canManageUser($user),
+            403,
+            'Chỉ Quản lý nhân sự mới có thể gửi duyệt lại.'
+        );
+        abort_unless($user->status === User::STATUS_PENDING_EDIT, 422, 'Tài khoản này không ở trạng thái chờ chỉnh sửa.');
+        if ($user->resubmit_expires_at?->isPast()) {
+            $user->update(['status' => User::STATUS_EXPIRED]);
+            abort(422, 'Yêu cầu đã hết hạn gửi lại.');
+        }
+        abort_unless($user->canBeResubmitted(), 422, 'Yêu cầu không còn được phép gửi duyệt lại.');
+
+        $user->update([
+            'status' => User::STATUS_PENDING,
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'rejection_type' => null,
+            'resubmit_expires_at' => null,
+            'last_resubmitted_by' => $request->user()->id,
+            'last_resubmitted_at' => now(),
+        ]);
+
+        $this->notificationService->createForHigherRoleUsers(
+            $request->user(),
+            (int) $request->user()->company_id,
+            'Nhân sự đã được gửi duyệt lại',
+            "{$request->user()->name} đã chỉnh sửa và gửi lại tài khoản {$user->name}.",
+            ['user_id' => $user->id, 'status' => User::STATUS_PENDING],
+            '/user',
+            'management'
+        );
+
+        return response()->json([
+            'message' => 'Đã gửi tài khoản duyệt lại.',
+            'data' => ['id' => $user->id, 'status' => $user->status],
+        ]);
+    }
+
+    private function authorizeUserManagement(Request $request, User $target): void
+    {
+        abort_unless(
+            $request->user()->canManageUser($target),
+            403,
+            'Bạn không thể chỉnh sửa tài khoản có vai trò cao hơn mình.'
+        );
     }
 
     public function makeSystem($id)

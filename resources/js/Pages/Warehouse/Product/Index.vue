@@ -125,6 +125,9 @@ import SearchPage from "@/components/SearchPage.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction } = useActionConfirm();
 const filters = ref([
     {
         name: "search",
@@ -367,7 +370,8 @@ const reloadData = () => {
     showModal.value = false;
 };
 async function deleteProduct(id) {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) {
+    const confirmed = await confirmAction({ title: "Xóa sản phẩm", message: "Bạn có chắc muốn xóa sản phẩm này?", confirmText: "Xóa sản phẩm", tone: "danger" });
+    if (!confirmed) {
         return;
     }
 

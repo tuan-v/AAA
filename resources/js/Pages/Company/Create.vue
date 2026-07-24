@@ -1,5 +1,6 @@
 <template>
     <div class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+        <ActionConfirmDialog />
         <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8">
             <!-- HEADER -->
             <div class="mb-6 text-center">
@@ -182,6 +183,10 @@
 import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
 import FormSelect from "@/components/FormSelect.vue";
+import ActionConfirmDialog from "@/components/ui/ActionConfirmDialog.vue";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { alertAction } = useActionConfirm();
 const props = defineProps({
     currencies: Array,
     defaultCurrencyId: Number,
@@ -261,7 +266,7 @@ async function saveCompany() {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {};
         } else {
-            alert("Có lỗi xảy ra");
+            await alertAction({ title: "Không thể tạo công ty", message: error.response?.data?.message || "Có lỗi xảy ra.", confirmText: "Đã hiểu", tone: "danger" });
         }
     }
 }

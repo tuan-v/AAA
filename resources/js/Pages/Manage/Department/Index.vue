@@ -14,7 +14,7 @@
                 </p>
             </div>
             <button
-                v-if="can('nhan_su.them')"
+                v-if="can('phong_ban.them')"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-white"
                 @click="openCreate"
             >
@@ -180,6 +180,9 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
 import { getValidationMessage } from "@/config/helpers";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { useActionConfirm } from "@/composables/useActionConfirm";
+
+const { confirmAction } = useActionConfirm();
 
 const permissions = usePage().props.auth.permissions || [];
 const can = (permission) => permissions.includes(permission);
@@ -311,7 +314,8 @@ async function save() {
     }
 }
 async function remove(department) {
-    if (!confirm(`Xóa phòng ban “${department.name}”?`)) return;
+    const confirmed = await confirmAction({ title: "Xóa phòng ban", message: `Bạn có chắc muốn xóa phòng ban “${department.name}”?`, confirmText: "Xóa phòng ban", tone: "danger" });
+    if (!confirmed) return;
     try {
         await axios.delete(`/api/departments/${department.id}`);
         toast.success("Đã xóa phòng ban");

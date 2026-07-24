@@ -1,5 +1,5 @@
 <template>
-    <div class="space-y-5 text-gray-800 dark:text-gray-100">
+    <div class="asfy-modal-scroll max-h-[78vh] w-full max-w-3xl space-y-4 overflow-y-auto rounded-2xl bg-white p-4 text-gray-800 shadow-2xl dark:bg-gray-900 dark:text-gray-100 sm:p-5">
         <section class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/60">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div class="flex items-center gap-4">

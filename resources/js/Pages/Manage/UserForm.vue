@@ -228,8 +228,13 @@
                                 ></i>
                                 <select
                                     v-model="form.status"
-                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
+                                    :disabled="['pending', 'pending_edit', 'rejected_final', 'expired'].includes(props.user?.status)"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                                 >
+                                    <option value="pending">Chờ duyệt</option>
+                                    <option value="pending_edit">Cần chỉnh sửa</option>
+                                    <option value="rejected_final">Từ chối dứt điểm</option>
+                                    <option value="expired">Đã hết hạn</option>
                                     <option value="active">Hoạt động</option>
                                     <option value="blocked">
                                         Ngưng hoạt động
@@ -239,8 +244,23 @@
                                     class="ti ti-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"
                                 ></i>
                             </div>
+                            <p v-if="props.user?.status === 'pending'" class="mt-1 text-xs text-amber-600">
+                                Trạng thái chỉ thay đổi bằng nút Duyệt.
+                            </p>
+                            <p v-if="props.user?.status === 'pending_edit'" class="mt-1 text-xs text-orange-600">
+                                Sửa thông tin theo lý do từ chối, sau đó dùng nút Gửi duyệt lại.
+                            </p>
                             <p v-if="errors.status" class="mt-1 text-xs text-red-600">{{ errors.status[0] }}</p>
                         </div>
+                    </div>
+                    <div
+                        v-if="props.user?.status === 'pending_edit'"
+                        class="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+                    >
+                        <p class="font-semibold">Lý do từ chối</p>
+                        <p class="mt-1 whitespace-pre-line">{{ props.user.rejection_reason || 'Chưa có lý do cụ thể.' }}</p>
+                        <p class="mt-2 text-xs font-medium">Số lần từ chối: {{ props.user.rejection_count || 0 }}/3</p>
+                        <p v-if="props.user.resubmit_expires_at" class="mt-1 text-xs">Hạn gửi lại: {{ new Date(props.user.resubmit_expires_at).toLocaleString('vi-VN') }}</p>
                     </div>
                 </div>
 
@@ -405,7 +425,7 @@ const form = reactive({
     phone: "",
     password: "",
     password_confirmation: "",
-    status: "active",
+    status: "pending",
     role: "",
     company_id: "",
     department_id: "",
@@ -445,7 +465,7 @@ watch(
                 phone: "",
                 password: "",
                 password_confirmation: "",
-                status: "active",
+                status: "pending",
                 role: "",
                 department_id: "",
                 position_id: "",
@@ -456,7 +476,7 @@ watch(
 );
 const getRoles = async () => {
     try {
-        const res = await axios.get("/api/roles");
+        const res = await axios.get("/api/users/roles");
 
         roles.value = [
             ...(res.data.data.system || []),
@@ -491,12 +511,18 @@ async function saveUser() {
     submitting.value = true;
 
     try {
+        let response;
         if (props.user?.id) {
-            await axios.put(`/api/users/user/${props.user.id}`, form);
+            response = await axios.put(`/api/users/user/${props.user.id}`, form);
         } else {
-            await axios.post("/api/users/user", form);
+            response = await axios.post("/api/users/user", form);
         }
-        toast.success("Lưu nhân sự thành công!");
+        toast.success(
+            response?.data?.message ||
+                (props.user?.id
+                    ? "Cập nhật nhân sự thành công."
+                    : "Thêm nhân sự thành công."),
+        );
         emit("saved");
         emit("close");
     } catch (error) {

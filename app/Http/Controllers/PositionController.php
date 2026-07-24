@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Position;
+use App\Models\ActivityLog;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PositionController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     private function companyId(): int
     {
         $id = auth()->user()->company_id;
@@ -41,7 +45,19 @@ class PositionController extends Controller
         $companyId = $this->companyId();
         $data = $this->validated($request, $companyId);
         $data += ['company_id' => $companyId, 'code' => $this->nextCode($companyId)];
-        return response()->json(['message' => 'Thêm chức vụ thành công.', 'data' => Position::create($data)], 201);
+        $position = Position::create($data);
+
+        $this->notificationService->createForHigherRoleUsers(
+            $request->user(),
+            $companyId,
+            'Chức vụ mới được tạo',
+            "{$request->user()->name} đã tạo chức vụ {$position->name}.",
+            ['position_id' => $position->id, 'department_id' => $position->department_id],
+            '/positions',
+            'management'
+        );
+
+        return response()->json(['message' => 'Thêm chức vụ thành công.', 'data' => $position], 201);
     }
 
     public function update(Request $request, Position $position)
@@ -51,11 +67,41 @@ class PositionController extends Controller
         return response()->json(['message' => 'Cập nhật chức vụ thành công.', 'data' => $position->fresh('department:id,code,name')]);
     }
 
-    public function destroy(Position $position)
+    public function destroy(Request $request, Position $position)
     {
         abort_unless((int) $position->company_id === $this->companyId(), 404);
         if ($position->users()->exists()) return response()->json(['message' => 'Chức vụ đã được gán cho nhân sự, chỉ có thể ngừng hoạt động.'], 422);
+
+        $positionData = [
+            'id' => $position->id,
+            'name' => $position->name,
+            'company_id' => (int) $position->company_id,
+        ];
+
+        ActivityLog::create([
+            'company_id' => $request->user()->company_id,
+            'user_id' => $request->user()->id,
+            'action' => 'delete',
+            'model_type' => Position::class,
+            'model_id' => $position->id,
+            'old_values' => $position->toArray(),
+            'new_values' => null,
+            'description' => "Xóa chức vụ #{$position->id}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
         $position->delete();
+
+        $this->notificationService->createForHigherRoleUsers(
+            $request->user(),
+            $positionData['company_id'],
+            'Chức vụ đã bị xóa',
+            "{$request->user()->name} đã xóa chức vụ {$positionData['name']}.",
+            ['position_id' => $positionData['id'], 'position_name' => $positionData['name']],
+            '/positions',
+            'management'
+        );
+
         return response()->json(['message' => 'Xóa chức vụ thành công.']);
     }
 

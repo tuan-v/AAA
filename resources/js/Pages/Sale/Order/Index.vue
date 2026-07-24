@@ -180,6 +180,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import CheckIcon from "@/icons/CheckIcon.vue";
 import DeleteIcon from "@/icons/DeleteIcon.vue";
+import XIcon from "@/icons/XIcon.vue";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const showSaleDetailModal = ref(false);
@@ -228,7 +229,8 @@ function formatOrderQuantity(row) {
     const quantitiesByUnit = new Map();
 
     for (const item of row.items || []) {
-        const unit = item.product?.unit?.symbol || item.product?.unit?.name || "";
+        const unit =
+            item.product?.unit?.symbol || item.product?.unit?.name || "";
         quantitiesByUnit.set(
             unit,
             (quantitiesByUnit.get(unit) || 0) + Number(item.quantity || 0),
@@ -236,7 +238,10 @@ function formatOrderQuantity(row) {
     }
 
     return [...quantitiesByUnit.entries()]
-        .map(([unit, quantity]) => `${formatQuantity(quantity)}${unit ? ` ${unit}` : ""}`)
+        .map(
+            ([unit, quantity]) =>
+                `${formatQuantity(quantity)}${unit ? ` ${unit}` : ""}`,
+        )
         .join(", ");
 }
 
@@ -328,8 +333,7 @@ const actions = [
             openEdit(item);
         },
         hidden: (item) =>
-            !can("don_ban.sua") ||
-            HIDDEN_EDIT_STATUSES.includes(item.status),
+            !can("don_ban.sua") || HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: CheckIcon,
@@ -349,7 +353,7 @@ const actions = [
             HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
-        icon: DeleteIcon,
+        icon: XIcon,
         title: "Hủy đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
@@ -357,8 +361,7 @@ const actions = [
         confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("don_ban.huy") ||
-            HIDDEN_EDIT_STATUSES.includes(item.status),
+            !can("don_ban.huy") || HIDDEN_EDIT_STATUSES.includes(item.status),
     },
     {
         icon: DetailButtonIcon,
@@ -503,7 +506,9 @@ async function refreshRealtimeData() {
 
     if (showSaleDetailModal.value && detailOrder.value?.id) {
         try {
-            const res = await axios.get(`/api/sale/orders/${detailOrder.value.id}`);
+            const res = await axios.get(
+                `/api/sale/orders/${detailOrder.value.id}`,
+            );
             detailOrder.value = res.data.data ?? res.data;
         } catch (error) {
             if (error.response?.status === 404) {
