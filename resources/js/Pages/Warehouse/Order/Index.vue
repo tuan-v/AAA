@@ -200,6 +200,7 @@
         <template #body>
             <SaleOrderDetail
                 :order="detailOrder"
+                context="warehouse"
                 @close="showSaleDetailModal = false"
             />
         </template>
@@ -211,6 +212,7 @@
         <template #body>
             <PurchaseOrderDetail
                 :order="purchaseDetailOrder"
+                context="warehouse"
                 @close="showPurchaseDetailModal = false"
             />
         </template>

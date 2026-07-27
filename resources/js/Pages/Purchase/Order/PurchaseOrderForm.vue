@@ -94,7 +94,7 @@
                             v-model="form.expected_received_date"
                             placeholder="Chọn ngày"
                             :clearable="true"
-                            :config="{ minDate: 'today' }"
+                            :config="receivedDateConfig"
                         />
                         <p
                             v-if="errors.expected_received_date"
@@ -411,6 +411,7 @@ const props = defineProps({
     order: { type: Object, default: null },
     suppliers: { type: Array, default: () => [] },
     currencies: { type: Array, default: () => [] },
+    supplierId: { type: [Number, String], default: null },
 });
 
 const emit = defineEmits(["saved", "close"]);
@@ -641,12 +642,34 @@ function removeItem(index) {
 
 function resetForm() {
     form.id = null;
-    form.supplier_id = "";
-    form.currency_id = "";
+    form.supplier_id = props.supplierId ? String(props.supplierId) : "";
+    const supplier = props.suppliers.find(
+        (item) => String(item.id) === String(props.supplierId),
+    );
+    form.currency_id = supplier?.currency_id
+        ? String(supplier.currency_id)
+        : "";
     form.expected_received_date = "";
     form.note = "";
     form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 0 }];
     errors.value = {};
+}
+
+const receivedDateConfig = computed(() =>
+    form.id ? {} : { minDate: "today" },
+);
+
+function normalizeDateForInput(value) {
+    if (!value) return "";
+
+    const text = String(value).trim();
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
+    const viMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (viMatch) return `${viMatch[3]}-${viMatch[2]}-${viMatch[1]}`;
+
+    return "";
 }
 
 // ==================== WATCH ORDER ====================
@@ -661,9 +684,9 @@ watch(
         form.id = order.id;
         form.supplier_id = order.supplier_id || order.supplier?.id || "";
         form.currency_id = order.currency_id || order.currency?.id || "";
-        form.expected_received_date = order.expected_received_date
-            ? String(order.expected_received_date).substring(0, 10)
-            : "";
+        form.expected_received_date = normalizeDateForInput(
+            order.expected_received_date,
+        );
         form.note = order.note || "";
 
         if (order.items && order.items.length > 0) {
@@ -681,14 +704,28 @@ watch(
     { immediate: true },
 );
 
+function applySupplierDefaults(supplierId) {
+    if (!supplierId) return;
+
+    const supplier = props.suppliers.find(
+        (item) => String(item.id) === String(supplierId),
+    );
+    if (!supplier) return;
+
+    form.supplier_id = String(supplier.id);
+    form.currency_id = supplier.currency_id
+        ? String(supplier.currency_id)
+        : form.currency_id;
+}
+
+watch(() => form.supplier_id, applySupplierDefaults);
+
 watch(
-    () => form.supplier_id,
-    (supplierId) => {
-        if (!supplierId) return;
-        const supplier = props.suppliers.find((s) => s.id == supplierId);
-        if (supplier)
-            form.currency_id = supplier.currency_id || form.currency_id;
+    [() => props.supplierId, () => props.suppliers],
+    ([supplierId]) => {
+        if (!props.order && supplierId) applySupplierDefaults(supplierId);
     },
+    { immediate: true },
 );
 
 // ==================== LIFECYCLE ====================

@@ -483,6 +483,7 @@
             v-if="selectedOrder"
             :order="selectedOrder"
             @close="closeOrderDetail"
+            @duplicate="duplicateOrder"
         />
         <div v-else class="rounded-xl bg-white px-8 py-6 shadow-xl">
             Đang tải chi tiết đơn bán hàng...
@@ -515,7 +516,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["saved", "close", "create-order"]);
+const emit = defineEmits(["saved", "close", "create-order", "edit", "duplicate-order"]);
 const loading = ref(true);
 
 const viewOrder = async (id) => {
@@ -533,6 +534,11 @@ const viewOrder = async (id) => {
 const closeOrderDetail = () => {
     showOrderDetail.value = false;
     selectedOrder.value = null;
+};
+
+const duplicateOrder = (order) => {
+    closeOrderDetail();
+    emit("duplicate-order", order);
 };
 
 const loadCustomer = async () => {
@@ -579,6 +585,6 @@ const createQuickOrder = () => {
 };
 
 const editCustomer = () => {
-    // Điều hướng đến trang edit
+    emit("edit", customer.value);
 };
 </script>

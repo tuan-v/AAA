@@ -208,8 +208,12 @@ const filters = [
                 label: "Chờ xử lý",
             },
             {
-                value: "approved",
+                value: "approved_group",
                 label: "Đã duyệt",
+            },
+            {
+                value: "cancelled",
+                label: "Đã hủy",
             },
         ],
     },

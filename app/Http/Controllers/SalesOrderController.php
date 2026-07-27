@@ -55,7 +55,9 @@ class SalesOrderController extends Controller
         if ($request->boolean('transaction_eligible')) {
             $query->whereIn('status', ['approved', 'partial', 'completed']);
         } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $request->status === 'approved_group'
+                ? $query->whereIn('status', ['approved', 'partial', 'completed'])
+                : $query->where('status', $request->status);
         }
 
         if ($request->filled('search')) {
@@ -250,6 +252,7 @@ class SalesOrderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'source_order_id' => 'nullable|integer',
             'customer_id' => 'required|exists:customers,id',
             'currency_id' => 'required|exists:currencies,id',
 
@@ -316,6 +319,16 @@ class SalesOrderController extends Controller
             'total_amount.numeric' => 'Tổng tiền phải là số',
             'total_amount.min' => 'Tổng tiền phải lớn hơn hoặc bằng 0',
         ]);
+        if (! empty($validated['source_order_id'])) {
+            abort_unless(
+                $request->user()->can('don_ban.tao_tu_lich_su'),
+                403,
+                'Bạn không có quyền tạo đơn từ lịch sử.'
+            );
+
+            SalesOrder::query()->findOrFail($validated['source_order_id']);
+        }
+
         app(OrderQuantityValidationService::class)->validate($validated['items']);
         DB::beginTransaction();
 

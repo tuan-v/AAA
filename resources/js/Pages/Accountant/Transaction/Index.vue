@@ -92,7 +92,7 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { XCircle } from "lucide-vue-next";
 import { usePermission } from "@/composables/usePermission";
 import { useActionConfirm } from "@/composables/useActionConfirm";
-import { formatMoney, formatDateTime } from "@/config/helpers";
+import { formatMoney, formatBusinessDate } from "@/config/helpers";
 import { toast } from "vue3-toastify";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can } = usePermission();
@@ -141,12 +141,6 @@ const filters = [
         name: "category_id",
         type: "select",
         placeholder: "Loại thanh toán",
-        options: [],
-    },
-    {
-        name: "currency_id",
-        type: "select",
-        placeholder: "Tiền tệ",
         options: [],
     },
     {
@@ -211,12 +205,21 @@ const columns = [
     {
         label: "Số tiền",
         align: "text-right",
-        render: (row) => h("div", { class: "text-right" }, [
-            h("div", { class: "font-semibold" }, formatMoney(row.amount_base ?? 0, row.company_currency)),
-            Number(row.currency_id) !== Number(row.company_currency?.id)
-                ? h("div", { class: "text-xs text-gray-500" }, `Gốc: ${formatMoney(row.amount ?? 0, row.currency)}`)
-                : null,
-        ]),
+        render: (row) =>
+            h("div", { class: "text-right" }, [
+                h(
+                    "div",
+                    { class: "font-semibold" },
+                    formatMoney(row.amount_base ?? 0, row.company_currency),
+                ),
+                Number(row.currency_id) !== Number(row.company_currency?.id)
+                    ? h(
+                          "div",
+                          { class: "text-xs text-gray-500" },
+                          `Gốc: ${formatMoney(row.amount ?? 0, row.currency)}`,
+                      )
+                    : null,
+            ]),
     },
     // {
     //     label: "Tiền tệ",
@@ -244,7 +247,7 @@ const columns = [
     },
     {
         label: "Ngày",
-        render: (row) => h("span", formatDateTime(row.transaction_date)),
+        render: (row) => h("span", formatBusinessDate(row.transaction_date)),
     },
     {
         label: "Trạng thái",
@@ -317,29 +320,29 @@ const actions = [
             }
         },
     },
-    {
-        icon: DeleteIcon,
-        title: "Xóa giao dịch chờ duyệt",
-        hidden: (row) => !can("giao_dich.xoa") || row.status !== "pending",
-        onClick: async (item) => {
-            const accepted = await confirmAction({
-                title: "Xóa giao dịch",
-                message: `Xóa giao dịch ${item.code}? Thao tác này không thể hoàn tác.`,
-                confirmText: "Xóa giao dịch",
-                tone: "danger",
-            });
-            if (!accepted) return;
-            try {
-                await axios.delete(`/api/accountant/transactions/${item.id}`);
-                toast.success("Xóa giao dịch chờ duyệt thành công");
-                getData(transactions.value.current_page);
-            } catch (error) {
-                toast.error(
-                    error.response?.data?.message || "Không thể xóa giao dịch",
-                );
-            }
-        },
-    },
+    // {
+    //     icon: DeleteIcon,
+    //     title: "Xóa giao dịch chờ duyệt",
+    //     hidden: (row) => !can("giao_dich.xoa") || row.status !== "pending",
+    //     onClick: async (item) => {
+    //         const accepted = await confirmAction({
+    //             title: "Xóa giao dịch",
+    //             message: `Xóa giao dịch ${item.code}? Thao tác này không thể hoàn tác.`,
+    //             confirmText: "Xóa giao dịch",
+    //             tone: "danger",
+    //         });
+    //         if (!accepted) return;
+    //         try {
+    //             await axios.delete(`/api/accountant/transactions/${item.id}`);
+    //             toast.success("Xóa giao dịch chờ duyệt thành công");
+    //             getData(transactions.value.current_page);
+    //         } catch (error) {
+    //             toast.error(
+    //                 error.response?.data?.message || "Không thể xóa giao dịch",
+    //             );
+    //         }
+    //     },
+    // },
     {
         icon: DetailButtonIcon,
         type: "view",

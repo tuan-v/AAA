@@ -554,8 +554,21 @@ let companyChannel = null;
 let domainChannel = null;
 let pollingTimer = null;
 let notificationsInitialized = false;
+let unreadRequest = null;
+let notificationsRequest = null;
+let rateLimitedUntil = 0;
 const knownNotificationIds = new Set();
 const POLLING_INTERVAL_MS = 60000;
+
+const isRateLimited = () => Date.now() < rateLimitedUntil;
+
+const applyRateLimitBackoff = (error) => {
+    if (error?.response?.status !== 429) return false;
+
+    const retryAfter = Number(error.response.headers?.["retry-after"] || 60);
+    rateLimitedUntil = Date.now() + Math.max(retryAfter, 60) * 1000;
+    return true;
+};
 
 const categories = [
     { value: "all", label: "Thông báo tổng", color: "blue" },
@@ -760,13 +773,21 @@ const toggleCategoryDropdown = (e) => {
 };
 
 const fetchUnreadCounts = async () => {
+    if (isRateLimited()) return;
+    if (unreadRequest) return unreadRequest;
+
+    unreadRequest = axios.get("/api/notifications/unread-count");
     try {
-        const response = await axios.get("/api/notifications/unread-count");
+        const response = await unreadRequest;
         if (response.data.success && response.data.by_category) {
             unreadCounts.value = response.data.by_category;
         }
     } catch (error) {
-        console.error("Error fetching unread counts:", error);
+        if (!applyRateLimitBackoff(error)) {
+            console.error("Error fetching unread counts:", error);
+        }
+    } finally {
+        unreadRequest = null;
     }
 };
 
@@ -791,15 +812,19 @@ const showNotificationToast = (notification) => {
 };
 
 const fetchNotifications = async (reset = false) => {
+    if (isRateLimited()) return;
+    if (notificationsRequest) return notificationsRequest;
+
     try {
         if (reset) {
             currentPage.value = 1;
             hasMoreNotifications.value = true;
         }
 
-        const response = await axios.get("/api/notifications", {
+        notificationsRequest = axios.get("/api/notifications", {
             params: { page: currentPage.value },
         });
+        const response = await notificationsRequest;
 
         const pageData = response?.data?.data;
         const newNotifications = Array.isArray(pageData?.data)
@@ -829,7 +854,11 @@ const fetchNotifications = async (reset = false) => {
         }
         hasMoreNotifications.value = Boolean(pageData?.next_page_url);
     } catch (error) {
-        console.error("Error fetching notifications:", error);
+        if (!applyRateLimitBackoff(error)) {
+            console.error("Error fetching notifications:", error);
+        }
+    } finally {
+        notificationsRequest = null;
     }
 };
 
@@ -850,7 +879,6 @@ const pollNotifications = () => {
 const setupPolling = () => {
     if (pollingTimer) return;
 
-    pollNotifications();
     pollingTimer = window.setInterval(pollNotifications, POLLING_INTERVAL_MS);
 };
 

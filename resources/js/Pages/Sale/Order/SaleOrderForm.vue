@@ -556,6 +556,7 @@ const currencyOptions = computed(() =>
 
 const form = reactive({
     id: null,
+    source_order_id: null,
     customer_id: "",
     currency_id: "",
     province_id: "",
@@ -804,6 +805,7 @@ function onCustomerCreated(newCustomer) {
 
 function resetForm() {
     form.id = null;
+    form.source_order_id = null;
     form.customer_id = "";
     form.currency_id = "";
     form.province_id = "";
@@ -832,6 +834,16 @@ watch(
     () => form.customer_id,
     async (id) => {
         if (!id) return;
+        const orderCustomerId =
+            props.order?.customer_id ?? props.order?.customer?.id ?? null;
+        if (
+            orderCustomerId &&
+            String(id) === String(orderCustomerId)
+        ) {
+            // Preserve the address/currency snapshot copied from the historical
+            // order. Defaults are applied only when the user selects another KH.
+            return;
+        }
         const customer = allCustomers.value.find(
             (c) => String(c.id) === String(id),
         );
@@ -858,6 +870,7 @@ watch(
         }
 
         form.id = order.id;
+        form.source_order_id = order.source_order_id || null;
         form.customer_id = order.customer_id || order.customer?.id || "";
         form.currency_id = order.currency_id || "";
         form.province_id = order.province_id || "";
@@ -913,7 +926,7 @@ onMounted(async () => {
         }
     }
 
-    if (props.customerId) {
+    if (props.customerId && !props.order) {
         await loadCustomerData(props.customerId);
     }
 });
@@ -932,6 +945,7 @@ async function submit() {
     }));
 
     const payload = {
+        source_order_id: form.id ? null : form.source_order_id,
         customer_id: form.customer_id || null,
         currency_id: form.currency_id || null,
         province_id: form.province_id || null,

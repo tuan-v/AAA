@@ -317,6 +317,8 @@ Trạng thái và quy tắc tương tự PO, thay “nhập” bằng “xuất�
 - Duyệt SO không giảm tồn và không tăng công nợ.
 - Công nợ chỉ tăng theo hàng thực xuất khi phiếu xuất được duyệt.
 - Một SO được phép xuất nhiều lần cho tới khi đủ.
+- Trang chi tiết SO hiển thị đầy đủ thông tin đầu đơn, dòng hàng, tình trạng thực hiện và lịch sử công nợ liên quan.
+- Cho phép tạo SO mới từ một đơn lịch sử. Chỉ sao chép khách hàng, tiền tệ, địa chỉ, sản phẩm, số lượng, đơn giá, VAT và ghi chú; không sao chép mã đơn, trạng thái, dữ liệu duyệt, số lượng đã xuất, phiếu kho, công nợ hoặc thanh toán. Đơn mới có mã tự động và bắt đầu ở trạng thái `pending`.
 
 ### 7.3 Tổng quan bán hàng
 

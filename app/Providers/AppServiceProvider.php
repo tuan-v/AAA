@@ -31,7 +31,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+            // Authenticated pages load several widgets and keep notifications in
+            // sync. Give each signed-in user a dedicated budget so background
+            // requests cannot starve the dashboard APIs.
+            if ($request->user()) {
+                return Limit::perMinute(600)->by('user:'.$request->user()->id);
+            }
+
+            return Limit::perMinute(60)->by('ip:'.$request->ip());
         });
 
         Inertia::share([

@@ -83,6 +83,19 @@
             <SupplierDetail
                 :supplier-id="selectedSupplier?.id"
                 @close="showDebtModal = false"
+                @edit="openEditFromDetail"
+                @create-order="openCreateOrder"
+            />
+        </template>
+    </Modal>
+    <Modal v-if="showOrderModal" @close="showOrderModal = false" size="large">
+        <template #body>
+            <PurchaseOrderForm
+                :supplier-id="createOrderSupplierId"
+                :suppliers="orderSuppliers"
+                :currencies="currencies"
+                @saved="handleOrderSaved"
+                @close="showOrderModal = false"
             />
         </template>
     </Modal>
@@ -100,6 +113,7 @@ import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import SupplierDetail from "./SupplierDetail.vue";
 import SupplierForm from "./SupplierForm.vue";
+import PurchaseOrderForm from "../Order/PurchaseOrderForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
@@ -149,7 +163,10 @@ const currencies = ref([]);
 const perPage = ref(10);
 const showModal = ref(false);
 const showDebtModal = ref(false);
+const showOrderModal = ref(false);
 const selectedSupplier = ref(null);
+const createOrderSupplierId = ref(null);
+const orderSuppliers = ref([]);
 const debtSummary = ref({});
 const debtHistory = ref([]);
 const debtLoading = ref(false);
@@ -263,6 +280,26 @@ function openEdit(item) {
 function openDebtDetail(item) {
     selectedSupplier.value = item;
     showDebtModal.value = true;
+}
+async function openEditFromDetail(item) {
+    showDebtModal.value = false;
+    try {
+        const res = await axios.get(`/api/purchase/suppliers/${item.id}`);
+        openEdit(res.data.data ?? res.data);
+    } catch (error) {
+        toast.error("Không thể tải đầy đủ thông tin nhà cung cấp.");
+    }
+}
+async function openCreateOrder(supplierId) {
+    showDebtModal.value = false;
+    createOrderSupplierId.value = supplierId;
+    const res = await axios.get("/api/purchase/suppliers/all");
+    orderSuppliers.value = res.data.data ?? res.data ?? [];
+    showOrderModal.value = true;
+}
+function handleOrderSaved() {
+    showOrderModal.value = false;
+    getData(suppliers.value.current_page);
 }
 
 function formatDebt(value) {

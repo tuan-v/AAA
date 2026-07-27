@@ -78,6 +78,8 @@
                 :customer-id="selectedCustomerId"
                 @close="showDetailModal = false"
                 @create-order="openCreateOrder"
+                @edit="openEditFromDetail"
+                @duplicate-order="openDuplicateOrder"
             />
         </template>
     </Modal>
@@ -89,8 +91,10 @@
         </template>
         <template #body>
             <SaleOrderForm
+                :key="orderFormKey"
+                :order="orderTemplate"
                 :customer-id="createOrderCustomerId"
-                :customers="customers.data"
+                :customers="orderCustomers"
                 :currencies="currencies"
                 :products="products"
                 :provinces="provinces"
@@ -126,6 +130,7 @@ import CustomerDetail from "./CustomerDetail.vue";
 import SaleOrderForm from "../Order/SaleOrderForm.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { cloneSalesOrderForCreate } from "@/config/orderHelpers";
 /* ================= STATE ================= */
 const filterParams = ref({});
 const { can, canAny } = usePermission();
@@ -172,6 +177,9 @@ const showModal = ref(false);
 const selectedCustomer = ref(null);
 const showOrderModal = ref(false);
 const createOrderCustomerId = ref(null);
+const orderCustomers = ref([]);
+const orderTemplate = ref(null);
+const orderFormKey = ref(0);
 /* ================= COLUMNS ================= */
 const columns = [
     {
@@ -290,8 +298,33 @@ function openCreateOrder(customerId) {
     showDetailModal.value = false;
 
     createOrderCustomerId.value = customerId;
+    orderTemplate.value = null;
+    orderFormKey.value++;
 
     showOrderModal.value = true;
+}
+function openDuplicateOrder(order) {
+    const template = cloneSalesOrderForCreate(order);
+    if (!template) return;
+
+    showDetailModal.value = false;
+    createOrderCustomerId.value = template.customer_id;
+    orderTemplate.value = template;
+    orderFormKey.value++;
+    showOrderModal.value = true;
+}
+async function openEditFromDetail(item) {
+    showDetailModal.value = false;
+    try {
+        const res = await axios.get(`/api/sale/customers/${item.id}`);
+        openEdit(res.data.customer ?? res.data.data ?? res.data);
+    } catch (error) {
+        toast.error("Không thể tải đầy đủ thông tin khách hàng.");
+    }
+}
+function handleOrderSaved() {
+    showOrderModal.value = false;
+    getData(customers.value.current_page);
 }
 function handlePageChange(page) {
     getData(page);
@@ -359,7 +392,8 @@ onMounted(async () => {
             axios.get("/api/provinces"),
             ]);
 
-        currencies.value = currencyRes.data;
+        currencies.value = currencyRes.data.data ?? currencyRes.data;
+        orderCustomers.value = customerRes.data.data ?? customerRes.data ?? [];
         products.value = productRes.data;
         provinces.value = provinceRes.data;
     } catch (error) {

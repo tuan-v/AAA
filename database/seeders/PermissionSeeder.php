@@ -29,6 +29,7 @@ class PermissionSeeder extends Seeder
         'khoa' => 'Khóa', 'mo_khoa' => 'Mở khóa', 'xem_chi_tiet' => 'Xem chi tiết',
         'duyet' => 'Duyệt', 'tu_choi' => 'Từ chối', 'huy' => 'Hủy',
         'xem_lich_su' => 'Xem lịch sử',
+        'tao_tu_lich_su' => 'Tạo từ lịch sử',
     ];
 
     public function run(): void
@@ -47,6 +48,7 @@ class PermissionSeeder extends Seeder
             'vai_tro.them',
             'vai_tro.sua',
             'vai_tro.xoa',
+            'don_ban.tao_tu_lich_su',
         ])->merge(
             collect(app('router')->getRoutes())
                 ->flatMap(fn ($route) => $route->gatherMiddleware())

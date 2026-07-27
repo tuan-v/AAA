@@ -260,10 +260,14 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    context: {
+        type: String,
+        default: "business",
+    },
 });
 
 const getStatusText = (status) => {
-    const map = {
+    const businessMap = {
         pending: "Chờ xử lý",
         approved: "Đã duyệt",
         partial: "Đã duyệt",
@@ -271,11 +275,20 @@ const getStatusText = (status) => {
         cancelled: "Đã hủy",
     };
 
+    const warehouseMap = {
+        pending: "Chờ duyệt",
+        approved: "Đang chờ nhập kho",
+        partial: "Nhập một phần",
+        completed: "Nhập đầy đủ",
+        cancelled: "Đã hủy",
+    };
+
+    const map = props.context === "warehouse" ? warehouseMap : businessMap;
     return map[status] || status;
 };
 
 const statusBadgeClass = (status) => {
-    const classes = {
+    const businessClasses = {
         pending: "bg-yellow-100 text-yellow-700",
         approved: "bg-blue-100 text-blue-700",
         partial: "bg-blue-100 text-blue-700",
@@ -283,6 +296,17 @@ const statusBadgeClass = (status) => {
         cancelled: "bg-red-100 text-red-700",
     };
 
+    const warehouseClasses = {
+        pending: "bg-yellow-100 text-yellow-700",
+        approved: "bg-blue-100 text-blue-700",
+        partial: "bg-orange-100 text-orange-700",
+        completed: "bg-green-100 text-green-700",
+        cancelled: "bg-red-100 text-red-700",
+    };
+
+    const classes = props.context === "warehouse"
+        ? warehouseClasses
+        : businessClasses;
     return classes[status] || "bg-gray-100 text-gray-700";
 };
 

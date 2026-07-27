@@ -674,9 +674,10 @@ import { Head, Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, h, onMounted, reactive, ref } from "vue";
 import axios from "axios";
 import { formatMoney, formatQuantity } from "@/config/helpers";
+import { getOrderStatusMeta } from "@/config/status";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 // ==========================================================================
@@ -797,14 +798,22 @@ const salesOrderColumns = [
     { label: "Khách hàng", key: "customer" },
     { label: "Ngày tạo", key: "date" },
     { label: "Tổng tiền", key: "total", align: "text-right" },
-    { label: "Trạng thái", key: "status" },
+    {
+        label: "Trạng thái",
+        key: "status",
+        render: (row) => renderOrderStatus(row.status),
+    },
 ];
 const purchaseOrderColumns = [
     { label: "Mã đơn", key: "code" },
     { label: "Nhà cung cấp", key: "supplier" },
     { label: "Ngày tạo", key: "date" },
     { label: "Tổng tiền", key: "total", align: "text-right" },
-    { label: "Trạng thái", key: "status" },
+    {
+        label: "Trạng thái",
+        key: "status",
+        render: (row) => renderOrderStatus(row.status),
+    },
 ];
 const transactionColumns = [
     { label: "Mã GD", key: "code" },
@@ -814,28 +823,27 @@ const transactionColumns = [
     { label: "Ngày", key: "date" },
 ];
 
-// DataTable cần field đã format tiền tệ + nhãn trạng thái tiếng Việt
-const statusLabel = (status) =>
-    ({
-        pending: "Chờ xử lý",
-        approved: "Đã duyệt",
-        partial: "Nhập/xuất một phần",
-        completed: "Hoàn tất",
-        cancelled: "Đã hủy",
-    })[status] ?? status;
+const renderOrderStatus = (status) => {
+    const meta = getOrderStatusMeta(status);
+    return h(
+        "span",
+        {
+            class: `${meta.class} inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold`,
+        },
+        meta.label,
+    );
+};
 
 const recentSalesOrders = computed(() =>
     state.recentSalesOrders.map((o) => ({
         ...o,
         total: formatMoney(o.total),
-        status: statusLabel(o.status),
     })),
 );
 const recentPurchaseOrders = computed(() =>
     state.recentPurchaseOrders.map((o) => ({
         ...o,
         total: formatMoney(o.total),
-        status: statusLabel(o.status),
     })),
 );
 const recentTransactions = computed(() =>

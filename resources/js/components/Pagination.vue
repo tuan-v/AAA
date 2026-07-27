@@ -253,7 +253,6 @@ export default {
             }
         },
         handleItemsPerPageChange() {
-            this.$emit("page-change", 1);
             this.$emit("items-per-page-change", this.localItemsPerPage);
             this.jumpPage = 1;
         },

@@ -177,18 +177,25 @@
                                         }}
                                     </p>
                                 </div>
-                                <span
-                                    class="whitespace-nowrap font-semibold text-gray-700"
+                                <div class="flex shrink-0 flex-col items-end gap-1.5">
+                                    <span
+                                        v-if="row.total != null || row.amount != null || row.quantity != null"
+                                        class="whitespace-nowrap font-semibold text-gray-700"
                                     >{{
                                         row.total != null
                                             ? formatMoney(row.total)
                                             : row.amount != null
                                               ? formatMoney(row.amount)
-                                              : row.quantity != null
-                                                ? formatNumber(row.quantity)
-                                                : statusText(row.status)
-                                    }}</span
-                                >
+                                              : formatNumber(row.quantity)
+                                    }}</span>
+                                    <span
+                                        v-if="row.status"
+                                        class="inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                        :class="statusMeta(row.status).class"
+                                    >
+                                        {{ statusMeta(row.status).label }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -235,6 +242,7 @@ import { computed, onMounted, ref } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import { formatMoney as money } from "@/config/helpers";
+import { getOrderStatusMeta } from "@/config/status";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const props = defineProps({ module: { type: String, required: true } });
@@ -333,16 +341,7 @@ const formatNumber = (value) =>
     new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(
         Number(value || 0),
     );
-const statusText = (status) =>
-    ({
-        pending: "Chờ duyệt",
-        approved: "Đã duyệt",
-        partial: "Một phần",
-        completed: "Hoàn tất",
-        cancelled: "Đã hủy",
-    })[status] ||
-    status ||
-    "";
+const statusMeta = (status) => getOrderStatusMeta(status);
 
 const loadDashboard = async () => {
     try {

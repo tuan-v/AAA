@@ -90,6 +90,35 @@ export function formatDateTime(datetimeString, formatStr = "dd/MM/yyyy HH:mm") {
     return format(new Date(datetimeString), formatStr, { locale: vi });
 }
 
+// Business dates (Y-m-d) have no timezone. Parsing them with Date can create
+// a fake time or shift the calendar date in another timezone.
+export function formatBusinessDate(value) {
+    if (!value) return "-";
+
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return formatDate(value);
+
+    return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+export function formatVietnamDateTime(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return new Intl.DateTimeFormat("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    }).format(date);
+}
+
 // sửa lỗi cũ
 export function formatDate(datetimeString, formatStr = "dd/MM/yyyy") {
     if (

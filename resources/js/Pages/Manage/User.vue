@@ -135,6 +135,7 @@
                         :currentPage="users.current_page"
                         :doingShow="users.data.length"
                         @page-change="handlePageChange"
+                        @items-per-page-change="handlePerPageChange"
                     />
                 </div>
             </template>
@@ -442,6 +443,11 @@ function handleFilter(params) {
 
 function handlePageChange(pageNumber) {
     getData(pageNumber);
+}
+
+function handlePerPageChange(value) {
+    users.value.per_page = Number(value);
+    getData(1);
 }
 
 function openCreate() {

@@ -110,6 +110,7 @@
             <SaleOrderDetail
                 :order="detailOrder"
                 @close="showSaleDetailModal = false"
+                @duplicate="openDuplicate"
             />
         </template>
     </Modal>
@@ -183,6 +184,7 @@ import DeleteIcon from "@/icons/DeleteIcon.vue";
 import XIcon from "@/icons/XIcon.vue";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
+import { cloneSalesOrderForCreate } from "@/config/orderHelpers";
 const showSaleDetailModal = ref(false);
 const detailOrder = ref(null);
 const { can } = usePermission();
@@ -194,9 +196,7 @@ const filters = [
         placeholder: "Trạng thái",
         options: [
             { value: "pending", label: "Chờ xử lý" },
-            { value: "approved", label: "Đã duyệt" },
-            { value: "completed", label: "Đã duyệt" },
-            { value: "partial", label: "Đã duyệt" },
+            { value: "approved_group", label: "Đã duyệt" },
             { value: "cancelled", label: "Đã hủy" },
         ],
     },
@@ -288,21 +288,7 @@ const columns = [
                 `${formatMoney(row.total_amount)} ${row.currency?.symbol ?? ""}`,
             ),
     },
-    {
-        label: "Công nợ",
-        align: "text-right",
-        render: (row) =>
-            h(
-                "span",
-                {
-                    class:
-                        Number(row.remaining_debt) > 0
-                            ? "text-red-600 font-semibold"
-                            : "text-green-600",
-                },
-                formatMoney(row.remaining_debt ?? 0),
-            ),
-    },
+
     {
         label: "Trạng thái",
         align: "text-center",
@@ -432,6 +418,16 @@ async function fetchCurrencies() {
 // Modal
 function openCreate() {
     selectedOrder.value = null;
+    orderKey.value++;
+    showModal.value = true;
+}
+
+function openDuplicate(order) {
+    const template = cloneSalesOrderForCreate(order);
+    if (!template) return;
+
+    showSaleDetailModal.value = false;
+    selectedOrder.value = template;
     orderKey.value++;
     showModal.value = true;
 }

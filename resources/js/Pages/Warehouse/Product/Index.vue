@@ -267,7 +267,7 @@ const actions = computed(() => [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: () => !can("san_pham_kho.sua"),
+        hidden: (item) => Boolean(item.is_used) || !can("san_pham_kho.sua"),
         onClick: (item) => openEdit(item),
     },
     {

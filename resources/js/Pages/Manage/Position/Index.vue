@@ -58,6 +58,7 @@
             :currentPage="positions.current_page"
             :doingShow="positions.data.length"
             @page-change="load"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
     <Modal v-if="showModal" @close="showModal = false"
@@ -256,8 +257,14 @@ const actions = computed(() => [
 ]);
 async function load(page = 1) {
     positions.value = (
-        await axios.get("/api/positions", { params: { ...filters, page } })
+        await axios.get("/api/positions", {
+            params: { ...filters, page, per_page: positions.value.per_page },
+        })
     ).data;
+}
+function handlePerPageChange(value) {
+    positions.value.per_page = Number(value);
+    load(1);
 }
 const debouncedLoad = debounce(() => load(1), 300);
 function clearFieldError(field) {

@@ -541,7 +541,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["saved", "close", "create-order"]);
+const emit = defineEmits(["saved", "close", "create-order", "edit"]);
 const loading = ref(true);
 const viewOrder = async (id) => {
     selectedOrder.value = null;
@@ -619,6 +619,6 @@ const statusClass = (status) => {
     }
 };
 const editSupplier = () => {
-    // Điều hướng đến trang edit
+    emit("edit", supplier.value);
 };
 </script>

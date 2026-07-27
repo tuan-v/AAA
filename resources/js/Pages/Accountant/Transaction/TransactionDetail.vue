@@ -64,9 +64,6 @@
                 <p class="text-sm font-medium">
                     {{ formatDateOnly(transaction.transaction_date) }}
                 </p>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    {{ formatTimeOnly(transaction.transaction_date) }}
-                </p>
             </div>
             <div class="py-4 pl-4">
                 <p class="text-xs text-gray-500 mb-1">Loại thanh toán</p>
@@ -227,7 +224,11 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
-import { formatMoney as formatMoneyHelper } from "@/config/helpers";
+import {
+    formatBusinessDate,
+    formatMoney as formatMoneyHelper,
+    formatVietnamDateTime,
+} from "@/config/helpers";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import {
     CheckCircleIcon,
@@ -331,32 +332,11 @@ function formatMoney(value, currency = null) {
 }
 
 function formatDate(value) {
-    if (!value) return "—";
-    return new Date(value).toLocaleString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return value ? formatVietnamDateTime(value) : "—";
 }
 
 function formatDateOnly(value) {
-    if (!value) return "—";
-    return new Date(value).toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    });
-}
-
-function formatTimeOnly(value) {
-    if (!value) return "";
-    return new Date(value).toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-    });
+    return value ? formatBusinessDate(value) : "—";
 }
 
 async function loadData() {

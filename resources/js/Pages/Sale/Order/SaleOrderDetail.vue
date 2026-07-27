@@ -21,7 +21,12 @@
             </div>
             <div class="flex gap-3">
                 <button
-                    v-if="order?.status !== 'cancelled'"
+                    v-if="
+                        props.context !== 'warehouse' &&
+                        order?.status !== 'cancelled' &&
+                        can('don_ban.them') &&
+                        can('don_ban.tao_tu_lich_su')
+                    "
                     @click="duplicateOrder"
                     class="px-5 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 flex items-center gap-2"
                 >
@@ -248,6 +253,9 @@
 <script setup>
 import { computed } from "vue";
 import { formatMoney, formatQuantity } from "@/config/helpers";
+import { usePermission } from "@/composables/usePermission";
+
+const { can } = usePermission();
 
 const unitLabel = (item) =>
     item?.unit_name || item?.product?.unit?.symbol || item?.product?.unit?.name || "";
@@ -259,32 +267,56 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    context: {
+        type: String,
+        default: "business",
+    },
 });
 
 // Alias để template dùng ngắn gọn
 const order = computed(() => props.order);
 
 const getStatusText = (status) => {
-    const map = {
+    const businessMap = {
         pending: "Chờ xử lý",
         approved: "Đã duyệt",
-        partial: "Đã xuất một phần",
-        completed: "Hoàn thành",
+        partial: "Đã duyệt",
+        completed: "Đã duyệt",
         cancelled: "Đã hủy",
     };
 
+    const warehouseMap = {
+        pending: "Chờ duyệt",
+        approved: "Đang chờ xuất kho",
+        partial: "Xuất một phần",
+        completed: "Xuất đầy đủ",
+        cancelled: "Đã hủy",
+    };
+
+    const map = props.context === "warehouse" ? warehouseMap : businessMap;
     return map[status] || status;
 };
 
 const statusBadgeClass = (status) => {
-    const classes = {
+    const businessClasses = {
         pending: "bg-yellow-100 text-yellow-700",
         approved: "bg-blue-100 text-blue-700",
-        partial: "bg-purple-100 text-purple-700",
+        partial: "bg-blue-100 text-blue-700",
+        completed: "bg-blue-100 text-blue-700",
+        cancelled: "bg-red-100 text-red-700",
+    };
+
+    const warehouseClasses = {
+        pending: "bg-yellow-100 text-yellow-700",
+        approved: "bg-blue-100 text-blue-700",
+        partial: "bg-yellow-100 text-yellow-700",
         completed: "bg-green-100 text-green-700",
         cancelled: "bg-red-100 text-red-700",
     };
 
+    const classes = props.context === "warehouse"
+        ? warehouseClasses
+        : businessClasses;
     return classes[status] || "bg-gray-100 text-gray-700";
 };
 

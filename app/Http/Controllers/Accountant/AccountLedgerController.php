@@ -32,7 +32,7 @@ class AccountLedgerController extends Controller
 
         return response()->json(
             $query
-                ->orderByDesc('ledger_date')
+                ->orderByDesc('created_at')
                 ->paginate($perPage)
                 ->through(function (AccountLedger $ledger) {
                     $ledger->currency = $ledger->account?->currency;

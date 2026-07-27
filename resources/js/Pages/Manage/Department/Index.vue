@@ -56,6 +56,7 @@
             :currentPage="departments.current_page"
             :doingShow="departments.data.length"
             @page-change="load"
+            @items-per-page-change="handlePerPageChange"
         />
     </AdminLayout>
 
@@ -260,9 +261,13 @@ const actions = computed(() => [
 
 async function load(page = 1) {
     const { data } = await axios.get("/api/departments", {
-        params: { ...filters, page },
+        params: { ...filters, page, per_page: departments.value.per_page },
     });
     departments.value = data;
+}
+function handlePerPageChange(value) {
+    departments.value.per_page = Number(value);
+    load(1);
 }
 const debouncedLoad = debounce(() => load(1), 300);
 function resetForm(department = null) {
