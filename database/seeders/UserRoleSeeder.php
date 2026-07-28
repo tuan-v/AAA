@@ -13,12 +13,12 @@ class UserRoleSeeder extends Seeder
 
         $admin?->assignRole('Supper Admin');
 
-        $hr = User::find(2);
+        $hrEmployee = User::find(2);
 
-        $hr?->assignRole('HR');
+        $hrEmployee?->assignRole('Nhân viên nhân sự');
 
-        $manager = User::find(3);
+        $hrManager = User::find(3);
 
-        $manager?->assignRole('Manager');
+        $hrManager?->assignRole('Quản lý nhân sự');
     }
 }

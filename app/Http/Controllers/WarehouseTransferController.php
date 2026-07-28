@@ -103,7 +103,7 @@ class WarehouseTransferController extends Controller
     {
         $companyId = $this->companyId();
         $transfer = DB::transaction(function () use ($id, $companyId, $movements) {
-            $transfer = WarehouseTransfer::with('items')->where('company_id', $companyId)->lockForUpdate()->findOrFail($id);
+            $transfer = WarehouseTransfer::with('items.product')->where('company_id', $companyId)->lockForUpdate()->findOrFail($id);
             abort_if($transfer->status !== 'pending', 422, 'Phiếu chuyển kho đã được xử lý.');
 
             foreach ($transfer->items as $item) {
@@ -118,13 +118,12 @@ class WarehouseTransferController extends Controller
 
                 $sourceQuantityBefore = (float) $source->quantity;
                 $sourceValueBefore = (float) $source->stock_value;
-                $unitCost = $sourceQuantityBefore > 0 ? $sourceValueBefore / $sourceQuantityBefore : 0;
-                $movedValue = round((float) $item->quantity * $unitCost, 2);
-
+                $unitCost = (float) ($item->product?->purchase_price ?? 0);
+                abort_if($unitCost <= 0, 422, 'Sản phẩm chưa có giá nhập từ đơn mua.');
                 $source->quantity = round($sourceQuantityBefore - (float) $item->quantity, 3);
                 $source->stock_value = $source->quantity <= 0
                     ? 0
-                    : round(max(0, $sourceValueBefore - $movedValue), 2);
+                    : round((float) $source->quantity * $unitCost, 2);
                 $source->save();
                 $target = WarehouseProductStock::firstOrCreate(
                     ['company_id' => $companyId, 'warehouse_id' => $transfer->to_warehouse_id, 'product_id' => $item->product_id],
@@ -134,7 +133,7 @@ class WarehouseTransferController extends Controller
                 $targetQuantityBefore = (float) $target->quantity;
                 $targetValueBefore = (float) $target->stock_value;
                 $target->quantity = round($targetQuantityBefore + (float) $item->quantity, 3);
-                $target->stock_value = round($targetValueBefore + $movedValue, 2);
+                $target->stock_value = round((float) $target->quantity * $unitCost, 2);
                 $target->save();
 
                 $movements->record($source, 'transfer_out', (float) $item->quantity, $unitCost, $sourceQuantityBefore, $sourceValueBefore, $transfer);

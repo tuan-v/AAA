@@ -70,10 +70,16 @@ class InventoryLifecycleEndToEndTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 4]],
         ])->assertOk()->json('slip.id');
         $this->actingAs($warehouseUser)->postJson("/api/warehouse/slips/{$importSlipId}/approve")->assertOk();
+        $this->assertEquals($initialQuantity, $sourceStock->fresh()->quantity);
+        $this->assertDatabaseHas('warehouse_slips', [
+            'id' => $importSlipId,
+            'status' => 'pending',
+        ]);
+        $this->actingAs($accountant)->postJson("/api/warehouse/slips/{$importSlipId}/accountant-approve")->assertOk();
 
         $this->assertSame('completed', PurchaseOrder::findOrFail($purchaseOrderId)->status);
         $this->assertEquals($initialQuantity + 4, $sourceStock->fresh()->quantity);
-        $this->assertEquals($initialValue + 400000, $sourceStock->fresh()->stock_value);
+        $this->assertEquals(($initialQuantity + 4) * 110000, $sourceStock->fresh()->stock_value);
         $this->assertEquals($supplierDebtBefore + 440000, SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
 
         $transferId = $this->actingAs($warehouseUser)->postJson('/api/warehouse/transfers', [
@@ -90,7 +96,7 @@ class InventoryLifecycleEndToEndTest extends TestCase
         $this->assertEquals($initialQuantity + 2, $sourceAfterTransfer->quantity);
         $this->assertEquals(2, $destinationStock->quantity);
         $this->assertEqualsWithDelta(
-            $initialValue + 400000,
+            ($initialQuantity + 4) * 110000,
             (float) $sourceAfterTransfer->stock_value + (float) $destinationStock->stock_value,
             0.01
         );
@@ -130,6 +136,7 @@ class InventoryLifecycleEndToEndTest extends TestCase
             'items' => [['product_id' => $product->id, 'quantity' => 2]],
         ])->assertOk()->json('slip.id');
         $this->actingAs($warehouseUser)->postJson("/api/warehouse/slips/{$exportSlipId}/approve")->assertOk();
+        $this->actingAs($accountant)->postJson("/api/warehouse/slips/{$exportSlipId}/accountant-approve")->assertOk();
 
         $this->assertSame('completed', SalesOrder::findOrFail($saleOrderId)->status);
         $this->assertEquals(300000, (float) $product->fresh()->sell_price);
@@ -141,7 +148,7 @@ class InventoryLifecycleEndToEndTest extends TestCase
             InventoryMovement::where('product_id', $product->id)->pluck('type')->unique()->values()->all()
         );
 
-        $report = $this->actingAs($accountant)->getJson('/api/accountant/profit-loss-report?from_date=2026-07-01&to_date=2026-07-23&warehouse_id='.$destination->id);
+        $report = $this->actingAs($accountant)->getJson('/api/accountant/profit-loss-report?from_date=2026-07-01&to_date='.now()->toDateString().'&warehouse_id='.$destination->id);
         $report->assertOk()
             ->assertJsonPath('summary.sales_count', 1)
             ->assertJsonPath('summary.import_slips_count', 0)

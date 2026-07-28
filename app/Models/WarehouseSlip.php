@@ -20,12 +20,15 @@ class WarehouseSlip extends Model
         'type',
         'note',
         'created_by',
+        'submitted_to_accountant_by',
+        'submitted_to_accountant_at',
         'approved_by',
         'approved_at',
         'status',
     ];
     protected $casts = [
         'approved_at' => 'datetime',
+        'submitted_to_accountant_at' => 'datetime',
         'created_at' => 'datetime',
     ];
 

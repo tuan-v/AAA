@@ -30,18 +30,22 @@ class PermissionSeeder extends Seeder
         'duyet' => 'Duyệt', 'tu_choi' => 'Từ chối', 'huy' => 'Hủy',
         'xem_lich_su' => 'Xem lịch sử',
         'tao_tu_lich_su' => 'Tạo từ lịch sử',
+        'duyet_ke_toan' => 'Kế toán duyệt',
     ];
 
     public function run(): void
     {
+        Permission::query()
+            ->whereIn('name', ['nhan_su.duyet', 'nhan_su.tu_choi'])
+            ->where('guard_name', 'web')
+            ->delete();
+
         $permissions = collect([
             'tong_quan.xem',
             'nhan_su.xem',
             'nhan_su.them',
             'nhan_su.sua',
             'nhan_su.xoa',
-            'nhan_su.duyet',
-            'nhan_su.tu_choi',
             'phong_ban.them',
             'chuc_vu.them',
             'vai_tro.xem',

@@ -11,6 +11,11 @@ class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
+        // Cho phép chạy riêng seeder này trên môi trường đã có dữ liệu nhưng
+        // chưa có đủ các role hệ thống theo module.
+        $this->call(PermissionSeeder::class);
+        $this->call(RoleSeeder::class);
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $admin = Role::findByName('Supper Admin');
@@ -19,19 +24,6 @@ class RolePermissionSeeder extends Seeder
 
         $director = Role::findByName('Giám đốc');
         $director->syncPermissions(Permission::all());
-
-        $hr = Role::findByName('HR');
-
-        $hr->syncPermissions([
-            'nhan_su.xem',
-            'nhan_su.them'
-        ]);
-
-        $manager = Role::findByName('Manager');
-
-        $manager->syncPermissions([
-            'nhan_su.xem'
-        ]);
 
         $employeePermissions = [
             'Nhân viên nhân sự' => ['nhan_su.xem', 'nhan_su.xem_chi_tiet'],
@@ -54,6 +46,7 @@ class RolePermissionSeeder extends Seeder
                 'giao_dich.xem', 'giao_dich.them', 'giao_dich.sua',
                 'cong_no_khach_hang.xem', 'cong_no_khach_hang.xem_chi_tiet',
                 'cong_no_nha_cung_cap.xem', 'cong_no_nha_cung_cap.xem_chi_tiet',
+                'phieu_kho.xem', 'phieu_kho.xem_chi_tiet', 'phieu_kho.duyet_ke_toan',
             ],
         ];
 
@@ -76,9 +69,15 @@ class RolePermissionSeeder extends Seeder
                         $query->orWhere('name', 'like', $module.'.%');
                     }
                 })
-                ->pluck('name')
-                ->reject(fn ($permission) => $roleName === 'Quản lý nhân sự'
-                    && in_array($permission, ['nhan_su.duyet', 'nhan_su.tu_choi'], true));
+                ->pluck('name');
+
+            if ($roleName === 'Quản lý kế toán') {
+                $permissions = $permissions->merge([
+                    'phieu_kho.xem',
+                    'phieu_kho.xem_chi_tiet',
+                    'phieu_kho.duyet_ke_toan',
+                ]);
+            }
 
             Role::findByName($roleName)->syncPermissions($permissions);
         }

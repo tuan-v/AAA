@@ -268,11 +268,11 @@ Route trang bắt đầu bằng `/warehouse`. Do lịch sử phát triển, API 
 | Kho | CRUD/khóa kho, địa chỉ, chi tiết/tồn | `Pages/Warehouse/Index.vue`, `WarehouseForm.vue`, `WarehouseDetail.vue` | CRUD `/api/warehouses`, `/all`, `/{id}/detail`, status -> `WarehouseController`; `Warehouse`, `WarehouseProductStock`, `Stock` |
 | Danh mục/đơn vị/sản phẩm | cùng master data nhưng permission theo ngữ cảnh kho | `Pages/Warehouse/Category`, `Unit`, `Product` | CRUD `/api/warehouse/categories|units|products` -> controller dùng chung với Mua hàng |
 | Đơn chờ kho | tổng hợp đơn mua cần nhập và đơn bán cần xuất | `Pages/Warehouse/Order/Index.vue` | `GET /api/warehouse/orders`, `/api/saleorders/warehouse`; chi tiết lấy từ API order |
-| Phiếu nhập/xuất | tạo từ order, duyệt/từ chối; khi duyệt làm thay đổi tồn | `Pages/Warehouse/Slip/*` | CRUD `/api/warehouse/slips`, `POST /{id}/approve|reject`, `/warehouse/orders/{id}/stock-in|stock-out`, `/available-for-export` -> `WarehouseSlipController` và order controllers; `WarehouseSlip`, `WarehouseSlipItem` |
+| Phiếu nhập/xuất | tạo từ order; kho xác nhận rồi kế toán duyệt/từ chối; chỉ kế toán duyệt mới làm thay đổi tồn/công nợ | `Pages/Warehouse/Slip/*` | CRUD `/api/warehouse/slips`, `POST /{id}/approve|accountant-approve|reject`, `/warehouse/orders/{id}/stock-in|stock-out`, `/available-for-export` -> `WarehouseSlipController` và order controllers; `WarehouseSlip`, `WarehouseSlipItem` |
 | Chuyển kho | tạo, duyệt, hủy chuyển nội bộ | `Pages/Warehouse/Transfer/Index.vue` | `GET/POST /api/warehouse/transfers`, `POST /{id}/approve|cancel` -> `WarehouseTransferController`; `WarehouseTransfer`, items; dùng `OrderQuantityValidationService`, `InventoryMovementService` |
 | Biến động/tồn | tra cứu lịch sử nhập, xuất, chuyển và tồn hiện tại | `Pages/Warehouse/InventoryMovement/Index.vue`, detail kho | `GET /api/warehouse/inventory-movements`, `/inventory`, `/stocks` -> `InventoryMovementController`, `WarehouseInventoryController`, `WarehouseController`; `InventoryMovement` |
 
-Việc duyệt phiếu/chuyển kho là vùng nhạy cảm: đọc kỹ transaction trong controller/service và các test `Inventory*`, `Warehouse*`, `ProductAvailabilityTest` trước khi sửa.
+Việc xác nhận/duyệt phiếu và chuyển kho là vùng nhạy cảm: đọc kỹ transaction trong controller/service và các test `Inventory*`, `Warehouse*`, `ProductAvailabilityTest` trước khi sửa. Không gộp bước kho xác nhận (`approve`) với bước kế toán ghi nhận (`accountant-approve`).
 
 ## 10. Module Kế toán
 
@@ -334,17 +334,17 @@ Danh sách endpoint runtime đầy đủ luôn lấy bằng `php artisan route:l
 ### Mua hàng đến thanh toán
 
 1. Mua hàng tạo đơn qua `PurchaseOrderController@store`.
-2. Người có quyền duyệt gọi `POST /api/purchase/orders/{id}/approve`; đơn được chốt và ghi nhận nghĩa vụ với NCC.
-3. Kho lấy đơn chờ qua `/api/warehouse/orders`, tạo phiếu nhập từ `/stock-in`, rồi duyệt phiếu.
-4. Duyệt phiếu nhập cập nhật tồn và ghi `InventoryMovement`.
+2. Người có quyền duyệt gọi `POST /api/purchase/orders/{id}/approve`; đơn được chốt để kho tiếp nhận nhưng chưa cập nhật tồn/công nợ.
+3. Kho lấy đơn chờ qua `/api/warehouse/orders`, tạo phiếu nhập rồi xác nhận gửi kế toán.
+4. Kế toán nhận thông báo và duyệt phiếu; lúc này hệ thống mới cập nhật tồn (giá trị gồm VAT), công nợ NCC và `InventoryMovement`.
 5. Kế toán xem công nợ NCC, tạo giao dịch chi gắn NCC/đơn.
 6. Duyệt giao dịch qua `TransactionService`: cập nhật số dư tài khoản, sổ tài khoản và công nợ NCC.
 
 ### Bán hàng đến thu tiền
 
 1. Bán hàng tạo và duyệt đơn bán qua `SalesOrderController`.
-2. Kho lấy đơn đủ điều kiện qua `/api/saleorders/warehouse`/`/available-for-export`, tạo và duyệt phiếu xuất.
-3. Duyệt xuất kho trừ tồn và ghi biến động.
+2. Kho lấy đơn đủ điều kiện qua `/api/saleorders/warehouse`/`/available-for-export`, tạo phiếu xuất rồi xác nhận gửi kế toán.
+3. Kế toán duyệt phiếu xuất; hệ thống trừ tồn theo giá nhập gần nhất, ghi biến động và công nợ khách hàng.
 4. Kế toán xem công nợ khách, tạo giao dịch thu.
 5. Duyệt giao dịch cập nhật số dư, sổ và giảm công nợ khách.
 

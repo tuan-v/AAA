@@ -177,13 +177,10 @@ import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
 import Unlock from "@/icons/Unlock.vue";
-import CheckCirleIcon from "@/icons/CheckCirleIcon.vue";
-import XIcon from "@/icons/XIcon.vue";
-import SendIcon from "@/icons/SendIcon.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 
-const { confirmAction, promptAction } = useActionConfirm();
+const { confirmAction } = useActionConfirm();
 
 const page = usePage();
 const permissions = computed(
@@ -223,10 +220,6 @@ const filters = ref([
             { value: "active", label: "Đang hoạt động" },
             { value: "blocked", label: "Đã khóa" },
             { value: "inactive", label: "Ngừng hoạt động" },
-            { value: "pending", label: "Chờ kích hoạt" },
-            { value: "pending_edit", label: "Cần chỉnh sửa" },
-            { value: "rejected_final", label: "Từ chối dứt điểm" },
-            { value: "expired", label: "Đã hết hạn" },
         ],
     },
 ]);
@@ -381,38 +374,6 @@ const actions = computed(() => [
                 : item.can_be_managed === false),
         onClick: openEdit,
         tooltip: "Chỉnh sửa",
-    },
-    {
-        type: "approve",
-        icon: CheckCirleIcon,
-        title: "Duyệt tài khoản",
-        hidden: (item) =>
-            item.status !== "pending" ||
-            !can("nhan_su.duyet") ||
-            item.can_be_managed === false,
-        onClick: approveUser,
-        tooltip: "Duyệt tài khoản",
-    },
-    {
-        type: "reject",
-        icon: XIcon,
-        title: "Từ chối tài khoản",
-        confirm: false,
-        hidden: (item) =>
-            item.status !== "pending" ||
-            !can("nhan_su.tu_choi") ||
-            item.can_be_managed === false,
-        onClick: rejectUser,
-        tooltip: "Từ chối tài khoản",
-    },
-    {
-        type: "resubmit",
-        icon: SendIcon,
-        title: "Gửi duyệt lại",
-        hidden: (item) =>
-            item.status !== "pending_edit" || item.can_resubmit !== true,
-        onClick: resubmitUser,
-        tooltip: "Gửi duyệt lại",
     },
     {
         type: "status",

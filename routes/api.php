@@ -52,9 +52,6 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::get('/user/{id}', 'show')->middleware('permission:nhan_su.xem');
         Route::post('/user', 'store')->middleware('permission:nhan_su.them');
         Route::put('/user/{id}', 'update')->middleware('permission:nhan_su.sua');
-        Route::patch('/{user}/approve', 'approve')->middleware('permission:nhan_su.duyet');
-        Route::patch('/{user}/reject', 'reject')->middleware('permission:nhan_su.tu_choi');
-        Route::patch('/{user}/resubmit', 'resubmit')->middleware('permission:nhan_su.sua');
         Route::delete('/user/{id}', 'destroy')->middleware('permission:nhan_su.xoa');
         Route::patch('/{user}/status', 'toggleStatus')->middleware('permission:nhan_su.khoa');
     });
@@ -159,6 +156,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::get('/{slip}', 'show')->middleware('permission:phieu_kho.xem_chi_tiet');
             Route::put('/{slip}', 'update')->middleware('permission:phieu_kho.sua');
             Route::post('/{id}/approve', 'approve')->middleware('permission:phieu_kho.duyet');
+            Route::post('/{id}/accountant-approve', 'accountantApprove')->middleware('permission:phieu_kho.duyet_ke_toan');
             Route::post('/{id}/reject', 'reject')->middleware('permission:phieu_kho.tu_choi');
         });
 

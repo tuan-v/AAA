@@ -7,6 +7,7 @@ use App\Models\Currency;
 use Illuminate\Http\Request;
 use App\Models\CurrencyRate;
 use App\Models\CompanyCurrencyRate;
+use Illuminate\Support\Facades\DB;
 
 class CurrencyController extends Controller
 {
@@ -121,9 +122,9 @@ class CurrencyController extends Controller
 
     public function update(Request $request, Currency $currency)
     {
-        if ($currency->isUsed()) {
+        if (strtoupper($currency->code) === 'VND') {
             return response()->json([
-                'message' => 'Đơn vị tiền tệ đã được sử dụng, không thể chỉnh sửa.'
+                'message' => 'Tiền tệ VND được khóa và không thể chỉnh sửa.'
             ], 422);
         }
 
@@ -134,7 +135,41 @@ class CurrencyController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $currency->update($validated);
+        // A used currency may still receive a new rate. Its identifying
+        // information and status remain immutable to protect historical data.
+        if ($currency->isUsed()) {
+            $validated = ['exchange_rate' => $validated['exchange_rate']];
+        }
+
+        $oldRate = (float) $currency->exchange_rate;
+        $newRate = (float) $validated['exchange_rate'];
+
+        DB::transaction(function () use ($currency, $validated, $oldRate, $newRate) {
+            $currency->update($validated);
+
+            if (abs($oldRate - $newRate) < 0.0000001) {
+                return;
+            }
+
+            $companyId = auth()->user()->company_id
+                ?? auth()->user()->companies()->value('companies.id');
+
+            if (! $companyId) {
+                return;
+            }
+
+            CompanyCurrencyRate::updateOrCreate(
+                [
+                    'company_id' => $companyId,
+                    'currency_id' => $currency->id,
+                    'effective_date' => now()->toDateString(),
+                ],
+                [
+                    'rate_to_base' => $newRate,
+                    'created_by' => auth()->id(),
+                ]
+            );
+        });
 
         return response()->json([
             'message' => 'Cập nhật thành công'
@@ -170,6 +205,12 @@ class CurrencyController extends Controller
 
     public function storeRate(Request $request, Currency $currency)
     {
+        if (strtoupper($currency->code) === 'VND') {
+            return response()->json([
+                'message' => 'Tỷ giá VND được khóa cố định ở mức 1.'
+            ], 422);
+        }
+
         $validated = $request->validate([
             'rate' => 'required|numeric|gt:0',
             'effective_date' => 'required|date',
@@ -205,6 +246,12 @@ class CurrencyController extends Controller
 
     public function toggleStatus(Currency $currency)
     {
+        if (strtoupper($currency->code) === 'VND') {
+            return response()->json([
+                'message' => 'Tiền tệ VND được khóa và không thể đổi trạng thái.'
+            ], 422);
+        }
+
         $currency->update([
             'is_active' => !$currency->is_active
         ]);

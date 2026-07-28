@@ -77,6 +77,7 @@ class WarehouseSlipController extends Controller
                 ],
                 'created_at' => $item->created_at->format('d/m/Y'),
                 'approved_at' => $item->approved_at?->format('d/m/Y H:i') ?? null,
+                'submitted_to_accountant_at' => $item->submitted_to_accountant_at?->format('d/m/Y H:i') ?? null,
                 'note' => $item->note,
                 'total_items' => $item->items->count(),
             ];
@@ -286,6 +287,20 @@ class WarehouseSlipController extends Controller
                 auth()->id(),
                 'warehouse'
             );
+            $this->notificationService->createForPermission(
+                'phieu_kho.duyet_ke_toan',
+                (int) $slip->company_id,
+                "Phiếu {$typeLabel} kho mới được tạo",
+                "Phiếu {$typeLabel} kho {$slip->code} vừa được tạo và đang chờ kho xác nhận trước khi kế toán duyệt.",
+                [
+                    'warehouse_slip_id' => $slip->id,
+                    'type' => $slip->type,
+                    'status' => 'pending_warehouse',
+                ],
+                '/accountant/warehouse-slips',
+                auth()->id(),
+                'accountant'
+            );
             return response()->json([
                 'success' => true,
                 'message' => 'Tạo phiếu kho thành công',
@@ -444,7 +459,51 @@ class WarehouseSlipController extends Controller
             'purchase_price' => $companyPrice,
         ]);
     }
-    public function approve(
+    public function approve($id)
+    {
+        $slip = DB::transaction(function () use ($id) {
+            $slip = WarehouseSlip::lockForUpdate()->findOrFail($id);
+
+            if ($slip->status !== 'pending' || $slip->submitted_to_accountant_at) {
+                throw new \RuntimeException('Phiếu đã được gửi kế toán hoặc đã được xử lý.');
+            }
+
+            $slip->update([
+                'submitted_to_accountant_by' => auth()->id(),
+                'submitted_to_accountant_at' => now(),
+            ]);
+
+            return $slip->fresh();
+        });
+
+        ActivityLogService::log(
+            $slip,
+            'submit_accountant',
+            'Gửi phiếu kho cho kế toán duyệt',
+            ['submitted_to_accountant_at' => null],
+            ['submitted_to_accountant_at' => $slip->submitted_to_accountant_at]
+        );
+
+        $typeLabel = $slip->type === 'import' ? 'nhập' : 'xuất';
+        $this->notificationService->createForPermission(
+            'phieu_kho.duyet_ke_toan',
+            (int) $slip->company_id,
+            "Phiếu {$typeLabel} kho chờ kế toán duyệt",
+            "Phiếu {$typeLabel} kho {$slip->code} đã được kho xác nhận và đang chờ kế toán duyệt.",
+            [
+                'warehouse_slip_id' => $slip->id,
+                'type' => $slip->type,
+                'status' => 'pending_accountant',
+            ],
+            '/accountant/warehouse-slips',
+            auth()->id(),
+            'accountant'
+        );
+
+        return response()->json(['message' => 'Đã gửi phiếu cho kế toán duyệt']);
+    }
+
+    public function accountantApprove(
         $id,
         SupplierDebtService $supplierDebtService,
         CustomerDebtService $customerDebtService,
@@ -461,7 +520,7 @@ class WarehouseSlipController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($id);
 
-            if ($slip->status !== 'pending') {
+            if ($slip->status !== 'pending' || ! $slip->submitted_to_accountant_at) {
                 throw new \RuntimeException('Phiếu đã được xử lý.');
             }
 
@@ -481,20 +540,32 @@ class WarehouseSlipController extends Controller
                     );
                     $stock = WarehouseProductStock::whereKey($stock->id)->lockForUpdate()->firstOrFail();
 
-                    $companyPrice = $item->company_price ?? 0;
+                    // Giá trị nhập kho phải bao gồm VAT để giá vốn tồn kho
+                    // khớp với tổng giá trị phải trả cho nhà cung cấp.
+                    $companyPriceBeforeVat = (float) ($item->company_price ?? 0);
+                    $vatRate = (float) ($item->vat_percent ?? 0) / 100;
+                    $inventoryUnitPrice = round(
+                        $companyPriceBeforeVat * (1 + $vatRate),
+                        6
+                    );
 
                     $quantityBefore = (float) $stock->quantity;
                     $valueBefore = (float) $stock->stock_value;
 
                     $stock->quantity += $item->quantity;
-                    $stock->stock_value += $item->quantity * $companyPrice;
+                    // Định giá toàn bộ tồn còn lại theo giá nhập gần nhất,
+                    // không sử dụng phương pháp bình quân gia quyền.
+                    $stock->stock_value = round(
+                        (float) $stock->quantity * $inventoryUnitPrice,
+                        2
+                    );
 
                     $this->updateProductPriceFromPO(
                         $item->product_id,
-                        $companyPrice
+                        $inventoryUnitPrice
                     );
                     $stock->save();
-                    $movements->record($stock, 'import', (float) $item->quantity, (float) $companyPrice, $quantityBefore, $valueBefore, $slip);
+                    $movements->record($stock, 'import', (float) $item->quantity, $inventoryUnitPrice, $quantityBefore, $valueBefore, $slip);
                 }
 
                 if ($slip->type === 'export') {
@@ -525,16 +596,17 @@ class WarehouseSlipController extends Controller
                         throw new \Exception('Không đủ tồn kho');
                     }
 
-                    $avgCost = $stock->quantity > 0
-                        ? $stock->stock_value / $stock->quantity
-                        : 0;
+                    $unitCost = (float) ($product?->purchase_price ?? 0);
+                    if ($unitCost <= 0) {
+                        throw new \RuntimeException('Sản phẩm chưa có giá nhập từ đơn mua.');
+                    }
 
                     $quantityBefore = (float) $stock->quantity;
                     $valueBefore = (float) $stock->stock_value;
 
-                    $item->company_price = $avgCost;
-                    $item->cost_price = $avgCost;
-                    $item->cost_amount = round((float) $item->quantity * $avgCost, 2);
+                    $item->company_price = $unitCost;
+                    $item->cost_price = $unitCost;
+                    $item->cost_amount = round((float) $item->quantity * $unitCost, 2);
                     $item->save();
 
                     $stock->quantity = max(
@@ -542,14 +614,13 @@ class WarehouseSlipController extends Controller
                         $stock->quantity - $item->quantity
                     );
 
-                    $stock->stock_value = max(
-                        0,
-                        $stock->stock_value -
-                            ($item->quantity * $avgCost)
+                    $stock->stock_value = round(
+                        (float) $stock->quantity * $unitCost,
+                        2
                     );
 
                     $stock->save();
-                    $movements->record($stock, 'export', (float) $item->quantity, (float) $avgCost, $quantityBefore, $valueBefore, $slip);
+                    $movements->record($stock, 'export', (float) $item->quantity, $unitCost, $quantityBefore, $valueBefore, $slip);
                 }
             }
             if ($slip->type === 'import') {
@@ -603,7 +674,7 @@ class WarehouseSlipController extends Controller
     public function reject($id)
     {
         $slip = WarehouseSlip::findOrFail($id);
-        if ($slip->status !== 'pending') {
+        if ($slip->status !== 'pending' || $slip->submitted_to_accountant_at) {
             return response()->json([
                 'message' => 'Phiếu đã được xử lý'
             ], 422);

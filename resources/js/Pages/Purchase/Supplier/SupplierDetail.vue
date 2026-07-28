@@ -444,6 +444,7 @@
 
                     <!-- Lịch sử thanh toán -->
                     <div
+                        v-if="false"
                         class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6"
                     >
                         <h2
@@ -498,6 +499,12 @@
                     </div>
                 </div>
             </div>
+            <PaymentHistoryPanel
+                class="mt-5"
+                :items="debtHistory"
+                :currency="companyCurrency"
+                @view-order="viewOrder"
+            />
         </div>
     </div>
     <div
@@ -523,6 +530,7 @@ import { getStatusLabel } from "@/config/status";
 import { formatMoney, formatDate } from "@/config/helpers";
 import { router } from "@inertiajs/vue3";
 import PurchaseOrderDetail from "../Order/PurchaseOrderDetail.vue";
+import PaymentHistoryPanel from "@/components/PaymentHistoryPanel.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 

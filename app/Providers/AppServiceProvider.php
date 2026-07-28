@@ -116,10 +116,6 @@ class AppServiceProvider extends ServiceProvider
 
         $canSeeOverview = $this->can('tong_quan.xem');
 
-        if (! $canSeeManagement && ! $canSeeOverview) {
-            return [];
-        }
-
         $menuItems = array_values(array_filter([
             $canSeeOverview ? [
                 'icon' => 'GridIcon',
@@ -167,6 +163,11 @@ class AppServiceProvider extends ServiceProvider
                     ] : null,
                 ])),
             ] : null,
+            [
+                'icon' => 'DocsIcon',
+                'name' => 'Hướng dẫn sử dụng',
+                'path' => '/guide',
+            ],
         ]));
 
         return [
@@ -218,6 +219,7 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Phiếu nhập/xuất',
                     'path' => '/warehouse/slips',
                 ] : null,
+                ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
             ])),
 
             'sale' => array_values(array_filter([
@@ -234,6 +236,7 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Đơn hàng',
                     'path' => '/sale/orders',
                 ] : null,
+                ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
             ])),
 
             'purchase' => array_values(array_filter([
@@ -256,6 +259,7 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Đơn mua',
                     'path' => '/purchase/orders',
                 ] : null,
+                ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
             ])),
 
             'accountant' => array_values(array_filter([
@@ -291,6 +295,12 @@ class AppServiceProvider extends ServiceProvider
                     'path' => '/accountant/transactions',
                 ] : null,
 
+                $this->can('phieu_kho.xem') ? [
+                    'icon' => 'ListCheckIcon',
+                    'name' => 'Phiếu kho chờ duyệt',
+                    'path' => '/accountant/warehouse-slips',
+                ] : null,
+
                 $this->can('giao_dich.xem') ? [
                     'icon' => 'ListCheckIcon',
                     'name' => 'Lịch sử giao dịch',
@@ -314,6 +324,8 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Công nợ nhà cung cấp',
                     'path' => '/accountant/supplier-debts',
                 ] : null,
+
+                ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
 
                 // "Báo cáo" chưa có permission tương ứng trong routes/api.php hiện tại,
                 // tạm thời không gate quyền (luôn hiện) -> cần bạn xác nhận tên quyền thật

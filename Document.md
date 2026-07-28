@@ -93,13 +93,14 @@ Các chức năng sau chưa thuộc phạm vi bắt buộc của giai đoạn hi
 | Vai trò tham chiếu | Phạm vi mặc định |
 |---|---|
 | Chủ doanh nghiệp/Quản trị | Toàn bộ dữ liệu và cấu hình của công ty |
-| Quản lý nhân sự | Nhân sự, vai trò, quyền và audit log theo quyền được cấp |
 | Quản lý mua hàng | NCC, danh mục mua, sản phẩm và PO |
 | Quản lý kho | Kho, tồn, phiếu nhập/xuất và chuyển kho |
 | Quản lý bán hàng | Khách hàng và SO |
 | Kế toán | Tiền tệ, ngân hàng, tài khoản/quỹ, giao dịch và công nợ |
 
 Vai trò trên là cấu hình khởi tạo, không phải danh sách cố định. Hệ thống phải cho phép tạo vai trò mới và gán quyền linh hoạt.
+
+Hệ thống hiện không khởi tạo hai vai trò chung `HR` và `Manager`. Nghiệp vụ được kiểm soát bằng các vai trò cụ thể và permission; dữ liệu cũ không được tiếp tục phụ thuộc vào hai tên vai trò này.
 
 ### 3.2 Nhóm hành động quyền
 
@@ -149,6 +150,7 @@ Chức năng:
 - Thêm, xem chi tiết và cập nhật.
 - Khóa/mở khóa đăng nhập.
 - Gán hoặc thay đổi vai trò trong giới hạn phân cấp quyền.
+- Nhân sự mới hoạt động ngay sau khi tạo thành công; không có bước gửi phiếu hoặc duyệt nhân sự.
 
 ### 4.2 Phân quyền
 
@@ -363,26 +365,34 @@ Thông tin:
 - Sản phẩm và số lượng.
 - Ghi chú.
 - Người tạo/duyệt, thời gian tạo/duyệt.
-- Trạng thái `pending`, `approved` hoặc `rejected`.
+- Trạng thái nghiệp vụ gồm chờ kho xác nhận, chờ kế toán duyệt, đã duyệt hoặc từ chối.
 
-Luồng duyệt phiếu nhập:
+Nguyên tắc phân tách trách nhiệm:
+
+1. Người lập phiếu tạo phiếu từ PO/SO đủ điều kiện.
+2. Bộ phận kho kiểm tra số lượng và xác nhận gửi kế toán.
+3. Khi còn chờ kho xác nhận, kế toán chỉ được xem và không được duyệt/từ chối.
+4. Sau khi kho xác nhận, hệ thống gửi thông báo cho kế toán.
+5. Kế toán duyệt hoặc từ chối; chỉ duyệt của kế toán mới làm thay đổi tồn kho và công nợ.
+
+Luồng kế toán duyệt phiếu nhập:
 
 1. Khóa bản ghi phiếu và tồn kho liên quan.
 2. Kiểm tra phiếu vẫn ở trạng thái `pending`.
 3. Kiểm tra số lượng không vượt phần còn lại của PO.
-4. Tăng số lượng tồn và tăng giá trị tồn theo đơn giá quy đổi đã chụp trên dòng PO/phiếu.
+4. Tăng số lượng tồn và giá trị tồn theo giá trị thực nhập gồm VAT, quy đổi theo tỷ giá đã chụp trên PO/phiếu.
 5. Ghi sổ biến động tồn `import`.
 6. Tăng công nợ NCC theo giá trị thực nhập gồm VAT của dòng thực nhập.
 7. Đánh dấu phiếu `approved` và cập nhật PO thành `partial` hoặc `completed`.
 8. Nếu bất kỳ bước nào lỗi, rollback toàn bộ.
 
-Luồng duyệt phiếu xuất:
+Luồng kế toán duyệt phiếu xuất:
 
 1. Khóa bản ghi phiếu và tồn kho liên quan.
 2. Kiểm tra phiếu vẫn ở trạng thái `pending`.
 3. Kiểm tra tồn kho đủ và số lượng không vượt phần còn lại của SO.
-4. Tính giá vốn bình quân tại kho ngay trước khi xuất.
-5. Giảm số lượng và giá trị tồn theo giá vốn bình quân.
+4. Lấy giá nhập của đơn mua gần nhất của sản phẩm làm giá vốn xuất.
+5. Giảm số lượng và giá trị tồn theo giá vốn nhập gần nhất; không tính lại giá vốn bình quân.
 6. Ghi sổ biến động tồn `export`.
 7. Tăng công nợ KH theo giá bán và VAT của lượng thực xuất.
 8. Đánh dấu phiếu `approved` và cập nhật SO thành `partial` hoặc `completed`.
@@ -395,7 +405,7 @@ Luồng duyệt phiếu xuất:
 - Chỉ phiếu `pending` được duyệt hoặc hủy.
 - Khi duyệt, khóa tồn ở cả hai kho và kiểm tra kho nguồn đủ hàng.
 - Số lượng và giá trị giảm tại kho nguồn phải đúng bằng số lượng và giá trị tăng tại kho đích.
-- Giá trị chuyển sử dụng giá vốn bình quân tại kho nguồn tại thời điểm duyệt.
+- Giá trị chuyển sử dụng giá nhập gần nhất đang áp dụng cho sản phẩm, đồng nhất với giá vốn xuất kho.
 - Ghi hai dòng sổ: `transfer_out` tại kho nguồn và `transfer_in` tại kho đích.
 - Chuyển kho không phát sinh công nợ.
 
@@ -432,7 +442,7 @@ Thông tin tiền tệ:
 
 Quy tắc tỷ giá:
 
-1. Mỗi công ty có đúng một tiền cơ sở; tỷ giá của tiền cơ sở luôn bằng `1`.
+1. VND là tiền cơ sở đang áp dụng; tỷ giá VND luôn bằng `1` và ô tỷ giá bị khóa.
 2. Tỷ giá ngoại tệ được lưu riêng theo công ty và ngày hiệu lực.
 3. Tỷ giá áp dụng là bản ghi gần nhất có ngày hiệu lực không lớn hơn ngày chứng từ.
 4. Khi tạo/cập nhật chứng từ chờ xử lý, hệ thống chụp tỷ giá vào chứng từ.
@@ -440,6 +450,8 @@ Quy tắc tỷ giá:
 6. Tỷ giá phải lớn hơn 0.
 7. Giá trị tiền cơ sở = giá trị nguyên tệ × tỷ giá chứng từ.
 8. Giá trị tiền được làm tròn 2 chữ số ở cấp tổng; tỷ giá lưu tối thiểu 8 chữ số thập phân để hạn chế sai số trung gian.
+9. Ngoại tệ không bị khóa chỉnh sửa tỷ giá chỉ vì đã được sử dụng.
+10. Mỗi lần thay đổi tỷ giá ngoại tệ phải tạo một dòng lịch sử gồm tỷ giá mới và ngày thay đổi.
 
 ### 9.2 Ngân hàng
 
@@ -525,6 +537,7 @@ Trang danh sách/chi tiết phải có:
 - Tổng đã thanh toán, còn phải thu và tiền nhận trước nếu có.
 - Danh sách SO với giá trị đã thực hiện, đã thanh toán và còn lại.
 - Lịch sử công nợ gồm tiền tệ, nguyên tệ, tiền cơ sở, SO và phiếu xuất liên quan.
+- Lịch sử thanh toán hiển thị giao dịch cho đơn bán nào, tài khoản thu và phương thức tiền mặt/chuyển khoản.
 - Bộ lọc tiền tệ và thời gian; số tổng hợp toàn công ty phải quy về tiền cơ sở.
 
 ### 9.7 Công nợ nhà cung cấp
@@ -539,7 +552,7 @@ Công nợ phải trả hiện tại
 - Khoản hoàn/điều chỉnh giảm hợp lệ
 ```
 
-Yêu cầu hiển thị tương tự công nợ khách hàng, thay SO/phiếu xuất bằng PO/phiếu nhập và tách riêng tạm ứng NCC.
+Yêu cầu hiển thị tương tự công nợ khách hàng, thay SO/phiếu xuất bằng PO/phiếu nhập và tách riêng tạm ứng NCC. Lịch sử thanh toán phải cho biết đơn mua liên quan, tài khoản chi và phương thức tiền mặt/chuyển khoản.
 
 ### 9.8 Tổng quan kế toán
 
@@ -631,16 +644,16 @@ Các báo cáo phải ghi rõ:
 ### 13.1 Mua hàng đến thanh toán
 
 1. Tạo và duyệt PO: tồn kho và công nợ chưa đổi.
-2. Tạo phiếu nhập một phần: tồn kho và công nợ chưa đổi khi phiếu còn `pending`.
-3. Duyệt phiếu: tồn tăng đúng lượng thực nhập, giá trị tồn tăng theo tiền cơ sở, công nợ NCC tăng đúng giá trị gồm VAT.
+2. Tạo phiếu nhập một phần và kho xác nhận: tồn kho, công nợ chưa đổi; kế toán chỉ thao tác được sau bước xác nhận này.
+3. Kế toán duyệt phiếu: tồn tăng đúng lượng thực nhập, giá trị tồn tăng theo tiền cơ sở gồm VAT, công nợ NCC tăng đúng giá trị gồm VAT.
 4. Nhập phần còn lại: PO chuyển `completed`, không thể nhập vượt.
 5. Tạo và duyệt thanh toán: số dư tài khoản giảm, sổ tài khoản có bút toán, công nợ NCC giảm đúng số tiền cơ sở.
 
 ### 13.2 Bán hàng đến thu tiền
 
 1. Tạo và duyệt SO: tồn kho và công nợ chưa đổi.
-2. Tạo phiếu xuất một phần: chưa tác động khi phiếu `pending`.
-3. Duyệt phiếu: tồn và giá trị tồn giảm theo giá vốn bình quân; công nợ KH tăng theo giá bán thực xuất gồm VAT.
+2. Tạo phiếu xuất một phần và kho xác nhận: chưa tác động tồn/công nợ; kế toán chỉ thao tác được sau bước xác nhận.
+3. Kế toán duyệt phiếu: tồn và giá trị tồn giảm theo giá nhập gần nhất; công nợ KH tăng theo giá bán thực xuất gồm VAT.
 4. Không cho duyệt nếu kho thiếu hàng hoặc xuất vượt SO.
 5. Duyệt thu tiền: số dư tài khoản tăng, ghi sổ và công nợ KH giảm.
 
@@ -653,8 +666,9 @@ Các báo cáo phải ghi rõ:
 
 ### 13.4 Tỷ giá
 
-1. Tiền cơ sở luôn có tỷ giá 1.
+1. VND là tiền cơ sở, luôn có tỷ giá 1 và không cho sửa.
 2. Chứng từ ngoại tệ chọn đúng tỷ giá gần nhất theo ngày chứng từ.
+3. Thay đổi tỷ giá ngoại tệ tạo lịch sử mới và không làm thay đổi chứng từ cũ.
 3. Thêm tỷ giá cho ngày sau không làm đổi chứng từ cũ.
 4. Hai công ty có thể dùng tỷ giá khác nhau cho cùng tiền tệ và cùng ngày.
 

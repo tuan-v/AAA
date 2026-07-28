@@ -14,7 +14,9 @@ class AccountLedgerController extends Controller
             ->with([
                 'account:id,name,code,currency_id',
                 'account.currency:id,code,symbol',
-                'transaction:id,code,type'
+                'transaction:id,code,type,sales_order_id,purchase_order_id',
+                'transaction.salesOrder:id,code',
+                'transaction.purchaseOrder:id,code',
             ])
             ->where('company_id', auth()->user()->company_id);
 

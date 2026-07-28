@@ -65,6 +65,7 @@ class DepartmentEmployeeDemoSeeder extends Seeder
                     'giao_dich.xem', 'giao_dich.them', 'giao_dich.sua',
                     'cong_no_khach_hang.xem', 'cong_no_khach_hang.xem_chi_tiet',
                     'cong_no_nha_cung_cap.xem', 'cong_no_nha_cung_cap.xem_chi_tiet',
+                    'phieu_kho.xem', 'phieu_kho.xem_chi_tiet', 'phieu_kho.duyet_ke_toan',
                 ],
             ],
         ];

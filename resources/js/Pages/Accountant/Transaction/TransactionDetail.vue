@@ -133,6 +133,30 @@
             </div>
         </div>
 
+        <!-- Đơn hàng liên quan -->
+        <div class="py-4 border-b border-gray-200">
+            <p class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Đơn hàng liên quan
+            </p>
+            <div
+                v-if="linkedOrder"
+                class="flex items-center justify-between gap-4 rounded-lg border border-blue-100 bg-blue-50 p-3"
+            >
+                <div>
+                    <p class="text-xs text-blue-600">{{ linkedOrder.typeLabel }}</p>
+                    <p class="mt-0.5 font-mono text-sm font-semibold text-blue-800">
+                        {{ linkedOrder.code }}
+                    </p>
+                </div>
+                <span class="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-blue-700 shadow-sm">
+                    Giao dịch cho đơn này
+                </span>
+            </div>
+            <div v-else class="rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-500">
+                Giao dịch này không gắn với đơn hàng.
+            </div>
+        </div>
+
         <!-- Người tạo - Người duyệt - Phương thức thanh toán -->
         <div class="py-4 border-b border-gray-200">
             <p
@@ -292,6 +316,22 @@ const PURPOSE_MAP = {
     other_payment: "Khoản chi khác",
 };
 const purposeLabel = computed(() => PURPOSE_MAP[transaction.value?.purpose] ?? "—");
+
+const linkedOrder = computed(() => {
+    if (transaction.value?.sales_order) {
+        return {
+            typeLabel: "Đơn bán",
+            code: transaction.value.sales_order.code,
+        };
+    }
+    if (transaction.value?.purchase_order) {
+        return {
+            typeLabel: "Đơn mua",
+            code: transaction.value.purchase_order.code,
+        };
+    }
+    return null;
+});
 
 const STATUS_MAP = {
     pending: {

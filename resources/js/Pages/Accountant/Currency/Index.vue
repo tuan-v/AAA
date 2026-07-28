@@ -204,7 +204,7 @@ const actions = [
     {
         icon: EditButtonIcon,
         type: "edit",
-        hidden: (row) => row.is_used,
+        hidden: (row) => row.code?.toUpperCase() === "VND",
         onClick: (item) => openEdit(item),
     },
 
@@ -224,8 +224,8 @@ function openCreate() {
 }
 
 function openEdit(item) {
-    if (item.is_used) {
-        toast.error("Đơn vị tiền tệ đã được sử dụng, không thể chỉnh sửa.");
+    if (item.code?.toUpperCase() === "VND") {
+        toast.error("Tiền tệ VND được khóa và không thể chỉnh sửa.");
 
         return;
     }

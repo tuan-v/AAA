@@ -104,6 +104,7 @@ import SearchPage from "@/components/SearchPage.vue";
 
 const { can } = usePermission();
 const { confirmAction } = useActionConfirm();
+const isAccountantView = window.location.pathname.startsWith("/accountant/");
 const activeTab = ref("import");
 const urlParams = new URLSearchParams(window.location.search);
 const currentFilters = ref({
@@ -197,7 +198,9 @@ const columns = [
         render: (row) => {
             const config = {
                 pending: {
-                    text: "Chờ duyệt",
+                    text: row.submitted_to_accountant_at
+                        ? "Chờ kế toán duyệt"
+                        : "Chờ kho xác nhận",
                     class: "bg-yellow-100 text-yellow-700",
                 },
                 approved: {
@@ -229,20 +232,23 @@ const actions = [
         title: "Duyệt phiếu",
         icon: CheckIcon,
         hidden: (row) =>
-            !can("phieu_kho.duyet") || row.status !== "pending",
+            isAccountantView ||
+            !can("phieu_kho.duyet") ||
+            row.status !== "pending" ||
+            Boolean(row.submitted_to_accountant_at),
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({
-                title: "Duyệt phiếu kho",
-                message: `Xác nhận duyệt phiếu ${row.code || `#${row.id}`} và cập nhật số lượng tồn kho?`,
-                confirmText: "Duyệt phiếu",
+                title: "Gửi kế toán duyệt",
+                message: `Xác nhận phiếu ${row.code || `#${row.id}`} và gửi cho kế toán duyệt? Tồn kho chưa thay đổi ở bước này.`,
+                confirmText: "Gửi kế toán",
                 tone: "success",
             });
             if (!confirmed) return;
             try {
                 await axios.post(`/api/warehouse/slips/${row.id}/approve`);
 
-                toast.success("Duyệt phiếu thành công");
+                toast.success("Đã gửi phiếu cho kế toán duyệt");
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
@@ -255,10 +261,42 @@ const actions = [
         },
     },
     {
+        title: "Kế toán duyệt phiếu",
+        icon: CheckIcon,
+        hidden: (row) =>
+            !isAccountantView ||
+            !can("phieu_kho.duyet_ke_toan") ||
+            row.status !== "pending" ||
+            !row.submitted_to_accountant_at,
+        confirm: false,
+        onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Kế toán duyệt phiếu kho",
+                message: `Duyệt phiếu ${row.code || `#${row.id}`}? Hệ thống sẽ chính thức cập nhật tồn kho và công nợ.`,
+                confirmText: "Duyệt và cập nhật kho",
+                tone: "success",
+            });
+            if (!confirmed) return;
+            try {
+                await axios.post(
+                    `/api/warehouse/slips/${row.id}/accountant-approve`,
+                );
+                toast.success("Kế toán đã duyệt và cập nhật tồn kho");
+                await getData(slips.value.current_page);
+            } catch (e) {
+                console.error(e);
+                toast.error(e.response?.data?.message || "Không thể duyệt phiếu");
+            }
+        },
+    },
+    {
         title: "Từ chối",
         icon: DeleteIcon,
         hidden: (row) =>
-            !can("phieu_kho.tu_choi") || row.status !== "pending",
+            isAccountantView ||
+            !can("phieu_kho.tu_choi") ||
+            row.status !== "pending" ||
+            Boolean(row.submitted_to_accountant_at),
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({

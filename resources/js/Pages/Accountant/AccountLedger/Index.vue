@@ -98,6 +98,32 @@ const columns = [
             ]),
     },
     {
+        label: "Đơn liên quan",
+        align: "text-left",
+        render: (row) => {
+            const salesOrder = row.transaction?.sales_order;
+            const purchaseOrder = row.transaction?.purchase_order;
+            const order = salesOrder ?? purchaseOrder;
+
+            if (!order) {
+                return h("span", { class: "text-sm text-gray-400" }, "Không gắn đơn");
+            }
+
+            return h("div", { class: "flex flex-col" }, [
+                h(
+                    "span",
+                    { class: "text-xs text-gray-500" },
+                    salesOrder ? "Đơn bán" : "Đơn mua",
+                ),
+                h(
+                    "span",
+                    { class: "font-mono text-sm font-semibold text-blue-600" },
+                    order.code,
+                ),
+            ]);
+        },
+    },
+    {
         label: "Thu",
         align: "text-right",
         render: (row) =>

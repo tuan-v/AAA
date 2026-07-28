@@ -116,6 +116,8 @@ Route::middleware('auth')->group(function () {
         // Giao dich, so tai khoan va bao cao.
         Route::get('/transactions', fn () => Inertia::render('Accountant/Transaction/Index'))
             ->middleware('permission:giao_dich.xem');
+        Route::get('/warehouse-slips', fn () => Inertia::render('Warehouse/Slip/Index'))
+            ->middleware('permission:phieu_kho.xem');
         Route::get('/account-ledgers', fn () => Inertia::render('Accountant/AccountLedger/Index'))
             ->middleware('permission:giao_dich.xem');
         Route::get('/profit-loss-report', fn () => Inertia::render('Accountant/Report/ProfitLoss'))
@@ -195,6 +197,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('company.created')->group(function () {
         Route::get('/', [DashboardController::class, 'landing']);
         Route::get('/dashboard', [DashboardController::class, 'landing'])->name('dashboard');
+        Route::get('/guide', fn () => Inertia::render('Guide/Index'))->name('guide.index');
 
         // Route cu con duoc UI/linh ket hien tai su dung.
         Route::get('/products', fn () => Inertia::render('Products/Index'))

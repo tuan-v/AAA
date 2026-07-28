@@ -332,10 +332,11 @@ Mẫu endpoint CRUD/status/select giống phần Mua hàng, nhưng permission th
 | `POST` | `/warehouse/slips` | tạo phiếu | `phieu_kho.them` |
 | `GET` | `/warehouse/slips/{slip}` | chi tiết | `phieu_kho.xem_chi_tiet` |
 | `PUT` | `/warehouse/slips/{slip}` | cập nhật | `phieu_kho.sua` |
-| `POST` | `/warehouse/slips/{id}/approve` | duyệt và cập nhật tồn | `phieu_kho.duyet` |
-| `POST` | `/warehouse/slips/{id}/reject` | từ chối | `phieu_kho.tu_choi` |
+| `POST` | `/warehouse/slips/{id}/approve` | kho xác nhận và gửi kế toán; chưa cập nhật tồn | `phieu_kho.duyet` |
+| `POST` | `/warehouse/slips/{id}/accountant-approve` | kế toán duyệt, cập nhật tồn và công nợ | `phieu_kho.duyet_ke_toan` |
+| `POST` | `/warehouse/slips/{id}/reject` | từ chối theo trạng thái/quyền hợp lệ | `phieu_kho.tu_choi` |
 
-Tạo phiếu gửi loại phiếu, order liên quan, warehouse và items/quantity. Payload thực tế nằm tại `Slip/Purchasecreate.vue`, `Slip/Salecreate.vue` và `WarehouseSlipController`. Approve là action nhạy cảm, phải đảm bảo đủ tồn với phiếu xuất và không duyệt lặp.
+Tạo phiếu gửi loại phiếu, order liên quan, warehouse và items/quantity. Payload thực tế nằm tại `Slip/Purchasecreate.vue`, `Slip/Salecreate.vue` và `WarehouseSlipController`. `approve` là bước xác nhận của kho; `accountant-approve` mới là bước ghi tồn/công nợ. Kế toán không được thao tác khi phiếu chưa được kho xác nhận. Cả hai action phải kiểm tra trạng thái, permission và chống xử lý lặp.
 
 ### 6.5 Chuyển kho
 

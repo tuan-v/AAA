@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\SalesOrder;
 use App\Models\Supplier;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use App\Services\CodeGeneratorService;
 use App\Services\CurrencyService;
@@ -194,6 +195,7 @@ class SupplierController extends Controller
         $openingDebt = (float) ($supplier->opening_debt_base ?? 0);
 
         $debtEntries = $supplier->debts;
+        $debtEntries->load('reference');
 
         // Tổng phát sinh phải trả
         $totalPayable = (float) abs(
@@ -293,6 +295,18 @@ class SupplierController extends Controller
                         'note' => $item->note,
                         'amount' => $item->amount,
                         'created_at' => $item->created_at,
+                        'transaction' => $item->reference instanceof Transaction ? [
+                            'id' => $item->reference->id,
+                            'code' => $item->reference->code,
+                            'payment_method' => $item->reference->payment_method,
+                            'from_account' => $item->reference->fromAccount?->only(['id', 'code', 'name']),
+                            'to_account' => $item->reference->toAccount?->only(['id', 'code', 'name']),
+                            'description' => $item->reference->description,
+                            'status' => $item->reference->status,
+                            'order_id' => $item->reference->purchase_order_id,
+                            'order_code' => $item->reference->purchaseOrder?->code,
+                            'direction' => 'payment',
+                        ] : null,
                     ];
                 }),
         ]);

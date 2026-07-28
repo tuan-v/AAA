@@ -89,10 +89,12 @@ class DemoDataSeeder extends Seeder
                         })
                         ->pluck('name')
                         ->when(
-                            $roleName === 'Quản lý nhân sự',
-                            fn ($permissions) => $permissions->reject(
-                                fn ($permission) => in_array($permission, ['nhan_su.duyet', 'nhan_su.tu_choi'], true)
-                            )
+                            $roleName === 'Quản lý kế toán',
+                            fn ($permissions) => $permissions->merge([
+                                'phieu_kho.xem',
+                                'phieu_kho.xem_chi_tiet',
+                                'phieu_kho.duyet_ke_toan',
+                            ])
                         )
                         ->all();
                 $role->syncPermissions($rolePermissions);

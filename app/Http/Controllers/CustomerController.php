@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\SalesOrder;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use App\Services\CompanyCurrencyService;
 
@@ -272,6 +273,7 @@ class CustomerController extends Controller
         $debtEntries = $canViewDebt
             ? $customer->debts()->latest()->get()
             : collect();
+        $debtEntries->load('reference');
         $payments = $canViewDebt
             ? $customer->payments()->latest()->limit(10)->get()
             : collect();
@@ -305,7 +307,25 @@ class CustomerController extends Controller
                 'total_amount_base' => round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2),
                 'status' => $order->status,
             ]),
-            'debt_history'  => $debtEntries,
+            'debt_history'  => $debtEntries->map(fn ($item) => [
+                'id' => $item->id,
+                'type' => $item->type,
+                'note' => $item->note,
+                'amount' => (float) $item->amount,
+                'created_at' => $item->created_at,
+                'transaction' => $item->reference instanceof Transaction ? [
+                    'id' => $item->reference->id,
+                    'code' => $item->reference->code,
+                    'payment_method' => $item->reference->payment_method,
+                    'from_account' => $item->reference->fromAccount?->only(['id', 'code', 'name']),
+                    'to_account' => $item->reference->toAccount?->only(['id', 'code', 'name']),
+                    'description' => $item->reference->description,
+                    'status' => $item->reference->status,
+                    'order_id' => $item->reference->sales_order_id,
+                    'order_code' => $item->reference->salesOrder?->code,
+                    'direction' => 'receipt',
+                ] : null,
+            ]),
             'payments'      => $payments,
             'can_view_debt' => $canViewDebt,
         ]);

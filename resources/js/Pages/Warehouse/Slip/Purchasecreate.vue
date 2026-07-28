@@ -247,7 +247,10 @@ const slipActions = [
     {
         title: "Duyệt phiếu",
         icon: CheckIcon,
-        hidden: (row) => !can("phieu_kho.duyet") || row.status !== "pending",
+        hidden: (row) =>
+            !can("phieu_kho.duyet") ||
+            row.status !== "pending" ||
+            Boolean(row.submitted_to_accountant_at),
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({
@@ -276,7 +279,10 @@ const slipActions = [
     {
         title: "Từ chối",
         icon: XIcon,
-        hidden: (row) => !can("phieu_kho.tu_choi") || row.status !== "pending",
+        hidden: (row) =>
+            !can("phieu_kho.tu_choi") ||
+            row.status !== "pending" ||
+            Boolean(row.submitted_to_accountant_at),
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({

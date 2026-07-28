@@ -227,19 +227,13 @@ class UserController extends Controller
         abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
 
         $actor = $request->user();
-        $companyOwnerId = Company::whereKey($actor->company_id)->value('owner_id');
-        $requiresApproval = ! $actor->isSystem()
-            && ! $actor->hasRole('Supper Admin')
-            && ! $actor->hasRole('Giám đốc')
-            && (int) $actor->id !== (int) $companyOwnerId;
-
         $user = User::create([
             'name' => $validated['name'],
             'username' => $validated['username'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'password' => bcrypt($validated['password']),
-            'status' => $requiresApproval ? User::STATUS_PENDING : User::STATUS_ACTIVE,
+            'status' => User::STATUS_ACTIVE,
             'mode' => 'company',
             'company_id' => auth()->user()->company_id,
             'department_id' => $validated['department_id'],
@@ -253,23 +247,9 @@ class UserController extends Controller
 
         $user->syncRoles([$assignableRole]);
 
-        if ($requiresApproval) {
-            $this->notificationService->createForHigherRoleUsers(
-                $actor,
-                (int) $actor->company_id,
-                'Nhân sự mới chờ duyệt',
-                "{$actor->name} đã thêm tài khoản {$user->name} và đang chờ duyệt.",
-                ['user_id' => $user->id, 'status' => User::STATUS_PENDING],
-                '/user',
-                'management'
-            );
-        }
-
         return response()->json([
-            'message' => $requiresApproval
-                ? 'Đã tạo tài khoản và gửi yêu cầu chờ duyệt.'
-                : 'Đã thêm và kích hoạt tài khoản thành công.',
-            'requires_approval' => $requiresApproval,
+            'message' => 'Đã thêm và kích hoạt tài khoản thành công.',
+            'requires_approval' => false,
             'user' => $user,
         ], 201);
     }

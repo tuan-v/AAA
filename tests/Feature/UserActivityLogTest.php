@@ -115,7 +115,7 @@ class UserActivityLogTest extends TestCase
             'status' => User::STATUS_ACTIVE,
         ]);
         $manager->companies()->syncWithoutDetaching([$director->company_id]);
-        $manager->assignRole('Manager');
+        $manager->assignRole('Quản lý nhân sự');
 
         $employee = User::factory()->create([
             'name' => 'Nhân viên chờ quản lý duyệt',

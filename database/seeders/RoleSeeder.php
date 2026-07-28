@@ -19,25 +19,17 @@ class RoleSeeder extends Seeder
             'is_protected' => false,
         ]);
 
-        Role::updateOrCreate([
-            'name' => 'HR', 'guard_name' => 'web'
-        ], [
-            'description' => 'Nhân sự',
-            'company_id' => null,
-            'type' => 'system',
-            'hierarchy_level' => 30,
-            'is_protected' => false,
-        ]);
+        // Role HR cũ đã được thay thế bằng các role tiếng Việt bên dưới.
+        Role::query()
+            ->where('name', 'HR')
+            ->where('guard_name', 'web')
+            ->delete();
 
-        Role::updateOrCreate([
-            'name' => 'Manager', 'guard_name' => 'web'
-        ], [
-            'description' => 'Quản lý',
-            'company_id' => null,
-            'type' => 'system',
-            'hierarchy_level' => 40,
-            'is_protected' => false,
-        ]);
+        // Role Manager chung đã được thay bằng các role quản lý theo module.
+        Role::query()
+            ->where('name', 'Manager')
+            ->where('guard_name', 'web')
+            ->delete();
 
         foreach ([
             'Nhân viên nhân sự', 'Nhân viên mua hàng', 'Nhân viên kho',

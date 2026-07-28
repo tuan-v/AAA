@@ -35,6 +35,8 @@ class PurchaseToPaymentEndToEndTest extends TestCase
 
         $stockBefore = (float) WarehouseProductStock::where('warehouse_id', $warehouse->id)
             ->where('product_id', $product->id)->value('quantity');
+        $stockValueBefore = (float) WarehouseProductStock::where('warehouse_id', $warehouse->id)
+            ->where('product_id', $product->id)->value('stock_value');
         $balanceBefore = (float) $account->current_balance;
         $debtBefore = (float) SupplierDebt::where('supplier_id', $supplier->id)->sum('amount');
 
@@ -97,6 +99,9 @@ class PurchaseToPaymentEndToEndTest extends TestCase
         $this->actingAs($warehouseUser)
             ->postJson("/api/warehouse/slips/{$slipId}/approve")
             ->assertOk();
+        $this->actingAs($accountant)
+            ->postJson("/api/warehouse/slips/{$slipId}/accountant-approve")
+            ->assertOk();
         $this->assertSame('partial', PurchaseOrder::findOrFail($orderId)->status);
         $this->assertEquals(1, PurchaseOrder::findOrFail($orderId)->items()->firstOrFail()->received_quantity);
         $this->assertEquals($stockBefore + 1, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('quantity'));
@@ -104,9 +109,13 @@ class PurchaseToPaymentEndToEndTest extends TestCase
         $this->actingAs($warehouseUser)
             ->postJson("/api/warehouse/slips/{$remainingSlipId}/approve")
             ->assertOk();
+        $this->actingAs($accountant)
+            ->postJson("/api/warehouse/slips/{$remainingSlipId}/accountant-approve")
+            ->assertOk();
         $this->assertSame('completed', PurchaseOrder::findOrFail($orderId)->status);
         $this->assertEquals(2, PurchaseOrder::findOrFail($orderId)->items()->firstOrFail()->received_quantity);
         $this->assertEquals($stockBefore + 2, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('quantity'));
+        $this->assertEquals(($stockBefore + 2) * 110000, WarehouseProductStock::where('warehouse_id', $warehouse->id)->where('product_id', $product->id)->value('stock_value'));
         $this->assertEquals($debtBefore + 220000, SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
 
         $transactionId = $this->actingAs($accountant)->postJson('/api/accountant/transactions', [

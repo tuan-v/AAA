@@ -39,8 +39,12 @@ Khi nhận một ticket, hãy mở mục module tương ứng bên dưới và �
 | 10 | Thông báo và realtime | menu thông báo trên header | `NotificationMenu.vue`, `resources/js/realtime` | `NotificationController`, events, `NotificationService` |
 | 11 | Xác thực | `/login`, `/register`, `/forgot-password` | Blade/Auth flow | `Controllers/Auth`, `routes/auth.php` |
 | 12 | Thành phần dùng chung | dùng trong mọi màn hình | `components`, `composables`, `config`, `store` | Middleware, Traits, Helpers, Providers |
+| 13 | Hướng dẫn sử dụng | `/guide` | `Pages/Guide/Index.vue` | Nội dung tĩnh tham chiếu tài liệu nghiệp vụ |
 
 ---
+
+> Thành viên mới và người quay lại dự án nên bắt đầu từ [`START_HERE.md`](START_HERE.md). Các luồng nghiệp vụ hiện hành nằm tại [`resources/docs/BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md); quyết định thay đổi quan trọng nằm trong `resources/docs/decisions/`.
+
 
 ## 1. Khung ứng dụng và Dashboard
 
