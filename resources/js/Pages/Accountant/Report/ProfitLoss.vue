@@ -96,6 +96,52 @@
             </section>
 
             <section class="panel table-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Lãi lỗ theo đơn bán</h2>
+                        <p>Cộng gộp toàn bộ phiếu xuất đã duyệt của từng đơn</p>
+                    </div>
+                    <span class="record-count">{{ report.orders?.length || 0 }} đơn</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Xuất gần nhất</th>
+                                <th>Đơn bán</th>
+                                <th>Khách hàng</th>
+                                <th>Kho</th>
+                                <th class="right">Số phiếu</th>
+                                <th class="right">Doanh thu</th>
+                                <th class="right">Giá vốn</th>
+                                <th class="right">Lãi / lỗ</th>
+                                <th class="right">Biên lãi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in report.orders || []" :key="row.order_id || row.order_code">
+                                <td>{{ date(row.last_export_date) }}</td>
+                                <td><strong class="code">{{ row.order_code }}</strong></td>
+                                <td>{{ row.partner }}</td>
+                                <td>{{ row.warehouses?.join(', ') || '-' }}</td>
+                                <td class="right">{{ row.export_slips_count }}</td>
+                                <td class="right">{{ money(row.revenue) }}</td>
+                                <td class="right">{{ money(row.cost) }}</td>
+                                <td class="right profit-value" :class="{ 'text-loss': row.profit < 0 }">
+                                    {{ money(row.profit) }}
+                                    <small class="result-label">{{ row.profit >= 0 ? 'Lãi' : 'Lỗ' }}</small>
+                                </td>
+                                <td class="right" :class="{ 'text-loss': row.margin < 0 }">{{ number(row.margin) }}%</td>
+                            </tr>
+                            <tr v-if="!report.orders?.length">
+                                <td colspan="9" class="empty-cell">Chưa có đơn bán đã xuất kho trong kỳ.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel table-panel">
                 <div class="panel-header"><div><h2>Sản phẩm mang lại lợi nhuận</h2><p>Top 10 sản phẩm theo lãi gộp thực tế</p></div></div>
                 <div class="table-wrap">
                     <table>

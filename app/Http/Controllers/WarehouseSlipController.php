@@ -200,6 +200,38 @@ class WarehouseSlipController extends Controller
                     throw new \RuntimeException('Chỉ được tạo phiếu xuất từ đơn bán đã duyệt và chưa xuất đủ.');
                 }
 
+                foreach ($validated['items'] as $itemData) {
+                    $productId = (int) $itemData['product_id'];
+                    $requestedQuantity = (float) $itemData['quantity'];
+                    $orderItem = $order->items->firstWhere('product_id', $productId);
+
+                    if (! $orderItem) {
+                        throw new \RuntimeException('Sản phẩm không tồn tại trong đơn bán.');
+                    }
+
+                    $stock = WarehouseProductStock::query()
+                        ->where('warehouse_id', $validated['warehouse_id'])
+                        ->where('product_id', $productId)
+                        ->lockForUpdate()
+                        ->first();
+                    $stockQuantity = (float) ($stock?->quantity ?? 0);
+                    $reservedQuantity = (float) WarehouseSlipItem::query()
+                        ->where('product_id', $productId)
+                        ->whereHas('slip', fn ($query) => $query
+                            ->where('warehouse_id', $validated['warehouse_id'])
+                            ->where('type', 'export')
+                            ->where('status', 'pending'))
+                        ->sum('quantity');
+                    $availableQuantity = max(0, $stockQuantity - $reservedQuantity);
+
+                    if ($requestedQuantity > $availableQuantity) {
+                        $productName = Product::whereKey($productId)->value('name') ?: "ID {$productId}";
+                        throw new \RuntimeException(
+                            "Kho đã chọn không đủ {$productName}. Tồn khả dụng: {$availableQuantity}."
+                        );
+                    }
+                }
+
                 $companyPrice = 0;
                 $slip = WarehouseSlip::create([
                     'type' => 'export',

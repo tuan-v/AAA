@@ -37,6 +37,9 @@
                     add-new-text="Thêm kho mới"
                     @add-new="openWarehouseModal"
                 />
+                <p v-if="selectedWarehouse" class="mt-2 text-sm text-gray-600">
+                    Tồn khả dụng đã trừ số lượng đang giữ ở các phiếu xuất chờ duyệt.
+                </p>
             </div>
 
             <!-- THÔNG TIN ĐƠN -->
@@ -66,6 +69,7 @@
                     <tr>
                         <th class="border p-3">Sản phẩm</th>
                         <th class="border p-3">Đã xuất / Cần xuất</th>
+                        <th class="border p-3">Tồn khả dụng tại kho</th>
                         <th class="border p-3">Xuất lần này</th>
                     </tr>
                 </thead>
@@ -83,6 +87,21 @@
                             {{ item.product?.unit?.name }}
                         </td>
 
+                        <td class="border p-3 text-center">
+                            <span
+                                v-if="selectedWarehouse"
+                                :class="
+                                    availableQuantity(item) > 0
+                                        ? 'font-semibold text-green-700'
+                                        : 'font-semibold text-red-600'
+                                "
+                            >
+                                {{ formatQuantity(availableQuantity(item)) }}
+                                {{ item.product?.unit?.name }}
+                            </span>
+                            <span v-else class="text-gray-400">Chọn kho</span>
+                        </td>
+
                         <td class="border p-3">
                             <input
                                 type="number"
@@ -92,14 +111,20 @@
                                         ? '0.01'
                                         : '1'
                                 "
-                                :max="
-                                    item.quantity -
-                                    (item.exported_quantity || 0)
-                                "
+                                :max="maxExportQuantity(item)"
                                 v-model="item.export_quantity"
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
+                                :class="{
+                                    'border-red-500 bg-red-50': hasInsufficientStock(item),
+                                }"
                             />
+                            <p
+                                v-if="hasInsufficientStock(item)"
+                                class="mt-1 text-xs text-red-600 text-center"
+                            >
+                                Số lượng xuất vượt tồn khả dụng của kho.
+                            </p>
                             <p class="mt-1 text-xs text-gray-500 text-center">
                                 {{
                                     item.product?.unit?.allow_decimal
@@ -199,9 +224,49 @@ const orderId = new URLSearchParams(window.location.search).get("order_id");
 const warehouseOptions = computed(() =>
     warehouses.value.map((w) => ({
         value: w.id,
-        label: w.name,
+        label: `${w.name} — ${(w.availability || [])
+            .map(
+                (stock) =>
+                    `${stock.product_name}: còn ${formatQuantity(stock.available_quantity)} ${stock.unit_name || ""}`,
+            )
+            .join(" | ")}`,
     })),
 );
+
+const selectedWarehouse = computed(() =>
+    warehouses.value.find(
+        (warehouse) => Number(warehouse.id) === Number(warehouseId.value),
+    ),
+);
+
+const selectedAvailability = computed(() =>
+    new Map(
+        (selectedWarehouse.value?.availability || []).map((stock) => [
+            Number(stock.product_id),
+            Number(stock.available_quantity || 0),
+        ]),
+    ),
+);
+
+function availableQuantity(item) {
+    return selectedAvailability.value.get(Number(item.product_id)) ?? 0;
+}
+
+function maxExportQuantity(item) {
+    const orderRemaining = Math.max(
+        0,
+        Number(item.quantity) - Number(item.exported_quantity || 0),
+    );
+    if (!selectedWarehouse.value) return orderRemaining;
+    return Math.min(orderRemaining, availableQuantity(item));
+}
+
+function hasInsufficientStock(item) {
+    return (
+        Boolean(selectedWarehouse.value) &&
+        Number(item.export_quantity || 0) > availableQuantity(item)
+    );
+}
 
 const openWarehouseModal = () => {
     showWarehouseModal.value = true;
@@ -302,6 +367,13 @@ async function submit() {
         return toast.warning("Vui lòng nhập số lượng xuất");
     }
 
+    const insufficientItem = validItems.find(hasInsufficientStock);
+    if (insufficientItem) {
+        return toast.warning(
+            `${insufficientItem.product?.name || "Sản phẩm"} chỉ còn ${formatQuantity(availableQuantity(insufficientItem))} ${insufficientItem.product?.unit?.name || ""} trong kho đã chọn.`,
+        );
+    }
+
     loading.value = true;
 
     try {
@@ -330,6 +402,7 @@ async function submit() {
             }
         });
         await loadSlips();
+        await loadWarehouses();
     } catch (e) {
         toast.error(
             getValidationMessage(e, "Không thể tạo phiếu xuất warehouse."),

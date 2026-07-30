@@ -46,6 +46,7 @@ class ProfitLossReportController extends Controller
             ->get();
 
         $sales = [];
+        $orders = [];
         $trend = [];
         $products = [];
         $revenue = 0.0;
@@ -122,6 +123,30 @@ class ProfitLossReportController extends Controller
                     'cost' => round($slipCost, 2),
                     'profit' => round($slipRevenue - $slipCost, 2),
                 ];
+
+                $orderKey = $slip->sales_order_id
+                    ? 'order-'.$slip->sales_order_id
+                    : 'slip-'.$slip->id;
+                $orders[$orderKey] ??= [
+                    'order_id' => $slip->sales_order_id,
+                    'order_code' => $slip->saleOrder?->code ?? '-',
+                    'partner' => $slip->saleOrder?->customer?->name ?? '-',
+                    'first_export_date' => $dateKey,
+                    'last_export_date' => $dateKey,
+                    'export_slips_count' => 0,
+                    'warehouses' => [],
+                    'revenue' => 0.0,
+                    'cost' => 0.0,
+                    'profit' => 0.0,
+                    'margin' => 0.0,
+                ];
+                $orders[$orderKey]['first_export_date'] = min($orders[$orderKey]['first_export_date'], $dateKey);
+                $orders[$orderKey]['last_export_date'] = max($orders[$orderKey]['last_export_date'], $dateKey);
+                $orders[$orderKey]['export_slips_count']++;
+                $orders[$orderKey]['warehouses'][$slip->warehouse_id] = $slip->warehouse?->name ?? '-';
+                $orders[$orderKey]['revenue'] += $slipRevenue;
+                $orders[$orderKey]['cost'] += $slipCost;
+                $orders[$orderKey]['profit'] += $slipRevenue - $slipCost;
             } else {
                 $importSlipCount++;
                 $purchaseValue += $slipPurchase;
@@ -131,6 +156,20 @@ class ProfitLossReportController extends Controller
 
         $grossProfit = $revenue - $costOfGoods;
         $currency = Company::find($this->companyId)?->default_currency;
+        $orderProfitLoss = collect($orders)
+            ->map(function (array $order) {
+                $order['revenue'] = round($order['revenue'], 2);
+                $order['cost'] = round($order['cost'], 2);
+                $order['profit'] = round($order['profit'], 2);
+                $order['margin'] = $order['revenue'] > 0
+                    ? round($order['profit'] / $order['revenue'] * 100, 2)
+                    : 0;
+                $order['warehouses'] = array_values($order['warehouses']);
+
+                return $order;
+            })
+            ->sortByDesc('last_export_date')
+            ->values();
 
         return response()->json([
             'period' => ['from_date' => $from->toDateString(), 'to_date' => $to->toDateString()],
@@ -150,6 +189,7 @@ class ProfitLossReportController extends Controller
             ],
             'trend' => array_values($trend),
             'top_products' => collect($products)->sortByDesc('profit')->take(10)->values(),
+            'orders' => $orderProfitLoss,
             'sales' => array_reverse($sales),
             'warehouses' => Warehouse::query()->where('company_id', $this->companyId)->orderBy('name')->get(['id', 'name']),
             'note' => 'Doanh thu và giá vốn được tính theo lượng hàng thực tế trên các phiếu xuất đã duyệt; số liệu không bao gồm VAT.',

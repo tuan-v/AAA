@@ -339,7 +339,6 @@ class TransactionService extends BaseService
         } elseif (($data['type'] ?? null) === 'payment') {
             $data['to_account_id'] = null;
         } elseif (($data['type'] ?? null) === 'transfer') {
-            $data['payment_method'] = 'bank_transfer';
             $data['customer_id'] = null;
             $data['supplier_id'] = null;
             $data['sales_order_id'] = null;
@@ -506,25 +505,27 @@ class TransactionService extends BaseService
         }
 
         if (($data['payment_method'] ?? 'cash') === 'cash') {
-            $accountId = match ($type) {
-                'receipt' => $data['to_account_id'] ?? null,
-                'payment' => $data['from_account_id'] ?? null,
-                'transfer' => null,
+            $accountIds = match ($type) {
+                'receipt' => [$data['to_account_id'] ?? null],
+                'payment' => [$data['from_account_id'] ?? null],
+                'transfer' => [
+                    $data['from_account_id'] ?? null,
+                    $data['to_account_id'] ?? null,
+                ],
             };
 
-            if ($accountId) {
-                $isCashAccount = Account::query()
-                    ->where('company_id', $this->companyId())
-                    ->whereKey($accountId)
-                    ->where('type', 'cash')
-                    ->whereNull('bank_id')
-                    ->exists();
+            $accountIds = array_values(array_unique(array_filter($accountIds)));
+            $cashAccountCount = Account::query()
+                ->where('company_id', $this->companyId())
+                ->whereIn('id', $accountIds)
+                ->where('type', 'cash')
+                ->whereNull('bank_id')
+                ->count();
 
-                if (!$isCashAccount) {
-                    throw new \InvalidArgumentException(
-                        'Hình thức tiền mặt chỉ được sử dụng với tài khoản tiền mặt không liên kết ngân hàng.'
-                    );
-                }
+            if ($cashAccountCount !== count($accountIds)) {
+                throw new \InvalidArgumentException(
+                    'Hình thức tiền mặt chỉ được sử dụng với tài khoản tiền mặt không liên kết ngân hàng.'
+                );
             }
         }
 
@@ -548,10 +549,6 @@ class TransactionService extends BaseService
 
         if (!empty($data['sales_order_id']) && $type !== 'receipt') {
             throw new \InvalidArgumentException('Đơn bán chỉ được gắn với giao dịch thu tiền.');
-        }
-
-        if ($type === 'receipt' && !empty($data['customer_id']) && empty($data['sales_order_id'])) {
-            throw new \InvalidArgumentException('Thu tiền khách hàng bắt buộc phải chọn đơn bán.');
         }
 
         if (!empty($data['purchase_order_id']) && empty($data['supplier_id'])) {
@@ -782,7 +779,11 @@ class TransactionService extends BaseService
             return round((float) $transaction->amount, $decimals);
         }
 
-        $accountRate = (float) ($account->currency->exchange_rate ?? 1);
+        $accountRate = app(CompanyCurrencyService::class)->rate(
+            $this->companyId(),
+            (int) $account->currency_id,
+            $transaction->transaction_date,
+        );
 
         if ($accountRate <= 0) {
             throw new \RuntimeException(

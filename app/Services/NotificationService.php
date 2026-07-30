@@ -76,7 +76,8 @@ class NotificationService
         ?array $data = null,
         ?string $urlLink = null,
         ?int $excludeUserId = null,
-        ?string $category = 'system'
+        ?string $category = 'system',
+        bool $includeCompanyOwner = true
     ): Collection {
         $companyOwnerId = Company::query()
             ->whereKey($companyId)
@@ -90,13 +91,21 @@ class NotificationService
                     ->orWhereHas('companies', fn ($query) => $query->whereKey($companyId));
             })
             ->when($excludeUserId, fn ($query) => $query->whereKeyNot($excludeUserId))
-            ->where(function ($query) use ($permission, $companyOwnerId) {
-                $query
-                    ->when($companyOwnerId, fn ($ownerQuery) => $ownerQuery->whereKey($companyOwnerId))
-                    ->orWhereHas('permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission)
-                    )
-                    ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission)
-                    );
+            ->when(
+                ! $includeCompanyOwner && $companyOwnerId,
+                fn ($query) => $query->whereKeyNot($companyOwnerId)
+            )
+            ->where(function ($query) use ($permission, $companyOwnerId, $includeCompanyOwner) {
+                if ($includeCompanyOwner && $companyOwnerId) {
+                    $query->whereKey($companyOwnerId)
+                        ->orWhereHas('permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission))
+                        ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission));
+
+                    return;
+                }
+
+                $query->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission))
+                    ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission));
             })
             ->distinct()
             ->pluck('id')

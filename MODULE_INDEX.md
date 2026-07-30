@@ -1,125 +1,85 @@
-# MỤC LỤC MODULE DỰ ÁN ERP
+# Mục lục module ERP
 
-> Trang bắt đầu dành cho thành viên mới. Mục tiêu: nhìn tên module là biết ngay nghiệp vụ, URL, frontend, backend, dữ liệu và test nằm ở đâu.
->
-> Cập nhật theo mã nguồn ngày 28/07/2026. Khi tài liệu khác code, ưu tiên `routes/web.php`, `routes/api.php` và implementation thực tế.
+Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. Cập nhật theo mã nguồn ngày **29/07/2026**.
 
-## Cách sử dụng mục lục này
+> Nếu tài liệu khác code, ưu tiên [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php) và phần hiện thực trong mã nguồn.
 
-Một chức năng trong dự án thường đi theo đường dẫn:
+## Bắt đầu nhanh
 
-```text
-URL trình duyệt
-→ routes/web.php
-→ resources/js/Pages/... (Vue/Inertia)
-→ Axios gọi /api/...
-→ routes/api.php
-→ Controller
-→ Form Request (nếu có)
-→ Service/Repository/Model
-→ Database
-→ tests/
-```
+1. Chọn module trong bảng bên dưới.
+2. Đi theo luồng **FE → API → Controller → Service → Model → Test**.
+3. Nếu chưa quen dự án, đọc [`START_HERE.md`](START_HERE.md) và [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md) trước.
 
-Khi nhận một ticket, hãy mở mục module tương ứng bên dưới và đi theo thứ tự **FE → API route → Controller → Service → Model → Test**.
+`URL` → [`routes/web.php`](routes/web.php) → [`resources/js/Pages`](resources/js/Pages) → [`routes/api.php`](routes/api.php) → Controller → Service/Repository → Model → Database → Test
 
-## Mục lục nhanh toàn dự án
+## Chọn module
 
-| Chương | Module | URL màn hình | Frontend chính | Backend chính |
-|---|---|---|---|---|
-| 1 | Khung ứng dụng và Dashboard | `/`, `/dashboard` | `resources/js/Pages/DashBoard.vue`, layout/components | `DashboardController`, `DashboardService`, `DashboardRepository` |
-| 2 | Công ty và hồ sơ | `/company/*`, `/profile` | `Pages/Company`, `Pages/Profile` | `CompanyController`, `ProfileController` |
-| 3 | Nhân sự và tổ chức | `/user`, `/departments`, `/positions` | `Pages/Manage` | `API/UserController`, `DepartmentController`, `PositionController` |
-| 4 | Vai trò và phân quyền | `/role`, `/permission` | `Pages/Manage/Role*`, `Permission*` | `RoleController`, `PermissionController` |
-| 5 | Mua hàng | `/purchase/*` | `Pages/Purchase` | `PurchaseOrderController`, `SupplierController`, `PurchaseOrderService` |
-| 6 | Bán hàng | `/sale/*` | `Pages/Sale` | `SalesOrderController`, `CustomerController` |
-| 7 | Kho | `/warehouse/*` | `Pages/Warehouse` | `Warehouse*Controller`, `StockService`, `InventoryMovementService` |
-| 8 | Kế toán và công nợ | `/accountant/*` | `Pages/Accountant` | Controller kế toán, `TransactionService`, `LedgerService`, Debt services |
-| 9 | Nhật ký hoạt động | `/audit-logs` | `Pages/AuditLog` | `AuditLogController`, `ActivityLogService`, middleware audit |
-| 10 | Thông báo và realtime | menu thông báo trên header | `NotificationMenu.vue`, `resources/js/realtime` | `NotificationController`, events, `NotificationService` |
-| 11 | Xác thực | `/login`, `/register`, `/forgot-password` | Blade/Auth flow | `Controllers/Auth`, `routes/auth.php` |
-| 12 | Thành phần dùng chung | dùng trong mọi màn hình | `components`, `composables`, `config`, `store` | Middleware, Traits, Helpers, Providers |
-| 13 | Hướng dẫn sử dụng | `/guide` | `Pages/Guide/Index.vue` | Nội dung tĩnh tham chiếu tài liệu nghiệp vụ |
+| Module                                                        | Màn hình                              | Code chính                                                                                   |
+| ------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Khung ứng dụng và Dashboard](#1-khung-ứng-dụng-và-dashboard) | `/`, `/dashboard`                     | [`DashBoard.vue`](resources/js/Pages/DashBoard.vue)                                          |
+| [Công ty và hồ sơ](#2-công-ty-và-hồ-sơ-cá-nhân)               | `/company/*`, `/profile`              | [`Pages/Company`](resources/js/Pages/Company), [`Pages/Profile`](resources/js/Pages/Profile) |
+| [Nhân sự và tổ chức](#3-nhân-sự-và-cơ-cấu-tổ-chức)            | `/user`, `/departments`, `/positions` | [`Pages/Manage`](resources/js/Pages/Manage)                                                  |
+| [Vai trò và phân quyền](#4-vai-trò-và-phân-quyền)             | `/role`, `/permission`                | [`Role.vue`](resources/js/Pages/Manage/Role.vue)                                             |
+| [Mua hàng](#5-mua-hàng)                                       | `/purchase/*`                         | [`Pages/Purchase`](resources/js/Pages/Purchase)                                              |
+| [Bán hàng](#6-bán-hàng)                                       | `/sale/*`                             | [`Pages/Sale`](resources/js/Pages/Sale)                                                      |
+| [Kho](#7-kho)                                                 | `/warehouse/*`                        | [`Pages/Warehouse`](resources/js/Pages/Warehouse)                                            |
+| [Kế toán và công nợ](#8-kế-toán-giao-dịch-và-công-nợ)         | `/accountant/*`                       | [`Pages/Accountant`](resources/js/Pages/Accountant)                                          |
+| [Nhật ký hoạt động](#9-nhật-ký-hoạt-động)                     | `/audit-logs`                         | [`Pages/AuditLog`](resources/js/Pages/AuditLog)                                              |
+| [Thông báo và realtime](#10-thông-báo-và-realtime)            | Header                                | [`NotificationMenu.vue`](resources/js/components/layout/header/NotificationMenu.vue)         |
+| [Xác thực](#11-xác-thực)                                      | `/login`, `/register`                 | [`routes/auth.php`](routes/auth.php)                                                         |
+| [Thành phần dùng chung](#12-thành-phần-dùng-chung-và-hạ-tầng) | Toàn hệ thống                         | [`components`](resources/js/components), [`composables`](resources/js/composables)           |
+| [Hướng dẫn sử dụng](#13-hướng-dẫn-sử-dụng)                    | `/guide`                              | [`Guide/Index.vue`](resources/js/Pages/Guide/Index.vue)                                      |
 
----
-
-> Thành viên mới và người quay lại dự án nên bắt đầu từ [`START_HERE.md`](START_HERE.md). Các luồng nghiệp vụ hiện hành nằm tại [`resources/docs/BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md); quyết định thay đổi quan trọng nằm trong `resources/docs/decisions/`.
-
+> Luồng nghiệp vụ nằm trong [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md); các quyết định kỹ thuật nằm trong [`resources/docs/decisions/`](resources/docs/decisions/).
 
 ## 1. Khung ứng dụng và Dashboard
 
 **Vai trò:** trang vào hệ thống, dashboard tổng hợp và khung giao diện dùng chung.
 
-- Web route: `routes/web.php` — nhóm `Account, company onboarding and application entry flow`.
-- API route: `routes/api.php` — nhóm `DASHBOARD & CURRENT USER`.
-- FE trang: `resources/js/Pages/DashBoard.vue` và dashboard riêng tại `Pages/Purchase`, `Pages/Sale`, `Pages/Warehouse`, `Pages/Accountant`.
-- FE khung: `resources/js/Layouts/AdminLayout.vue`, `resources/js/components/layout/`.
-- BE: `app/Http/Controllers/DashboardController.php`.
-- Service: `app/Services/DashboardService.php`.
-- Repository: `app/Repositories/DashboardRepository.php` và interface tương ứng.
-- Test: `tests/Feature/ModuleDashboardTest.php`, `tests/Feature/DemoAccountPageSmokeTest.php`.
+- **Điểm vào:** `/`, `/dashboard`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Frontend:** [`DashBoard.vue`](resources/js/Pages/DashBoard.vue), [`AdminLayout.vue`](resources/js/Layouts/AdminLayout.vue), [`components/layout`](resources/js/components/layout); dashboard riêng nằm trong từng module.
+- **Backend:** [`DashboardController`](app/Http/Controllers/DashboardController.php), [`DashboardService`](app/Services/DashboardService.php), [`DashboardRepository`](app/Repositories/DashboardRepository.php).
+- **Kiểm thử:** [`ModuleDashboardTest`](tests/Feature/ModuleDashboardTest.php), [`DemoAccountPageSmokeTest`](tests/Feature/DemoAccountPageSmokeTest.php).
 
 ## 2. Công ty và hồ sơ cá nhân
 
 **Vai trò:** tạo công ty, thiết lập ngữ cảnh công ty và quản lý hồ sơ người dùng hiện tại.
 
-- URL: `/company/create`, `/company`, `/profile`.
-- Web route: `routes/web.php` — nhóm `Account, company onboarding and application entry flow`.
-- FE: `resources/js/Pages/Company/Create.vue`, `resources/js/Pages/Profile/Edit.vue`.
-- BE: `CompanyController`, `ProfileController`.
-- Model: `Company`, `User`, `CompanyCurrencyRate`.
-- Middleware: `EnsureCompanyCreated`, `HandleInertiaRequests`.
-- Trait cô lập dữ liệu: `app/Traits/BelongsToCompany.php`.
-- Migration: các file chứa `companies`, `company_id`, `company_currency`.
-- Test: `ProfileTest`, `CompanyCurrencyServiceTest`, `OpeningBalanceCurrencySnapshotTest`.
+- **Điểm vào:** `/company/create`, `/company`, `/profile`; web route tại [`routes/web.php`](routes/web.php).
+- **Frontend:** [`Company/Create.vue`](resources/js/Pages/Company/Create.vue), [`Profile/Edit.vue`](resources/js/Pages/Profile/Edit.vue).
+- **Backend:** [`CompanyController`](app/Http/Controllers/CompanyController.php), [`ProfileController`](app/Http/Controllers/ProfileController.php), middleware `EnsureCompanyCreated`, `HandleInertiaRequests` và trait [`BelongsToCompany`](app/Traits/BelongsToCompany.php).
+- **Dữ liệu:** [`Company`](app/Models/Company.php), [`User`](app/Models/User.php), [`CompanyCurrencyRate`](app/Models/CompanyCurrencyRate.php); migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`ProfileTest`](tests/Feature/ProfileTest.php), [`CompanyCurrencyServiceTest`](tests/Unit/CompanyCurrencyServiceTest.php), [`OpeningBalanceCurrencySnapshotTest`](tests/Feature/OpeningBalanceCurrencySnapshotTest.php).
 
 ## 3. Nhân sự và cơ cấu tổ chức
 
 **Vai trò:** nhân viên, duyệt/từ chối tài khoản, phòng ban, chức vụ và quan hệ quản lý.
 
-- URL: `/user`, `/user/{id}`, `/departments`, `/positions`.
-- Web route: `routes/web.php` — nhóm `Administration flow`.
-- API prefix: `/api/users`, `/api/departments`, `/api/positions`.
-- FE nhân sự: `resources/js/Pages/Manage/User.vue`, `UserForm.vue`, `UserDetail.vue`.
-- FE tổ chức: `resources/js/Pages/Manage/Department`, `resources/js/Pages/Manage/Position`.
-- BE: `app/Http/Controllers/API/UserController.php`, `DepartmentController`, `PositionController`.
-- Model: `User`, `Department`, `Position`, `Company`.
-- Migration: các file chứa `users`, `departments`, `positions`.
-- Seeder: `DepartmentDemoSeeder`, `PositionDemoSeeder`, `DepartmentEmployeeDemoSeeder`.
-- Test: `DepartmentPositionFlowTest`, `DepartmentManagerAssignmentTest`, `UserListVisibilityTest`, `UserActivityLogTest`.
+- **Điểm vào:** `/user`, `/user/{id}`, `/departments`, `/positions`; API `/api/users`, `/api/departments`, `/api/positions`.
+- **Frontend:** [`User.vue`](resources/js/Pages/Manage/User.vue), [`UserForm.vue`](resources/js/Pages/Manage/UserForm.vue), [`UserDetail.vue`](resources/js/Pages/Manage/UserDetail.vue), [`Department`](resources/js/Pages/Manage/Department), [`Position`](resources/js/Pages/Manage/Position).
+- **Backend:** [`UserController`](app/Http/Controllers/API/UserController.php), [`DepartmentController`](app/Http/Controllers/DepartmentController.php), [`PositionController`](app/Http/Controllers/PositionController.php).
+- **Dữ liệu:** [`User`](app/Models/User.php), [`Department`](app/Models/Department.php), [`Position`](app/Models/Position.php), [`Company`](app/Models/Company.php); migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`DepartmentPositionFlowTest`](tests/Feature/DepartmentPositionFlowTest.php), [`DepartmentManagerAssignmentTest`](tests/Feature/DepartmentManagerAssignmentTest.php), [`UserListVisibilityTest`](tests/Feature/UserListVisibilityTest.php), [`UserActivityLogTest`](tests/Feature/UserActivityLogTest.php).
 
 ## 4. Vai trò và phân quyền
 
 **Vai trò:** định nghĩa vai trò, permission và giới hạn hành động của từng tài khoản.
 
-- URL: `/role`, `/permission`.
-- API prefix: `/api/roles`, `/api/permissions`.
-- FE: `resources/js/Pages/Manage/Role.vue`, `RoleForm.vue`, `Permission.vue`, `PermissionForm.vue`.
-- BE: `RoleController`, `PermissionController`.
-- Model: `Role`, `Permission`, `User`.
-- Middleware: Spatie `permission`, `role`, `role_or_permission` được khai báo tại `bootstrap/app.php`.
-- FE kiểm tra quyền: `resources/js/composables/usePermission.js`.
-- Migration: `create_permission_tables`, các migration về group/hierarchy của permission và role.
-- Seeder: `RoleSeeder`, `PermissionSeeder`, `RolePermissionSeeder`, `UserRoleSeeder`.
-- Test: `PermissionListTest`, `DemoModuleRolesTest`, `DemoAccountPageSmokeTest`.
+- **Điểm vào:** `/role`, `/permission`; API `/api/roles`, `/api/permissions`.
+- **Frontend:** [`Role.vue`](resources/js/Pages/Manage/Role.vue), [`RoleForm.vue`](resources/js/Pages/Manage/RoleForm.vue), [`Permission.vue`](resources/js/Pages/Manage/Permission.vue), [`PermissionForm.vue`](resources/js/Pages/Manage/PermissionForm.vue), [`usePermission.js`](resources/js/composables/usePermission.js).
+- **Backend:** [`RoleController`](app/Http/Controllers/RoleController.php), [`PermissionController`](app/Http/Controllers/PermissionController.php); middleware Spatie được khai báo tại [`bootstrap/app.php`](bootstrap/app.php).
+- **Dữ liệu:** [`Role`](app/Models/Role.php), [`Permission`](app/Models/Permission.php), [`User`](app/Models/User.php), [`create_permission_tables`](database/migrations/2025_11_26_032146_create_permission_tables.php).
+- **Kiểm thử:** [`PermissionListTest`](tests/Feature/PermissionListTest.php), [`DemoModuleRolesTest`](tests/Feature/DemoModuleRolesTest.php), [`DemoAccountPageSmokeTest`](tests/Feature/DemoAccountPageSmokeTest.php).
 
 ## 5. Mua hàng
 
 **Vai trò:** nhà cung cấp, danh mục/sản phẩm mua, đơn mua, duyệt đơn và chuyển sang nhập kho/công nợ.
 
-- URL: `/purchase/*`.
-- Web route: `routes/web.php` — nhóm `Purchase flow`.
-- API route: `routes/api.php` — nhóm `PURCHASE MODULE`.
-- FE: `resources/js/Pages/Purchase/`.
-  - `Supplier/`: nhà cung cấp.
-  - `Product/`, `Category/`, `Unit/`: danh mục hàng mua.
-  - `Order/`: danh sách, form và chi tiết đơn mua.
-- BE: `PurchaseOrderController`, `SupplierController`, `ProductController`, `CategoryController`, `UnitController`.
-- Service: `PurchaseOrderService`, `OrderQuantityValidationService`, `SupplierDebtService`, `CodeGeneratorService`.
-- Repository: `SupplierDebtRepository` và interface.
-- Model: `Supplier`, `PurchaseOrder`, `PurchaseOrderItem`, `SupplierDebt`, `Product`, `Category`, `Unit`.
-- Migration: các file chứa `suppliers`, `purchase_orders`, `purchase_order_items`.
-- Test chính: `PurchaseToPaymentEndToEndTest`, `DebtFlowEndToEndTest`, `ProductAvailabilityTest`.
+- **Điểm vào:** `/purchase/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Frontend:** [`Purchase`](resources/js/Pages/Purchase) gồm [`Supplier`](resources/js/Pages/Purchase/Supplier), [`Product`](resources/js/Pages/Purchase/Product), [`Category`](resources/js/Pages/Purchase/Category), [`Unit`](resources/js/Pages/Purchase/Unit), [`Order`](resources/js/Pages/Purchase/Order).
+- **Backend:** [`PurchaseOrderController`](app/Http/Controllers/PurchaseOrderController.php), [`SupplierController`](app/Http/Controllers/SupplierController.php), [`ProductController`](app/Http/Controllers/ProductController.php), [`CategoryController`](app/Http/Controllers/CategoryController.php), [`UnitController`](app/Http/Controllers/UnitController.php); service chính [`PurchaseOrderService`](app/Services/PurchaseOrderService.php).
+- **Dữ liệu:** model tại [`app/Models`](app/Models): `Supplier`, `PurchaseOrder`, `PurchaseOrderItem`, `SupplierDebt`, `Product`, `Category`, `Unit`; migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`PurchaseToPaymentEndToEndTest`](tests/Feature/PurchaseToPaymentEndToEndTest.php), [`DebtFlowEndToEndTest`](tests/Feature/DebtFlowEndToEndTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
 
 > `ProductController`, `CategoryController` và `UnitController` được dùng chung với Kho. Hãy xác định ngữ cảnh bằng prefix route `/api/purchase` hoặc `/api/warehouse`.
 
@@ -127,131 +87,107 @@ Khi nhận một ticket, hãy mở mục module tương ứng bên dưới và �
 
 **Vai trò:** khách hàng, đơn bán, duyệt đơn, xuất kho, doanh thu và công nợ khách hàng.
 
-- URL: `/sale/*`.
-- Web route: `routes/web.php` — nhóm `Sale flow`.
-- API route: `routes/api.php` — nhóm `SALE MODULE`.
-- FE: `resources/js/Pages/Sale/Customer`, `resources/js/Pages/Sale/Order`, `resources/js/Pages/Sale/Dashboard.vue`.
-- BE: `SalesOrderController`, `CustomerController`.
-- Service liên quan: `CustomerDebtService`, `OrderQuantityValidationService`, `StockService`, `CodeGeneratorService`.
-- Model: `Customer`, `CustomerDebt`, `CustomerPayment`, `SalesOrder`, `SalesOrderItem`.
-- Migration: các file chứa `customers`, `customer_debts`, `customer_payments`, `sales_orders`, `sales_order_items`.
-- Test: `InventoryLifecycleEndToEndTest`, `InventoryAccountingFlowTest`, `DebtSummaryTest`, `ProductAvailabilityTest`.
+- **Điểm vào:** `/sale/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Frontend:** [`Customer`](resources/js/Pages/Sale/Customer), [`Order`](resources/js/Pages/Sale/Order), [`Dashboard.vue`](resources/js/Pages/Sale/Dashboard.vue).
+- **Backend:** [`SalesOrderController`](app/Http/Controllers/SalesOrderController.php), [`CustomerController`](app/Http/Controllers/CustomerController.php); service liên quan [`CustomerDebtService`](app/Services/CustomerDebtService.php), [`StockService`](app/Services/StockService.php), [`CodeGeneratorService`](app/Services/CodeGeneratorService.php).
+- **Dữ liệu:** model tại [`app/Models`](app/Models): `Customer`, `CustomerDebt`, `CustomerPayment`, `SalesOrder`, `SalesOrderItem`; migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`InventoryLifecycleEndToEndTest`](tests/Feature/InventoryLifecycleEndToEndTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php), [`DebtSummaryTest`](tests/Feature/DebtSummaryTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
 
 ## 7. Kho
 
 **Vai trò:** kho, sản phẩm tồn, phiếu nhập/xuất, chuyển kho và sổ biến động tồn.
 
-- URL: `/warehouse/*`.
-- Web route: `routes/web.php` — nhóm `Warehouse flow`.
-- API route: `routes/api.php` — nhóm `WAREHOUSES & SLIPS`.
-- FE: `resources/js/Pages/Warehouse/`.
-  - `Product/`, `Category/`, `Unit/`: hàng hóa và danh mục.
-  - `Order/`: đơn chờ xử lý kho.
-  - `Slip/`: phiếu nhập/xuất.
-  - `Transfer/`: chuyển kho.
-  - `InventoryMovement/`: sổ biến động tồn.
-- BE: `WarehouseController`, `WarehouseSlipController`, `WarehouseInventoryController`, `InventoryMovementController`, `WarehouseTransferController`.
-- Service: `StockService`, `InventoryMovementService`, `OrderQuantityValidationService`.
-- Model: `Warehouse`, `WarehouseProductStock`, `Stock`, `WarehouseSlip`, `WarehouseSlipItem`, `WarehouseTransfer`, `WarehouseTransferItem`, `InventoryMovement`.
-- Migration: các file chứa `warehouses`, `warehouse_slips`, `warehouse_product_stocks`, `warehouse_transfers`, `inventory_movements`.
-- Test: `InventoryLifecycleEndToEndTest`, `InventoryAccountingFlowTest`, `WarehouseFilterTest`, `ProductAvailabilityTest`.
+- **Điểm vào:** `/warehouse/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Frontend:** [`Warehouse`](resources/js/Pages/Warehouse) gồm `Product`, `Category`, `Unit`, `Order`, `Slip`, `Transfer`, `InventoryMovement`.
+- **Backend:** [`WarehouseController`](app/Http/Controllers/WarehouseController.php), [`WarehouseSlipController`](app/Http/Controllers/WarehouseSlipController.php), [`WarehouseInventoryController`](app/Http/Controllers/WarehouseInventoryController.php), [`InventoryMovementController`](app/Http/Controllers/InventoryMovementController.php), [`WarehouseTransferController`](app/Http/Controllers/WarehouseTransferController.php); service [`StockService`](app/Services/StockService.php), [`InventoryMovementService`](app/Services/InventoryMovementService.php).
+- **Dữ liệu:** model tại [`app/Models`](app/Models): `Warehouse`, `WarehouseProductStock`, `Stock`, `WarehouseSlip`, `WarehouseSlipItem`, `WarehouseTransfer`, `WarehouseTransferItem`, `InventoryMovement`; migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`InventoryLifecycleEndToEndTest`](tests/Feature/InventoryLifecycleEndToEndTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php), [`WarehouseFilterTest`](tests/Feature/WarehouseFilterTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
 
 ## 8. Kế toán, giao dịch và công nợ
 
 **Vai trò:** tiền tệ, ngân hàng, tài khoản/quỹ, giao dịch, sổ tài khoản, công nợ và báo cáo lãi lỗ.
 
-- URL: `/accountant/*`.
-- Web route: `routes/web.php` — nhóm `Accounting flow`.
-- API route: `routes/api.php` — nhóm `ACCOUNTANT MODULE`.
-- FE: `resources/js/Pages/Accountant/`.
-  - `Currency/`, `Bank/`, `Account/`, `TransactionCategory/`: danh mục kế toán.
-  - `Transaction/`, `AccountLedger/`: giao dịch và sổ tài khoản.
-  - `Customer/`, `Supplier/`: công nợ.
-  - `Report/`: báo cáo lãi lỗ.
-- BE: `CurrencyController`, `BankController`, `AccountController`, `TransactionCategoryController`, `TransactionController`, `Accountant/AccountLedgerController`, `Accountant/ProfitLossReportController`.
-- Service: `CurrencyService`, `CompanyCurrencyService`, `AccountBalanceService`, `TransactionCategoryService`, `TransactionService`, `LedgerService`, `CustomerDebtService`, `SupplierDebtService`.
-- Repository: `AccountRepository`, `TransactionRepository`, `TransactionCategoryRepository`, `SupplierDebtRepository` và các interface.
-- Model: `Currency`, `CurrencyRate`, `CompanyCurrencyRate`, `Bank`, `Account`, `AccountLedger`, `Transaction`, `TransactionCategory`, `CustomerDebt`, `SupplierDebt`.
-- Migration: các file chứa `currencies`, `rates`, `banks`, `accounts`, `transactions`, `ledgers`, `debts`.
-- Test: `TransactionFlowTest`, `DebtSummaryTest`, `DebtFlowEndToEndTest`, `OpeningBalanceCurrencySnapshotTest`, `TransactionCategoryCompanyIsolationTest`, `InventoryAccountingFlowTest`.
+- **Điểm vào:** `/accountant/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Frontend:** [`Accountant`](resources/js/Pages/Accountant) gồm danh mục kế toán, giao dịch, sổ tài khoản, công nợ và báo cáo.
+- **Backend:** [`AccountController`](app/Http/Controllers/AccountController.php), [`TransactionController`](app/Http/Controllers/TransactionController.php), [`AccountLedgerController`](app/Http/Controllers/Accountant/AccountLedgerController.php), [`ProfitLossReportController`](app/Http/Controllers/Accountant/ProfitLossReportController.php); các controller còn lại nằm trong [`app/Http/Controllers`](app/Http/Controllers).
+- **Nghiệp vụ:** [`TransactionService`](app/Services/TransactionService.php), [`LedgerService`](app/Services/LedgerService.php), [`CurrencyService`](app/Services/CurrencyService.php), [`AccountBalanceService`](app/Services/AccountBalanceService.php); repository tại [`app/Repositories`](app/Repositories).
+- **Dữ liệu:** model tại [`app/Models`](app/Models): `Currency`, `CurrencyRate`, `CompanyCurrencyRate`, `Bank`, `Account`, `AccountLedger`, `Transaction`, `TransactionCategory`, `CustomerDebt`, `SupplierDebt`; migration tại [`database/migrations`](database/migrations).
+- **Kiểm thử:** [`TransactionFlowTest`](tests/Feature/TransactionFlowTest.php), [`DebtSummaryTest`](tests/Feature/DebtSummaryTest.php), [`DebtFlowEndToEndTest`](tests/Feature/DebtFlowEndToEndTest.php), [`OpeningBalanceCurrencySnapshotTest`](tests/Feature/OpeningBalanceCurrencySnapshotTest.php), [`TransactionCategoryCompanyIsolationTest`](tests/Feature/TransactionCategoryCompanyIsolationTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php).
 
 ## 9. Nhật ký hoạt động
 
 **Vai trò:** lưu vết ai đã làm gì, trên dữ liệu nào và trong công ty nào.
 
-- URL: `/audit-logs`.
-- API prefix: `/api/audit-logs`.
-- FE: `resources/js/Pages/AuditLog/Index.vue`, `AuditLogDetail.vue`.
-- BE: `AuditLogController`, `ActivityLogService`.
-- Middleware: `LogPermissionAction`, `LogUserActivity`.
-- Model: `ActivityLog`.
-- Migration: các file chứa `activity_logs`.
-- Test: `AuditLogFeatureTest`, `UserActivityLogTest`.
+- **Điểm vào:** `/audit-logs`; API `/api/audit-logs`.
+- **Frontend:** [`Index.vue`](resources/js/Pages/AuditLog/Index.vue), [`AuditLogDetail.vue`](resources/js/Pages/AuditLog/AuditLogDetail.vue).
+- **Backend:** [`AuditLogController`](app/Http/Controllers/AuditLogController.php), [`ActivityLogService`](app/Services/ActivityLogService.php), middleware `LogPermissionAction`, `LogUserActivity`.
+- **Dữ liệu:** [`ActivityLog`](app/Models/ActivityLog.php), [`create_activity_logs_table`](database/migrations/2026_06_19_152918_create_activity_logs_table.php).
+- **Kiểm thử:** [`AuditLogFeatureTest`](tests/Feature/AuditLogFeatureTest.php), [`UserActivityLogTest`](tests/Feature/UserActivityLogTest.php).
 
 ## 10. Thông báo và realtime
 
 **Vai trò:** thông báo theo người dùng/module và tự làm mới dữ liệu khi công ty có thay đổi.
 
-- API prefix: `/api/notifications`.
-- FE: `resources/js/components/layout/header/NotificationMenu.vue`.
-- FE realtime: `resources/js/echo.js`, `resources/js/realtime/companyData.js`, `resources/js/composables/useRealtimeRefresh.js`.
-- BE: `NotificationController`, `NotificationService`, `BroadcastController`.
-- Event: `NotificationCreated`, `CompanyDataChanged`.
-- Middleware: `BroadcastCompanyDataChanges`.
-- Kênh WebSocket: `routes/channels.php`.
-- Model: `Notification`.
-- Test: `NotificationFeatureTest`, `NotificationRecipientsTest`, `NotificationCreatedTest`, `CompanyDataChangedTest`, `BroadcastCompanyDataChangesMiddlewareTest`.
+- **Điểm vào:** menu trên header; API `/api/notifications`; WebSocket tại [`routes/channels.php`](routes/channels.php).
+- **Frontend:** [`NotificationMenu.vue`](resources/js/components/layout/header/NotificationMenu.vue), [`echo.js`](resources/js/echo.js), [`companyData.js`](resources/js/realtime/companyData.js), [`useRealtimeRefresh.js`](resources/js/composables/useRealtimeRefresh.js).
+- **Backend:** [`NotificationController`](app/Http/Controllers/NotificationController.php), [`BroadcastController`](app/Http/Controllers/BroadcastController.php), [`NotificationService`](app/Services/NotificationService.php); event `NotificationCreated`, `CompanyDataChanged`.
+- **Dữ liệu:** [`Notification`](app/Models/Notification.php), [`create_notifications_table`](database/migrations/2026_07_22_120000_create_notifications_table.php).
+- **Kiểm thử:** [`NotificationFeatureTest`](tests/Feature/NotificationFeatureTest.php), [`NotificationRecipientsTest`](tests/Feature/NotificationRecipientsTest.php), [`NotificationCreatedTest`](tests/Unit/NotificationCreatedTest.php), [`CompanyDataChangedTest`](tests/Unit/CompanyDataChangedTest.php).
 
 ## 11. Xác thực
 
 **Vai trò:** đăng nhập, đăng ký, đăng xuất, đặt lại mật khẩu, xác minh email và Google OAuth.
 
-- Route: `routes/auth.php`; được nạp ở cuối `routes/web.php`.
-- FE shell/view: `resources/views/`.
-- BE: `app/Http/Controllers/Auth/`.
-- Model: `User`, `PasswordResetToken`, `Session`.
-- Cấu hình: `config/auth.php`, `config/services.php`, `.env.example`.
-- Test: toàn bộ `tests/Feature/Auth/`.
+- **Điểm vào:** `/login`, `/register`, `/forgot-password`; route tại [`routes/auth.php`](routes/auth.php).
+- **Frontend:** Blade và shell view tại [`resources/views`](resources/views).
+- **Backend:** controller tại [`app/Http/Controllers/Auth`](app/Http/Controllers/Auth), cấu hình tại [`config/auth.php`](config/auth.php), [`config/services.php`](config/services.php).
+- **Dữ liệu:** [`User`](app/Models/User.php), [`PasswordResetToken`](app/Models/PasswordResetToken.php), [`Session`](app/Models/Session.php).
+- **Kiểm thử:** toàn bộ [`tests/Feature/Auth`](tests/Feature/Auth).
 
 ## 12. Thành phần dùng chung và hạ tầng
 
-| Phần | Vị trí | Khi nào cần mở |
-|---|---|---|
-| Entry Vue/Inertia | `resources/js/app.js` | Khởi tạo app, plugin, resolve page |
-| Axios/CSRF | `resources/js/bootstrap.js` | Request FE, cookie và CSRF |
-| Reverb/Echo | `resources/js/echo.js` | WebSocket/realtime |
-| Layout/menu/header | `resources/js/Layouts`, `resources/js/components/layout` | Menu, header, khung trang |
-| Component dùng chung | `resources/js/components` | Button, modal, bảng, input dùng lại |
-| Composable | `resources/js/composables` | Permission, validation, confirm, currency, realtime |
-| Middleware | `app/Http/Middleware` | Auth context, company, audit, broadcast |
-| Provider | `app/Providers` | Binding repository và khởi tạo dịch vụ |
-| Trait | `app/Traits` | Logic dùng lại, đặc biệt cô lập company |
-| Helper | `app/Helpers` | Tiện ích dùng chung backend |
-| Cấu hình | `config/`, `.env.example` | DB, queue, mail, filesystem, Reverb |
-| Database | `database/migrations`, `seeders`, `factories` | Schema, dữ liệu nền và dữ liệu test |
-| Scheduler | `routes/console.php` | Tác vụ định kỳ |
-| Build | `vite.config.js`, `package.json` | Bundle frontend |
-| Test | `tests/Feature`, `tests/Unit` | Hành vi mong đợi và regression |
+| Nhóm                    | Mở tại                                                                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Khởi tạo frontend       | [`app.js`](resources/js/app.js), [`bootstrap.js`](resources/js/bootstrap.js), [`echo.js`](resources/js/echo.js)                   |
+| Giao diện dùng chung    | [`Layouts`](resources/js/Layouts), [`components`](resources/js/components), [`components/layout`](resources/js/components/layout) |
+| Logic frontend dùng lại | [`composables`](resources/js/composables)                                                                                         |
+| Backend dùng chung      | [`Middleware`](app/Http/Middleware), [`Providers`](app/Providers), [`Traits`](app/Traits), [`Helpers`](app/Helpers)               |
+| Cấu hình                | [`config`](config/), [`.env.example`](.env.example), [`vite.config.js`](vite.config.js), [`package.json`](package.json)           |
+| Database                | [`migrations`](database/migrations), `seeders`, `factories`                                                                       |
+| Scheduler               | [`routes/console.php`](routes/console.php)                                                                                        |
+| Test                    | [`tests/Feature`](tests/Feature), [`tests/Unit`](tests/Unit)                                                                      |
+
+## 13. Hướng dẫn sử dụng
+
+**Vai trò:** cung cấp hướng dẫn thao tác và tài liệu nghiệp vụ ngay trong ứng dụng.
+
+- **Điểm vào:** `/guide`; route tại [`routes/web.php`](routes/web.php).
+- **Frontend:** [`resources/js/Pages/Guide/Index.vue`](resources/js/Pages/Guide/Index.vue).
+- **Nội dung tham chiếu:** [`Document.md`](Document.md), [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md).
+- **Lưu ý:** đây là trang nội dung tĩnh, hiện không có Controller, Model hoặc API riêng.
 
 ## Tra cứu nhanh khi sửa code
 
-| Muốn sửa | Mở đầu tiên |
-|---|---|
-| Chữ, màu, icon, vị trí button | Vue page trong `resources/js/Pages`, sau đó component được import |
-| Button ẩn/hiện hoặc bị disable | `v-if`, `v-show`, `disabled`, `usePermission.js` |
-| Hành động khi bấm button | Hàm `@click`, rồi tìm Axios endpoint |
-| URL màn hình | `routes/web.php` |
-| API và permission | `routes/api.php` |
-| Validate dữ liệu | `app/Http/Requests` hoặc validation trong Controller |
-| Quy tắc nghiệp vụ/trạng thái | Service, sau đó Controller nếu module cũ chưa tách Service |
-| Truy vấn dữ liệu | Repository hoặc Eloquent Model/Controller |
-| Cấu trúc bảng | `database/migrations` và Model |
-| Response JSON | `app/Http/Resources` hoặc Controller |
-| Lỗi 403 | Permission middleware, role/permission seeder và quyền user |
-| Lỗi 422 | Form Request/validation |
-| Lỗi 500 | `storage/logs/laravel.log`, Controller và Service |
+| Muốn sửa                       | Mở đầu tiên                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| Chữ, màu, icon, vị trí button  | Vue page trong [`resources/js/Pages`](resources/js/Pages), sau đó component được import |
+| Button ẩn/hiện hoặc bị disable | `v-if`, `v-show`, `disabled`, `usePermission.js`                                        |
+| Hành động khi bấm button       | Hàm `@click`, rồi tìm Axios endpoint                                                    |
+| URL màn hình                   | [`routes/web.php`](routes/web.php)                                                      |
+| API và permission              | [`routes/api.php`](routes/api.php)                                                      |
+| Validate dữ liệu               | [`app/Http/Requests`](app/Http/Requests) hoặc validation trong Controller               |
+| Quy tắc nghiệp vụ/trạng thái   | Service, sau đó Controller nếu module cũ chưa tách Service                              |
+| Truy vấn dữ liệu               | Repository hoặc Eloquent Model/Controller                                               |
+| Cấu trúc bảng                  | [`database/migrations`](database/migrations) và Model                                   |
+| Response JSON                  | [`app/Http/Resources`](app/Http/Resources) hoặc Controller                              |
+| Lỗi 403                        | Permission middleware, role/permission seeder và quyền user                             |
+| Lỗi 422                        | Form Request/validation                                                                 |
+| Lỗi 500                        | [`storage/logs/laravel.log`](storage/logs/laravel.log), Controller và Service           |
 
-## Lệnh tìm kiếm dành cho người mới
+<details>
+<summary><strong>Lệnh tìm kiếm thường dùng</strong></summary>
+
+<br>
 
 ```bash
 # Tìm chữ đang hiển thị trên giao diện
@@ -270,6 +206,8 @@ php artisan route:list --path=purchase
 php artisan test --filter=PurchaseToPaymentEndToEndTest
 ```
 
+</details>
+
 ## Tài liệu đọc sâu
 
 - Tổng quan kiến trúc và toàn bộ luồng: [`PROJECT_INDEX.md`](PROJECT_INDEX.md).
@@ -281,4 +219,21 @@ php artisan test --filter=PurchaseToPaymentEndToEndTest
 
 ## Quy tắc cập nhật mục lục
 
-Khi thêm module hoặc chuyển vị trí code, người thực hiện phải cập nhật trang này trong cùng pull request. Tối thiểu cần cập nhật: URL, FE page, API prefix, Controller, Service, Model và test chính.
+Khi thêm module hoặc chuyển vị trí code, cập nhật trang này trong cùng pull request. Chỉ ghi thành phần thực sự tồn tại và ưu tiên link tương đối có thể mở trực tiếp.
+
+<details>
+<summary><strong>Mẫu thêm module mới</strong></summary>
+
+```md
+## N. Tên module
+
+**Vai trò:** mô tả ngắn mục đích nghiệp vụ.
+
+- **Điểm vào:** URL; web route; API prefix.
+- **Frontend:** page và component chính.
+- **Backend:** Controller, Service, Repository hoặc middleware liên quan.
+- **Dữ liệu:** Model và migration chính.
+- **Kiểm thử:** Feature/Unit test quan trọng.
+```
+
+</details>

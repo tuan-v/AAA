@@ -71,6 +71,23 @@ const movementClass = type => ['import', 'transfer_in'].includes(type)
     : ['export', 'transfer_out'].includes(type)
         ? 'font-semibold text-red-600'
         : '';
+const sourceDocument = row => {
+    const source = row.source_document;
+
+    if (!source) {
+        return h('span', { class: 'text-gray-400' }, 'Không có chứng từ');
+    }
+
+    return h('div', { class: 'min-w-[150px] space-y-1' }, [
+        h('div', { class: 'font-semibold text-gray-800 dark:text-gray-100' }, [
+            h('span', { class: 'text-gray-500 dark:text-gray-400' }, `${source.label}: `),
+            source.code || `#${source.id}`,
+        ]),
+        source.order
+            ? h('div', { class: 'text-xs text-blue-600 dark:text-blue-400' }, `${source.order.label}: ${source.order.code || `#${source.order.id}`}`)
+            : h('div', { class: 'text-xs text-gray-500' }, source.type === 'transfer' ? 'Điều chuyển nội bộ' : 'Nhập/xuất không theo đơn'),
+    ]);
+};
 const todayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -84,6 +101,7 @@ const columns = [
     { label: 'Kho', render: row => h('span', row.warehouse?.name || '-') },
     { label: 'Sản phẩm', render: row => h('span', `${row.product?.sku || ''} - ${row.product?.name || '-'}`) },
     { label: 'Loại', render: row => h('span', { class: movementClass(row.type) }, labels[row.type] || row.type) },
+    { label: 'Chứng từ nguồn', render: sourceDocument },
     { label: 'Số lượng', render: row => h('span', quantity(row.quantity, row)) },
     { label: 'Đơn giá vốn', render: row => h('span', money(row.unit_cost, row)) },
     { label: 'Giá trị', render: row => h('span', money(row.total_value, row)) },

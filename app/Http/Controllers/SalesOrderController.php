@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\Warehouse;
+use App\Models\WarehouseSlipItem;
 use App\Services\ActivityLogService;
 use App\Services\CompanyCurrencyService;
 use App\Services\CustomerDebtService;
@@ -176,18 +177,49 @@ class SalesOrderController extends Controller
     {
         $orderId = $request->order_id;
 
-        $order = SalesOrder::with('items.product')->findOrFail($orderId);
+        $order = SalesOrder::with('items.product.unit')->findOrFail($orderId);
 
         $productIds = $order->items->pluck('product_id');
 
-        $warehouses = Warehouse::whereHas('stocks', function ($q) use ($productIds) {
-            $q->whereIn('product_id', $productIds)
-                ->where('quantity', '>', 0);
-        })
+        $pendingReservations = WarehouseSlipItem::query()
+            ->selectRaw('warehouse_slips.warehouse_id, warehouse_slip_items.product_id, SUM(warehouse_slip_items.quantity) as quantity')
+            ->join('warehouse_slips', 'warehouse_slips.id', '=', 'warehouse_slip_items.slip_id')
+            ->where('warehouse_slips.type', 'export')
+            ->where('warehouse_slips.status', 'pending')
+            ->whereIn('warehouse_slip_items.product_id', $productIds)
+            ->groupBy('warehouse_slips.warehouse_id', 'warehouse_slip_items.product_id')
+            ->get()
+            ->keyBy(fn ($row) => $row->warehouse_id.'-'.$row->product_id);
+
+        $warehouses = Warehouse::query()
+            ->where('status', 'active')
             ->with(['stocks' => function ($q) use ($productIds) {
                 $q->whereIn('product_id', $productIds);
             }])
-            ->get();
+            ->get()
+            ->map(function (Warehouse $warehouse) use ($order, $pendingReservations) {
+                $stocks = $warehouse->stocks->keyBy('product_id');
+                $availability = $order->items->map(function ($item) use ($warehouse, $stocks, $pendingReservations) {
+                    $stockQuantity = (float) ($stocks->get($item->product_id)?->quantity ?? 0);
+                    $reserved = (float) ($pendingReservations->get($warehouse->id.'-'.$item->product_id)?->quantity ?? 0);
+
+                    return [
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product?->name,
+                        'unit_name' => $item->product?->unit?->symbol ?: $item->product?->unit?->name,
+                        'stock_quantity' => $stockQuantity,
+                        'reserved_quantity' => $reserved,
+                        'available_quantity' => max(0, $stockQuantity - $reserved),
+                    ];
+                })->values();
+
+                return [
+                    'id' => $warehouse->id,
+                    'code' => $warehouse->code,
+                    'name' => $warehouse->name,
+                    'availability' => $availability,
+                ];
+            });
 
         return response()->json($warehouses);
     }
@@ -414,7 +446,7 @@ class SalesOrderController extends Controller
             DB::commit();
 
             $this->notificationService->createForPermission(
-                'don_ban.duyet',
+                'giao_dich.xem',
                 $company->id,
                 'Đơn bán mới chờ duyệt',
                 "Đơn bán {$order->code} vừa được tạo và đang chờ duyệt.",
@@ -426,7 +458,8 @@ class SalesOrderController extends Controller
                 ],
                 '/sale/orders',
                 auth()->id(),
-                'sale'
+                'accountant',
+                includeCompanyOwner: false
             );
 
             return response()->json([
@@ -570,6 +603,23 @@ class SalesOrderController extends Controller
                 'total_amount' => round($total, 2),
             ]);
             DB::commit();
+
+            $this->notificationService->createForPermission(
+                'giao_dich.xem',
+                $company->id,
+                'Đơn bán vừa được chỉnh sửa',
+                "Đơn bán {$order->code} vừa được chỉnh sửa và đang chờ duyệt.",
+                [
+                    'sales_order_id' => $order->id,
+                    'status' => 'pending',
+                    'event_type' => 'sales_order_updated',
+                    'toast_type' => 'warning',
+                ],
+                '/sale/orders',
+                auth()->id(),
+                'accountant',
+                includeCompanyOwner: false
+            );
 
             return response()->json(['message' => 'Cập nhật đơn hàng thành công.']);
         } catch (\Exception $e) {

@@ -28,13 +28,51 @@
 
         <!-- FORM BODY -->
         <div class="tx-body">
-            <!-- RELATED ORDER -->
-            <div class="section-label">Đơn hàng liên quan</div>
-            <div v-if="form.type === 'receipt' && !requiresSupplier" class="grid2">
+            <!-- CATEGORY -->
+            <div class="section-label">Phân loại</div>
+            <div class="field">
+                <label class="label">
+                    <i class="ti ti-tag"></i>Loại giao dịch <span class="required">*</span>
+                </label>
+                <FormSelect
+                    v-model="form.category_id"
+                    :options="categoryOptions"
+                    placeholder="Chọn loại giao dịch trước"
+                    :error="errors.category_id || ''"
+                    @update:model-value="onCategoryChange"
+                />
+                <p v-if="categoryMismatchMessage" class="category-error">
+                    <i class="ti ti-alert-circle"></i>
+                    {{ categoryMismatchMessage }}
+                </p>
+            </div>
+            <div class="field">
+                <label class="label">
+                    <i class="ti ti-wallet"></i>Hình thức giao dịch
+                    <span class="required">*</span>
+                </label>
+                <FormSelect
+                    v-model="form.payment_method"
+                    :options="paymentMethodOptions"
+                    placeholder="Chọn hình thức giao dịch"
+                    :can-clear="false"
+                    :error="errors.payment_method || ''"
+                />
+                <p v-if="form.type === 'transfer'" class="hint-text">
+                    Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.
+                </p>
+            </div>
+
+            <template v-if="showsRelatedPartyFields">
+                <div class="divider"></div>
+                <div class="section-label">Đối tượng và đơn liên quan</div>
+            </template>
+
+            <div v-if="showsCustomerFields" class="grid2">
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-user"></i>Khách hàng
-                        <span class="required">*</span>
+                        <span v-if="requiresCustomer" class="required">*</span>
                     </label>
                     <FormSelect
                         v-model="form.customer_id"
@@ -44,7 +82,7 @@
                         @update:model-value="onCustomerChange"
                     />
                 </div>
-                <div class="field">
+                <div v-if="requiresSalesOrder" class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn bán
                         <span class="required">*</span>
@@ -59,22 +97,7 @@
                 </div>
             </div>
 
-            <div v-if="form.type === 'receipt' && requiresSupplier" class="grid2">
-                <div class="field">
-                    <label class="label">
-                        <i class="ti ti-building-store"></i>Nhà cung cấp
-                        <span class="required">*</span>
-                    </label>
-                    <FormSelect
-                        v-model="form.supplier_id"
-                        :options="supplierOptions"
-                        placeholder="Chọn nhà cung cấp"
-                        :error="errors.supplier_id || ''"
-                    />
-                </div>
-            </div>
-
-            <div v-if="form.type === 'payment'" class="grid2">
+            <div v-if="showsSupplierFields" class="grid2">
                 <div class="field">
                     <label class="label">
                         <i class="ti ti-building-store"></i>Nhà cung cấp
@@ -88,7 +111,7 @@
                         @update:model-value="onSupplierChange"
                     />
                 </div>
-                <div class="field">
+                <div v-if="requiresPurchaseOrder" class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn mua
                         <span class="required">*</span>
@@ -122,42 +145,6 @@
                 {{ currencyMismatchMessage }}
             </div>
 
-            <div class="divider"></div>
-
-            <!-- CATEGORY -->
-            <div class="section-label">Phân loại</div>
-            <div class="field">
-                <label class="label">
-                    <i class="ti ti-tag"></i>Loại thanh toán <span class="required">*</span>
-                </label>
-                <FormSelect
-                    v-model="form.category_id"
-                    :options="categoryOptions"
-                    placeholder="Chọn loại thanh toán"
-                    :error="errors.category_id || ''"
-                />
-                <p v-if="categoryMismatchMessage" class="category-error">
-                    <i class="ti ti-alert-circle"></i>
-                    {{ categoryMismatchMessage }}
-                </p>
-            </div>
-            <div class="field">
-                <label class="label">
-                    <i class="ti ti-wallet"></i>Hình thức giao dịch
-                    <span class="required">*</span>
-                </label>
-                <FormSelect
-                    v-model="form.payment_method"
-                    :options="paymentMethodOptions"
-                    placeholder="Chọn hình thức giao dịch"
-                    :can-clear="false"
-                    :disabled="form.type === 'transfer'"
-                    :error="errors.payment_method || ''"
-                />
-                <p v-if="form.type === 'transfer'" class="hint-text">
-                    Chuyển nội bộ không làm phát sinh hoặc thanh toán công nợ.
-                </p>
-            </div>
             <div class="divider"></div>
 
             <!-- ACCOUNTS -->
@@ -229,7 +216,7 @@
                         </label>
                         <FormSelect
                             v-model="form.from_account_id"
-                            :options="accountOptions"
+                            :options="sourceAccountOptions"
                             placeholder="Chọn tài khoản chuyển"
                             :allow-create="canCreateAccount"
                             add-new-text="Tạo tài khoản mới"
@@ -248,13 +235,18 @@
                         </label>
                         <FormSelect
                             v-model="form.to_account_id"
-                            :options="accountOptions"
+                            :options="destinationAccountOptions"
                             placeholder="Chọn tài khoản nhận"
                             :allow-create="canCreateAccount"
                             add-new-text="Tạo tài khoản mới"
                             :error="errors.to_account_id || ''"
                             @add-new="openAccountCreate('to_account_id')"
                         />
+                        <p v-if="selectedDestinationAccount" class="account-balance">
+                            <i class="ti ti-wallet"></i>
+                            Số dư hiện tại:
+                            <strong>{{ formatAccountBalance(selectedDestinationAccount) }}</strong>
+                        </p>
                     </div>
                 </template>
             </div>
@@ -285,6 +277,19 @@
                         </span>
                     </div>
                     <p v-if="errors.amount" class="field-error">{{ errors.amount }}</p>
+                </div>
+                <div v-if="showsTransferConversion" class="field">
+                    <label class="label">
+                        <i class="ti ti-arrows-exchange"></i>Số tiền tài khoản nhận
+                    </label>
+                    <div class="amount-wrap conversion-result">
+                        <strong>{{ formatMoney(transferReceivedAmount) }}</strong>
+                        <span class="currency-badge">{{ destinationCurrencyLabel }}</span>
+                    </div>
+                    <p class="hint-text">
+                        Quy đổi theo tỷ giá hệ thống: 1 {{ sourceCurrencyLabel }} ≈
+                        {{ formatExchangeRatio(transferExchangeRatio) }} {{ destinationCurrencyLabel }}.
+                    </p>
                 </div>
             </div>
             <div class="divider"></div>
@@ -399,7 +404,7 @@ function setFieldErrors(values = {}) {
 function validateForm(markAttempted = true) {
     if (markAttempted) validationAttempted.value = true;
     const next = {};
-    if (!form.category_id) next.category_id = "Vui lòng chọn loại thanh toán.";
+    if (!form.category_id) next.category_id = "Vui lòng chọn loại giao dịch.";
     if (categoryMismatchMessage.value) next.category_id = categoryMismatchMessage.value;
     if (!form.payment_method) next.payment_method = "Vui lòng chọn hình thức giao dịch.";
     if (!Number(form.amount) || Number(form.amount) <= 0) next.amount = "Số tiền phải lớn hơn 0.";
@@ -485,7 +490,7 @@ function businessErrorFields(message = "") {
     if (/tài khoản nguồn|tài khoản chi/i.test(message)) return { from_account_id: message };
     if (/tài khoản nhận|tài khoản đích/i.test(message)) return { to_account_id: message };
     if (/ngày giao dịch/i.test(message)) return { transaction_date: message };
-    if (/loại thanh toán/i.test(message)) return { category_id: message };
+    if (/loại (thanh toán|giao dịch)/i.test(message)) return { category_id: message };
     return {};
 }
 
@@ -624,12 +629,22 @@ const selectedCategory = computed(() => {
 const selectedCategoryCode = computed(() => selectedCategory.value?.code || "");
 const requiresCustomer = computed(() => selectedCategoryCode.value === "THU_KH");
 const requiresSalesOrder = computed(() => selectedCategoryCode.value === "THU_KH");
+const isOtherPaymentCategory = computed(() =>
+    ["THU_KHAC", "CHI_KHAC"].includes(selectedCategoryCode.value),
+);
 const requiresSupplier = computed(() =>
     ["CHI_NCC", "TAM_UNG_NCC", "HOAN_TAM_UNG_NCC"].includes(
         selectedCategoryCode.value,
     ),
 );
 const requiresPurchaseOrder = computed(() => selectedCategoryCode.value === "CHI_NCC");
+const showsCustomerFields = computed(
+    () => requiresCustomer.value || isOtherPaymentCategory.value,
+);
+const showsSupplierFields = computed(() => requiresSupplier.value);
+const showsRelatedPartyFields = computed(
+    () => showsCustomerFields.value || showsSupplierFields.value,
+);
 
 // Thông báo lỗi khi category đã chọn không khớp loại giao dịch hiện tại
 // (phòng trường hợp dữ liệu cũ khi sửa giao dịch, hoặc select chưa lọc kịp)
@@ -639,7 +654,7 @@ const categoryMismatchMessage = computed(() => {
     const expectedType = TYPE_TO_CATEGORY_TYPE[form.type];
     if (cat.type !== expectedType) {
         const catLabel = CATEGORY_TYPE_LABELS[cat.type] || cat.type;
-        return `Loại thanh toán "${cat.name}" chỉ dùng cho giao dịch ${catLabel}, không phù hợp với giao dịch bạn đang tạo.`;
+        return `Loại giao dịch "${cat.name}" chỉ dùng cho giao dịch ${catLabel}, không phù hợp với giao dịch bạn đang tạo.`;
     }
     return "";
 });
@@ -704,6 +719,18 @@ const accountOptions = computed(() =>
     })),
 );
 
+const sourceAccountOptions = computed(() =>
+    accountOptions.value.filter(
+        (option) => Number(option.value) !== Number(form.to_account_id),
+    ),
+);
+
+const destinationAccountOptions = computed(() =>
+    accountOptions.value.filter(
+        (option) => Number(option.value) !== Number(form.from_account_id),
+    ),
+);
+
 function openAccountCreate(targetField) {
     accountTargetField.value = targetField;
     showAccountModal.value = true;
@@ -750,6 +777,46 @@ const selectedSourceAccount = computed(() => {
 const selectedPaymentAccount = computed(() =>
     form.type === "payment" ? selectedSourceAccount.value : null,
 );
+
+const selectedDestinationAccount = computed(() => {
+    if (form.type !== "transfer" || !form.to_account_id) return null;
+    return normalizedAccounts.value.find(
+        (account) => Number(account.id) === Number(form.to_account_id),
+    ) || null;
+});
+
+function accountCurrency(account) {
+    if (!account) return null;
+    const currencyId = account.currency_id || account.currency?.id;
+    return normalizedCurrencies.value.find(
+        (currency) => Number(currency.id) === Number(currencyId),
+    ) || account.currency || null;
+}
+
+const sourceAccountCurrency = computed(() => accountCurrency(selectedSourceAccount.value));
+const destinationAccountCurrency = computed(() => accountCurrency(selectedDestinationAccount.value));
+const sourceCurrencyLabel = computed(() => sourceAccountCurrency.value?.code || "");
+const destinationCurrencyLabel = computed(() => destinationAccountCurrency.value?.code || "");
+const transferExchangeRatio = computed(() => {
+    const sourceRate = Number(sourceAccountCurrency.value?.exchange_rate || form.exchange_rate || 1);
+    const destinationRate = Number(destinationAccountCurrency.value?.exchange_rate || 1);
+    return destinationRate > 0 ? sourceRate / destinationRate : 0;
+});
+const transferReceivedAmount = computed(() =>
+    Number(form.amount || 0) * transferExchangeRatio.value,
+);
+const showsTransferConversion = computed(() =>
+    form.type === "transfer"
+    && selectedSourceAccount.value
+    && selectedDestinationAccount.value
+    && sourceCurrencyLabel.value
+    && destinationCurrencyLabel.value
+    && sourceCurrencyLabel.value !== destinationCurrencyLabel.value,
+);
+const formatExchangeRatio = value => Number(value || 0).toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+});
 
 const amountInSourceAccountCurrency = computed(() => {
     const account = selectedSourceAccount.value;
@@ -840,12 +907,12 @@ watch(
             description: val.description ?? "",
         });
 
-        if (form.type === "receipt" && form.customer_id) {
+        if (requiresSalesOrder.value && form.customer_id) {
             await loadOrderOptions();
             if (form.sales_order_id) await onSalesOrderChange();
         }
 
-        if (form.type === "payment" && form.supplier_id) {
+        if (requiresPurchaseOrder.value && form.supplier_id) {
             await loadOrderOptions();
             if (form.purchase_order_id) await onPurchaseOrderChange();
         }
@@ -879,7 +946,6 @@ watch(
 watch(
     () => form.type,
     () => {
-        if (form.type === "transfer") form.payment_method = "bank_transfer";
         form.sales_order_id = "";
         form.purchase_order_id = "";
         form.customer_id = "";
@@ -892,13 +958,31 @@ watch(
 );
 
 watch(
+    () => form.from_account_id,
+    (value) => {
+        if (value && Number(value) === Number(form.to_account_id)) {
+            form.to_account_id = "";
+        }
+    },
+);
+
+watch(
+    () => form.to_account_id,
+    (value) => {
+        if (value && Number(value) === Number(form.from_account_id)) {
+            form.from_account_id = "";
+        }
+    },
+);
+
+watch(
     () => form.customer_id,
     (value) => {
         if (!value) {
             orderOptions.value = [];
             return;
         }
-        if (form.type === "receipt") {
+        if (requiresSalesOrder.value) {
             loadOrderOptions();
         }
     },
@@ -911,7 +995,7 @@ watch(
             orderOptions.value = [];
             return;
         }
-        if (form.type === "payment") {
+        if (requiresPurchaseOrder.value) {
             loadOrderOptions();
         }
     },
@@ -994,14 +1078,24 @@ function onCustomerChange() {
     form.sales_order_id = "";
     selectedOrderCurrency.value = null;
     selectedOrderRemaining.value = null;
-    loadOrderOptions();
+    if (requiresSalesOrder.value) loadOrderOptions();
 }
 
 function onSupplierChange() {
     form.purchase_order_id = "";
     selectedOrderCurrency.value = null;
     selectedOrderRemaining.value = null;
-    loadOrderOptions();
+    if (requiresPurchaseOrder.value) loadOrderOptions();
+}
+
+function onCategoryChange() {
+    form.customer_id = "";
+    form.supplier_id = "";
+    form.sales_order_id = "";
+    form.purchase_order_id = "";
+    orderOptions.value = [];
+    selectedOrderCurrency.value = null;
+    selectedOrderRemaining.value = null;
 }
 
 function onCurrencyChange() {

@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Models\CustomerDebt;
 use App\Models\InventoryMovement;
+use App\Models\Notification;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\SalesOrder;
@@ -30,6 +31,7 @@ class InventoryLifecycleEndToEndTest extends TestCase
         $purchaseUser = User::where('email', 'purchase@demo.vn')->firstOrFail();
         $warehouseUser = User::where('email', 'warehouse@demo.vn')->firstOrFail();
         $salesUser = User::where('email', 'sales@demo.vn')->firstOrFail();
+        $director = User::where('email', 'admin@demo.vn')->firstOrFail();
         $accountant = User::where('email', 'accountant@demo.vn')->firstOrFail();
         $supplier = Supplier::where('code', 'NCC-DEMO')->firstOrFail();
         $customer = Customer::where('code', 'KH-DEMO')->firstOrFail();
@@ -126,7 +128,51 @@ class InventoryLifecycleEndToEndTest extends TestCase
             'amount' => 600000,
             'vat_percent' => 10,
         ]);
+        $this->actingAs($salesUser)->putJson("/api/sale/orders/{$saleOrderId}", [
+            'customer_id' => $customer->id,
+            'currency_id' => $currencyId,
+            'province_id' => $customer->province_id,
+            'ward_id' => $customer->ward_id,
+            'address_detail' => $customer->address_detail,
+            'expected_delivery_date' => '2026-07-31',
+            'subtotal' => 600000,
+            'vat_amount' => 60000,
+            'total_amount' => 660000,
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 2,
+                'unit_price' => 300000,
+                'vat_percent' => 10,
+                'amount' => 600000,
+            ]],
+        ])->assertOk();
+        $salesUpdateNotification = Notification::query()
+            ->where('user_id', $accountant->id)
+            ->where('title', 'Đơn bán vừa được chỉnh sửa')
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame('sales_order_updated', $salesUpdateNotification->data['event_type']);
+        $this->assertSame($saleOrderId, $salesUpdateNotification->data['sales_order_id']);
+        $this->assertSame('accountant', $salesUpdateNotification->category);
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $director->id,
+            'title' => 'Đơn bán vừa được chỉnh sửa',
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $director->id,
+            'title' => 'Đơn bán mới chờ duyệt',
+        ]);
         $this->actingAs($salesUser)->postJson("/api/sale/orders/{$saleOrderId}/approve")->assertOk();
+
+        $availability = $this->actingAs($warehouseUser)
+            ->getJson("/api/available-for-export?order_id={$saleOrderId}")
+            ->assertOk()
+            ->collect()
+            ->firstWhere('id', $destination->id);
+        $this->assertEquals(
+            2,
+            collect($availability['availability'])->firstWhere('product_id', $product->id)['available_quantity'],
+        );
 
         $exportSlipId = $this->actingAs($warehouseUser)->postJson('/api/warehouse/slips', [
             'type' => 'export',
@@ -135,6 +181,13 @@ class InventoryLifecycleEndToEndTest extends TestCase
             'note' => 'Xuất kho E2E',
             'items' => [['product_id' => $product->id, 'quantity' => 2]],
         ])->assertOk()->json('slip.id');
+        $this->actingAs($warehouseUser)->postJson('/api/warehouse/slips', [
+            'type' => 'export',
+            'warehouse_id' => $destination->id,
+            'sales_order_id' => $saleOrderId,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', "Kho đã chọn không đủ {$product->name}. Tồn khả dụng: 0.");
         $this->actingAs($warehouseUser)->postJson("/api/warehouse/slips/{$exportSlipId}/approve")->assertOk();
         $this->actingAs($accountant)->postJson("/api/warehouse/slips/{$exportSlipId}/accountant-approve")->assertOk();
 
@@ -154,8 +207,17 @@ class InventoryLifecycleEndToEndTest extends TestCase
             ->assertJsonPath('summary.import_slips_count', 0)
             ->assertJsonPath('summary.sold_products_count', 1)
             ->assertJsonPath('summary.revenue', 600000)
+            ->assertJsonPath('orders.0.order_id', $saleOrderId)
+            ->assertJsonPath('orders.0.order_code', SalesOrder::findOrFail($saleOrderId)->code)
+            ->assertJsonPath('orders.0.export_slips_count', 1)
+            ->assertJsonPath('orders.0.revenue', 600000)
             ->assertJsonPath('sales.0.order_code', SalesOrder::findOrFail($saleOrderId)->code)
             ->assertJsonCount(1, 'sales');
+        $this->assertEqualsWithDelta(
+            (float) $report->json('orders.0.revenue') - (float) $report->json('orders.0.cost'),
+            (float) $report->json('orders.0.profit'),
+            0.01
+        );
         $this->assertGreaterThan(0, (float) $report->json('summary.cost_of_goods'));
         $this->assertEqualsWithDelta(
             (float) $report->json('summary.revenue') - (float) $report->json('summary.cost_of_goods'),

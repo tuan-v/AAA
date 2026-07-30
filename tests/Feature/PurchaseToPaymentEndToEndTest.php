@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\Product;
+use App\Models\Notification;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\SupplierDebt;
@@ -24,6 +25,7 @@ class PurchaseToPaymentEndToEndTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $purchaseUser = User::where('email', 'purchase@demo.vn')->firstOrFail();
+        $director = User::where('email', 'admin@demo.vn')->firstOrFail();
         $warehouseUser = User::where('email', 'warehouse@demo.vn')->firstOrFail();
         $accountant = User::where('email', 'accountant@demo.vn')->firstOrFail();
         $supplier = Supplier::where('code', 'NCC-DEMO')->firstOrFail();
@@ -64,6 +66,23 @@ class PurchaseToPaymentEndToEndTest extends TestCase
                 'vat_percent' => 10,
             ]],
         ])->assertOk();
+
+        $purchaseUpdateNotification = Notification::query()
+            ->where('user_id', $accountant->id)
+            ->where('title', 'Đơn mua vừa được chỉnh sửa')
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame('purchase_order_updated', $purchaseUpdateNotification->data['event_type']);
+        $this->assertSame($orderId, $purchaseUpdateNotification->data['purchase_order_id']);
+        $this->assertSame('accountant', $purchaseUpdateNotification->category);
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $director->id,
+            'title' => 'Đơn mua vừa được chỉnh sửa',
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $director->id,
+            'title' => 'Đơn mua mới chờ duyệt',
+        ]);
 
         $this->assertGreaterThan(0, (float) PurchaseOrder::findOrFail($orderId)->exchange_rate);
 

@@ -599,11 +599,44 @@ onMounted(() => {
     --ms-option-bg-selected: #3b82f6;
     --ms-option-bg-selected-pointed: #2563eb;
     --ms-option-color-pointed: #1e40af;
-    --ms-radius: 0.25rem;
+    --ms-radius: 0.75rem;
     --ms-bg: #ffffff;
     --ms-border-color: #d1d5db;
     --ms-text-color: #111827;
     --ms-placeholder-color: #6b7280;
+    min-height: 44px;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 160ms ease, box-shadow 160ms ease,
+        background-color 160ms ease;
+}
+
+.multiselect-custom.is-active {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.multiselect-custom .multiselect-search,
+.multiselect-custom .multiselect-single-label,
+.multiselect-custom .multiselect-placeholder {
+    font-size: 0.875rem;
+}
+
+.multiselect-custom .multiselect-dropdown {
+    margin-top: 6px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.875rem;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+}
+
+.multiselect-custom .multiselect-option {
+    min-height: 42px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.875rem;
 }
 
 /* Dark mode - theo theme của ứng dụng */
@@ -639,30 +672,36 @@ onMounted(() => {
 }
 
 /* Custom scrollbar cho dropdown */
-:deep(.multiselect-dropdown) {
+.multiselect-custom .multiselect-dropdown {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
 }
 
-:deep(.multiselect-dropdown::-webkit-scrollbar) {
+.multiselect-custom .multiselect-dropdown::-webkit-scrollbar {
     width: 8px;
 }
 
-:deep(.multiselect-dropdown::-webkit-scrollbar-track) {
+.multiselect-custom .multiselect-dropdown::-webkit-scrollbar-track {
     background: transparent;
 }
 
-:deep(.multiselect-dropdown::-webkit-scrollbar-thumb) {
+.multiselect-custom .multiselect-dropdown::-webkit-scrollbar-thumb {
     background-color: #cbd5e1;
     border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
 }
 
-.dark :deep(.multiselect-dropdown::-webkit-scrollbar-thumb) {
+.multiselect-custom .multiselect-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+.dark .multiselect-custom .multiselect-dropdown::-webkit-scrollbar-thumb {
     background-color: #475569;
 }
 
 /* Loading indicator */
-:deep(.multiselect-spinner) {
+.multiselect-custom .multiselect-spinner {
     border-color: #3b82f6 transparent transparent transparent;
 }
 </style>

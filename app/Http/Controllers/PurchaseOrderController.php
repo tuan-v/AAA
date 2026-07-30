@@ -346,7 +346,7 @@ class PurchaseOrderController extends Controller
             DB::commit();
 
             $this->notificationService->createForPermission(
-                'don_mua.duyet',
+                'giao_dich.xem',
                 $company->id,
                 'Đơn mua mới chờ duyệt',
                 "Đơn mua {$order->code} vừa được tạo và đang chờ duyệt.",
@@ -358,7 +358,8 @@ class PurchaseOrderController extends Controller
                 ],
                 '/purchase/orders',
                 auth()->id(),
-                'purchase'
+                'accountant',
+                includeCompanyOwner: false
             );
 
             return response()->json([
@@ -494,6 +495,23 @@ class PurchaseOrderController extends Controller
                 'status' => 'pending'
             ]);
         });
+
+        $this->notificationService->createForPermission(
+            'giao_dich.xem',
+            $this->companyId(),
+            'Đơn mua vừa được chỉnh sửa',
+            "Đơn mua {$order->code} vừa được chỉnh sửa và đang chờ duyệt.",
+            [
+                'purchase_order_id' => $order->id,
+                'status' => 'pending',
+                'event_type' => 'purchase_order_updated',
+                'toast_type' => 'warning',
+            ],
+            '/purchase/orders',
+            auth()->id(),
+            'accountant',
+            includeCompanyOwner: false
+        );
 
         return response()->json([
             'message' => 'Cập nhật đơn thành công'

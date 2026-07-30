@@ -269,7 +269,15 @@ class CustomerController extends Controller
             },
         ])->findOrFail($id);
 
-        $openingDebt = $canViewDebt ? (float) $customer->opening_debt_base : 0;
+        $partyRate = app(CompanyCurrencyService::class)->rate(
+            (int) $customer->company_id,
+            (int) $customer->currency_id,
+            now(),
+        );
+        $toPartyCurrency = fn (float $amountBase): float => round($amountBase / $partyRate, 2);
+
+        $openingDebtBase = $canViewDebt ? (float) $customer->opening_debt_base : 0;
+        $openingDebt = $toPartyCurrency($openingDebtBase);
         $debtEntries = $canViewDebt
             ? $customer->debts()->latest()->get()
             : collect();
@@ -278,20 +286,24 @@ class CustomerController extends Controller
             ? $customer->payments()->latest()->limit(10)->get()
             : collect();
 
-        $totalReceivable = (float) abs($debtEntries
+        $totalReceivableBase = (float) abs($debtEntries
             ->whereIn('type', ['sale', 'refund'])
             ->sum('amount'));
-        $totalPaid = (float) abs($debtEntries
+        $totalPaidBase = (float) abs($debtEntries
             ->where('type', 'payment')
             ->sum('amount'));
+        $totalReceivable = $toPartyCurrency($totalReceivableBase);
+        $totalPaid = $toPartyCurrency($totalPaidBase);
         $remainingDebt = $openingDebt + $totalReceivable - $totalPaid;
 
-        $companyCurrency = auth()->user()->company?->currencies()
-            ->wherePivot('is_default', true)->first();
+        $displayCurrency = $customer->currency;
+        $customer->setAttribute('opening_debt_base', $openingDebt);
+        $customer->setAttribute('display_exchange_rate', $partyRate);
 
         return response()->json([
             'customer' => $customer,
-            'company_currency' => $companyCurrency,
+            'company_currency' => $displayCurrency,
+            'display_currency' => $displayCurrency,
             'debt_summary' => [
                 'opening_debt'     => $openingDebt,
                 'total_receivable' => abs($totalReceivable),
@@ -304,14 +316,15 @@ class CustomerController extends Controller
                 'order_date' => $order->created_at?->toIso8601String(),
                 'created_at' => $order->created_at?->toIso8601String(),
                 'total_amount' => $order->total_amount,
-                'total_amount_base' => round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2),
+                'total_amount_base' => $toPartyCurrency(round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2)),
                 'status' => $order->status,
             ]),
             'debt_history'  => $debtEntries->map(fn ($item) => [
                 'id' => $item->id,
                 'type' => $item->type,
                 'note' => $item->note,
-                'amount' => (float) $item->amount,
+                'amount' => $toPartyCurrency((float) ($item->amount_base ?? $item->amount)),
+                'amount_base' => (float) ($item->amount_base ?? $item->amount),
                 'created_at' => $item->created_at,
                 'transaction' => $item->reference instanceof Transaction ? [
                     'id' => $item->reference->id,

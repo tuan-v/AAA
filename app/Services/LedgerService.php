@@ -9,6 +9,10 @@ use InvalidArgumentException;
 
 class LedgerService
 {
+    public function __construct(
+        private CompanyCurrencyService $currencyService,
+    ) {}
+
     /**
      * Ghi sổ kế toán cho giao dịch.
      */
@@ -126,9 +130,12 @@ class LedgerService
             return (float) $transaction->amount;
         }
 
-        return (float) (
-            $transaction->amount_base /
-            ($account->currency->exchange_rate ?: 1)
+        $accountRate = $this->currencyService->rate(
+            (int) $transaction->company_id,
+            (int) $account->currency_id,
+            $transaction->transaction_date,
         );
+
+        return round((float) $transaction->amount_base / $accountRate, 2);
     }
 }

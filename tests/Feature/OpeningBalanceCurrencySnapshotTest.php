@@ -66,5 +66,21 @@ class OpeningBalanceCurrencySnapshotTest extends TestCase
         $supplier = Supplier::where('email', 'usd.supplier@example.com')->firstOrFail();
         $this->assertEquals(5220000, $supplier->opening_debt_base);
         $this->assertEquals(1305000, $supplier->opening_advance_base);
+
+        $this->actingAs($owner)
+            ->getJson("/api/sale/customers/{$customer->id}/detail")
+            ->assertSuccessful()
+            ->assertJsonPath('company_currency.code', 'USD')
+            ->assertJsonPath('customer.currency.code', 'USD')
+            ->assertJsonPath('debt_summary.opening_debt', 100)
+            ->assertJsonPath('debt_summary.remaining_debt', 100);
+
+        $this->actingAs($owner)
+            ->getJson("/api/purchase/suppliers/{$supplier->id}/detail")
+            ->assertSuccessful()
+            ->assertJsonPath('company_currency.code', 'USD')
+            ->assertJsonPath('supplier.currency.code', 'USD')
+            ->assertJsonPath('debt_summary.opening_debt', 200)
+            ->assertJsonPath('debt_summary.remaining_debt', 200);
     }
 }

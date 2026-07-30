@@ -192,31 +192,40 @@ class SupplierController extends Controller
             },
         ])->findOrFail($id);
 
-        $openingDebt = (float) ($supplier->opening_debt_base ?? 0);
+        $partyRate = app(CompanyCurrencyService::class)->rate(
+            (int) $supplier->company_id,
+            (int) $supplier->currency_id,
+            now(),
+        );
+        $toPartyCurrency = fn (float $amountBase): float => round($amountBase / $partyRate, 2);
+
+        $openingDebt = $toPartyCurrency((float) ($supplier->opening_debt_base ?? 0));
 
         $debtEntries = $supplier->debts;
         $debtEntries->load('reference');
 
         // Tổng phát sinh phải trả
-        $totalPayable = (float) abs(
+        $totalPayableBase = (float) abs(
             $debtEntries
                 ->whereIn('type', ['invoice', 'adjustment'])
                 ->sum('amount')
         );
 
         // Đã thanh toán
-        $totalPaid = (float) abs(
+        $totalPaidBase = (float) abs(
             $debtEntries
                 ->where('type', 'payment')
                 ->sum('amount')
         );
 
+        $totalPayable = $toPartyCurrency($totalPayableBase);
+        $totalPaid = $toPartyCurrency($totalPaidBase);
         $remainingDebt = $openingDebt + $totalPayable - $totalPaid;
-        $companyCurrency = $this->currencyService
-            ->getCompanyCurrency(auth()->user()->company);
+        $displayCurrency = $supplier->currency;
 
         return response()->json([
-            'company_currency' => $companyCurrency,
+            'company_currency' => $displayCurrency,
+            'display_currency' => $displayCurrency,
 
             'supplier' => [
 
@@ -236,6 +245,7 @@ class SupplierController extends Controller
                 'opening_debt' => $openingDebt,
                 'opening_debt_base' => $openingDebt,
                 'opening_debt_original' => (float) $supplier->opening_debt,
+                'display_exchange_rate' => $partyRate,
 
                 'address_detail' => $supplier->address_detail,
 
@@ -264,7 +274,7 @@ class SupplierController extends Controller
                 'remaining_debt' => $remainingDebt,
             ],
 
-            'recent_orders' => $supplier->purchaseOrders->map(function ($order) {
+            'recent_orders' => $supplier->purchaseOrders->map(function ($order) use ($toPartyCurrency) {
 
                 return [
                     'id' => $order->id,
@@ -272,7 +282,7 @@ class SupplierController extends Controller
                     'order_date' => $order->created_at?->toIso8601String(),
                     'created_at' => $order->created_at?->toIso8601String(),
                     'total_amount' => $order->total_amount,
-                    'total_amount_base' => round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2),
+                    'total_amount_base' => $toPartyCurrency(round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2)),
                     'exchange_rate' => $order->exchange_rate,
 
                     'currency' => [
@@ -287,13 +297,14 @@ class SupplierController extends Controller
             'debt_history' => $debtEntries
                 ->sortByDesc('created_at')
                 ->values()
-                ->map(function ($item) {
+                ->map(function ($item) use ($toPartyCurrency) {
 
                     return [
                         'id' => $item->id,
                         'type' => $item->type,
                         'note' => $item->note,
-                        'amount' => $item->amount,
+                        'amount' => $toPartyCurrency((float) ($item->amount_base ?? $item->amount)),
+                        'amount_base' => (float) ($item->amount_base ?? $item->amount),
                         'created_at' => $item->created_at,
                         'transaction' => $item->reference instanceof Transaction ? [
                             'id' => $item->reference->id,

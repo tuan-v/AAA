@@ -181,6 +181,44 @@ class TransactionFlowTest extends TestCase
         $this->assertEquals(50, $destination->fresh()->current_balance);
         $this->assertSame(2, AccountLedger::where('transaction_id', $internalTransfer->id)->count());
 
+        $cashDestination = Account::create([
+            'company_id' => $company->id, 'code' => 'TM02', 'name' => 'Tiền mặt nhận', 'type' => 'cash',
+            'currency_id' => $currency->id, 'opening_balance' => 0, 'current_balance' => 0, 'is_active' => true,
+        ]);
+        $cashTransfer = $service->create([
+            'type' => 'transfer', 'payment_method' => 'cash', 'amount' => 25,
+            'category_id' => $transferCategory->id,
+            'from_account_id' => $account->id, 'to_account_id' => $cashDestination->id,
+            'transaction_date' => '2026-07-20',
+        ]);
+        $service->approve($cashTransfer->id);
+        $this->assertEquals(125, $account->fresh()->current_balance);
+        $this->assertEquals(25, $cashDestination->fresh()->current_balance);
+
+        $usd = Currency::create([
+            'name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'exchange_rate' => 25000, 'is_active' => true,
+        ]);
+        $company->currencies()->attach($usd->id, ['is_default' => false]);
+        $usdSource = Account::create([
+            'company_id' => $company->id, 'code' => 'USD01', 'name' => 'USD source', 'type' => 'bank',
+            'bank_id' => $bank->id, 'bank_account_no' => '001000000003',
+            'currency_id' => $usd->id, 'opening_balance' => 100, 'current_balance' => 100, 'is_active' => true,
+        ]);
+        $crossCurrencyTransfer = $service->create([
+            'type' => 'transfer', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $transferCategory->id,
+            'from_account_id' => $usdSource->id, 'to_account_id' => $destination->id,
+            'transaction_date' => '2026-07-20',
+        ]);
+        $service->approve($crossCurrencyTransfer->id);
+        $this->assertEquals(90, $usdSource->fresh()->current_balance);
+        $this->assertEquals(250050, $destination->fresh()->current_balance);
+        $this->assertDatabaseHas('account_ledgers', [
+            'transaction_id' => $crossCurrencyTransfer->id,
+            'account_id' => $destination->id,
+            'debit' => 250000,
+        ]);
+
         $bankReceipt = $service->create([
             'type' => 'receipt', 'payment_method' => 'bank_transfer', 'amount' => 25,
             'currency_id' => $currency->id, 'category_id' => $category->id,
@@ -188,7 +226,7 @@ class TransactionFlowTest extends TestCase
         ]);
         $bankReceipt = $service->approve($bankReceipt->id);
         $this->assertSame('other_receipt', $bankReceipt->purpose);
-        $this->assertEquals(75, $destination->fresh()->current_balance);
+        $this->assertEquals(250075, $destination->fresh()->current_balance);
         $this->assertSame(1, AccountLedger::where('transaction_id', $bankReceipt->id)->count());
 
         $rejected = $service->create([...$payload, 'amount' => 20]);
@@ -205,6 +243,15 @@ class TransactionFlowTest extends TestCase
             'company_id' => $company->id, 'code' => 'KH-TX', 'name' => 'Khách giao dịch',
             'phone' => '0911111111', 'currency_id' => $currency->id, 'opening_debt' => 100, 'status' => 'active',
         ]);
+        $otherCustomerReceipt = $service->create([
+            ...$payload,
+            'amount' => 10,
+            'customer_id' => $customer->id,
+        ]);
+        $this->assertSame($customer->id, $otherCustomerReceipt->customer_id);
+        $this->assertNull($otherCustomerReceipt->sales_order_id);
+        $service->delete($otherCustomerReceipt->id);
+
         $order = SalesOrder::create([
             'company_id' => $company->id, 'code' => 'SO-TX', 'customer_id' => $customer->id,
             'currency_id' => $currency->id, 'exchange_rate' => 1, 'total_amount' => 100,
