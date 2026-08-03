@@ -8,6 +8,7 @@ class SupplierDebt extends Model
 {
     public const TYPE_INVOICE = 'invoice';
     public const TYPE_PAYMENT = 'payment';
+    public const TYPE_OPENING_PAYMENT = 'opening_payment';
     public const TYPE_REFUND = 'refund';
     public const TYPE_ADVANCE = 'advance';
     public const TYPE_ADVANCE_REFUND = 'advance_refund';

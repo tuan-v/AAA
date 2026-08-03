@@ -273,13 +273,6 @@ const statusMeta = {
     ],
     blocked: ["Đã khóa", "bg-red-50 text-red-700 ring-red-600/20"],
     inactive: ["Ngừng hoạt động", "bg-red-100 text-red-600 ring-red-500/20"],
-    pending: ["Chờ kích hoạt", "bg-amber-50 text-amber-700 ring-amber-600/20"],
-    pending_edit: [
-        "Cần chỉnh sửa",
-        "bg-orange-50 text-orange-700 ring-orange-600/20",
-    ],
-    rejected_final: ["Từ chối", "bg-red-100 text-red-800 ring-red-700/20"],
-    expired: ["Đã hết hạn", "bg-slate-100 text-slate-700 ring-slate-600/20"],
 };
 
 const columns = [
@@ -367,11 +360,7 @@ const actions = computed(() => [
         type: "edit",
         hidden: (item) =>
             !can("nhan_su.sua") ||
-            ["rejected_final", "expired"].includes(item.status) ||
-            (item.status === "pending" && Boolean(item.last_resubmitted_at)) ||
-            (item.status === "pending_edit"
-                ? item.can_edit_pending_edit !== true
-                : item.can_be_managed === false),
+            item.can_be_managed === false,
         onClick: openEdit,
         tooltip: "Chỉnh sửa",
     },
@@ -380,9 +369,6 @@ const actions = computed(() => [
         icon: (item) => (item.status === "active" ? Lock : Unlock),
         iconByItem: true,
         hidden: (item) =>
-            ["pending", "pending_edit", "rejected_final", "expired"].includes(
-                item.status,
-            ) ||
             !can("nhan_su.khoa") ||
             item.can_be_managed === false,
         onClick: toggleStatus,
@@ -391,7 +377,7 @@ const actions = computed(() => [
     {
         icon: DetailButtonIcon,
         type: "view",
-        hidden: (item) => item.status === "pending" || !can("nhan_su.xem"),
+        hidden: () => !can("nhan_su.xem"),
         onClick: (item) => openDetail(item.id),
         tooltip: "Xem chi tiết",
     },
@@ -480,67 +466,6 @@ async function toggleStatus(user) {
     } catch (error) {
         toast.error(
             error.response?.data?.message || "Không thể cập nhật trạng thái.",
-        );
-    }
-}
-
-async function approveUser(user) {
-    try {
-        await axios.patch(`/api/users/${user.id}/approve`);
-        user.status = "active";
-        toast.success("Đã duyệt và kích hoạt tài khoản");
-    } catch (error) {
-        toast.error(
-            error.response?.data?.message || "Không thể duyệt tài khoản.",
-        );
-    }
-}
-
-async function rejectUser(user) {
-    const rejection = await promptAction({
-        title: "Từ chối tài khoản",
-        message: `Tài khoản ${user.name} sẽ được trả về để chỉnh sửa.`,
-        inputLabel: "Lý do từ chối",
-        inputPlaceholder: "Nhập nội dung cần sửa...",
-        inputRequired: true,
-        inputMinLength: 5,
-        choiceLabel: "Hình thức từ chối",
-        choiceOptions: [
-            { value: "reject_and_return", label: "Trả về để chỉnh sửa" },
-            { value: "reject_final", label: "Từ chối dứt điểm" },
-        ],
-        confirmText: "Từ chối",
-        tone: "danger",
-    });
-    if (rejection === null) return;
-
-    try {
-        const response = await axios.patch(`/api/users/${user.id}/reject`, {
-            reason: rejection.input,
-            rejection_type: rejection.choice,
-        });
-        user.status = response.data?.data?.status || "pending_edit";
-        user.rejection_reason = rejection.input;
-        toast.success(
-            response.data?.message || "Đã trả yêu cầu về để chỉnh sửa",
-        );
-    } catch (error) {
-        toast.error(
-            error.response?.data?.message || "Không thể từ chối tài khoản.",
-        );
-    }
-}
-
-async function resubmitUser(user) {
-    try {
-        const response = await axios.patch(`/api/users/${user.id}/resubmit`);
-        user.status = "pending";
-        user.rejection_reason = null;
-        toast.success(response.data?.message || "Đã gửi duyệt lại tài khoản");
-    } catch (error) {
-        toast.error(
-            error.response?.data?.message ||
-                "Không thể gửi duyệt lại tài khoản.",
         );
     }
 }

@@ -17,6 +17,7 @@ class WarehouseSlip extends Model
         'warehouse_id',
         'purchase_order_id',
         'sales_order_id',
+        'return_of_slip_id',
         'type',
         'note',
         'created_by',
@@ -25,11 +26,22 @@ class WarehouseSlip extends Model
         'approved_by',
         'approved_at',
         'status',
+        'return_status',
+        'return_reason',
+        'return_requested_by',
+        'return_requested_at',
+        'return_received_by',
+        'return_received_at',
+        'return_approved_by',
+        'return_approved_at',
     ];
     protected $casts = [
         'approved_at' => 'datetime',
         'submitted_to_accountant_at' => 'datetime',
         'created_at' => 'datetime',
+        'return_requested_at' => 'datetime',
+        'return_received_at' => 'datetime',
+        'return_approved_at' => 'datetime',
     ];
 
     public function warehouse()
@@ -58,6 +70,10 @@ class WarehouseSlip extends Model
             'sales_order_id'
         );
     }
+    public function returnOfSlip()
+    {
+        return $this->belongsTo(self::class, 'return_of_slip_id');
+    }
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -75,7 +91,11 @@ class WarehouseSlip extends Model
     {
         static::creating(function ($slip) {
             if (!$slip->code) {
-                $prefix = $slip->type === 'import' ? 'PN' : 'PX';
+                $prefix = match ($slip->type) {
+                    'import' => 'PN',
+                    'return' => 'PHT',
+                    default => 'PX',
+                };
 
                 // Truyền cả Class và Prefix vào để Service phân biệt nhóm số đếm
                 $slip->code = app(CodeGeneratorService::class)

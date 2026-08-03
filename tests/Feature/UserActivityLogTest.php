@@ -21,6 +21,7 @@ class UserActivityLogTest extends TestCase
 
     public function test_create_approve_reject_lock_and_unlock_are_logged(): void
     {
+        $this->markTestSkipped('Luồng approve/reject nhân viên đã được loại bỏ.');
         Event::fake([NotificationCreated::class]);
         $this->seed(DatabaseSeeder::class);
         $this->seed(DepartmentDemoSeeder::class);
@@ -105,6 +106,7 @@ class UserActivityLogTest extends TestCase
 
     public function test_manager_cannot_review_a_pending_employee(): void
     {
+        $this->markTestSkipped('Không còn endpoint duyệt/từ chối nhân viên.');
         Event::fake([NotificationCreated::class]);
         $this->seed(DatabaseSeeder::class);
 
@@ -138,6 +140,31 @@ class UserActivityLogTest extends TestCase
             ->assertForbidden();
 
         $this->assertSame(User::STATUS_PENDING, $employee->fresh()->status);
+    }
+
+    public function test_employee_is_active_immediately_and_lock_unlock_are_logged(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DepartmentDemoSeeder::class);
+        $this->seed(DepartmentEmployeeDemoSeeder::class);
+
+        $hr = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $director = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $department = Department::where('company_id', $hr->company_id)->where('code', 'PB-005')->firstOrFail();
+        $position = Position::where('company_id', $hr->company_id)->where('code', 'CV-105')->firstOrFail();
+        $userId = $this->actingAs($hr)->postJson('/api/users/user', [
+            'name' => 'Nhân sự không cần duyệt', 'username' => 'no_approval_employee',
+            'email' => 'no.approval@demo.vn', 'phone' => '0902777777',
+            'password' => 'Test@123456', 'password_confirmation' => 'Test@123456',
+            'status' => User::STATUS_ACTIVE, 'role' => 'Nhân viên bán hàng',
+            'department_id' => $department->id, 'position_id' => $position->id,
+        ])->assertCreated()->assertJsonPath('user.status', User::STATUS_ACTIVE)->json('user.id');
+
+        $this->actingAs($director)->patchJson("/api/users/{$userId}/approve")->assertNotFound();
+        $this->actingAs($director)->patchJson("/api/users/{$userId}/status", ['status' => User::STATUS_BLOCKED])->assertOk();
+        $this->assertUserLog($director, $userId, 'lock');
+        $this->actingAs($director)->patchJson("/api/users/{$userId}/status", ['status' => User::STATUS_ACTIVE])->assertOk();
+        $this->assertUserLog($director, $userId, 'unlock');
     }
 
     private function assertUserLog(User $actor, int $userId, string $action): void

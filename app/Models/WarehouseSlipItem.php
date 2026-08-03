@@ -10,6 +10,7 @@ class WarehouseSlipItem extends Model
         'slip_id',
         'product_id',
         'quantity',
+        'returned_quantity',
         'price',
         'company_price',
         'cost_price',

@@ -92,6 +92,8 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:khach_hang.xem');
         Route::get('/orders', fn () => Inertia::render('Sale/Order/Index'))
             ->middleware('permission:don_ban.xem');
+        Route::get('/pos', fn () => Inertia::render('Sale/Pos/Index'))
+            ->middleware('permission:don_ban.them');
     });
 
     /*

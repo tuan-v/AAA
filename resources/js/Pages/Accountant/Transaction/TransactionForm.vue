@@ -82,6 +82,25 @@
                         @update:model-value="onCustomerChange"
                     />
                 </div>
+                <div v-if="showsCustomerOpeningDebt" class="field">
+                    <label class="label">
+                        <i class="ti ti-report-money"></i>Công nợ đầu kỳ
+                    </label>
+                    <div class="opening-debt-display">
+                        <strong>
+                            {{ formatMoney(selectedCustomer.opening_debt_remaining || 0) }}
+                            {{ selectedCustomer.company_currency?.code || companyCurrency?.code || selectedCustomerCurrencyLabel }}
+                        </strong>
+                        <small v-if="Number(selectedCustomer.opening_debt_remaining || 0) <= 0">Không còn công nợ để thu.</small>
+                    </div>
+                </div>
+                <div v-if="showsCustomerAdvance" class="field">
+                    <label class="label"><i class="ti ti-cash"></i>Số dư tạm ứng khách hàng</label>
+                    <div class="opening-debt-display">
+                        <strong>{{ formatMoney(selectedCustomer.advance_balance || 0) }} {{ companyCurrency?.code || selectedCustomerCurrencyLabel }}</strong>
+                        <small v-if="isCustomerAdvanceRefund && Number(selectedCustomer.advance_balance || 0) <= 0">Không còn tạm ứng để hoàn.</small>
+                    </div>
+                </div>
                 <div v-if="requiresSalesOrder" class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn bán
@@ -111,6 +130,27 @@
                         @update:model-value="onSupplierChange"
                     />
                 </div>
+                <div v-if="showsSupplierDebt" class="field">
+                    <label class="label">
+                        <i class="ti ti-report-money"></i>Công nợ nhà cung cấp
+                    </label>
+                    <div class="opening-debt-display supplier-debt-display">
+                        <span>Công nợ đầu kỳ còn lại</span>
+                        <strong>
+                            {{ formatMoney(selectedSupplier.opening_debt_remaining || 0) }}
+                            {{ selectedSupplier.company_currency?.code || companyCurrency?.code }}
+                        </strong>
+                        <small v-if="Number(selectedSupplier.opening_debt_remaining || 0) <= 0">Không còn công nợ để thanh toán.</small>
+                        <small v-else>Không bao gồm công nợ phát sinh từ đơn mua.</small>
+                    </div>
+                </div>
+                <div v-if="showsSupplierAdvance" class="field">
+                    <label class="label"><i class="ti ti-cash"></i>Số dư tạm ứng nhà cung cấp</label>
+                    <div class="opening-debt-display">
+                        <strong>{{ formatMoney(selectedSupplier.advance_balance || 0) }} {{ selectedSupplier.company_currency?.code || companyCurrency?.code || selectedSupplierCurrencyLabel }}</strong>
+                        <small v-if="isSupplierAdvanceRefund && Number(selectedSupplier.advance_balance || 0) <= 0">Không còn tạm ứng để hoàn.</small>
+                    </div>
+                </div>
                 <div v-if="requiresPurchaseOrder" class="field">
                     <label class="label">
                         <i class="ti ti-file-description"></i>Đơn mua
@@ -138,6 +178,17 @@
                     >{{ formatMoney(selectedOrderRemaining) }}
                     {{ selectedCurrencyLabel }}</strong
                 >
+            </div>
+            <div v-if="canUseSupplierAdvance" class="advance-payment-box">
+                <label class="advance-payment-toggle">
+                    <input v-model="useSupplierAdvance" type="checkbox" @change="applySupplierAdvance" />
+                    <span>Dùng tạm ứng nhà cung cấp để thanh toán đơn</span>
+                </label>
+                <div class="advance-payment-summary">
+                    <span>Số dư tạm ứng</span><strong>{{ formatMoney(supplierAdvanceInOrderCurrency) }} {{ selectedCurrency?.code }}</strong>
+                    <span>Tạm ứng sử dụng</span><strong>{{ formatMoney(form.advance_applied_amount) }} {{ selectedCurrency?.code }}</strong>
+                    <span>Tiền cần chi thêm</span><strong>{{ formatMoney(form.amount) }} {{ selectedCurrency?.code }}</strong>
+                </div>
             </div>
 
             <div v-if="currencyMismatchMessage" class="currency-warning">
@@ -257,7 +308,7 @@
             <div class="grid2">
                 <div class="field">
                     <label class="label">
-                        <i class="ti ti-currency-dong"></i>Số tiền <span class="required">*</span>
+                        <i class="ti ti-currency-dong"></i>{{ isSupplierOrderPayment ? 'Tiền chi thêm' : 'Số tiền' }} <span class="required">*</span>
                     </label>
                     <div class="amount-wrap">
                         <input
@@ -291,6 +342,22 @@
                         {{ formatExchangeRatio(transferExchangeRatio) }} {{ destinationCurrencyLabel }}.
                     </p>
                 </div>
+            </div>
+            <div v-if="showsBaseConversion" class="currency-conversion">
+                <div>
+                    <span>Tỷ giá</span>
+                    <strong v-if="!rateLoading">
+                        1 {{ selectedCurrency?.code }} =
+                        {{ formatExchangeRatio(form.exchange_rate) }} {{ companyCurrency?.code }}
+                    </strong>
+                    <strong v-else>Đang tải tỷ giá...</strong>
+                </div>
+                <div>
+                    <span>Số tiền quy đổi</span>
+                    <strong>{{ formatMoney(convertedBaseAmount) }} {{ companyCurrency?.code }}</strong>
+                </div>
+                <p v-if="rateError" class="field-error">{{ rateError }}</p>
+                <p v-else class="hint-text">Tỷ giá áp dụng tại ngày {{ form.transaction_date }}.</p>
             </div>
             <div class="divider"></div>
 
@@ -333,7 +400,7 @@
         <!-- ACTIONS -->
         <div class="tx-footer">
             <button class="btn" @click="$emit('close')">Đóng</button>
-            <button class="btn btn-primary" @click="save" :disabled="saving">
+            <button class="btn btn-primary" @click="save" :disabled="saving || hasNoPayableDebt">
                 <i class="ti ti-check"></i>
                 {{
                     saving
@@ -381,6 +448,10 @@ const emit = defineEmits(["saved", "close", "account-created"]);
 const { can } = usePermission();
 
 const saving = ref(false);
+const useSupplierAdvance = ref(false);
+const rateLoading = ref(false);
+const rateError = ref("");
+let rateRequestSequence = 0;
 const validationAttempted = ref(false);
 const showAccountModal = ref(false);
 const accountTargetField = ref("to_account_id");
@@ -407,7 +478,7 @@ function validateForm(markAttempted = true) {
     if (!form.category_id) next.category_id = "Vui lòng chọn loại giao dịch.";
     if (categoryMismatchMessage.value) next.category_id = categoryMismatchMessage.value;
     if (!form.payment_method) next.payment_method = "Vui lòng chọn hình thức giao dịch.";
-    if (!Number(form.amount) || Number(form.amount) <= 0) next.amount = "Số tiền phải lớn hơn 0.";
+    if (Number(form.amount) + Number(form.advance_applied_amount || 0) <= 0) next.amount = "Tổng số tiền thanh toán phải lớn hơn 0.";
     if (!form.transaction_date) next.transaction_date = "Vui lòng chọn ngày giao dịch.";
     if (form.transaction_date && form.transaction_date > today()) {
         next.transaction_date = "Ngày giao dịch không được lớn hơn ngày hôm nay.";
@@ -417,6 +488,15 @@ function validateForm(markAttempted = true) {
     }
     if (requiresCustomer.value && !form.customer_id) {
         next.customer_id = "Vui lòng chọn khách hàng.";
+    }
+    if (hasNoPayableDebt.value) {
+        next.amount = selectedCategoryCode.value === 'THU_KHAC'
+            ? 'Khách hàng không còn công nợ đầu kỳ để thu.'
+            : selectedCategoryCode.value === 'HOAN_TAM_UNG_KH'
+                ? 'Khách hàng không còn số dư tạm ứng để hoàn.'
+                : selectedCategoryCode.value === 'HOAN_TAM_UNG_NCC'
+                    ? 'Nhà cung cấp không còn số dư tạm ứng để hoàn.'
+                : 'Nhà cung cấp không còn công nợ đầu kỳ để thanh toán.';
     }
     if (requiresSalesOrder.value && !form.sales_order_id) {
         next.sales_order_id = "Vui lòng chọn đơn bán đã duyệt.";
@@ -448,7 +528,7 @@ function validateForm(markAttempted = true) {
     if (
         (form.sales_order_id || form.purchase_order_id) &&
         selectedOrderRemaining.value !== null &&
-        Number(form.amount) > selectedOrderRemaining.value
+        Number(form.amount) + Number(form.advance_applied_amount || 0) > selectedOrderRemaining.value
     ) {
         next.amount = `Số tiền không được vượt quá công nợ còn lại của đơn (${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}).`;
     }
@@ -522,6 +602,24 @@ const customerOptions = computed(() => {
     }));
 });
 
+const normalizedCustomers = computed(() =>
+    Array.isArray(props.customers)
+        ? props.customers
+        : props.customers?.data || [],
+);
+const selectedCustomer = computed(() =>
+    normalizedCustomers.value.find(
+        (customer) => Number(customer.id) === Number(form.customer_id),
+    ) || null,
+);
+const selectedCustomerCurrencyLabel = computed(() =>
+    selectedCustomer.value?.currency?.code
+    || normalizedCurrencies.value.find(
+        (currency) => Number(currency.id) === Number(selectedCustomer.value?.currency_id),
+    )?.code
+    || '',
+);
+
 const supplierOptions = computed(() => {
     const rows = Array.isArray(props.suppliers)
         ? props.suppliers
@@ -531,6 +629,24 @@ const supplierOptions = computed(() => {
         label: [supplier.code, supplier.name].filter(Boolean).join(" - "),
     }));
 });
+
+const normalizedSuppliers = computed(() =>
+    Array.isArray(props.suppliers)
+        ? props.suppliers
+        : props.suppliers?.data || [],
+);
+const selectedSupplier = computed(() =>
+    normalizedSuppliers.value.find(
+        (supplier) => Number(supplier.id) === Number(form.supplier_id),
+    ) || null,
+);
+const selectedSupplierCurrencyLabel = computed(() =>
+    selectedSupplier.value?.currency?.code
+    || normalizedCurrencies.value.find(
+        (currency) => Number(currency.id) === Number(selectedSupplier.value?.currency_id),
+    )?.code
+    || '',
+);
 
 const orderSelectOptions = computed(() =>
     orderOptions.value.map((order) => ({
@@ -559,6 +675,20 @@ const amountCurrencyUnit = computed(() => {
     if (!selectedCurrency.value) return "";
     return selectedCurrency.value.symbol || selectedCurrency.value.code || "";
 });
+
+const companyCurrency = computed(() =>
+    normalizedCurrencies.value.find(
+        (currency) => currency.is_default || currency.pivot?.is_default,
+    ) || null,
+);
+const showsBaseConversion = computed(() =>
+    selectedCurrency.value
+    && companyCurrency.value
+    && Number(selectedCurrency.value.id) !== Number(companyCurrency.value.id),
+);
+const convertedBaseAmount = computed(() =>
+    Number(form.amount || 0) * Number(form.exchange_rate || 0),
+);
 
 const selectedOrderCurrency = ref(null);
 const selectedOrderRemaining = ref(null);
@@ -627,21 +757,65 @@ const selectedCategory = computed(() => {
 });
 
 const selectedCategoryCode = computed(() => selectedCategory.value?.code || "");
-const requiresCustomer = computed(() => selectedCategoryCode.value === "THU_KH");
+const requiresCustomer = computed(() =>
+    ["THU_KH", "THU_KHAC", "TAM_UNG_KH", "HOAN_TAM_UNG_KH"].includes(selectedCategoryCode.value),
+);
 const requiresSalesOrder = computed(() => selectedCategoryCode.value === "THU_KH");
-const isOtherPaymentCategory = computed(() =>
-    ["THU_KHAC", "CHI_KHAC"].includes(selectedCategoryCode.value),
+const isOtherReceiptCategory = computed(() => selectedCategoryCode.value === "THU_KHAC");
+const isOtherSupplierPaymentCategory = computed(() => selectedCategoryCode.value === "CHI_KHAC");
+const showsCustomerOpeningDebt = computed(() =>
+    selectedCategoryCode.value === 'THU_KHAC' && selectedCustomer.value,
 );
 const requiresSupplier = computed(() =>
-    ["CHI_NCC", "TAM_UNG_NCC", "HOAN_TAM_UNG_NCC"].includes(
+    ["CHI_NCC", "CHI_KHAC", "TAM_UNG_NCC", "HOAN_TAM_UNG_NCC"].includes(
         selectedCategoryCode.value,
     ),
 );
 const requiresPurchaseOrder = computed(() => selectedCategoryCode.value === "CHI_NCC");
 const showsCustomerFields = computed(
-    () => requiresCustomer.value || isOtherPaymentCategory.value,
+    () => requiresCustomer.value || isOtherReceiptCategory.value || ['TAM_UNG_KH', 'HOAN_TAM_UNG_KH'].includes(selectedCategoryCode.value),
 );
-const showsSupplierFields = computed(() => requiresSupplier.value);
+const isCustomerAdvanceRefund = computed(() => selectedCategoryCode.value === 'HOAN_TAM_UNG_KH');
+const showsCustomerAdvance = computed(() =>
+    ['TAM_UNG_KH', 'HOAN_TAM_UNG_KH'].includes(selectedCategoryCode.value) && selectedCustomer.value,
+);
+const showsSupplierFields = computed(
+    () => requiresSupplier.value || isOtherSupplierPaymentCategory.value,
+);
+const showsSupplierDebt = computed(() =>
+    isOtherSupplierPaymentCategory.value && selectedSupplier.value,
+);
+const isSupplierAdvanceRefund = computed(() => selectedCategoryCode.value === 'HOAN_TAM_UNG_NCC');
+const showsSupplierAdvance = computed(() =>
+    ['TAM_UNG_NCC', 'HOAN_TAM_UNG_NCC'].includes(selectedCategoryCode.value) && selectedSupplier.value,
+);
+const isSupplierOrderPayment = computed(() => selectedCategoryCode.value === 'CHI_NCC');
+const supplierAdvanceInOrderCurrency = computed(() => {
+    const rate = Number(form.exchange_rate || 1);
+    return rate > 0 ? Number(selectedSupplier.value?.advance_balance || 0) / rate : 0;
+});
+const canUseSupplierAdvance = computed(() =>
+    isSupplierOrderPayment.value
+    && selectedSupplier.value
+    && form.purchase_order_id
+    && selectedOrderRemaining.value > 0
+    && supplierAdvanceInOrderCurrency.value > 0,
+);
+const hasNoPayableDebt = computed(() => {
+    if (selectedCategoryCode.value === 'THU_KHAC' && selectedCustomer.value) {
+        return Number(selectedCustomer.value.opening_debt_remaining || 0) <= 0;
+    }
+    if (selectedCategoryCode.value === 'CHI_KHAC' && selectedSupplier.value) {
+        return Number(selectedSupplier.value.opening_debt_remaining || 0) <= 0;
+    }
+    if (selectedCategoryCode.value === 'HOAN_TAM_UNG_KH' && selectedCustomer.value) {
+        return Number(selectedCustomer.value.advance_balance || 0) <= 0;
+    }
+    if (selectedCategoryCode.value === 'HOAN_TAM_UNG_NCC' && selectedSupplier.value) {
+        return Number(selectedSupplier.value.advance_balance || 0) <= 0;
+    }
+    return false;
+});
 const showsRelatedPartyFields = computed(
     () => showsCustomerFields.value || showsSupplierFields.value,
 );
@@ -679,6 +853,7 @@ const form = reactive({
     sales_order_id: "",
     purchase_order_id: "",
     exchange_rate: 1,
+    advance_applied_amount: 0,
     transaction_date: today(),
     description: "",
 });
@@ -872,6 +1047,7 @@ function resetForm() {
         sales_order_id: "",
         purchase_order_id: "",
         exchange_rate: 1,
+        advance_applied_amount: 0,
         transaction_date: today(),
         description: "",
     });
@@ -903,9 +1079,11 @@ watch(
             sales_order_id: val.sales_order_id ?? "",
             purchase_order_id: val.purchase_order_id ?? "",
             exchange_rate: val.exchange_rate ?? 1,
+            advance_applied_amount: val.advance_applied_amount ?? 0,
             transaction_date: val.transaction_date?.slice?.(0, 10) ?? "",
             description: val.description ?? "",
         });
+        useSupplierAdvance.value = Number(val.advance_applied_amount || 0) > 0;
 
         if (requiresSalesOrder.value && form.customer_id) {
             await loadOrderOptions();
@@ -1096,6 +1274,8 @@ function onCategoryChange() {
     orderOptions.value = [];
     selectedOrderCurrency.value = null;
     selectedOrderRemaining.value = null;
+    useSupplierAdvance.value = false;
+    form.advance_applied_amount = 0;
 }
 
 function onCurrencyChange() {
@@ -1104,6 +1284,34 @@ function onCurrencyChange() {
         form.exchange_rate = Number(currency.exchange_rate) || 1;
     }
 }
+
+async function updateExchangeRate() {
+    const currencyId = form.currency_id;
+    const transactionDate = form.transaction_date;
+    if (!currencyId || !transactionDate) return;
+
+    const sequence = ++rateRequestSequence;
+    rateLoading.value = true;
+    rateError.value = "";
+    try {
+        const { data } = await axios.get('/api/accountant/transactions/exchange-rate', {
+            params: { currency_id: currencyId, transaction_date: transactionDate },
+        });
+        if (sequence === rateRequestSequence) form.exchange_rate = Number(data.rate || 1);
+    } catch (error) {
+        if (sequence === rateRequestSequence) {
+            rateError.value = getValidationMessage(error, 'Không thể tải tỷ giá cho ngày giao dịch.');
+        }
+    } finally {
+        if (sequence === rateRequestSequence) rateLoading.value = false;
+    }
+}
+
+watch(
+    [() => form.currency_id, () => form.transaction_date],
+    updateExchangeRate,
+    { immediate: true },
+);
 
 async function onSalesOrderChange() {
     const selected = orderOptions.value.find(
@@ -1144,6 +1352,7 @@ async function loadOrderOutstanding(type, orderId) {
             { params: { type, order_id: orderId } },
         );
         selectedOrderRemaining.value = Number(data.remaining_amount || 0);
+        if (type === 'purchase') applySupplierAdvance();
     } catch (error) {
         toast.error(
             getValidationMessage(
@@ -1152,6 +1361,22 @@ async function loadOrderOutstanding(type, orderId) {
             ),
         );
     }
+}
+
+function applySupplierAdvance() {
+    if (!useSupplierAdvance.value || !canUseSupplierAdvance.value) {
+        form.advance_applied_amount = 0;
+        if (isSupplierOrderPayment.value && selectedOrderRemaining.value !== null) {
+            form.amount = Number(selectedOrderRemaining.value || 0);
+        }
+        return;
+    }
+    const applied = Math.min(
+        Number(selectedOrderRemaining.value || 0),
+        Number(supplierAdvanceInOrderCurrency.value || 0),
+    );
+    form.advance_applied_amount = Math.round(applied * 100) / 100;
+    form.amount = Math.max(0, Math.round((Number(selectedOrderRemaining.value) - applied) * 100) / 100);
 }
 
 watch(
@@ -1197,7 +1422,7 @@ async function save() {
     if (
         (form.sales_order_id || form.purchase_order_id) &&
         selectedOrderRemaining.value !== null &&
-        Number(form.amount) > selectedOrderRemaining.value
+        Number(form.amount) + Number(form.advance_applied_amount || 0) > selectedOrderRemaining.value
     ) {
         toast.error(
             `Số tiền thanh toán không được vượt quá ${formatMoney(selectedOrderRemaining.value)} ${selectedCurrencyLabel.value}.`,
@@ -1242,6 +1467,47 @@ async function save() {
 <style scoped>
 .required { color: #dc2626; margin-left: 2px; }
 .field-error { margin-top: 6px; color: #dc2626; font-size: 12px; line-height: 1.4; }
+.currency-conversion {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+}
+.currency-conversion > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #1e3a8a;
+}
+.currency-conversion > div + div { margin-top: .5rem; }
+.currency-conversion strong { text-align: right; }
+.opening-debt-display {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: .625rem .75rem;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    background: #fffbeb;
+    color: #92400e;
+}
+.supplier-debt-display {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .25rem 1rem;
+}
+.supplier-debt-display small { grid-column: 1 / -1; opacity: .8; }
+.advance-payment-box {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #a7f3d0;
+    border-radius: 12px;
+    background: #ecfdf5;
+}
+.advance-payment-toggle { display: flex; align-items: center; gap: .625rem; font-weight: 600; color: #065f46; }
+.advance-payment-summary { display: grid; grid-template-columns: 1fr auto; gap: .4rem 1rem; margin-top: .75rem; color: #065f46; }
+.advance-payment-summary strong { text-align: right; }
 .input-error {
     border-color: #ef4444 !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;

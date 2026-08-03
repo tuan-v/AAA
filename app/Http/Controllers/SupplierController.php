@@ -49,7 +49,7 @@ class SupplierController extends Controller
 
                 $debtEntries = $supplier->debts()->latest()->get();
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
-                $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
+                $totalPaid = (float) abs($debtEntries->whereIn('type', ['payment', 'opening_payment'])->sum('amount'));
                 $currentDebt = (float) $supplier->opening_debt_base
                     + $totalReceivable - $totalPaid;
                 $companyCurrency = $this->currencyService
@@ -99,18 +99,37 @@ class SupplierController extends Controller
     }
     public function all()
     {
-        return response()->json(
-            Supplier::select(
+        $companyCurrency = auth()->user()->company?->currencies()
+            ->wherePivot('is_default', true)->first();
+        $suppliers = Supplier::with('currency')->select(
                 'id',
                 'name',
                 'currency_id',
                 'code',
-                'status'
+                'status',
+                'opening_debt',
+                'opening_debt_base',
+                'opening_debt_exchange_rate'
+                ,'opening_advance'
+                ,'opening_advance_base'
+                ,'opening_advance_exchange_rate'
+                ,'total_advance'
             )
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->get()
-        );
+                ->each(function (Supplier $supplier) use ($companyCurrency) {
+                    $debts = $supplier->debts()->get();
+                    $increases = (float) abs($debts->whereIn('type', ['invoice', 'adjustment'])->sum('amount'));
+                    $payments = (float) abs($debts->whereIn('type', ['payment', 'opening_payment'])->sum('amount'));
+                    $supplier->setAttribute('current_debt', (float) $supplier->opening_debt_base + $increases - $payments);
+                    $openingPayments = (float) $debts->where('type', \App\Models\SupplierDebt::TYPE_OPENING_PAYMENT)->sum('amount');
+                    $supplier->setAttribute('opening_debt_remaining', max(0, (float) $supplier->opening_debt_base + $openingPayments));
+                    $supplier->setAttribute('advance_balance', app(\App\Services\SupplierDebtService::class)->getAdvanceBalance($supplier->id));
+                    $supplier->setAttribute('company_currency', $companyCurrency?->only(['id', 'code', 'name', 'symbol']));
+                });
+
+        return response()->json($suppliers);
     }
     public function store(Request $request)
     {

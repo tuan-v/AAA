@@ -6,14 +6,38 @@ use App\Models\Company;
 use App\Models\PurchaseOrder;
 use App\Models\SalesOrder;
 use App\Models\User;
+use App\Repositories\DashboardRepository;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ModuleDashboardTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_monthly_finance_does_not_skip_shorter_month_at_month_end(): void
+    {
+        Carbon::setTestNow('2026-07-31 12:00:00');
+
+        try {
+            $months = collect(app(DashboardRepository::class)->getMonthlyFinance(1, 6))
+                ->pluck('month')
+                ->all();
+
+            $this->assertSame([
+                'T2/2026',
+                'T3/2026',
+                'T4/2026',
+                'T5/2026',
+                'T6/2026',
+                'T7/2026',
+            ], $months);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
 
     public function test_sale_and_purchase_dashboards_show_their_own_current_month_order_counts(): void
     {
@@ -34,6 +58,82 @@ class ModuleDashboardTest extends TestCase
 
         $this->assertSame($expectedSales, $saleMetrics->firstWhere('label', 'Đơn bán tháng này')['value']);
         $this->assertSame($expectedPurchases, $purchaseMetrics->firstWhere('label', 'Đơn mua tháng này')['value']);
+    }
+
+    public function test_overview_dashboard_includes_the_company_currency(): void
+    {
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $currency = $user->company->default_currency;
+
+        $this->actingAs($user)
+            ->getJson('/api/dashboard/overview')
+            ->assertOk()
+            ->assertJsonPath('data.currency.code', $currency->code)
+            ->assertJsonPath('data.currency.symbol', $currency->symbol);
+    }
+
+    public function test_dashboard_filters_transactional_data_by_requested_date_range(): void
+    {
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $this->actingAs($user)
+            ->getJson('/api/dashboard/overview?date_from=2000-01-01&date_to=2000-01-31')
+            ->assertOk()
+            ->assertJsonPath('data.period.date_from', '2000-01-01')
+            ->assertJsonPath('data.period.date_to', '2000-01-31')
+            ->assertJsonPath('data.operations.sales_orders_this_month', 0)
+            ->assertJsonPath('data.operations.purchase_orders_this_month', 0)
+            ->assertJsonCount(0, 'data.recent_sales_orders')
+            ->assertJsonCount(0, 'data.recent_purchase_orders')
+            ->assertJsonCount(0, 'data.recent_transactions');
+    }
+
+    public function test_dashboard_rejects_an_inverted_date_range(): void
+    {
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $this->actingAs($user)
+            ->getJson('/api/dashboard/overview?date_from=2026-08-10&date_to=2026-08-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+    }
+
+    public function test_dashboard_rejects_future_dates(): void
+    {
+        Carbon::setTestNow('2026-08-03 12:00:00');
+
+        try {
+            $this->seed(\Database\Seeders\DatabaseSeeder::class);
+            $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+            $this->actingAs($user)
+                ->getJson('/api/dashboard/overview?date_from=2026-08-04&date_to=2026-08-05')
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['date_from', 'date_to']);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_dashboard_defaults_to_the_current_month(): void
+    {
+        Carbon::setTestNow('2026-08-03 12:00:00');
+
+        try {
+            $this->seed(\Database\Seeders\DatabaseSeeder::class);
+            $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+            $this->actingAs($user)
+                ->getJson('/api/dashboard/overview')
+                ->assertOk()
+                ->assertJsonPath('data.period.date_from', '2026-08-01')
+                ->assertJsonPath('data.period.date_to', '2026-08-03');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_each_business_module_has_a_real_dashboard_api(): void

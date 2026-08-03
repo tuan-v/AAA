@@ -228,7 +228,6 @@
                                 ></i>
                                 <select
                                     v-model="form.status"
-                                    :disabled="['pending', 'pending_edit', 'rejected_final', 'expired'].includes(props.user?.status)"
                                     class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
                                 >
                                     <option value="active">Hoạt động</option>
@@ -242,15 +241,6 @@
                             </div>
                             <p v-if="errors.status" class="mt-1 text-xs text-red-600">{{ errors.status[0] }}</p>
                         </div>
-                    </div>
-                    <div
-                        v-if="props.user?.status === 'pending_edit'"
-                        class="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
-                    >
-                        <p class="font-semibold">Lý do từ chối</p>
-                        <p class="mt-1 whitespace-pre-line">{{ props.user.rejection_reason || 'Chưa có lý do cụ thể.' }}</p>
-                        <p class="mt-2 text-xs font-medium">Số lần từ chối: {{ props.user.rejection_count || 0 }}/3</p>
-                        <p v-if="props.user.resubmit_expires_at" class="mt-1 text-xs">Hạn gửi lại: {{ new Date(props.user.resubmit_expires_at).toLocaleString('vi-VN') }}</p>
                     </div>
                 </div>
 

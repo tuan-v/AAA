@@ -22,6 +22,10 @@
                 </div>
             </div>
 
+            <div v-if="order && !order.can_export" class="mb-6 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
+                {{ order.export_block_reason || "Đơn này không còn được phép xuất kho." }}
+            </div>
+
             <!-- CHỌN KHO -->
             <div class="mb-6">
                 <label class="block text-sm mb-1">
@@ -36,6 +40,7 @@
                     allow-create
                     add-new-text="Thêm kho mới"
                     @add-new="openWarehouseModal"
+                    :disabled="order && !order.can_export"
                 />
                 <p v-if="selectedWarehouse" class="mt-2 text-sm text-gray-600">
                     Tồn khả dụng đã trừ số lượng đang giữ ở các phiếu xuất chờ duyệt.
@@ -113,6 +118,7 @@
                                 "
                                 :max="maxExportQuantity(item)"
                                 v-model="item.export_quantity"
+                                :disabled="order && !order.can_export"
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                                 :class="{
@@ -141,8 +147,8 @@
             <div class="flex justify-end">
                 <button
                     @click="submit"
-                    :disabled="loading"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
+                    :disabled="loading || (order && !order.can_export)"
+                    class="bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400 text-white px-6 py-3 rounded-lg"
                 >
                     {{ loading ? "Đang lưu..." : "Lưu phiếu xuất kho" }}
                 </button>

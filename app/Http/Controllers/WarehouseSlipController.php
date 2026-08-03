@@ -17,6 +17,7 @@ use App\Services\SupplierDebtService;
 use App\Services\CustomerDebtService;
 use App\Services\InventoryMovementService;
 use App\Services\NotificationService;
+use Illuminate\Validation\ValidationException;
 
 class WarehouseSlipController extends Controller
 {
@@ -27,7 +28,7 @@ class WarehouseSlipController extends Controller
     // =========================
     public function index(Request $request)
     {
-        $query = WarehouseSlip::with(['warehouse', 'items', 'createdBy', 'approvedBy', 'purchaseOrder', 'saleOrder']);
+        $query = WarehouseSlip::with(['warehouse', 'items', 'createdBy', 'approvedBy', 'purchaseOrder', 'saleOrder', 'returnOfSlip']);
 
 
         if ($request->filled('type')) {
@@ -62,6 +63,12 @@ class WarehouseSlipController extends Controller
                 'status' => $item->status,
                 'purchase_order_code' => $item->purchaseOrder?->code,
                 'sales_order_code' => $item->saleOrder?->code,
+                'return_of_slip_code' => $item->returnOfSlip?->code,
+                'sales_order_id' => $item->sales_order_id,
+                'sales_order_status' => $item->saleOrder?->status,
+                'sales_order_return_status' => $item->saleOrder?->return_status,
+                'return_status' => $item->return_status,
+                'return_reason' => $item->return_reason,
                 'warehouse' => [
                     'id' => $item->warehouse_id,
                     'name' => $item->warehouse?->name,
@@ -198,6 +205,9 @@ class WarehouseSlipController extends Controller
 
                 if (! in_array($order->status, ['approved', 'partial'], true)) {
                     throw new \RuntimeException('Chỉ được tạo phiếu xuất từ đơn bán đã duyệt và chưa xuất đủ.');
+                }
+                if ($order->return_status !== null) {
+                    throw new \RuntimeException('Đơn đã phát sinh hoàn hàng/hủy giao nên không thể tạo thêm phiếu xuất. Hãy lập đơn bán mới nếu khách yêu cầu giao lại.');
                 }
 
                 foreach ($validated['items'] as $itemData) {
@@ -452,16 +462,185 @@ class WarehouseSlipController extends Controller
 
         if (!$hasAny) {
             $order->status = 'approved';
-        } elseif ($completed) {
-            $order->status = 'completed';
-        } else {
+        } elseif ($completed || $hasAny) {
             $order->status = 'partial';
+            $order->shipping_started_at ??= now();
         }
 
         $order->save();
     }
 
+    public function confirmDelivery($id)
+    {
+        $slip = WarehouseSlip::with('saleOrder.items')->findOrFail($id);
+        if ($slip->type !== 'export' || $slip->status !== 'approved' || ! $slip->sales_order_id) {
+            throw ValidationException::withMessages(['slip' => 'Chỉ có thể xác nhận giao hàng từ phiếu xuất đã được kế toán duyệt.']);
+        }
+        $order = $slip->saleOrder;
+        if ($order->status !== 'partial') {
+            throw ValidationException::withMessages(['order' => 'Đơn bán chưa ở trạng thái đang giao hàng.']);
+        }
+
+        $exported = WarehouseSlipItem::query()
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->whereIn('slip_id', WarehouseSlip::query()->select('id')
+                ->where('sales_order_id', $order->id)->where('type', 'export')->where('status', 'approved'))
+            ->groupBy('product_id')->pluck('total', 'product_id');
+        foreach ($order->items as $item) {
+            if ((float) ($exported[$item->product_id] ?? 0) < (float) $item->quantity) {
+                throw ValidationException::withMessages(['order' => 'Chưa xuất đủ toàn bộ sản phẩm của đơn bán.']);
+            }
+        }
+
+        $order->update(['status' => 'completed', 'completed_at' => now()]);
+        ActivityLogService::log($order, 'confirm_delivery', "Kế toán xác nhận giao đủ đơn bán {$order->code}",
+            ['status' => 'partial'], ['status' => 'completed']);
+
+        return response()->json(['message' => 'Đã xác nhận giao hàng và hoàn thành đơn bán.']);
+    }
+
     // =========================
+    public function requestDeliveryReturn(Request $request, $id)
+    {
+        $validated = $request->validate(['reason' => 'required|string|max:2000']);
+
+        $count = DB::transaction(function () use ($id, $validated) {
+            $source = WarehouseSlip::with('saleOrder')->lockForUpdate()->findOrFail($id);
+            if ($source->type !== 'export' || $source->status !== 'approved' || ! $source->sales_order_id) {
+                throw ValidationException::withMessages(['slip' => 'Chỉ có thể hủy giao từ phiếu xuất đã được kế toán duyệt.']);
+            }
+            if ($source->saleOrder?->status !== 'partial') {
+                throw ValidationException::withMessages(['order' => 'Chỉ đơn đang giao hàng mới có thể thực hiện hoàn hàng/hủy giao.']);
+            }
+
+            $slips = WarehouseSlip::with('items')->where('sales_order_id', $source->sales_order_id)
+                ->where('type', 'export')->where('status', 'approved')->lockForUpdate()->get();
+            if ($slips->isEmpty()) {
+                throw ValidationException::withMessages(['slip' => 'Đơn chưa có hàng đã xuất để hoàn.']);
+            }
+            if (WarehouseSlip::where('sales_order_id', $source->sales_order_id)->where('type', 'return')->exists()) {
+                throw ValidationException::withMessages(['order' => 'Đơn này đã có yêu cầu hoàn hàng/hủy giao.']);
+            }
+
+            foreach ($slips as $exportSlip) {
+                $returnSlip = WarehouseSlip::create([
+                    'type' => 'return',
+                    'sales_order_id' => $source->sales_order_id,
+                    'return_of_slip_id' => $exportSlip->id,
+                    'warehouse_id' => $exportSlip->warehouse_id,
+                    'note' => "Hoàn hàng từ phiếu xuất {$exportSlip->code}",
+                    'status' => 'pending',
+                    'return_status' => 'pending_warehouse',
+                    'return_reason' => $validated['reason'],
+                    'return_requested_by' => auth()->id(),
+                    'return_requested_at' => now(),
+                ]);
+                foreach ($exportSlip->items as $item) {
+                    WarehouseSlipItem::create([
+                        'slip_id' => $returnSlip->id,
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                        'returned_quantity' => $item->quantity,
+                        'price' => $item->price,
+                        'company_price' => $item->company_price,
+                        'cost_price' => $item->cost_price,
+                        'cost_amount' => $item->cost_amount,
+                        'vat_percent' => $item->vat_percent,
+                    ]);
+                }
+            }
+            $source->saleOrder->update(['return_status' => 'pending_warehouse']);
+
+            return $slips->count();
+        });
+
+        return response()->json(['message' => "Đã tạo yêu cầu hoàn cho {$count} phiếu xuất. Kho cần xác nhận đã nhận lại hàng."]);
+    }
+
+    public function receiveDeliveryReturn($id)
+    {
+        DB::transaction(function () use ($id) {
+            $slip = WarehouseSlip::with('saleOrder')->lockForUpdate()->findOrFail($id);
+            if ($slip->type !== 'return' || $slip->status !== 'pending' || $slip->return_status !== 'pending_warehouse') {
+                throw ValidationException::withMessages(['slip' => 'Phiếu không ở trạng thái chờ kho nhận hàng hoàn.']);
+            }
+            $slip->update([
+                'return_status' => 'pending_accountant',
+                'return_received_by' => auth()->id(),
+                'return_received_at' => now(),
+            ]);
+            $waitingForWarehouse = WarehouseSlip::where('sales_order_id', $slip->sales_order_id)
+                ->where('type', 'return')->where('return_status', 'pending_warehouse')->exists();
+            $slip->saleOrder?->update(['return_status' => $waitingForWarehouse ? 'pending_warehouse' : 'pending_accountant']);
+        });
+
+        return response()->json(['message' => 'Kho đã xác nhận nhận hàng hoàn và gửi kế toán duyệt.']);
+    }
+
+    public function accountantApproveDeliveryReturn($id, InventoryMovementService $movements)
+    {
+        DB::transaction(function () use ($id, $movements) {
+            $slip = WarehouseSlip::with(['items', 'saleOrder'])->lockForUpdate()->findOrFail($id);
+            if ($slip->type !== 'return' || $slip->status !== 'pending' || $slip->return_status !== 'pending_accountant') {
+                throw ValidationException::withMessages(['slip' => 'Phiếu hoàn chưa được kho xác nhận hoặc đã được xử lý.']);
+            }
+
+            foreach ($slip->items as $item) {
+                $quantity = (float) $item->returned_quantity;
+                if ($quantity <= 0 || $quantity > (float) $item->quantity) {
+                    throw ValidationException::withMessages(['quantity' => 'Số lượng hoàn không hợp lệ.']);
+                }
+                $stock = WarehouseProductStock::firstOrCreate([
+                    'company_id' => $slip->company_id,
+                    'warehouse_id' => $slip->warehouse_id,
+                    'product_id' => $item->product_id,
+                ], ['quantity' => 0, 'stock_value' => 0]);
+                $stock = WarehouseProductStock::whereKey($stock->id)->lockForUpdate()->firstOrFail();
+                $unitCost = (float) ($item->cost_price ?: $item->company_price);
+                $quantityBefore = (float) $stock->quantity;
+                $valueBefore = (float) $stock->stock_value;
+                $stock->quantity = $quantityBefore + $quantity;
+                $stock->stock_value = round($valueBefore + $quantity * $unitCost, 2);
+                $stock->save();
+                $movements->record($stock, 'sale_return', $quantity, $unitCost, $quantityBefore, $valueBefore, $slip);
+            }
+
+            $sourceDebt = \App\Models\CustomerDebt::query()
+                ->where('type', 'sale')->where('reference_type', WarehouseSlip::class)
+                ->where('reference_id', $slip->return_of_slip_id)->first();
+            if ($sourceDebt) {
+                \App\Models\CustomerDebt::create([
+                    'customer_id' => $sourceDebt->customer_id,
+                    'type' => 'payment',
+                    'amount' => -abs((float) $sourceDebt->amount),
+                    'currency_id' => $sourceDebt->currency_id,
+                    'original_amount' => -abs((float) $sourceDebt->original_amount),
+                    'exchange_rate' => $sourceDebt->exchange_rate,
+                    'amount_base' => -abs((float) $sourceDebt->amount_base),
+                    'reference_type' => WarehouseSlip::class,
+                    'reference_id' => $slip->return_of_slip_id,
+                    'note' => "Đảo công nợ do hoàn hàng/hủy giao phiếu {$slip->code}",
+                ]);
+            }
+
+            $slip->update([
+                'status' => 'approved',
+                'return_status' => 'approved',
+                'return_approved_by' => auth()->id(),
+                'return_approved_at' => now(),
+            ]);
+
+            $remaining = WarehouseSlip::where('sales_order_id', $slip->sales_order_id)
+                ->where('type', 'return')->where('status', '!=', 'approved')
+                ->exists();
+            $slip->saleOrder?->update($remaining
+                ? ['return_status' => 'pending_accountant']
+                : ['status' => 'partial', 'return_status' => 'returned', 'returned_at' => now()]);
+        });
+
+        return response()->json(['message' => 'Kế toán đã duyệt hoàn: tồn kho và công nợ đã được cập nhật.']);
+    }
+
     // DROPDOWNS
     // =========================
     public function ordersForImport()

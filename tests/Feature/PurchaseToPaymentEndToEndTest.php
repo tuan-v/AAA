@@ -35,6 +35,17 @@ class PurchaseToPaymentEndToEndTest extends TestCase
         $category = TransactionCategory::where('code', 'CHI_NCC')->firstOrFail();
         $currencyId = $supplier->currency_id;
 
+        SupplierDebt::create([
+            'supplier_id' => $supplier->id,
+            'type' => SupplierDebt::TYPE_ADVANCE,
+            'amount' => 50000,
+            'currency_id' => $currencyId,
+            'original_amount' => 50000,
+            'exchange_rate' => 1,
+            'amount_base' => 50000,
+            'note' => 'Tạm ứng dùng cho kiểm thử thanh toán linh hoạt',
+        ]);
+
         $stockBefore = (float) WarehouseProductStock::where('warehouse_id', $warehouse->id)
             ->where('product_id', $product->id)->value('quantity');
         $stockValueBefore = (float) WarehouseProductStock::where('warehouse_id', $warehouse->id)
@@ -140,7 +151,8 @@ class PurchaseToPaymentEndToEndTest extends TestCase
         $transactionId = $this->actingAs($accountant)->postJson('/api/accountant/transactions', [
             'type' => 'payment',
             'payment_method' => 'bank_transfer',
-            'amount' => 220000,
+            'amount' => 170000,
+            'advance_applied_amount' => 50000,
             'currency_id' => $currencyId,
             'category_id' => $category->id,
             'from_account_id' => $account->id,
@@ -154,8 +166,14 @@ class PurchaseToPaymentEndToEndTest extends TestCase
             ->postJson("/api/accountant/transactions/{$transactionId}/approve")
             ->assertOk();
 
-        $this->assertEquals($balanceBefore - 220000, $account->fresh()->current_balance);
+        $this->assertEquals($balanceBefore - 170000, $account->fresh()->current_balance);
         $this->assertEquals($debtBefore, SupplierDebt::where('supplier_id', $supplier->id)->sum('amount'));
-        $this->assertDatabaseHas('account_ledgers', ['transaction_id' => $transactionId, 'credit' => 220000]);
+        $this->assertDatabaseHas('account_ledgers', ['transaction_id' => $transactionId, 'credit' => 170000]);
+        $this->assertDatabaseHas('supplier_debts', [
+            'type' => SupplierDebt::TYPE_ADVANCE_OFFSET,
+            'reference_type' => \App\Models\Transaction::class,
+            'reference_id' => $transactionId,
+            'amount' => -50000,
+        ]);
     }
 }

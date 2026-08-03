@@ -195,18 +195,22 @@ const filters = [
         type: "select",
         placeholder: "Trạng thái",
         options: [
-            { value: "pending", label: "Chờ xử lý" },
-            { value: "approved_group", label: "Đã duyệt" },
+            { value: "draft", label: "Hóa đơn chờ" },
+            { value: "pending", label: "Chờ xác nhận" },
+            { value: "approved", label: "Đã xác nhận" },
+            { value: "partial", label: "Đang giao hàng" },
+            { value: "completed", label: "Hoàn thành" },
             { value: "cancelled", label: "Đã hủy" },
         ],
     },
 ];
 
 const statusConfig = {
-    pending: { text: "Chờ xử lý", class: "bg-yellow-100 text-yellow-700" },
-    approved: { text: "Đã duyệt", class: "bg-blue-100 text-blue-700" },
-    completed: { text: "Đã duyệt", class: "bg-blue-100 text-blue-700" },
-    partial: { text: "Đã duyệt", class: "bg-blue-100 text-blue-700" },
+    draft: { text: "Hóa đơn chờ", class: "bg-gray-100 text-gray-700" },
+    pending: { text: "Chờ xác nhận", class: "bg-yellow-100 text-yellow-700" },
+    approved: { text: "Đã xác nhận", class: "bg-blue-100 text-blue-700" },
+    partial: { text: "Đang giao hàng", class: "bg-purple-100 text-purple-700" },
+    completed: { text: "Hoàn thành", class: "bg-green-100 text-green-700" },
     cancelled: { text: "Đã hủy", class: "bg-red-100 text-red-700" },
 };
 
@@ -293,7 +297,11 @@ const columns = [
         label: "Trạng thái",
         align: "text-center",
         render: (row) => {
-            const status = statusConfig[row?.status];
+            const status = ({
+                returned: { text: "Đã hoàn / Hủy giao", class: "bg-orange-100 text-orange-700" },
+                return_pending_warehouse: { text: "Chờ kho nhận hàng hoàn", class: "bg-orange-100 text-orange-700" },
+                return_pending_accountant: { text: "Chờ kế toán duyệt hoàn", class: "bg-orange-100 text-orange-700" },
+            })[row?.effective_status] || statusConfig[row?.status];
 
             return h(
                 "span",
@@ -323,20 +331,27 @@ const actions = [
     },
     {
         icon: CheckIcon,
+        type: "submit",
+        title: "Gửi xác nhận",
+        onClick: (item) => transitionOrder(item, 'submit'),
+        hidden: (item) => !can("don_ban.sua") || item.status !== "draft",
+    },
+    {
+        icon: CheckIcon,
         type: "approve",
         confirm: false,
-        title: "Duyệt đơn",
+        title: "Xác nhận đơn",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
         onClick: (item) => {
-            if (item.status === "approved") return;
+            if (item.status !== "pending") return;
             openApproveConfirm(item);
         },
         // gộp luôn điều kiện "cancelled" vào đây vì action.visible không được DataTable đọc
         hidden: (item) =>
             !can("don_ban.duyet") ||
-            item.status === "cancelled" ||
-            HIDDEN_EDIT_STATUSES.includes(item.status),
+            item.sales_channel === "pos" ||
+            item.status !== "pending",
     },
     {
         icon: XIcon,
@@ -356,7 +371,7 @@ const actions = [
         hidden: () => !can("don_ban.xem_chi_tiet"),
     },
 ];
-const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"];
+const HIDDEN_EDIT_STATUSES = ["pending", "approved", "completed", "partial", "cancelled"];
 const LOCKED_STATUSES = ["approved", "partial", "completed"];
 const { confirmAction } = useActionConfirm();
 
@@ -433,9 +448,9 @@ function openDuplicate(order) {
 }
 
 async function openEdit(item) {
-    if (item.status !== "pending") {
+    if (item.status !== "draft") {
         toast.warning(
-            "Đơn này không thể sửa vì đã được duyệt hoặc hoàn thành.",
+            "Chỉ hóa đơn chờ mới có thể chỉnh sửa.",
         );
         return;
     }
@@ -473,6 +488,18 @@ async function cancelOrder(item) {
         toast.error(error.response?.data?.message || "Không thể hủy đơn bán");
     }
 }
+async function transitionOrder(item, action) {
+    const messages = { question: `Gửi đơn ${item.code} sang chờ xác nhận?`, success: 'Đã gửi đơn chờ xác nhận' };
+    const confirmed = await confirmAction({ title: 'Xác nhận chuyển trạng thái', message: messages.question, confirmText: 'Xác nhận' });
+    if (!confirmed) return;
+    try {
+        await axios.post(`/api/sale/orders/${item.id}/${action}`);
+        toast.success(messages.success);
+        getData();
+    } catch (error) {
+        toast.error(error.response?.data?.message || 'Không thể chuyển trạng thái đơn');
+    }
+}
 // function openDetail() {}
 async function confirmApprove() {
     if (!pendingApproveItem.value) return;
@@ -482,7 +509,7 @@ async function confirmApprove() {
             `/api/sale/orders/${pendingApproveItem.value.id}/approve`,
         );
 
-        toast.success("Duyệt đơn bán hàng thành công!");
+        toast.success("Xác nhận đơn bán hàng thành công!");
         showConfirm.value = false;
         pendingApproveItem.value = null;
         getData();

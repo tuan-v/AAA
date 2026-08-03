@@ -14,6 +14,9 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $query = Customer::with('currency');
+        if ($request->routeIs('accountant.customers-debt.index')) {
+            $query->where('code', '!=', 'KH_LE');
+        }
         $companyCurrency = auth()->user()->company?->currencies()
             ->wherePivot('is_default', true)->first();
 
@@ -79,13 +82,14 @@ class CustomerController extends Controller
     }
     public function all()
     {
-        return response()->json(
-
-            Customer::select(
+        $customers = Customer::with('currency')->select(
                 'id',
                 'code',
                 'name',
                 'currency_id',
+                'opening_debt',
+                'opening_debt_base',
+                'opening_debt_exchange_rate',
                 'province_id',
                 'ward_id',
                 'address_detail',
@@ -93,7 +97,15 @@ class CustomerController extends Controller
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->get()
-        );
+                ->each(function (Customer $customer) {
+                    $openingPayments = (float) $customer->debts()
+                        ->where('type', \App\Models\CustomerDebt::TYPE_OPENING_PAYMENT)
+                        ->sum('amount');
+                    $customer->setAttribute('opening_debt_remaining', max(0, (float) $customer->opening_debt_base + $openingPayments));
+                    $customer->setAttribute('advance_balance', app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
+                });
+
+        return response()->json($customers);
     }
     public function store(Request $request)
     {
@@ -268,6 +280,10 @@ class CustomerController extends Controller
                 $query->latest()->limit(8);
             },
         ])->findOrFail($id);
+
+        if (request()->routeIs('accountant.customers-debt.detail') && $customer->code === 'KH_LE') {
+            abort(404, 'Khách lẻ không phải là một đối tượng công nợ.');
+        }
 
         $partyRate = app(CompanyCurrencyService::class)->rate(
             (int) $customer->company_id,

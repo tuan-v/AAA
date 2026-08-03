@@ -29,6 +29,13 @@
                 </Link>
             </section>
 
+            <DashboardDateFilter
+                v-model:date-from="dateFrom"
+                v-model:date-to="dateTo"
+                :loading="loading"
+                @apply="loadDashboard"
+            />
+
             <div
                 v-if="loading"
                 class="rounded-xl border bg-white p-10 text-center text-gray-500"
@@ -143,11 +150,17 @@
                     <article
                         class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
                     >
-                        <h2
-                            class="border-b px-5 py-4 font-semibold text-gray-900"
-                        >
-                            {{ config.recentTitle }}
-                        </h2>
+                        <div class="flex items-center justify-between border-b px-5 py-4">
+                            <h2 class="font-semibold text-gray-900">
+                                {{ config.recentTitle }}
+                            </h2>
+                            <Link
+                                :href="config.recentLink"
+                                class="text-sm font-medium text-indigo-600 hover:underline"
+                            >
+                                Xem tất cả
+                            </Link>
+                        </div>
                         <div
                             v-if="!data.recent?.length"
                             class="p-8 text-center text-sm text-gray-500"
@@ -191,9 +204,9 @@
                                     <span
                                         v-if="row.status"
                                         class="inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold"
-                                        :class="statusMeta(row.status).class"
+                                        :class="statusMeta(row.effective_status || row.status).class"
                                     >
-                                        {{ statusMeta(row.status).label }}
+                                        {{ statusMeta(row.effective_status || row.status).label }}
                                     </span>
                                 </div>
                             </div>
@@ -241,6 +254,7 @@ import { Head, Link } from "@inertiajs/vue3";
 import { computed, onMounted, ref } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
+import DashboardDateFilter from "@/components/dashboard/DashboardDateFilter.vue";
 import { formatMoney as money } from "@/config/helpers";
 import { getOrderStatusMeta } from "@/config/status";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
@@ -248,6 +262,14 @@ import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const props = defineProps({ module: { type: String, required: true } });
 const loading = ref(true);
 const error = ref("");
+const today = new Date();
+const toDateInput = (date) => {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+};
+const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+const dateFrom = ref(toDateInput(currentMonthStart));
+const dateTo = ref(toDateInput(today));
 const data = ref({
     metrics: [],
     trend: [],
@@ -266,6 +288,7 @@ const configs = {
         primaryLabel: "Giá trị mua",
         secondaryLabel: "",
         recentTitle: "Đơn mua gần đây",
+        recentLink: "/purchase/orders",
         rankingTitle: "Top NCC theo giá trị PO đã duyệt",
         actions: [
             { label: "Đơn mua hàng", href: "/purchase/orders" },
@@ -282,6 +305,7 @@ const configs = {
         primaryLabel: "Doanh thu",
         secondaryLabel: "",
         recentTitle: "Đơn bán gần đây",
+        recentLink: "/sale/orders",
         rankingTitle: "Top khách hàng theo giá trị SO đã duyệt",
         actions: [
             { label: "Đơn bán hàng", href: "/sale/orders" },
@@ -298,6 +322,7 @@ const configs = {
         primaryLabel: "Phiếu nhập",
         secondaryLabel: "Phiếu xuất",
         recentTitle: "Sản phẩm sắp hết",
+        recentLink: "/warehouse/list",
         rankingTitle: "",
         actions: [
             { label: "Danh sách kho", href: "/warehouse/list" },
@@ -314,6 +339,7 @@ const configs = {
         primaryLabel: "Thu",
         secondaryLabel: "Chi",
         recentTitle: "Giao dịch gần đây",
+        recentLink: "/accountant/transactions",
         rankingTitle: "",
         actions: [
             { label: "Giao dịch", href: "/accountant/transactions" },
@@ -344,8 +370,12 @@ const formatNumber = (value) =>
 const statusMeta = (status) => getOrderStatusMeta(status);
 
 const loadDashboard = async () => {
+    loading.value = true;
+    error.value = "";
     try {
-        const response = await axios.get(`/api/dashboard/${props.module}`);
+        const response = await axios.get(`/api/dashboard/${props.module}`, {
+            params: { date_from: dateFrom.value, date_to: dateTo.value },
+        });
         data.value = response.data.data;
     } catch (e) {
         error.value =

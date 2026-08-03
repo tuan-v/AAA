@@ -236,6 +236,11 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Đơn hàng',
                     'path' => '/sale/orders',
                 ] : null,
+                $this->can('don_ban.them') ? [
+                    'icon' => 'ShoppingCartIcon',
+                    'name' => 'Bán hàng tại quầy',
+                    'path' => '/sale/pos',
+                ] : null,
                 ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
             ])),
 

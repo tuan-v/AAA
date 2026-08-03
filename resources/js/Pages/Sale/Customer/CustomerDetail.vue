@@ -309,10 +309,12 @@
                                             }}
                                         </td>
                                         <td class="p-2">
-                                            {{
-                                                getStatusLabel(order.status) ||
-                                                "-"
-                                            }}
+                                            <span
+                                                class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                                :class="customerOrderStatusMeta(order.effective_status || order.status).class"
+                                            >
+                                                {{ customerOrderStatusMeta(order.effective_status || order.status).label }}
+                                            </span>
                                         </td>
                                         <td class="p-2 text-right">
                                             <button
@@ -501,7 +503,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
-import { getStatusLabel } from "@/config/status";
+import { getOrderStatusMeta } from "@/config/status";
 import { formatMoney } from "@/config/helpers";
 import SaleOrderDetail from "../Order/SaleOrderDetail.vue";
 import PaymentHistoryPanel from "@/components/PaymentHistoryPanel.vue";
@@ -586,6 +588,21 @@ const paidPercent = computed(() => {
 
 const formatCurrency = (amount) => {
     return formatMoney(amount || 0, companyCurrency.value);
+};
+
+const customerOrderStatusMeta = (status) => {
+    const fulfillmentStatuses = {
+        partial: {
+            label: "Xuất một phần",
+            class: "bg-amber-100 text-amber-700 border-amber-200",
+        },
+        completed: {
+            label: "Hoàn thành",
+            class: "bg-green-100 text-green-700 border-green-200",
+        },
+    };
+
+    return fulfillmentStatuses[status] || getOrderStatusMeta(status);
 };
 
 const createQuickOrder = () => {

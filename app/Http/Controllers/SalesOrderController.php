@@ -51,7 +51,12 @@ class SalesOrderController extends Controller
             'partial',
             'completed',
             'cancelled',
-        ]);
+        ])->where(function ($query) {
+            $query->whereNull('sales_channel')
+                ->orWhere('sales_channel', '!=', 'pos')
+                // POS chỉ xuất hiện ở lịch sử đơn bán sau khi đã thanh toán xong.
+                ->orWhere(fn ($pos) => $pos->where('sales_channel', 'pos')->where('status', 'completed'));
+        });
 
         if ($request->boolean('transaction_eligible')) {
             $query->whereIn('status', ['approved', 'partial', 'completed']);
@@ -101,6 +106,9 @@ class SalesOrderController extends Controller
                 'id' => $item->id,
                 'code' => $item->code,
                 'status' => $item->status,
+                'sales_channel' => $item->sales_channel,
+                'return_status' => $item->return_status,
+                'effective_status' => $item->effective_status,
                 'customer' => $item->customer,
                 'currency' => $companyCurrency ?: $item->currency,
                 'order_currency' => $item->currency,
@@ -124,14 +132,42 @@ class SalesOrderController extends Controller
             'currency',
             'items.product',
             'items.product.unit',
+            'warehouseSlips.items',
         ])
             ->whereIn('status', ['approved', 'partial', 'completed'])
+            // Đơn POS đã trừ tồn trực tiếp khi thanh toán, không phát sinh phiếu xuất kho.
+            ->where(fn ($query) => $query
+                ->whereNull('sales_channel')
+                ->orWhere('sales_channel', '!=', 'pos'))
             ->latest()
             ->paginate(10);
 
         $companyCurrency = $this->getCompanyCurrency();
 
         $orders->getCollection()->transform(function ($order) use ($companyCurrency) {
+            $approvedExported = [];
+            foreach ($order->warehouseSlips as $slip) {
+                if ($slip->type !== 'export' || $slip->status !== 'approved') {
+                    continue;
+                }
+                foreach ($slip->items as $slipItem) {
+                    $approvedExported[$slipItem->product_id] = ($approvedExported[$slipItem->product_id] ?? 0)
+                        + (float) $slipItem->quantity;
+                }
+            }
+            $hasExport = collect($approvedExported)->sum() > 0;
+            $isFullyExported = $order->items->every(fn ($item) =>
+                (float) ($approvedExported[$item->product_id] ?? 0) >= (float) $item->quantity
+            );
+            $warehouseStatus = match (true) {
+                $order->return_status === 'pending_warehouse' => 'return_pending_warehouse',
+                $order->return_status === 'pending_accountant' => 'return_pending_accountant',
+                $order->return_status === 'returned' => 'returned',
+                $isFullyExported => 'export_full',
+                $hasExport => 'export_partial',
+                default => 'awaiting_export',
+            };
+
             foreach ($order->items as $i) {
 
                 $displayPrice = round(
@@ -160,6 +196,9 @@ class SalesOrderController extends Controller
                 'id' => $order->id,
                 'code' => $order->code,
                 'status' => $order->status,
+                'return_status' => $order->return_status,
+                'effective_status' => $order->effective_status,
+                'warehouse_status' => $warehouseStatus,
                 'customer' => $order->customer,
                 'currency' => $companyCurrency ?: $order->currency,
                 'items' => $order->items,
@@ -255,7 +294,10 @@ class SalesOrderController extends Controller
                     }
                 }
             }
-            $item->exported_quantity = $exported;
+            // POS xuất kho trực tiếp khi thanh toán nên không phát sinh warehouse_slips.
+            $item->exported_quantity = $order->sales_channel === 'pos' && $order->status === 'completed'
+                ? (float) $item->quantity
+                : $exported;
             $lineAmount = round((float) $item->unit_price * (float) $item->quantity, 2);
             $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 0) / 100), 2);
 
@@ -271,7 +313,12 @@ class SalesOrderController extends Controller
             }
         }
         $order->subtotal = $order->items->sum('amount');
-        $order->total_amount = $order->subtotal + ($order->vat_amount ?? 0);
+        $order->total_amount = round(
+            (float) $order->subtotal
+            + (float) ($order->vat_amount ?? 0)
+            - (float) ($order->discount_amount ?? 0),
+            2
+        );
         $order->setRelation('currency', $order->currency);
 
         return response()->json([
@@ -304,6 +351,7 @@ class SalesOrderController extends Controller
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
+            'status' => ['nullable', 'in:draft,pending'],
         ], [
             'customer_id.required' => 'Khách hàng không được để trống',
             'customer_id.exists' => 'Khách hàng không tồn tại',
@@ -395,7 +443,7 @@ class SalesOrderController extends Controller
                 'address_detail' => $validated['address_detail'] ?? null,
                 'note' => $validated['note'] ?? null,
 
-                'status' => 'pending',
+                'status' => $validated['status'] ?? 'pending',
                 'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
 
                 'vat_amount' => $validated['vat_amount'],
@@ -477,10 +525,10 @@ class SalesOrderController extends Controller
     {
         $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
         $old = $order->toArray();
-        if ($order->status !== 'pending') {
+        if (! in_array($order->status, ['draft', 'pending'], true)) {
 
             return response()->json([
-                'message' => 'Chỉ được chỉnh sửa đơn hàng đang chờ xử lý.',
+                'message' => 'Chỉ được chỉnh sửa hóa đơn chờ hoặc đơn đang chờ xác nhận.',
             ], 422);
         }
 
@@ -676,13 +724,27 @@ class SalesOrderController extends Controller
         ]);
     }
 
+    public function submitForApproval($id)
+    {
+        $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
+        if ($order->status !== 'draft') {
+            return response()->json(['message' => 'Chỉ hóa đơn chờ mới có thể gửi xác nhận.'], 422);
+        }
+
+        $order->update(['status' => 'pending', 'submitted_at' => now()]);
+        ActivityLogService::log($order, 'submit', "Gửi xác nhận đơn bán {$order->code}",
+            ['status' => 'draft'], ['status' => 'pending']);
+
+        return response()->json(['message' => 'Đã gửi đơn bán chờ xác nhận.']);
+    }
+
     public function cancel($id)
     {
         $order = SalesOrder::withCount('warehouseSlips')
             ->where('company_id', $this->companyId())
             ->findOrFail($id);
 
-        if ($order->status !== 'pending') {
+        if (! in_array($order->status, ['draft', 'pending'], true)) {
             return response()->json([
                 'message' => 'Chỉ được hủy đơn bán đang chờ duyệt.',
             ], 422);
@@ -694,12 +756,13 @@ class SalesOrderController extends Controller
             ], 422);
         }
 
+        $oldStatus = $order->status;
         $order->update(['status' => 'cancelled']);
         ActivityLogService::log(
             $order,
             'cancel',
             "Hủy đơn bán {$order->code}",
-            ['status' => 'pending'],
+            ['status' => $oldStatus],
             ['status' => 'cancelled']
         );
 
@@ -730,7 +793,7 @@ class SalesOrderController extends Controller
             ->where('company_id', $this->companyId())
             ->findOrFail($id);
 
-        if ($order->status !== 'pending' || $order->warehouse_slips_count > 0) {
+        if (! in_array($order->status, ['draft', 'pending'], true) || $order->warehouse_slips_count > 0) {
             return response()->json([
                 'message' => 'Chỉ được xóa đơn bán đang chờ duyệt và chưa phát sinh phiếu warehouse.',
             ], 422);
@@ -759,7 +822,7 @@ class SalesOrderController extends Controller
             $exported = 0;
             foreach ($order->warehouseSlips as $slip) {
                 // chỉ tính phiếu đã duyệt
-                if (! in_array($slip->status, ['approved', 'pending'])) {
+                if ($slip->type !== 'export' || ! in_array($slip->status, ['approved', 'pending'])) {
                     continue;
                 }
                 foreach ($slip->items as $slipItem) {
@@ -783,6 +846,11 @@ class SalesOrderController extends Controller
         $order->vat_amount = round(($order->vat_amount ?? 0) * ($order->exchange_rate ?? 1), 2);
         $order->total_amount = round($order->subtotal + $order->vat_amount, 2);
         $order->setRelation('currency', $companyCurrency ?: $order->currency);
+        $order->setAttribute('can_export', $order->return_status === null
+            && in_array($order->status, ['approved', 'partial'], true));
+        $order->setAttribute('export_block_reason', $order->return_status
+            ? 'Đơn đã phát sinh hoàn hàng/hủy giao nên không thể tạo thêm phiếu xuất.'
+            : null);
 
         return response()->json($order);
     }

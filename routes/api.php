@@ -23,6 +23,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseSlipController;
+use App\Http\Controllers\PosController;
 use App\Http\Controllers\WarehouseInventoryController;
 use App\Http\Controllers\InventoryMovementController;
 use App\Http\Controllers\WarehouseTransferController;
@@ -157,6 +158,10 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::put('/{slip}', 'update')->middleware('permission:phieu_kho.sua');
             Route::post('/{id}/approve', 'approve')->middleware('permission:phieu_kho.duyet');
             Route::post('/{id}/accountant-approve', 'accountantApprove')->middleware('permission:phieu_kho.duyet_ke_toan');
+            Route::post('/{id}/confirm-delivery', 'confirmDelivery')->middleware('permission:phieu_kho.duyet_ke_toan');
+            Route::post('/{id}/request-delivery-return', 'requestDeliveryReturn')->middleware('permission:phieu_kho.duyet_ke_toan');
+            Route::post('/{id}/receive-delivery-return', 'receiveDeliveryReturn')->middleware('permission:phieu_kho.duyet');
+            Route::post('/{id}/accountant-approve-delivery-return', 'accountantApproveDeliveryReturn')->middleware('permission:phieu_kho.duyet_ke_toan');
             Route::post('/{id}/reject', 'reject')->middleware('permission:phieu_kho.tu_choi');
         });
 
@@ -229,6 +234,18 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     |--------------------------------------------------------------------------
     */
     Route::prefix('sale')->group(function () {
+        Route::controller(PosController::class)->prefix('pos')->middleware('permission:don_ban.them')->group(function () {
+            Route::get('/options', 'options');
+            Route::get('/drafts', 'drafts');
+            Route::post('/drafts', 'createDraft');
+            Route::put('/drafts/{order}', 'updateDraft');
+            Route::delete('/drafts/{order}', 'cancelDraft');
+            Route::post('/customers', 'storeCustomer');
+            Route::post('/orders', 'store');
+            Route::get('/history', 'history');
+            Route::get('/orders/{order}', 'show');
+        });
+
         Route::controller(CustomerController::class)->prefix('customers')->group(function () {
             Route::get('/', 'index')->middleware('permission:khach_hang.xem');
             Route::get('/all', 'all')->middleware('permission:khach_hang.xem|giao_dich.them|giao_dich.sua');
@@ -249,6 +266,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::get('/{order}', 'show')->middleware('permission:don_ban.xem_chi_tiet|cong_no_khach_hang.xem_chi_tiet');
             Route::put('/{order}', 'update')->middleware('permission:don_ban.sua');
             Route::delete('/{order}', 'destroy')->middleware('permission:don_ban.xoa');
+            Route::post('/{id}/submit', 'submitForApproval')->middleware('permission:don_ban.sua');
             Route::post('/{id}/approve', 'approve')->middleware('permission:don_ban.duyet');
             Route::post('/{id}/cancel', 'cancel')->middleware('permission:don_ban.huy');
         });
@@ -323,6 +341,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::get('/', 'index')->middleware('permission:giao_dich.xem');
             Route::post('/', 'store')->middleware('permission:giao_dich.them');
             Route::get('/order-outstanding', 'orderOutstanding')->middleware('permission:giao_dich.xem');
+            Route::get('/exchange-rate', 'exchangeRate')->middleware('permission:giao_dich.xem|giao_dich.them|giao_dich.sua');
             Route::get('/{transaction}', 'show')->middleware('permission:giao_dich.xem');
             Route::put('/{transaction}', 'update')->middleware('permission:giao_dich.sua');
             Route::delete('/{transaction}', 'destroy')->middleware('permission:giao_dich.xoa');

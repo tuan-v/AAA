@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustomerDebt extends Model
 {
+    public const TYPE_OPENING_PAYMENT = 'opening_payment';
+    public const TYPE_ADVANCE = 'advance';
+    public const TYPE_ADVANCE_REFUND = 'advance_refund';
+
     protected $fillable = [
         'customer_id',
         'type',

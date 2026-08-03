@@ -956,6 +956,7 @@ async function submit() {
         subtotal: subtotal.value,
         vat_amount: vatAmount.value,
         total_amount: totalAmount.value,
+        status: form.id ? undefined : 'draft',
         items: cleanItems,
     };
 

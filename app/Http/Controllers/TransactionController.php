@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Services\CompanyCurrencyService;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 
@@ -76,7 +77,8 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'type' => 'required|in:receipt,payment,transfer',
             'payment_method' => 'required|in:cash,bank_transfer',
-            'amount' => 'required|numeric|gt:0',
+            'amount' => 'required|numeric|min:0',
+            'advance_applied_amount' => 'nullable|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',
             'category_id' => 'required|integer|exists:transaction_categories,id',
             'transaction_date' => 'required|date|before_or_equal:today',
@@ -132,6 +134,22 @@ class TransactionController extends Controller
         }
     }
 
+    public function exchangeRate(Request $request, CompanyCurrencyService $currencies)
+    {
+        $validated = $request->validate([
+            'currency_id' => 'required|integer|exists:currencies,id',
+            'transaction_date' => 'required|date|before_or_equal:today',
+        ]);
+
+        return response()->json([
+            'rate' => $currencies->rate(
+                (int) auth()->user()->company_id,
+                (int) $validated['currency_id'],
+                $validated['transaction_date'],
+            ),
+        ]);
+    }
+
     // 📌 Cập nhật giao dịch (MỚI)
     // Chỉ cho sửa khi giao dịch đang ở trạng thái "pending" — giữ đúng
     // nguyên tắc: đã duyệt thì khoá, không cho sửa lại (giống PO/SO).
@@ -140,7 +158,8 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'type' => 'required|in:receipt,payment,transfer',
             'payment_method' => 'required|in:cash,bank_transfer',
-            'amount' => 'required|numeric|gt:0',
+            'amount' => 'required|numeric|min:0',
+            'advance_applied_amount' => 'nullable|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',
             'category_id' => 'required|integer|exists:transaction_categories,id',
             'transaction_date' => 'required|date|before_or_equal:today',

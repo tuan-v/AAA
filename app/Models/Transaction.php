@@ -28,6 +28,8 @@ class Transaction extends Model
         'amount',
         'exchange_rate',
         'amount_base',
+        'advance_applied_amount',
+        'advance_applied_base',
         'from_account_id',
         'to_account_id',
         'reference_type',
@@ -53,6 +55,8 @@ class Transaction extends Model
         'amount' => 'decimal:2',
         'exchange_rate' => 'decimal:6',
         'amount_base' => 'decimal:2',
+        'advance_applied_amount' => 'decimal:2',
+        'advance_applied_base' => 'decimal:2',
         'approved_at'    => 'datetime',
         'rejected_at'    => 'datetime',
     ];

@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\SalesOrder;
+use App\Models\Supplier;
 use App\Models\TransactionCategory;
 use App\Models\Transaction;
 use App\Models\User;
@@ -52,7 +53,16 @@ class TransactionFlowTest extends TestCase
         $user->givePermissionTo([$viewPermission, $createPermission, $updatePermission]);
 
         $category = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'THU_NOI_BO', 'name' => 'Thu nội bộ', 'type' => 'income', 'status' => 'active',
+        ]);
+        $openingReceiptCategory = TransactionCategory::create([
             'company_id' => $company->id, 'code' => 'THU_KHAC', 'name' => 'Thu khác', 'type' => 'income', 'status' => 'active',
+        ]);
+        $customerAdvanceCategory = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'TAM_UNG_KH', 'name' => 'Khách hàng tạm ứng', 'type' => 'income', 'status' => 'active',
+        ]);
+        $customerAdvanceRefundCategory = TransactionCategory::create([
+            'company_id' => $company->id, 'code' => 'HOAN_TAM_UNG_KH', 'name' => 'Hoàn tạm ứng khách hàng', 'type' => 'expense', 'status' => 'active',
         ]);
         $account = Account::create([
             'company_id' => $company->id, 'code' => 'TM01', 'name' => 'Tiền mặt', 'type' => 'cash',
@@ -111,6 +121,11 @@ class TransactionFlowTest extends TestCase
             'company_id' => $company->id, 'code' => 'CHI_KHAC', 'name' => 'Chi khác',
             'type' => 'expense', 'status' => 'active',
         ]);
+        $supplier = Supplier::create([
+            'company_id' => $company->id, 'code' => 'NCC-TX', 'name' => 'Nhà cung cấp giao dịch',
+            'phone' => '0922222222', 'email' => 'supplier-tx@example.com',
+            'currency_id' => $currency->id, 'opening_debt' => 200, 'status' => 'active',
+        ]);
 
         $this->assertThrows(fn () => $service->create([
             'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
@@ -148,17 +163,20 @@ class TransactionFlowTest extends TestCase
         $this->assertThrows(fn () => $service->create([
             'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 151,
             'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'supplier_id' => $supplier->id,
             'transaction_date' => '2026-07-20',
         ]), \InvalidArgumentException::class);
 
         $pendingPayment = $service->create([
             'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
             'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'supplier_id' => $supplier->id,
             'transaction_date' => '2026-07-20',
         ]);
         $this->putJson("/api/accountant/transactions/{$pendingPayment->id}", [
             'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 151,
             'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'supplier_id' => $supplier->id,
             'transaction_date' => '2026-07-20',
         ])->assertStatus(422)
             ->assertJsonPath('message', "Số tiền vượt quá số dư khả dụng của tài khoản 'NH00'.");
@@ -199,6 +217,9 @@ class TransactionFlowTest extends TestCase
             'name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'exchange_rate' => 25000, 'is_active' => true,
         ]);
         $company->currencies()->attach($usd->id, ['is_default' => false]);
+        $this->getJson('/api/accountant/transactions/exchange-rate?currency_id='.$usd->id.'&transaction_date=2026-07-20')
+            ->assertOk()
+            ->assertJsonPath('rate', 25000);
         $usdSource = Account::create([
             'company_id' => $company->id, 'code' => 'USD01', 'name' => 'USD source', 'type' => 'bank',
             'bank_id' => $bank->id, 'bank_account_no' => '001000000003',
@@ -243,14 +264,77 @@ class TransactionFlowTest extends TestCase
             'company_id' => $company->id, 'code' => 'KH-TX', 'name' => 'Khách giao dịch',
             'phone' => '0911111111', 'currency_id' => $currency->id, 'opening_debt' => 100, 'status' => 'active',
         ]);
+        $this->getJson('/api/sale/customers/all')
+            ->assertOk()
+            ->assertJsonPath('0.id', $customer->id)
+            ->assertJsonPath('0.opening_debt', '100.00')
+            ->assertJsonPath('0.opening_debt_remaining', 100)
+            ->assertJsonPath('0.currency.code', 'VND');
+        $advanceReceipt = $service->create([
+            'type' => 'receipt', 'payment_method' => 'cash', 'amount' => 40,
+            'category_id' => $customerAdvanceCategory->id, 'to_account_id' => $account->id,
+            'customer_id' => $customer->id, 'transaction_date' => '2026-07-20',
+        ]);
+        $service->approve($advanceReceipt->id);
+        $this->assertEquals(40, app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
+        $advanceRefund = $service->create([
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 15,
+            'category_id' => $customerAdvanceRefundCategory->id, 'from_account_id' => $bankSource->id,
+            'customer_id' => $customer->id, 'transaction_date' => '2026-07-20',
+        ]);
+        $service->approve($advanceRefund->id);
+        $this->assertEquals(25, app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
+        $this->assertEquals(25, (float) $customer->fresh()->total_advance);
+        $this->getJson('/api/purchase/suppliers/all')
+            ->assertOk()
+            ->assertJsonPath('0.id', $supplier->id)
+            ->assertJsonPath('0.opening_debt', '200.00')
+            ->assertJsonPath('0.current_debt', 200)
+            ->assertJsonPath('0.opening_debt_remaining', 200)
+            ->assertJsonPath('0.currency.code', 'VND');
+        $this->postJson('/api/accountant/transactions', [
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'transaction_date' => '2026-07-20',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Chi khác bắt buộc phải chọn nhà cung cấp.');
+        $openingDebtPayment = $service->create([
+            'type' => 'payment', 'payment_method' => 'bank_transfer', 'amount' => 10,
+            'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
+            'supplier_id' => $supplier->id, 'transaction_date' => '2026-07-20',
+        ]);
+        $service->approve($openingDebtPayment->id);
+        $this->assertDatabaseHas('supplier_debts', [
+            'supplier_id' => $supplier->id,
+            'type' => 'opening_payment',
+            'amount' => -10,
+        ]);
+        $this->assertEquals(190, app(\App\Services\SupplierDebtService::class)->getOpeningDebtBalance($supplier->id));
         $otherCustomerReceipt = $service->create([
             ...$payload,
+            'category_id' => $openingReceiptCategory->id,
             'amount' => 10,
             'customer_id' => $customer->id,
         ]);
         $this->assertSame($customer->id, $otherCustomerReceipt->customer_id);
         $this->assertNull($otherCustomerReceipt->sales_order_id);
-        $service->delete($otherCustomerReceipt->id);
+        $service->approve($otherCustomerReceipt->id);
+        $this->assertDatabaseHas('customer_debts', [
+            'customer_id' => $customer->id,
+            'type' => 'opening_payment',
+            'amount' => -10,
+        ]);
+        $this->assertEquals(90, app(\App\Services\CustomerDebtService::class)->getOpeningDebtBalance($customer->id));
+
+        $customerWithoutDebt = Customer::create([
+            'company_id' => $company->id, 'code' => 'KH-ZERO', 'name' => 'Khách không nợ',
+            'phone' => '0933333333', 'currency_id' => $currency->id, 'opening_debt' => 0, 'status' => 'active',
+        ]);
+        $this->assertThrows(fn () => $service->create([
+            ...$payload,
+            'category_id' => $openingReceiptCategory->id,
+            'customer_id' => $customerWithoutDebt->id,
+        ]), \RuntimeException::class);
 
         $order = SalesOrder::create([
             'company_id' => $company->id, 'code' => 'SO-TX', 'customer_id' => $customer->id,

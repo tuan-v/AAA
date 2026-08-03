@@ -357,6 +357,7 @@ class DepartmentPositionFlowTest extends TestCase
 
     public function test_employee_created_by_hr_stays_pending_until_a_higher_account_approves_it(): void
     {
+        $this->markTestSkipped('Luồng duyệt nhân viên đã được loại bỏ; nhân viên được kích hoạt ngay khi tạo.');
         Event::fake([NotificationCreated::class]);
         $this->seed(DatabaseSeeder::class);
         $this->seed(DepartmentDemoSeeder::class);
@@ -529,5 +530,28 @@ class DepartmentPositionFlowTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.status', User::STATUS_REJECTED_FINAL);
+    }
+
+    public function test_employee_created_by_hr_is_active_without_approval(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DepartmentDemoSeeder::class);
+        $this->seed(DepartmentEmployeeDemoSeeder::class);
+
+        $hr = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $department = Department::where('company_id', $hr->company_id)->where('code', 'PB-005')->firstOrFail();
+        $position = Position::where('company_id', $hr->company_id)->where('code', 'CV-105')->firstOrFail();
+
+        $userId = $this->actingAs($hr)->postJson('/api/users/user', [
+            'name' => 'Nhân viên kích hoạt ngay', 'username' => 'active_employee',
+            'email' => 'active.employee@demo.vn', 'phone' => '0902888888',
+            'password' => 'Test@123456', 'password_confirmation' => 'Test@123456',
+            'status' => User::STATUS_ACTIVE, 'role' => 'Nhân viên bán hàng',
+            'department_id' => $department->id, 'position_id' => $position->id,
+        ])->assertCreated()->assertJsonPath('user.status', User::STATUS_ACTIVE)
+            ->assertJsonPath('requires_approval', false)->json('user.id');
+
+        $this->assertSame(User::STATUS_ACTIVE, User::findOrFail($userId)->status);
+        $this->patchJson("/api/users/{$userId}/approve")->assertNotFound();
     }
 }

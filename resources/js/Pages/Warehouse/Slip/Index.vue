@@ -37,6 +37,13 @@
             >
                 Phiếu xuất
             </button>
+            <button
+                @click="activeTab = 'return'"
+                class="px-4 py-2 text-sm font-medium border-b-2 transition"
+                :class="activeTab === 'return' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-orange-500'"
+            >
+                Phiếu nhập hàng hoàn
+            </button>
         </div>
 
         <!-- TABLE -->
@@ -103,7 +110,7 @@ import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import SearchPage from "@/components/SearchPage.vue";
 
 const { can } = usePermission();
-const { confirmAction } = useActionConfirm();
+const { confirmAction, promptAction } = useActionConfirm();
 const isAccountantView = window.location.pathname.startsWith("/accountant/");
 const activeTab = ref("import");
 const urlParams = new URLSearchParams(window.location.search);
@@ -152,7 +159,7 @@ const columns = [
             h(
                 "span",
                 {},
-                row.purchase_order_code || row.sales_order_code || "-",
+                row.return_of_slip_code || row.purchase_order_code || row.sales_order_code || "-",
             ),
     },
     {
@@ -226,6 +233,14 @@ const columns = [
             );
         },
     },
+    {
+        label: "Hoàn hàng",
+        render: (row) => h("span", {}, ({
+            pending_warehouse: "Chờ kho nhận hàng",
+            pending_accountant: "Chờ kế toán duyệt hoàn",
+            approved: "Đã hoàn",
+        })[row.return_status] || "-"),
+    },
 ];
 const actions = [
     {
@@ -233,6 +248,7 @@ const actions = [
         icon: CheckIcon,
         hidden: (row) =>
             isAccountantView ||
+            row.type === "return" ||
             !can("phieu_kho.duyet") ||
             row.status !== "pending" ||
             Boolean(row.submitted_to_accountant_at),
@@ -290,10 +306,120 @@ const actions = [
         },
     },
     {
+        title: "Xác nhận đã giao hàng",
+        label: "Đã giao",
+        icon: CheckIcon,
+        hidden: (row) =>
+            !isAccountantView ||
+            !can("phieu_kho.duyet_ke_toan") ||
+            row.type !== "export" ||
+            row.status !== "approved" ||
+            row.sales_order_status !== "partial" ||
+            Boolean(row.sales_order_return_status),
+        confirm: false,
+        onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Xác nhận giao hàng",
+                message: `Xác nhận đơn ${row.sales_order_code || ''} đã giao đủ cho khách hàng?`,
+                confirmText: "Xác nhận đã giao",
+                tone: "success",
+            });
+            if (!confirmed) return;
+            try {
+                await axios.post(`/api/warehouse/slips/${row.id}/confirm-delivery`);
+                toast.success("Đã xác nhận giao hàng và hoàn thành đơn bán");
+                await getData(slips.value.current_page);
+            } catch (e) {
+                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể xác nhận giao hàng");
+            }
+        },
+    },
+    {
+        title: "Hủy giao / hoàn hàng",
+        label: "Hủy giao",
+        icon: DeleteIcon,
+        hidden: (row) =>
+            !isAccountantView ||
+            !can("phieu_kho.duyet_ke_toan") ||
+            row.type !== "export" ||
+            row.status !== "approved" ||
+            row.sales_order_status !== "partial" ||
+            Boolean(row.sales_order_return_status),
+        confirm: false,
+        onClick: async (row) => {
+            const reason = await promptAction({
+                title: "Hủy giao và hoàn hàng",
+                message: `Đơn ${row.sales_order_code || `#${row.sales_order_id}`} sẽ chuyển sang chờ kho nhận lại hàng. Tồn kho và công nợ chỉ được cập nhật sau khi kế toán duyệt hoàn.`,
+                inputLabel: "Lý do hủy giao",
+                inputPlaceholder: "Ví dụ: Khách từ chối nhận hàng, giao không thành công...",
+                inputRequired: true,
+                inputMinLength: 5,
+                confirmText: "Xác nhận hủy giao",
+                cancelText: "Quay lại",
+                tone: "danger",
+            });
+            if (!reason) return;
+            try {
+                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/request-delivery-return`, { reason });
+                toast.success(data.message);
+                await getData(slips.value.current_page);
+            } catch (e) {
+                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể tạo yêu cầu hoàn hàng");
+            }
+        },
+    },
+    {
+        title: "Xác nhận nhận hàng hoàn",
+        label: "Đã nhận hàng hoàn",
+        icon: CheckIcon,
+        hidden: (row) => isAccountantView || !can("phieu_kho.duyet") || row.return_status !== "pending_warehouse",
+        confirm: false,
+        onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Xác nhận hàng hoàn",
+                message: `Kho đã nhận lại đủ hàng của phiếu ${row.code}?`,
+                confirmText: "Đã nhận đủ",
+                tone: "success",
+            });
+            if (!confirmed) return;
+            try {
+                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/receive-delivery-return`);
+                toast.success(data.message);
+                await getData(slips.value.current_page);
+            } catch (e) {
+                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể xác nhận hàng hoàn");
+            }
+        },
+    },
+    {
+        title: "Kế toán duyệt hoàn hàng",
+        label: "Duyệt hoàn",
+        icon: CheckIcon,
+        hidden: (row) => !isAccountantView || !can("phieu_kho.duyet_ke_toan") || row.return_status !== "pending_accountant",
+        confirm: false,
+        onClick: async (row) => {
+            const confirmed = await confirmAction({
+                title: "Duyệt hoàn hàng",
+                message: `Duyệt hoàn phiếu ${row.code}? Tồn kho sẽ tăng lại và công nợ của phiếu xuất sẽ được đảo.`,
+                confirmText: "Duyệt hoàn",
+                tone: "success",
+            });
+            if (!confirmed) return;
+            try {
+                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/accountant-approve-delivery-return`);
+                toast.success(data.message);
+                await getData(slips.value.current_page);
+            } catch (e) {
+                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể duyệt hoàn hàng");
+            }
+        },
+    },
+    {
         title: "Từ chối",
         icon: DeleteIcon,
         hidden: (row) =>
             isAccountantView ||
+            row.type === "return" ||
             !can("phieu_kho.tu_choi") ||
             row.status !== "pending" ||
             Boolean(row.submitted_to_accountant_at),
@@ -341,10 +467,7 @@ function debounce(fn, delay = 300) {
 }
 
 const fetchData = async (page = 1, params = currentFilters.value) => {
-    const url =
-        activeTab.value === "import"
-            ? "/api/warehouse/slips?type=import"
-            : "/api/warehouse/slips?type=export";
+    const url = `/api/warehouse/slips?type=${activeTab.value}`;
 
     const res = await axios.get(url, {
         params: {

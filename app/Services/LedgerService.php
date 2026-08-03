@@ -18,6 +18,9 @@ class LedgerService
      */
     public function record(Transaction $transaction): void
     {
+        if ((float) $transaction->amount <= 0 && $transaction->type !== 'transfer') {
+            return;
+        }
         switch ($transaction->type) {
             case 'receipt':
                 $this->receipt($transaction);

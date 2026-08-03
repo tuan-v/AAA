@@ -20,6 +20,7 @@ class Customer extends Model
         'opening_debt',
         'opening_debt_exchange_rate',
         'opening_debt_base',
+        'total_advance',
 
         'province_id',
         'ward_id',
@@ -31,6 +32,7 @@ class Customer extends Model
         'opening_debt' => 'decimal:2',
         'opening_debt_exchange_rate' => 'decimal:8',
         'opening_debt_base' => 'decimal:2',
+        'total_advance' => 'decimal:2',
     ];
     public function company()
     {

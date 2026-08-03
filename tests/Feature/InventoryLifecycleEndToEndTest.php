@@ -191,6 +191,9 @@ class InventoryLifecycleEndToEndTest extends TestCase
         $this->actingAs($warehouseUser)->postJson("/api/warehouse/slips/{$exportSlipId}/approve")->assertOk();
         $this->actingAs($accountant)->postJson("/api/warehouse/slips/{$exportSlipId}/accountant-approve")->assertOk();
 
+        $this->assertSame('partial', SalesOrder::findOrFail($saleOrderId)->status);
+        $this->assertNotNull(SalesOrder::findOrFail($saleOrderId)->shipping_started_at);
+        $this->actingAs($accountant)->postJson("/api/warehouse/slips/{$exportSlipId}/confirm-delivery")->assertOk();
         $this->assertSame('completed', SalesOrder::findOrFail($saleOrderId)->status);
         $this->assertEquals(300000, (float) $product->fresh()->sell_price);
         $this->assertEquals(0, $destinationStock->fresh()->quantity);

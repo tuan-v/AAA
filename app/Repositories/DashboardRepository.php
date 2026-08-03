@@ -56,9 +56,10 @@ class DashboardRepository implements DashboardRepositoryInterface
     {
         // customer_debts không có company_id trực tiếp -> lọc qua quan hệ customer.
         $movements = (float) CustomerDebt::query()
-            ->whereHas('customer', fn($q) => $q->where('company_id', $companyId))
+            ->whereHas('customer', fn($q) => $q->where('company_id', $companyId)->where('code', '!=', 'KH_LE'))
             ->sum('amount');
-        $opening = (float) Customer::where('company_id', $companyId)->sum('opening_debt_base');
+        $opening = (float) Customer::where('company_id', $companyId)
+            ->where('code', '!=', 'KH_LE')->sum('opening_debt_base');
 
         return $opening + $movements;
     }
@@ -86,10 +87,10 @@ class DashboardRepository implements DashboardRepositoryInterface
             }), 2);
     }
 
-    public function getOperationCounts(int $companyId): array
+    public function getOperationCounts(int $companyId, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $monthStart = Carbon::now()->startOfMonth();
-        $monthEnd = Carbon::now()->endOfMonth();
+        $monthStart = $from ?? Carbon::now()->startOfMonth();
+        $monthEnd = $to ?? Carbon::now()->endOfMonth();
 
         $salesOrdersThisMonth = SalesOrder::where('company_id', $companyId)
             ->whereBetween('created_at', [$monthStart, $monthEnd])
@@ -122,17 +123,14 @@ class DashboardRepository implements DashboardRepositoryInterface
         ];
     }
 
-    public function getMonthlyFinance(int $companyId, int $months = 6): array
+    public function getMonthlyFinance(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $result = [];
 
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $monthDate = Carbon::now()->subMonths($i);
-            $from = $monthDate->copy()->startOfMonth();
-            $to = $monthDate->copy()->endOfMonth();
+        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, $periodFrom, $periodTo]) {
 
-            $revenue = $this->getSalesRevenue($companyId, $from, $to);
-            $purchase = $this->getPurchaseCost($companyId, $from, $to);
+            $revenue = $this->getSalesRevenue($companyId, $periodFrom, $periodTo);
+            $purchase = $this->getPurchaseCost($companyId, $periodFrom, $periodTo);
 
             $result[] = [
                 'month' => 'T' . $monthDate->format('n') . '/' . $monthDate->format('Y'),
@@ -144,25 +142,22 @@ class DashboardRepository implements DashboardRepositoryInterface
         return $result;
     }
 
-    public function getMonthlyCashFlow(int $companyId, int $months = 6): array
+    public function getMonthlyCashFlow(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $result = [];
 
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $monthDate = Carbon::now()->subMonths($i);
-            $from = $monthDate->copy()->startOfMonth();
-            $to = $monthDate->copy()->endOfMonth();
+        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, $periodFrom, $periodTo]) {
 
             $in = (float) Transaction::where('company_id', $companyId)
                 ->where('type', 'receipt')
                 ->where('status', 'approved')
-                ->whereBetween('transaction_date', [$from, $to])
+                ->whereBetween('transaction_date', [$periodFrom, $periodTo])
                 ->sum('amount_base');
 
             $out = (float) Transaction::where('company_id', $companyId)
                 ->where('type', 'payment')
                 ->where('status', 'approved')
-                ->whereBetween('transaction_date', [$from, $to])
+                ->whereBetween('transaction_date', [$periodFrom, $periodTo])
                 ->sum('amount_base');
 
             $result[] = [
@@ -175,16 +170,14 @@ class DashboardRepository implements DashboardRepositoryInterface
         return $result;
     }
 
-    public function getMonthlyDebtTrend(int $companyId, int $months = 6): array
+    public function getMonthlyDebtTrend(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $result = [];
 
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $monthDate = Carbon::now()->subMonths($i);
-            $endOfMonth = $monthDate->copy()->endOfMonth();
+        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, , $endOfMonth]) {
 
             $receivable = (float) CustomerDebt::query()
-                ->whereHas('customer', fn($q) => $q->where('company_id', $companyId))
+                ->whereHas('customer', fn($q) => $q->where('company_id', $companyId)->where('code', '!=', 'KH_LE'))
                 ->where('created_at', '<=', $endOfMonth)
                 ->sum('amount');
 
@@ -203,25 +196,22 @@ class DashboardRepository implements DashboardRepositoryInterface
         return $result;
     }
 
-    public function getMonthlyWarehouseFlow(int $companyId, int $months = 6): array
+    public function getMonthlyWarehouseFlow(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $result = [];
 
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $monthDate = Carbon::now()->subMonths($i);
-            $from = $monthDate->copy()->startOfMonth();
-            $to = $monthDate->copy()->endOfMonth();
+        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, $periodFrom, $periodTo]) {
 
             $import = WarehouseSlip::where('company_id', $companyId)
                 ->where('type', 'import')
                 ->where('status', 'approved')
-                ->whereBetween('approved_at', [$from, $to])
+                ->whereBetween('approved_at', [$periodFrom, $periodTo])
                 ->count();
 
             $export = WarehouseSlip::where('company_id', $companyId)
                 ->where('type', 'export')
                 ->where('status', 'approved')
-                ->whereBetween('approved_at', [$from, $to])
+                ->whereBetween('approved_at', [$periodFrom, $periodTo])
                 ->count();
 
             $result[] = [
@@ -234,13 +224,18 @@ class DashboardRepository implements DashboardRepositoryInterface
         return $result;
     }
 
-    public function getOrderStatusBreakdown(int $companyId): array
+    public function getOrderStatusBreakdown(int $companyId, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $pending = SalesOrder::where('company_id', $companyId)->where('status', 'pending')->count()
-            + PurchaseOrder::where('company_id', $companyId)->where('status', 'pending')->count();
+        $sales = fn () => SalesOrder::where('company_id', $companyId)
+            ->when($from && $to, fn ($q) => $q->whereBetween('created_at', [$from, $to]));
+        $purchases = fn () => PurchaseOrder::where('company_id', $companyId)
+            ->when($from && $to, fn ($q) => $q->whereBetween('created_at', [$from, $to]));
+
+        $pending = $sales()->where('status', 'pending')->count()
+            + $purchases()->where('status', 'pending')->count();
 
         $approved =
-            SalesOrder::where('company_id', $companyId)
+            $sales()
             ->whereIn('status', [
                 'approved',
                 'partial',
@@ -248,7 +243,7 @@ class DashboardRepository implements DashboardRepositoryInterface
             ])
             ->count()
             +
-            PurchaseOrder::where('company_id', $companyId)
+            $purchases()
             ->whereIn('status', [
                 'approved',
                 'partial',
@@ -256,8 +251,8 @@ class DashboardRepository implements DashboardRepositoryInterface
             ])
             ->count();
 
-        $cancelled = SalesOrder::where('company_id', $companyId)->where('status', 'cancelled')->count()
-            + PurchaseOrder::where('company_id', $companyId)->where('status', 'cancelled')->count();
+        $cancelled = $sales()->where('status', 'cancelled')->count()
+            + $purchases()->where('status', 'cancelled')->count();
 
         return [
             ['label' => 'Chờ xử lý', 'value' => $pending, 'color' => '#f59e0b'],
@@ -266,7 +261,7 @@ class DashboardRepository implements DashboardRepositoryInterface
         ];
     }
 
-    public function getTopCustomers(int $companyId, int $limit = 5): array
+    public function getTopCustomers(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
         return SalesOrder::query()
             ->where('sales_orders.company_id', $companyId)
@@ -275,6 +270,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'partial',
                 'completed'
             ])
+            ->when($from && $to, fn ($q) => $q->whereBetween('sales_orders.created_at', [$from, $to]))
             ->join('customers', 'customers.id', '=', 'sales_orders.customer_id')
             ->groupBy('customers.id', 'customers.name')
             ->select(
@@ -288,11 +284,12 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->toArray();
     }
 
-    public function getTopSuppliers(int $companyId, int $limit = 5): array
+    public function getTopSuppliers(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
         return PurchaseOrder::query()
             ->where('purchase_orders.company_id', $companyId)
             ->whereIn('purchase_orders.status', ['approved', 'partial', 'completed'])
+            ->when($from && $to, fn ($q) => $q->whereBetween('purchase_orders.created_at', [$from, $to]))
             ->join('suppliers', 'suppliers.id', '=', 'purchase_orders.supplier_id')
             ->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')
             ->groupBy('suppliers.id', 'suppliers.name')
@@ -310,10 +307,11 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->toArray();
     }
 
-    public function getRecentSalesOrders(int $companyId, int $limit = 5): array
+    public function getRecentSalesOrders(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
         return SalesOrder::with('customer:id,name')
             ->where('company_id', $companyId)
+            ->when($from && $to, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
             ->latest()
             ->limit($limit)
             ->get()
@@ -330,7 +328,7 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->toArray();
     }
 
-    public function getRecentPurchaseOrders(int $companyId, int $limit = 5): array
+    public function getRecentPurchaseOrders(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
         return PurchaseOrder::with('supplier:id,name')
             ->withSum(
@@ -338,6 +336,7 @@ class DashboardRepository implements DashboardRepositoryInterface
                 DB::raw('company_price * quantity * (1 + COALESCE(vat_percent, 0) / 100)')
             )
             ->where('company_id', $companyId)
+            ->when($from && $to, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
             ->latest()
             ->limit($limit)
             ->get()
@@ -351,10 +350,11 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->toArray();
     }
 
-    public function getRecentTransactions(int $companyId, int $limit = 5): array
+    public function getRecentTransactions(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
         return Transaction::with(['customer:id,name', 'supplier:id,name'])
             ->where('company_id', $companyId)
+            ->when($from && $to, fn ($q) => $q->whereBetween('transaction_date', [$from, $to]))
             ->latest('transaction_date')
             ->limit($limit)
             ->get()
@@ -371,6 +371,27 @@ class DashboardRepository implements DashboardRepositoryInterface
                 'date' => $t->transaction_date->format('d/m/Y'),
             ])
             ->toArray();
+    }
+
+    private function monthlyPeriods(int $months, ?Carbon $from, ?Carbon $to): array
+    {
+        if (! $from || ! $to) {
+            $to = Carbon::now()->endOfMonth();
+            $from = Carbon::now()->subMonthsNoOverflow($months - 1)->startOfMonth();
+        }
+
+        $periods = [];
+        $cursor = $from->copy()->startOfMonth();
+        while ($cursor->lte($to)) {
+            $periods[] = [
+                $cursor->copy(),
+                $cursor->copy()->startOfMonth()->max($from),
+                $cursor->copy()->endOfMonth()->min($to),
+            ];
+            $cursor->addMonthNoOverflow()->startOfMonth();
+        }
+
+        return $periods;
     }
 
     public function getLowStockProducts(int $companyId, int $threshold = 10, int $limit = 10): array

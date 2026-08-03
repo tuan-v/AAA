@@ -11,20 +11,19 @@ class DashboardService
         protected DashboardRepositoryInterface $dashboardRepository
     ) {}
 
-    public function getOverview(int $companyId): array
+    public function getOverview(int $companyId, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $now = Carbon::now();
-        $monthStart = $now->copy()->startOfMonth();
-        $monthEnd = $now->copy()->endOfMonth();
+        $to ??= Carbon::now()->endOfDay();
+        $from ??= $to->copy()->startOfMonth();
+        $duration = $from->diffInSeconds($to) + 1;
+        $previousTo = $from->copy()->subSecond();
+        $previousFrom = $previousTo->copy()->subSeconds($duration - 1);
 
-        $lastMonthStart = $now->copy()->subMonth()->startOfMonth();
-        $lastMonthEnd = $now->copy()->subMonth()->endOfMonth();
+        $revenueThisMonth = $this->dashboardRepository->getSalesRevenue($companyId, $from, $to);
+        $revenueLastMonth = $this->dashboardRepository->getSalesRevenue($companyId, $previousFrom, $previousTo);
 
-        $revenueThisMonth = $this->dashboardRepository->getSalesRevenue($companyId, $monthStart, $monthEnd);
-        $revenueLastMonth = $this->dashboardRepository->getSalesRevenue($companyId, $lastMonthStart, $lastMonthEnd);
-
-        $purchaseThisMonth = $this->dashboardRepository->getPurchaseCost($companyId, $monthStart, $monthEnd);
-        $purchaseLastMonth = $this->dashboardRepository->getPurchaseCost($companyId, $lastMonthStart, $lastMonthEnd);
+        $purchaseThisMonth = $this->dashboardRepository->getPurchaseCost($companyId, $from, $to);
+        $purchaseLastMonth = $this->dashboardRepository->getPurchaseCost($companyId, $previousFrom, $previousTo);
 
         $receivableDebt = $this->dashboardRepository->getTotalReceivableDebt($companyId);
         $payableDebt = $this->dashboardRepository->getTotalPayableDebt($companyId);
@@ -39,24 +38,25 @@ class DashboardService
                 'payable_debt' => $payableDebt,
                 'account_balance_base' => $this->dashboardRepository->getTotalAccountBalanceBase($companyId),
             ],
-            'operations' => $this->dashboardRepository->getOperationCounts($companyId),
-            'monthly_finance' => $this->dashboardRepository->getMonthlyFinance($companyId, 6),
-            'cash_flow' => $this->dashboardRepository->getMonthlyCashFlow($companyId, 6),
-            'debt_trend' => $this->dashboardRepository->getMonthlyDebtTrend($companyId, 6),
-            'warehouse_flow' => $this->dashboardRepository->getMonthlyWarehouseFlow($companyId, 6),
-            'order_status' => $this->dashboardRepository->getOrderStatusBreakdown($companyId),
-            'top_customers' => $this->dashboardRepository->getTopCustomers($companyId, 5),
-            'top_suppliers' => $this->dashboardRepository->getTopSuppliers($companyId, 5),
-            'recent_sales_orders' => $this->dashboardRepository->getRecentSalesOrders($companyId, 5),
-            'recent_purchase_orders' => $this->dashboardRepository->getRecentPurchaseOrders($companyId, 5),
-            'recent_transactions' => $this->dashboardRepository->getRecentTransactions($companyId, 5),
+            'operations' => $this->dashboardRepository->getOperationCounts($companyId, $from, $to),
+            'monthly_finance' => $this->dashboardRepository->getMonthlyFinance($companyId, 6, $from, $to),
+            'cash_flow' => $this->dashboardRepository->getMonthlyCashFlow($companyId, 6, $from, $to),
+            'debt_trend' => $this->dashboardRepository->getMonthlyDebtTrend($companyId, 6, $from, $to),
+            'warehouse_flow' => $this->dashboardRepository->getMonthlyWarehouseFlow($companyId, 6, $from, $to),
+            'order_status' => $this->dashboardRepository->getOrderStatusBreakdown($companyId, $from, $to),
+            'top_customers' => $this->dashboardRepository->getTopCustomers($companyId, 5, $from, $to),
+            'top_suppliers' => $this->dashboardRepository->getTopSuppliers($companyId, 5, $from, $to),
+            'recent_sales_orders' => $this->dashboardRepository->getRecentSalesOrders($companyId, 5, $from, $to),
+            'recent_purchase_orders' => $this->dashboardRepository->getRecentPurchaseOrders($companyId, 5, $from, $to),
+            'recent_transactions' => $this->dashboardRepository->getRecentTransactions($companyId, 5, $from, $to),
             'low_stock_products' => $this->dashboardRepository->getLowStockProducts($companyId, 10, 10),
+            'period' => ['date_from' => $from->toDateString(), 'date_to' => $to->toDateString()],
         ];
     }
 
-    public function getModuleOverview(int $companyId, string $module): array
+    public function getModuleOverview(int $companyId, string $module, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $overview = $this->getOverview($companyId);
+        $overview = $this->getOverview($companyId, $from, $to);
 
         return match ($module) {
             'purchase' => [

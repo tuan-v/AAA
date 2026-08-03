@@ -39,58 +39,58 @@ interface DashboardRepositoryInterface
      *              'warehouses' => n, 'sales_orders_this_month' => n,
      *              'purchase_orders_this_month' => n, 'orders_this_month' => n]
      */
-    public function getOperationCounts(int $companyId): array;
+    public function getOperationCounts(int $companyId, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Doanh thu & chi phí mua hàng theo từng tháng trong N tháng gần nhất.
      * Trả về mảng [['month' => 'T2/2026', 'revenue' => .., 'purchase' => ..], ...]
      */
-    public function getMonthlyFinance(int $companyId, int $months = 6): array;
+    public function getMonthlyFinance(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Dòng tiền vào/ra (transactions loại receipt/payment, status posted) theo tháng.
      */
-    public function getMonthlyCashFlow(int $companyId, int $months = 6): array;
+    public function getMonthlyCashFlow(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Biến động công nợ (số dư cuối mỗi tháng) của KH và NCC.
      */
-    public function getMonthlyDebtTrend(int $companyId, int $months = 6): array;
+    public function getMonthlyDebtTrend(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Số phiếu nhập/xuất kho theo tháng (warehouse_slips, status = approved).
      */
-    public function getMonthlyWarehouseFlow(int $companyId, int $months = 6): array;
+    public function getMonthlyWarehouseFlow(int $companyId, int $months = 6, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Số lượng đơn hàng (PO + SO gộp) theo nhóm trạng thái: pending / approved / cancelled.
      */
-    public function getOrderStatusBreakdown(int $companyId): array;
+    public function getOrderStatusBreakdown(int $companyId, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Top N khách hàng theo tổng giá trị đơn bán đã duyệt (toàn thời gian).
      */
-    public function getTopCustomers(int $companyId, int $limit = 5): array;
+    public function getTopCustomers(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Top N nhà cung cấp theo tổng giá trị đơn mua đã duyệt/hoàn tất (toàn thời gian).
      */
-    public function getTopSuppliers(int $companyId, int $limit = 5): array;
+    public function getTopSuppliers(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * N đơn bán hàng gần nhất.
      */
-    public function getRecentSalesOrders(int $companyId, int $limit = 5): array;
+    public function getRecentSalesOrders(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * N đơn mua hàng gần nhất.
      */
-    public function getRecentPurchaseOrders(int $companyId, int $limit = 5): array;
+    public function getRecentPurchaseOrders(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * N giao dịch kế toán gần nhất.
      */
-    public function getRecentTransactions(int $companyId, int $limit = 5): array;
+    public function getRecentTransactions(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array;
 
     /**
      * Danh sách sản phẩm sắp hết hàng (tồn kho dưới ngưỡng).

@@ -173,7 +173,6 @@ class UserController extends Controller
                         User::STATUS_ACTIVE,
                         User::STATUS_INACTIVE,
                         User::STATUS_BLOCKED,
-                        User::STATUS_PENDING,
                     ]),
                 ],
                 'role' => 'required|exists:roles,name',
@@ -234,7 +233,7 @@ class UserController extends Controller
             'phone' => $validated['phone'] ?? null,
             'password' => bcrypt($validated['password']),
             'status' => User::STATUS_ACTIVE,
-            'mode' => 'company',
+            'type' => User::TYPE_USER,
             'company_id' => auth()->user()->company_id,
             'department_id' => $validated['department_id'],
             'position_id' => $validated['position_id'],
@@ -259,25 +258,7 @@ class UserController extends Controller
     {
         $user = User::visibleFor(auth()->user())
             ->findOrFail($id);
-        abort_unless(
-            ! in_array($user->status, [User::STATUS_REJECTED_FINAL, User::STATUS_EXPIRED], true),
-            422,
-            'Yêu cầu đã kết thúc và không thể chỉnh sửa.'
-        );
-        abort_unless(
-            ! ($user->status === User::STATUS_PENDING && $user->last_resubmitted_at),
-            422,
-            'Yêu cầu đã được gửi duyệt lại và không thể chỉnh sửa trong lúc chờ phê duyệt.'
-        );
         $this->authorizeUserManagement($request, $user);
-        if ($user->status === User::STATUS_PENDING_EDIT) {
-            abort_unless(
-                $request->user()->canHandleEmployeeCorrection()
-                    && $request->user()->canManageUser($user),
-                403,
-                'Chỉ Quản lý nhân sự được sửa yêu cầu này.'
-            );
-        }
         $isCompanyOwner = (int) Company::whereKey(auth()->user()->company_id)->value('owner_id') === (int) $user->id;
 
         $validated = $request->validate([
@@ -302,8 +283,6 @@ class UserController extends Controller
                     User::STATUS_ACTIVE,
                     User::STATUS_INACTIVE,
                     User::STATUS_BLOCKED,
-                    User::STATUS_PENDING,
-                    User::STATUS_PENDING_EDIT,
                 ]),
             ],
             'role' => 'required|exists:roles,name',
@@ -335,9 +314,7 @@ class UserController extends Controller
             'username' => $validated['username'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
-            'status' => in_array($user->status, [User::STATUS_PENDING, User::STATUS_PENDING_EDIT], true)
-                ? $user->status
-                : $validated['status'],
+            'status' => $validated['status'],
             'department_id' => $isCompanyOwner ? null : $validated['department_id'],
             'position_id' => $isCompanyOwner ? null : $validated['position_id'],
         ];
@@ -380,7 +357,6 @@ class UserController extends Controller
                     User::STATUS_ACTIVE,
                     User::STATUS_INACTIVE,
                     User::STATUS_BLOCKED,
-                    User::STATUS_PENDING,
                 ]),
             ],
         ]);

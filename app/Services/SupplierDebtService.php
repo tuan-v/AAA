@@ -44,28 +44,37 @@ class SupplierDebtService
 
         $amount = $this->calculateSlipAmount($slip);
 
-        $remainDebt = $this->offsetAdvance(
-            $supplierId,
-            $amount,
-            $slip
-        );
-
-        if ($remainDebt <= 0) {
-            $this->updateSupplierSummary($supplierId);
-
-            return new SupplierDebt();
-        }
-
         return $this->createDebt(
             supplierId: $supplierId,
-            amount: $remainDebt,
+            amount: $amount,
             currencyId: (int) $slip->purchaseOrder->currency_id,
             exchangeRate: (float) $slip->purchaseOrder->exchange_rate,
-            originalAmount: $remainDebt / ((float) $slip->purchaseOrder->exchange_rate ?: 1),
+            originalAmount: $amount / ((float) $slip->purchaseOrder->exchange_rate ?: 1),
             referenceType: WarehouseSlip::class,
             referenceId: $slip->id,
             note: "Phát sinh công nợ từ phiếu nhập {$slip->code}"
         );
+    }
+
+    public function applyAdvanceToOrder(Transaction $transaction): ?SupplierDebt
+    {
+        $amountBase = abs((float) $transaction->advance_applied_base);
+        if ($amountBase <= 0) return null;
+        if ($amountBase > $this->getAdvanceBalance((int) $transaction->supplier_id)) {
+            throw new \RuntimeException('Số dư tạm ứng nhà cung cấp không đủ để cấn trừ.');
+        }
+
+        $entry = $this->repository->create([
+            'supplier_id' => $transaction->supplier_id,
+            'type' => SupplierDebt::TYPE_ADVANCE_OFFSET,
+            'amount' => -$amountBase,
+            ...$this->moneySnapshot(-$amountBase, (int) $transaction->currency_id, (float) $transaction->exchange_rate, -abs((float) $transaction->advance_applied_amount)),
+            'reference_type' => Transaction::class,
+            'reference_id' => $transaction->id,
+            'note' => "Cấn trừ tạm ứng — Đơn mua #{$transaction->purchase_order_id} — Giao dịch {$transaction->code}",
+        ]);
+        $this->updateSupplierSummary((int) $transaction->supplier_id);
+        return $entry;
     }
 
     private function calculateSlipAmount(WarehouseSlip $slip): float
@@ -149,6 +158,7 @@ class SupplierDebtService
             ->whereIn('type', [
                 SupplierDebt::TYPE_INVOICE,
                 SupplierDebt::TYPE_PAYMENT,
+                SupplierDebt::TYPE_OPENING_PAYMENT,
                 SupplierDebt::TYPE_REFUND,
             ])
             ->sum('amount');
@@ -159,6 +169,15 @@ class SupplierDebtService
         $openingDebt = (float) (Supplier::find($supplierId)?->opening_debt_base ?? 0);
 
         return $openingDebt + $this->getDebtBalance($supplierId);
+    }
+    public function getOpeningDebtBalance(int $supplierId): float
+    {
+        $openingDebt = (float) (Supplier::find($supplierId)?->opening_debt_base ?? 0);
+        $paid = (float) SupplierDebt::where('supplier_id', $supplierId)
+            ->where('type', SupplierDebt::TYPE_OPENING_PAYMENT)
+            ->sum('amount');
+
+        return max(0, $openingDebt + $paid);
     }
     public function getAdvanceBalance(int $supplierId): float
     {
@@ -216,6 +235,27 @@ class SupplierDebtService
             'reference_type' => Transaction::class,
             'reference_id'   => $transaction->id,
             'note'           => $note,
+        ]);
+
+        $this->updateSupplierSummary($transaction->supplier_id);
+
+        return $debt;
+    }
+
+    public function payOpeningDebt(Transaction $transaction): SupplierDebt
+    {
+        if (!$transaction->supplier_id) {
+            throw new \RuntimeException('Transaction không có supplier_id.');
+        }
+
+        $debt = $this->repository->create([
+            'supplier_id' => $transaction->supplier_id,
+            'type' => SupplierDebt::TYPE_OPENING_PAYMENT,
+            'amount' => -abs((float) $transaction->amount_base),
+            ...$this->transactionSnapshot($transaction, -1),
+            'reference_type' => Transaction::class,
+            'reference_id' => $transaction->id,
+            'note' => "Thanh toán công nợ đầu kỳ — Giao dịch {$transaction->code}",
         ]);
 
         $this->updateSupplierSummary($transaction->supplier_id);

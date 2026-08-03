@@ -263,6 +263,12 @@ const saleStatusConfig = {
     approved: { text: "Đang chờ xuất kho", class: "bg-blue-100 text-blue-700" },
     completed: { text: "Xuất đầy đủ", class: "bg-green-100 text-green-700" },
     cancelled: { text: "Đã hủy", class: "bg-red-100 text-red-700" },
+    return_pending_warehouse: { text: "Chờ nhận hàng hoàn", class: "bg-orange-100 text-orange-700" },
+    return_pending_accountant: { text: "Chờ duyệt nhập hoàn", class: "bg-orange-100 text-orange-700" },
+    returned: { text: "Đã hoàn / Hủy giao", class: "bg-orange-100 text-orange-700" },
+    awaiting_export: { text: "Đang chờ xuất kho", class: "bg-blue-100 text-blue-700" },
+    export_partial: { text: "Xuất một phần", class: "bg-yellow-100 text-yellow-700" },
+    export_full: { text: "Đã xuất đủ", class: "bg-green-100 text-green-700" },
 };
 // ==================== ĐƠN MUA ====================
 const suppliers = ref([]);
@@ -418,6 +424,8 @@ const purchaseActions = [
         title: "Nhập kho",
         hidden: (row) =>
             !can("phieu_kho.them") ||
+            Boolean(row.return_status) ||
+            row.warehouse_status === "export_full" ||
             !["approved", "partial"].includes(row.status),
         disabled: (row) => row.status === "completed",
         class: (row) =>
@@ -513,7 +521,8 @@ const saleColumns = [
         label: "Trạng thái",
         align: "text-center",
         render: (row) => {
-            const status = saleStatusConfig[row.status];
+            const status = saleStatusConfig[row.warehouse_status || row.effective_status || row.status]
+                || saleStatusConfig[row.status];
             return h(
                 "span",
                 {
@@ -531,6 +540,7 @@ const saleActions = [
         title: "Xuất kho",
         hidden: (row) =>
             !can("phieu_kho.them") ||
+            Boolean(row.return_status) ||
             !["approved", "partial"].includes(row.status),
         onClick: (item) =>
             (window.location.href = `/warehouse/slips/salecreate?order_id=${item.id}&type=sale`),

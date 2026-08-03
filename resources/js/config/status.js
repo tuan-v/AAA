@@ -2,15 +2,18 @@ export const STATUS_LABELS = {
     active: "Đang hoạt động",
     inactive: "Ngừng hoạt động",
 
-    pending: "Chờ xử lý",
-    approved: "Đã duyệt",
+    pending: "Chờ xác nhận",
+    approved: "Đã xác nhận",
     rejected: "Đã từ chối",
 
-    draft: "Nháp",
+    draft: "Hóa đơn chờ",
 
     completed: "Hoàn thành",
-    partial: "Nhập một phần",
+    partial: "Đang giao hàng",
     cancelled: "Đã hủy",
+    return_pending_warehouse: "Chờ kho nhận hàng hoàn",
+    return_pending_accountant: "Chờ kế toán duyệt hoàn",
+    returned: "Đã hoàn / Hủy giao",
 
     paid: "Đã thanh toán",
     unpaid: "Chưa thanh toán",
@@ -39,6 +42,18 @@ export const ORDER_STATUS_META = {
     cancelled: {
         label: "Đã hủy",
         class: "bg-red-100 text-red-700 border-red-200",
+    },
+    return_pending_warehouse: {
+        label: "Chờ kho nhận hàng hoàn",
+        class: "bg-orange-100 text-orange-700 border-orange-200",
+    },
+    return_pending_accountant: {
+        label: "Chờ kế toán duyệt hoàn",
+        class: "bg-orange-100 text-orange-700 border-orange-200",
+    },
+    returned: {
+        label: "Đã hoàn / Hủy giao",
+        class: "bg-orange-100 text-orange-700 border-orange-200",
     },
 };
 

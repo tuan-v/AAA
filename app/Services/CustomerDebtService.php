@@ -163,6 +163,80 @@ class CustomerDebtService
         ]);
     }
 
+    public function receiveOpeningDebtPayment(Transaction $transaction): CustomerDebt
+    {
+        if (!$transaction->customer_id) {
+            throw new \RuntimeException('Transaction không có customer_id.');
+        }
+
+        return CustomerDebt::create([
+            'customer_id' => $transaction->customer_id,
+            'type' => CustomerDebt::TYPE_OPENING_PAYMENT,
+            'amount' => -abs((float) $transaction->amount_base),
+            ...$this->moneySnapshot(
+                -abs((float) $transaction->amount_base),
+                (int) $transaction->currency_id,
+                (float) $transaction->exchange_rate,
+                -abs((float) $transaction->amount)
+            ),
+            'reference_type' => Transaction::class,
+            'reference_id' => $transaction->id,
+            'note' => "Thu công nợ đầu kỳ — Giao dịch {$transaction->code}",
+        ]);
+    }
+
+    public function getOpeningDebtBalance(int $customerId): float
+    {
+        $openingDebt = (float) (Customer::find($customerId)?->opening_debt_base ?? 0);
+        $paid = (float) CustomerDebt::where('customer_id', $customerId)
+            ->where('type', CustomerDebt::TYPE_OPENING_PAYMENT)
+            ->sum('amount');
+
+        return max(0, $openingDebt + $paid);
+    }
+
+    public function receiveAdvance(Transaction $transaction): CustomerDebt
+    {
+        $entry = CustomerDebt::create([
+            'customer_id' => $transaction->customer_id,
+            'type' => CustomerDebt::TYPE_ADVANCE,
+            'amount' => abs((float) $transaction->amount_base),
+            ...$this->moneySnapshot(abs((float) $transaction->amount_base), (int) $transaction->currency_id, (float) $transaction->exchange_rate, abs((float) $transaction->amount)),
+            'reference_type' => Transaction::class,
+            'reference_id' => $transaction->id,
+            'note' => "Khách hàng tạm ứng — Giao dịch {$transaction->code}",
+        ]);
+        $this->updateAdvanceSummary($transaction->customer_id);
+        return $entry;
+    }
+
+    public function refundAdvance(Transaction $transaction): CustomerDebt
+    {
+        $entry = CustomerDebt::create([
+            'customer_id' => $transaction->customer_id,
+            'type' => CustomerDebt::TYPE_ADVANCE_REFUND,
+            'amount' => -abs((float) $transaction->amount_base),
+            ...$this->moneySnapshot(-abs((float) $transaction->amount_base), (int) $transaction->currency_id, (float) $transaction->exchange_rate, -abs((float) $transaction->amount)),
+            'reference_type' => Transaction::class,
+            'reference_id' => $transaction->id,
+            'note' => "Hoàn tạm ứng khách hàng — Giao dịch {$transaction->code}",
+        ]);
+        $this->updateAdvanceSummary($transaction->customer_id);
+        return $entry;
+    }
+
+    public function getAdvanceBalance(int $customerId): float
+    {
+        return max(0, (float) CustomerDebt::where('customer_id', $customerId)
+            ->whereIn('type', [CustomerDebt::TYPE_ADVANCE, CustomerDebt::TYPE_ADVANCE_REFUND])
+            ->sum('amount'));
+    }
+
+    private function updateAdvanceSummary(int $customerId): void
+    {
+        Customer::whereKey($customerId)->update(['total_advance' => $this->getAdvanceBalance($customerId)]);
+    }
+
     /**
      * Hoàn tiền cho khách hàng (type=payment + customer_id).
      *

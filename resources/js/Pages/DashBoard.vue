@@ -6,6 +6,14 @@
             :items="[{ text: 'Tổng quan', link: null }]"
         />
 
+        <DashboardDateFilter
+            v-model:date-from="dateFrom"
+            v-model:date-to="dateTo"
+            :loading="loading"
+            class="mb-6"
+            @apply="loadDashboard"
+        />
+
         <!-- ================= ROW 1: KPI TÀI CHÍNH TỔNG QUAN ================= -->
         <div
             class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-4 2xl:gap-7.5"
@@ -595,7 +603,7 @@
                         Giao dịch gần đây
                     </h3>
                     <Link
-                        href="/accounting/transactions"
+                        href="/accountant/transactions"
                         class="text-sm text-brand-600 hover:underline"
                         >Xem tất cả</Link
                     >
@@ -674,9 +682,10 @@ import { Head, Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
+import DashboardDateFilter from "@/components/dashboard/DashboardDateFilter.vue";
 import { computed, h, onMounted, reactive, ref } from "vue";
 import axios from "axios";
-import { formatMoney, formatQuantity } from "@/config/helpers";
+import { formatMoney as money, formatQuantity } from "@/config/helpers";
 import { getOrderStatusMeta } from "@/config/status";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
@@ -689,6 +698,15 @@ import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 
 const loading = ref(true);
 const loadError = ref(false);
+const today = new Date();
+const toDateInput = (date) => {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+};
+const dateFrom = ref(toDateInput(new Date(today.getFullYear(), today.getMonth(), 1)));
+const dateTo = ref(toDateInput(today));
+const dashboardCurrency = ref({ code: "VND", symbol: "₫" });
+const formatMoney = (value) => money(value, dashboardCurrency.value);
 
 // ---------------- STATE CHÍNH (được gán lại sau khi fetch API) ----------------
 const state = reactive({
@@ -941,8 +959,11 @@ async function loadDashboard() {
     loadError.value = false;
 
     try {
-        const res = await axios.get("/api/dashboard/overview");
+        const res = await axios.get("/api/dashboard/overview", {
+            params: { date_from: dateFrom.value, date_to: dateTo.value },
+        });
         const d = res.data.data;
+        dashboardCurrency.value = d.currency || dashboardCurrency.value;
 
         state.financeMetrics = [
             {

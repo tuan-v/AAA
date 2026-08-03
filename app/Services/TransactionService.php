@@ -54,6 +54,7 @@ class TransactionService extends BaseService
                 $data['amount'] * ($data['exchange_rate'] ?? 1),
                 self::DEFAULT_DECIMALS
             );
+            $advanceAppliedBase = round((float) ($data['advance_applied_amount'] ?? 0) * (float) ($data['exchange_rate'] ?? 1), self::DEFAULT_DECIMALS);
 
             $transaction = $this->repository->create([
                 'company_id'        => $this->companyId(),
@@ -67,6 +68,8 @@ class TransactionService extends BaseService
                 'amount'            => $data['amount'],
                 'exchange_rate'     => $data['exchange_rate'] ?? 1,
                 'amount_base'       => $amountBase,
+                'advance_applied_amount' => $data['advance_applied_amount'] ?? 0,
+                'advance_applied_base' => $advanceAppliedBase,
                 'from_account_id'   => $data['from_account_id'] ?? null,
                 'to_account_id'     => $data['to_account_id'] ?? null,
                 'customer_id'       => $data['customer_id'] ?? null,
@@ -139,6 +142,8 @@ class TransactionService extends BaseService
                 'amount' => $data['amount'],
                 'exchange_rate' => $data['exchange_rate'],
                 'amount_base' => round($data['amount'] * $data['exchange_rate'], self::DEFAULT_DECIMALS),
+                'advance_applied_amount' => $data['advance_applied_amount'] ?? 0,
+                'advance_applied_base' => round((float) ($data['advance_applied_amount'] ?? 0) * $data['exchange_rate'], self::DEFAULT_DECIMALS),
                 'from_account_id' => $data['from_account_id'] ?? null,
                 'to_account_id' => $data['to_account_id'] ?? null,
                 'customer_id' => $data['customer_id'] ?? null,
@@ -359,6 +364,8 @@ class TransactionService extends BaseService
         $data['exchange_rate'] = app(CompanyCurrencyService::class)->rate(
             $companyId, (int) $currency->id, $data['transaction_date'] ?? now()
         );
+        $data['advance_applied_amount'] = max(0, (float) ($data['advance_applied_amount'] ?? 0));
+        $data['advance_applied_base'] = round($data['advance_applied_amount'] * $data['exchange_rate'], self::DEFAULT_DECIMALS);
 
         foreach (['from_account_id', 'to_account_id'] as $field) {
             if (! empty($data[$field]) && ! Account::whereKey($data[$field])->where('company_id', $companyId)->exists()) {
@@ -392,6 +399,13 @@ class TransactionService extends BaseService
             if ((int) $order->currency_id !== (int) $data['currency_id']) throw new \InvalidArgumentException('Tiền tệ giao dịch phải trùng với tiền tệ đơn mua.');
         }
 
+        if ((float) ($data['advance_applied_amount'] ?? 0) > 0) {
+            $categoryCode = TransactionCategory::whereKey($data['category_id'] ?? null)->value('code');
+            if ($categoryCode !== 'CHI_NCC' || empty($data['purchase_order_id']) || empty($data['supplier_id'])) {
+                throw new \InvalidArgumentException('Tạm ứng nhà cung cấp chỉ được áp dụng khi thanh toán một đơn mua cụ thể.');
+            }
+        }
+
         return $data;
     }
 
@@ -419,6 +433,8 @@ class TransactionService extends BaseService
         $this->validateOutstandingDebt(new Transaction([
             ...$data,
             'amount_base' => round((float) $data['amount'] * (float) $data['exchange_rate'], self::DEFAULT_DECIMALS),
+            'advance_applied_amount' => $data['advance_applied_amount'] ?? 0,
+            'advance_applied_base' => $data['advance_applied_base'] ?? 0,
         ]));
     }
 
@@ -428,7 +444,8 @@ class TransactionService extends BaseService
 
     private function validateInput(array $data): void
     {
-        if (empty($data['amount']) || $data['amount'] <= 0) {
+        $settlementAmount = (float) ($data['amount'] ?? 0) + (float) ($data['advance_applied_amount'] ?? 0);
+        if ($settlementAmount <= 0) {
             throw new \InvalidArgumentException('Số tiền giao dịch phải lớn hơn 0.');
         }
 
@@ -581,9 +598,18 @@ class TransactionService extends BaseService
                 'customer_id' => 'Thu tiền khách hàng bắt buộc phải chọn khách hàng.',
                 'sales_order_id' => 'Thu tiền khách hàng bắt buộc phải chọn đơn bán đã duyệt.',
             ],
+            'THU_KHAC' => [
+                'customer_id' => 'Thu khác bắt buộc phải chọn khách hàng.',
+            ],
+            'TAM_UNG_KH', 'HOAN_TAM_UNG_KH' => [
+                'customer_id' => 'Nghiệp vụ tạm ứng khách hàng bắt buộc phải chọn khách hàng.',
+            ],
             'CHI_NCC' => [
                 'supplier_id' => 'Thanh toán nhà cung cấp bắt buộc phải chọn nhà cung cấp.',
                 'purchase_order_id' => 'Thanh toán nhà cung cấp bắt buộc phải chọn đơn mua đã duyệt.',
+            ],
+            'CHI_KHAC' => [
+                'supplier_id' => 'Chi khác bắt buộc phải chọn nhà cung cấp.',
             ],
             'TAM_UNG_NCC', 'HOAN_TAM_UNG_NCC' => [
                 'supplier_id' => 'Nghiệp vụ nhà cung cấp bắt buộc phải chọn nhà cung cấp.',
@@ -694,6 +720,9 @@ class TransactionService extends BaseService
 
     private function updateBalance(Transaction $transaction): void
     {
+        if ((float) $transaction->amount <= 0 && $transaction->type !== 'transfer') {
+            return;
+        }
         if ($transaction->type === 'receipt') {
             $account = $this->lockAccount($transaction->to_account_id);
             $amount  = $this->convertToAccountCurrency($transaction, $account);
@@ -801,7 +830,14 @@ class TransactionService extends BaseService
     private function syncDebt(Transaction $transaction): void
     {
         if ($transaction->isReceipt() && $transaction->customer_id) {
-            $this->customerDebtService->receivePayment($transaction);
+            $transaction->loadMissing('category');
+            if ($transaction->category?->code === 'TAM_UNG_KH') {
+                $this->customerDebtService->receiveAdvance($transaction);
+            } elseif ($transaction->category?->code === 'THU_KHAC') {
+                $this->customerDebtService->receiveOpeningDebtPayment($transaction);
+            } else {
+                $this->customerDebtService->receivePayment($transaction);
+            }
             return;
         }
 
@@ -814,7 +850,14 @@ class TransactionService extends BaseService
                 switch ($transaction->category->code) {
 
                     case 'CHI_NCC':
-                        $this->supplierDebtService->paySupplier($transaction);
+                        if ((float) $transaction->amount_base > 0) {
+                            $this->supplierDebtService->paySupplier($transaction);
+                        }
+                        $this->supplierDebtService->applyAdvanceToOrder($transaction);
+                        break;
+
+                    case 'CHI_KHAC':
+                        $this->supplierDebtService->payOpeningDebt($transaction);
                         break;
 
                     case 'TAM_UNG_NCC':
@@ -843,7 +886,12 @@ class TransactionService extends BaseService
         }
 
         if ($transaction->isPayment() && $transaction->customer_id) {
-            $this->customerDebtService->refundToCustomer($transaction);
+            $transaction->loadMissing('category');
+            if ($transaction->category?->code === 'HOAN_TAM_UNG_KH') {
+                $this->customerDebtService->refundAdvance($transaction);
+            } else {
+                $this->customerDebtService->refundToCustomer($transaction);
+            }
             return;
         }
 
@@ -861,11 +909,18 @@ class TransactionService extends BaseService
     {
         $amount = round((float) $transaction->amount_base, self::DEFAULT_DECIMALS);
 
-        if ($transaction->isReceipt() && $transaction->customer_id) {
-            $balance = round(
-                $this->customerDebtService->getBalance($transaction->customer_id),
-                self::DEFAULT_DECIMALS
-            );
+        if ($transaction->isReceipt() && $transaction->customer_id
+            && $transaction->category?->code !== 'TAM_UNG_KH') {
+            $isOpeningDebtReceipt = $transaction->category?->code === 'THU_KHAC';
+            $balance = round($isOpeningDebtReceipt
+                ? $this->customerDebtService->getOpeningDebtBalance($transaction->customer_id)
+                : $this->customerDebtService->getBalance($transaction->customer_id), self::DEFAULT_DECIMALS);
+
+            if ($balance <= 0) {
+                throw new \RuntimeException($isOpeningDebtReceipt
+                    ? 'Khách hàng không còn công nợ đầu kỳ để thu.'
+                    : 'Khách hàng không còn công nợ để thu.');
+            }
 
             if ($amount > max(0, $balance)) {
                 throw new \RuntimeException('Số tiền thu không được vượt quá công nợ khách hàng hiện tại.');
@@ -881,6 +936,11 @@ class TransactionService extends BaseService
 
         if ($transaction->isPayment() && $transaction->supplier_id
             && $transaction->category?->code === 'CHI_NCC') {
+            $advanceApplied = round((float) $transaction->advance_applied_base, self::DEFAULT_DECIMALS);
+            $amount += $advanceApplied;
+            if ($advanceApplied > round($this->supplierDebtService->getAdvanceBalance($transaction->supplier_id), self::DEFAULT_DECIMALS)) {
+                throw new \RuntimeException('Số tiền tạm ứng áp dụng vượt quá số dư tạm ứng nhà cung cấp.');
+            }
             $balance = round(
                 $this->supplierDebtService->getOutstandingBalance($transaction->supplier_id),
                 self::DEFAULT_DECIMALS
@@ -895,6 +955,44 @@ class TransactionService extends BaseService
                 if ($amount > max(0, round($orderBalance, self::DEFAULT_DECIMALS))) {
                     throw new \RuntimeException('Số tiền chi không được vượt quá công nợ còn lại của đơn mua.');
                 }
+            }
+        }
+
+        if ($transaction->isPayment() && $transaction->customer_id
+            && $transaction->category?->code === 'HOAN_TAM_UNG_KH') {
+            $advance = round($this->customerDebtService->getAdvanceBalance($transaction->customer_id), self::DEFAULT_DECIMALS);
+            if ($advance <= 0) {
+                throw new \RuntimeException('Khách hàng không còn số dư tạm ứng để hoàn.');
+            }
+            if ($amount > $advance) {
+                throw new \RuntimeException('Số tiền hoàn không được vượt quá số dư tạm ứng của khách hàng.');
+            }
+        }
+
+        if ($transaction->isReceipt() && $transaction->supplier_id
+            && $transaction->category?->code === 'HOAN_TAM_UNG_NCC') {
+            $advance = round($this->supplierDebtService->getAdvanceBalance($transaction->supplier_id), self::DEFAULT_DECIMALS);
+            if ($advance <= 0) {
+                throw new \RuntimeException('Nhà cung cấp không còn số dư tạm ứng để hoàn.');
+            }
+            if ($amount > $advance) {
+                throw new \RuntimeException('Số tiền hoàn không được vượt quá số dư tạm ứng nhà cung cấp.');
+            }
+        }
+
+        if ($transaction->isPayment() && $transaction->supplier_id
+            && $transaction->category?->code === 'CHI_KHAC') {
+            $openingBalance = round(
+                $this->supplierDebtService->getOpeningDebtBalance($transaction->supplier_id),
+                self::DEFAULT_DECIMALS
+            );
+
+            if ($openingBalance <= 0) {
+                throw new \RuntimeException('Nhà cung cấp không còn công nợ đầu kỳ để thanh toán.');
+            }
+
+            if ($amount > $openingBalance) {
+                throw new \RuntimeException('Số tiền chi không được vượt quá công nợ đầu kỳ còn lại của nhà cung cấp.');
             }
         }
     }
@@ -913,7 +1011,10 @@ class TransactionService extends BaseService
         $slipIds = WarehouseSlip::where('purchase_order_id', $orderId)->where('status', 'approved')->pluck('id');
         $debt = (float) SupplierDebt::where('reference_type', WarehouseSlip::class)->whereIn('reference_id', $slipIds)->sum('amount');
         $transactionIds = Transaction::where('purchase_order_id', $orderId)->where('status', 'approved')->pluck('id');
-        $payments = (float) SupplierDebt::where('reference_type', Transaction::class)->whereIn('reference_id', $transactionIds)->where('type', SupplierDebt::TYPE_PAYMENT)->sum('amount');
+        $payments = (float) SupplierDebt::where('reference_type', Transaction::class)
+            ->whereIn('reference_id', $transactionIds)
+            ->whereIn('type', [SupplierDebt::TYPE_PAYMENT, SupplierDebt::TYPE_ADVANCE_OFFSET])
+            ->sum('amount');
         return $debt + $payments;
     }
 }

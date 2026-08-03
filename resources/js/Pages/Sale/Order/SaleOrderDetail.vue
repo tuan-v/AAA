@@ -12,10 +12,10 @@
                     Ngày tạo: {{ formatDate(order?.created_at) }}
                     • Trạng thái:
                     <span
-                        :class="statusBadgeClass(order?.status)"
+                        :class="statusBadgeClass(order?.effective_status || order?.status, order?.return_status)"
                         class="px-3 py-1 rounded-full text-sm font-medium"
                     >
-                        {{ getStatusText(order?.status) }}
+                        {{ getStatusText(order?.effective_status || order?.status, order?.return_status) }}
                     </span>
                 </p>
             </div>
@@ -38,6 +38,18 @@
                 >
                     ✕
                 </button>
+            </div>
+        </div>
+
+        <div v-if="props.context !== 'warehouse'" class="mb-6 rounded-xl border bg-gray-50 p-4">
+            <div class="flex items-center gap-2 overflow-x-auto">
+                <template v-for="(step, index) in workflowSteps" :key="step.status">
+                    <div class="flex min-w-28 flex-col items-center text-center">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold" :class="workflowStepClass(index, 'circle')">{{ index + 1 }}</span>
+                        <span class="mt-1 text-xs font-medium" :class="workflowStepClass(index, 'label')">{{ step.label }}</span>
+                    </div>
+                    <div v-if="index < workflowSteps.length - 1" class="h-0.5 min-w-8 flex-1" :class="index < workflowIndex ? 'bg-blue-600' : 'bg-gray-200'"></div>
+                </template>
             </div>
         </div>
 
@@ -275,13 +287,56 @@ const props = defineProps({
 
 // Alias để template dùng ngắn gọn
 const order = computed(() => props.order);
+const workflowSteps = computed(() => {
+    const steps = [
+        { status: 'draft', label: 'Hóa đơn chờ' },
+        { status: 'pending', label: 'Chờ xác nhận' },
+        { status: 'approved', label: 'Đã xác nhận' },
+        { status: 'partial', label: 'Đang giao hàng' },
+        { status: 'completed', label: 'Hoàn thành' },
+    ];
 
-const getStatusText = (status) => {
+    if (order.value?.return_status) {
+        steps[3].label = ({
+            pending_warehouse: 'Chờ kho nhận hàng hoàn',
+            pending_accountant: 'Chờ kế toán duyệt hoàn',
+            returned: 'Đã hoàn / Hủy giao',
+        })[order.value.return_status] || 'Đang xử lý hoàn';
+    } else if (order.value?.status === 'cancelled') {
+        steps[cancelledAtIndex.value].label = 'Đã hủy';
+    }
+
+    return steps;
+});
+const cancelledAtIndex = computed(() => order.value?.submitted_at ? 1 : 0);
+const workflowIndex = computed(() => {
+    if (order.value?.return_status) return 3;
+    if (order.value?.status === 'cancelled') return cancelledAtIndex.value;
+    return workflowSteps.value.findIndex((step) => step.status === order.value?.status);
+});
+const workflowStepClass = (index, part) => {
+    const isStopped = index === workflowIndex.value && (order.value?.return_status || order.value?.status === 'cancelled');
+    if (isStopped) {
+        const isCancelled = order.value?.status === 'cancelled' && !order.value?.return_status;
+        if (isCancelled) return part === 'circle' ? 'bg-red-500 text-white' : 'text-red-700';
+        return part === 'circle' ? 'bg-orange-500 text-white' : 'text-orange-700';
+    }
+    if (index <= workflowIndex.value) {
+        return part === 'circle' ? 'bg-blue-600 text-white' : 'text-blue-700';
+    }
+    return part === 'circle' ? 'bg-gray-200 text-gray-500' : 'text-gray-400';
+};
+
+const getStatusText = (status, returnStatus = null) => {
+    if (returnStatus === 'returned') return 'Đã hoàn / Hủy giao';
+    if (returnStatus === 'pending_warehouse') return 'Chờ kho nhận hàng hoàn';
+    if (returnStatus === 'pending_accountant') return 'Chờ kế toán duyệt hoàn';
     const businessMap = {
-        pending: "Chờ xử lý",
-        approved: "Đã duyệt",
-        partial: "Đã duyệt",
-        completed: "Đã duyệt",
+        draft: "Hóa đơn chờ",
+        pending: "Chờ xác nhận",
+        approved: "Đã xác nhận",
+        partial: "Đang giao hàng",
+        completed: "Hoàn thành",
         cancelled: "Đã hủy",
     };
 
@@ -297,12 +352,14 @@ const getStatusText = (status) => {
     return map[status] || status;
 };
 
-const statusBadgeClass = (status) => {
+const statusBadgeClass = (status, returnStatus = null) => {
+    if (returnStatus) return "bg-orange-100 text-orange-700";
     const businessClasses = {
+        draft: "bg-gray-100 text-gray-700",
         pending: "bg-yellow-100 text-yellow-700",
         approved: "bg-blue-100 text-blue-700",
-        partial: "bg-blue-100 text-blue-700",
-        completed: "bg-blue-100 text-blue-700",
+        partial: "bg-purple-100 text-purple-700",
+        completed: "bg-green-100 text-green-700",
         cancelled: "bg-red-100 text-red-700",
     };
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -65,7 +66,14 @@ class DashboardController extends Controller
             ], 422);
         }
 
-        $data = $this->dashboardService->getOverview($companyId);
+        [$from, $to] = $this->dateRange($request);
+        $data = $this->dashboardService->getOverview($companyId, $from, $to);
+        $company = $request->user()->company ?? $request->user()->companies()->first();
+        $currency = $company?->default_currency;
+        $data['currency'] = $currency ? [
+            'code' => $currency->code,
+            'symbol' => $currency->symbol,
+        ] : ['code' => 'VND', 'symbol' => '₫'];
 
         return response()->json([
             'success' => true,
@@ -94,7 +102,8 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Tài khoản chưa thuộc công ty nào.'], 422);
         }
 
-        $data = $this->dashboardService->getModuleOverview((int) $companyId, $module);
+        [$from, $to] = $this->dateRange($request);
+        $data = $this->dashboardService->getModuleOverview((int) $companyId, $module, $from, $to);
         $company = $request->user()->company ?? $request->user()->companies()->first();
         $currency = $company?->default_currency;
         $data['currency'] = $currency ? [
@@ -106,5 +115,22 @@ class DashboardController extends Controller
             'success' => true,
             'data' => $data,
         ]);
+    }
+
+    private function dateRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date', 'before_or_equal:today'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from', 'before_or_equal:today'],
+        ]);
+
+        $to = isset($validated['date_to'])
+            ? Carbon::parse($validated['date_to'])->endOfDay()
+            : now()->endOfDay();
+        $from = isset($validated['date_from'])
+            ? Carbon::parse($validated['date_from'])->startOfDay()
+            : $to->copy()->startOfMonth();
+
+        return [$from, $to];
     }
 }

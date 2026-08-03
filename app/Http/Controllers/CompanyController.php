@@ -125,6 +125,16 @@ class CompanyController extends Controller
                     'code' => 'HOAN_TAM_UNG_NCC',
                     'name' => 'Nhà cung cấp hoàn tạm ứng',
                     'type' => 'income'
+                ],
+                [
+                    'code' => 'TAM_UNG_KH',
+                    'name' => 'Khách hàng tạm ứng',
+                    'type' => 'income'
+                ],
+                [
+                    'code' => 'HOAN_TAM_UNG_KH',
+                    'name' => 'Hoàn tạm ứng khách hàng',
+                    'type' => 'expense'
                 ]
             ]);
 
