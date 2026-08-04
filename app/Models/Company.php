@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Company extends Model
 {
     protected $fillable = [
         'name',
+        'storefront_slug',
+        'storefront_enabled',
         'address',
         'email',
         'phone',
@@ -15,6 +18,24 @@ class Company extends Model
         'logo',
         'owner_id',
     ];
+
+    protected $casts = ['storefront_enabled' => 'boolean'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Company $company) {
+            if ($company->storefront_slug) {
+                return;
+            }
+            $base = Str::slug($company->name) ?: 'cua-hang';
+            $slug = $base;
+            $suffix = 2;
+            while (static::where('storefront_slug', $slug)->exists()) {
+                $slug = $base.'-'.$suffix++;
+            }
+            $company->storefront_slug = $slug;
+        });
+    }
 
     public function owner()
     {

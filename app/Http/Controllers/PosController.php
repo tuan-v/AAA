@@ -152,7 +152,7 @@ class PosController extends Controller
                     }
                 }
                 $unitPrice = (float) $product->sell_price;
-                $vatPercent = $validated['invoice_type'] === 'vat' ? 10 : 0;
+                $vatPercent = 10;
                 $amount = round($quantity * $unitPrice, 2);
                 $subtotal += $amount;
                 $vatAmount += round($amount * $vatPercent / 100, 2);
@@ -167,7 +167,7 @@ class PosController extends Controller
             $order->update([
                 'customer_id' => $customer->id,
                 'pos_warehouse_id' => $validated['warehouse_id'] ?? null,
-                'invoice_type' => $validated['invoice_type'],
+                'invoice_type' => 'vat',
                 'pos_coupon_id' => $coupon?->id,
                 'subtotal' => $subtotal,
                 'vat_amount' => $vatAmount,
@@ -250,7 +250,7 @@ class PosController extends Controller
                     throw ValidationException::withMessages(['items' => "Sản phẩm {$product->name} không đủ tồn trong kho đã chọn."]);
                 }
                 $unitPrice = (float) $product->sell_price;
-                $vatPercent = (float) ($input['vat_percent'] ?? 0);
+                $vatPercent = 10.0;
                 $amount = round($quantity * $unitPrice, 2);
                 $vat = round($amount * $vatPercent / 100, 2);
                 $subtotal += $amount; $vatAmount += $vat;
@@ -289,7 +289,7 @@ class PosController extends Controller
                 'note' => $validated['note'] ?? null, 'subtotal' => $subtotal, 'vat_amount' => $vatAmount,
                 'discount_amount' => $discount, 'total_amount' => $total, 'status' => 'completed',
                 'sales_channel' => 'pos', 'pos_warehouse_id' => $validated['warehouse_id'],
-                'payment_method' => $validated['payment_method'], 'invoice_type' => $validated['invoice_type'] ?? 'retail',
+                'payment_method' => $validated['payment_method'], 'invoice_type' => 'vat',
                 'payment_currency_id' => $paymentCurrencyId, 'payment_exchange_rate' => $paymentRate,
                 'payment_tendered_amount' => $paymentTenderedAmount,
                 'paid_amount' => $paidAmount,

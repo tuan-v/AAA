@@ -15,6 +15,7 @@ class SalesOrder extends Model
         'code',
         'company_id',
         'customer_id',
+        'customer_account_id',
         'currency_id',
         'province_id',
         'ward_id',
@@ -34,6 +35,10 @@ class SalesOrder extends Model
         'sales_channel',
         'pos_warehouse_id',
         'payment_method',
+        'shipping_method',
+        'shipping_fee',
+        'tracking_code',
+        'cancellation_reason',
         'payment_currency_id',
         'payment_exchange_rate',
         'payment_tendered_amount',
@@ -57,6 +62,7 @@ class SalesOrder extends Model
         'payment_exchange_rate' => 'decimal:8',
         'payment_tendered_amount' => 'decimal:2',
         'completed_at' => 'datetime',
+        'approved_at' => 'datetime',
         'submitted_at' => 'datetime',
         'shipping_started_at' => 'datetime',
         'returned_at' => 'datetime',
@@ -95,6 +101,7 @@ class SalesOrder extends Model
     {
         return $this->hasMany(SalesOrderItem::class);
     }
+    public function customerAccount() { return $this->belongsTo(CustomerAccount::class); }
     public function posCoupon()
     {
         return $this->belongsTo(PosCoupon::class, 'pos_coupon_id');

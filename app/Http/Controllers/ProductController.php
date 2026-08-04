@@ -149,6 +149,10 @@ class ProductController extends Controller
 
                     'sell_price' => $this->currencyService
                         ->convertByCurrency($p->sell_price, $currency),
+                    'promotional_price' => $p->promotional_price,
+                    'promotion_starts_at' => $p->promotion_starts_at?->format('Y-m-d H:i:s'),
+                    'promotion_ends_at' => $p->promotion_ends_at?->format('Y-m-d H:i:s'),
+                    'storefront_visible' => (bool) $p->storefront_visible,
 
                     'currency_symbol' => $currency?->symbol,
 
@@ -232,6 +236,10 @@ class ProductController extends Controller
 
                 'purchase_price' => 'numeric|min:0',
                 'sell_price' => 'numeric|min:0',
+                'promotional_price' => 'nullable|numeric|min:0|lte:sell_price',
+                'promotion_starts_at' => 'nullable|date',
+                'promotion_ends_at' => 'nullable|date|after_or_equal:promotion_starts_at',
+                'storefront_visible' => 'nullable|boolean',
 
                 'quantity' => 'required|integer|min:0',
 
@@ -345,6 +353,10 @@ class ProductController extends Controller
 
                 'purchase_price' => 'required|numeric|min:0',
                 'sell_price' => 'required|numeric|min:0',
+                'promotional_price' => 'nullable|numeric|min:0|lte:sell_price',
+                'promotion_starts_at' => 'nullable|date',
+                'promotion_ends_at' => 'nullable|date|after_or_equal:promotion_starts_at',
+                'storefront_visible' => 'nullable|boolean',
 
                 'quantity' => 'required|integer|min:0',
 

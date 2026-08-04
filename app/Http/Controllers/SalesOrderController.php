@@ -107,6 +107,9 @@ class SalesOrderController extends Controller
                 'code' => $item->code,
                 'status' => $item->status,
                 'sales_channel' => $item->sales_channel,
+                'shipping_method' => $item->shipping_method,
+                'shipping_fee' => (float) ($item->shipping_fee ?? 0),
+                'tracking_code' => $item->tracking_code,
                 'return_status' => $item->return_status,
                 'effective_status' => $item->effective_status,
                 'customer' => $item->customer,
@@ -118,7 +121,7 @@ class SalesOrderController extends Controller
                 'vat_amount' => round($vatAmount, 2),
                 'total_amount' => round($total, 2),
                 'total_quantity' => $totalQuantity,
-                'expected_delivery_date' => $item->expected_delivery_date->format('d/m/Y'),
+                'expected_delivery_date' => $item->expected_delivery_date?->format('d/m/Y'),
             ];
         });
 
@@ -299,7 +302,7 @@ class SalesOrderController extends Controller
                 ? (float) $item->quantity
                 : $exported;
             $lineAmount = round((float) $item->unit_price * (float) $item->quantity, 2);
-            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 0) / 100), 2);
+            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 10) / 100), 2);
 
             $item->amount = $lineAmount;
             $item->vat_amount = $lineVatAmount;
@@ -457,7 +460,7 @@ class SalesOrderController extends Controller
             $vatAmountTotal = 0;
             foreach ($validated['items'] as $item) {
                 $amount = $item['quantity'] * $item['unit_price'];
-                $vatPercent = $item['vat_percent'] ?? 0;
+                $vatPercent = $item['vat_percent'] ?? 10;
                 $vatAmount = ($amount * $vatPercent) / 100;
 
                 // Quy đổi đúng: giá khách hàng × tỉ_giá_đơn ÷ tỉ_giá_công_ty
@@ -634,12 +637,12 @@ class SalesOrderController extends Controller
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'company_unit_price' => $companyUnitPrice,
-                    'vat_percent' => $item['vat_percent'] ?? 0,
+                    'vat_percent' => $item['vat_percent'] ?? 10,
                     'amount' => round($lineAmount, 2),
                     'company_amount' => $companyAmount,
                 ]);
 
-                $lineVat = $lineAmount * ((float) ($item['vat_percent'] ?? 0) / 100);
+                $lineVat = $lineAmount * ((float) ($item['vat_percent'] ?? 10) / 100);
                 $subtotal += $lineAmount;
                 $vatAmountTotal += $lineVat;
                 $total += $lineAmount + $lineVat;

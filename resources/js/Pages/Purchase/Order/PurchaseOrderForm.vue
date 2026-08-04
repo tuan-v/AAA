@@ -629,14 +629,14 @@ function normalizePriceInput(value, vndOnly = false) {
 }
 
 function addItem() {
-    form.items.push({ product_id: "", quantity: 1, price: "", vat_percent: 0 });
+    form.items.push({ product_id: "", quantity: 1, price: "", vat_percent: 10 });
 }
 
 function removeItem(index) {
     if (form.items.length > 1) {
         form.items.splice(index, 1);
     } else {
-        form.items[0] = { product_id: "", quantity: 1, price: "", vat_percent: 0 };
+        form.items[0] = { product_id: "", quantity: 1, price: "", vat_percent: 10 };
     }
 }
 
@@ -651,7 +651,7 @@ function resetForm() {
         : "";
     form.expected_received_date = "";
     form.note = "";
-    form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 0 }];
+    form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 10 }];
     errors.value = {};
 }
 
@@ -697,7 +697,7 @@ watch(
                 vat_percent: Number(item.vat_percent || 0),
             }));
         } else {
-            form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 0 }];
+            form.items = [{ product_id: "", quantity: 1, price: "", vat_percent: 10 }];
         }
         errors.value = {};
     },

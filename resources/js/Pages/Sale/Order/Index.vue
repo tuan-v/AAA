@@ -253,6 +253,14 @@ function formatOrderQuantity(row) {
 const columns = [
     { key: "code", label: "Mã đơn" },
     {
+        label: "Nguồn đơn",
+        render: (row) => h("span", {
+            class: row.sales_channel === "storefront"
+                ? "rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-700"
+                : "rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600",
+        }, row.sales_channel === "storefront" ? "Website" : row.sales_channel === "pos" ? "Tại quầy" : "Nội bộ"),
+    },
+    {
         label: "Khách hàng",
         render: (row) =>
             h("div", { class: "flex flex-col" }, [

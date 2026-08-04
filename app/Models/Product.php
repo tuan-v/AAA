@@ -21,10 +21,19 @@ class Product extends Model
         'type',
         'purchase_price',
         'sell_price',
+        'promotional_price',
+        'promotion_starts_at',
+        'promotion_ends_at',
         'quantity',
         'image',
         'description',
         'status',
+        'storefront_visible',
+    ];
+    protected $casts = [
+        'storefront_visible' => 'boolean',
+        'promotion_starts_at' => 'datetime',
+        'promotion_ends_at' => 'datetime',
     ];
     public function category()
     {

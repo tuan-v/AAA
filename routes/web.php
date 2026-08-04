@@ -3,10 +3,47 @@
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\StorefrontAccountController;
 use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Cung cấp token hiện tại để SPA có thể khôi phục sau khi session được làm mới.
+Route::get('/csrf-token', fn () => response()->json(['token' => csrf_token()]))
+    ->middleware('throttle:30,1')
+    ->name('csrf.token');
+
+Route::get('/shop', [StorefrontController::class, 'directory'])->name('storefront.directory');
+Route::get('/shop/locations/provinces', [\App\Http\Controllers\AddressController::class, 'provinces']);
+Route::get('/shop/locations/provinces/{province}/wards', [\App\Http\Controllers\AddressController::class, 'wards']);
+Route::get('/shop/{company:storefront_slug}', [StorefrontController::class, 'shop'])->name('storefront.shop');
+Route::get('/shop/{company:storefront_slug}/my-account', [StorefrontController::class, 'accountPage'])->name('storefront.account');
+Route::get('/shop/{company:storefront_slug}/my-account/orders/{code}', [StorefrontAccountController::class, 'orderPage'])
+    ->name('storefront.account.orders.show');
+Route::get('/shop/{company:storefront_slug}/product/{product}', [StorefrontController::class, 'productPage']);
+Route::get('/shop/{company:storefront_slug}/cart', [StorefrontController::class, 'cartPage']);
+Route::get('/shop/{company:storefront_slug}/checkout', [StorefrontController::class, 'checkoutPage']);
+Route::get('/shop/{company:storefront_slug}/order-success', [StorefrontController::class, 'successPage']);
+Route::get('/shop/{company:storefront_slug}/products', [StorefrontController::class, 'products'])->name('storefront.products');
+Route::get('/shop/{company:storefront_slug}/products/{product}', [StorefrontController::class, 'product'])->name('storefront.product');
+Route::get('/shop/{company:storefront_slug}/vouchers', [StorefrontController::class, 'vouchers']);
+Route::post('/shop/{company:storefront_slug}/checkout', [StorefrontController::class, 'checkout'])
+    ->middleware('throttle:20,1')->name('storefront.checkout');
+Route::prefix('/shop/{company:storefront_slug}/account')->group(function () {
+    Route::get('/me', [StorefrontAccountController::class, 'me']);
+    Route::post('/register', [StorefrontAccountController::class, 'register'])->middleware('throttle:10,1');
+    Route::post('/login', [StorefrontAccountController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/logout', [StorefrontAccountController::class, 'logout']);
+    Route::put('/profile', [StorefrontAccountController::class, 'updateProfile'])->middleware('throttle:20,1');
+    Route::put('/password', [StorefrontAccountController::class, 'updatePassword'])->middleware('throttle:10,1');
+    Route::get('/orders', [StorefrontAccountController::class, 'orders']);
+    Route::post('/orders/{code}/cancel', [StorefrontAccountController::class, 'cancelOrder']);
+    Route::get('/addresses', [StorefrontAccountController::class, 'addresses']);
+    Route::post('/addresses', [StorefrontAccountController::class, 'storeAddress']);
+    Route::delete('/addresses/{address}', [StorefrontAccountController::class, 'destroyAddress']);
+});
 
 /*
 |--------------------------------------------------------------------------

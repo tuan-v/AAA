@@ -29,6 +29,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class DemoDataSeeder extends Seeder
 {
@@ -49,13 +50,11 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Công ty TNHH Demo Việt', 'phone' => '0901000000', 'email' => 'contact@demo.vn',
                 'address' => '1 Tràng Tiền, Hà Nội', 'owner_id' => $owner->id,
             ]);
-            $department->update([
-                'company_id' => $company->id,
-                'code' => 'PB-001',
-                'status' => 'active',
-                'manager_id' => $owner->id,
-            ]);
-            $owner->update(['company_id' => $company->id]);
+            $department = Department::updateOrCreate(
+                ['company_id' => $company->id, 'code' => 'PB-001'],
+                ['name' => 'Phòng Điều hành', 'status' => 'active', 'manager_id' => $owner->id]
+            );
+            $owner->update(['company_id' => $company->id, 'department_id' => $department->id]);
             $owner->companies()->syncWithoutDetaching([$company->id]);
             $owner->syncRoles(['Giám đốc']);
             $company->currencies()->syncWithoutDetaching([
@@ -128,21 +127,57 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Điện tử', 'description' => 'Nhóm hàng điện tử', 'status' => 'active',
             ]);
             $category = Category::updateOrCreate(['company_id' => $company->id, 'code' => 'DM-PHU-KIEN'], [
-                'parent_id' => $parent->id, 'name' => 'Phụ kiện', 'status' => 'active',
+                'parent_id' => $parent->id, 'name' => 'Phụ kiện', 'description' => 'Phụ kiện điện tử tổng hợp', 'status' => 'active',
+            ]);
+            $keyboardMouseCategory = Category::updateOrCreate(['company_id' => $company->id, 'code' => 'DM-PHIM-CHUOT'], [
+                'parent_id' => $parent->id, 'name' => 'Phím & Chuột', 'description' => 'Thiết bị điều khiển cho làm việc và giải trí', 'status' => 'active',
+            ]);
+            $hikingCategory = Category::updateOrCreate(['company_id' => $company->id, 'code' => 'DM-DA-NGOAI'], [
+                'parent_id' => $parent->id, 'name' => 'Âm thanh', 'description' => 'Tai nghe và thiết bị âm thanh cá nhân', 'status' => 'active',
+            ]);
+            $dailyCategory = Category::updateOrCreate(['company_id' => $company->id, 'code' => 'DM-HANG-NGAY'], [
+                'parent_id' => $parent->id, 'name' => 'Văn phòng thông minh', 'description' => 'Thiết bị tối ưu không gian làm việc hiện đại', 'status' => 'active',
+            ]);
+            $phoneCategory = Category::updateOrCreate(['company_id' => $company->id, 'name' => 'Điện thoại'], [
+                'code' => 'DM-DIEN-THOAI', 'parent_id' => $parent->id, 'description' => 'Điện thoại thông minh cho công việc và giải trí', 'status' => 'active',
+            ]);
+            $phoneAccessoryCategory = Category::updateOrCreate(['company_id' => $company->id, 'name' => 'Phụ kiện điện thoại'], [
+                'code' => 'DM-PK-DIEN-THOAI', 'parent_id' => $parent->id, 'description' => 'Sạc, cáp, pin dự phòng và tai nghe không dây', 'status' => 'active',
             ]);
             $unit = Unit::updateOrCreate(['company_id' => $company->id, 'symbol' => 'cái'], [
                 'name' => 'Cái', 'allow_decimal' => false, 'status' => 'active',
             ]);
 
             $products = collect([
-                ['DEMO-SP-001', 'Chuột không dây', 180000, 260000],
-                ['DEMO-SP-002', 'Bàn phím cơ', 650000, 890000],
-                ['DEMO-SP-003', 'Tai nghe văn phòng', 320000, 450000],
-            ])->map(fn ($row) => Product::updateOrCreate(['sku' => $row[0]], [
-                'company_id' => $company->id, 'name' => $row[1], 'category_id' => $category->id,
-                'unit_id' => $unit->id, 'type' => 'hang_hoa', 'color' => 'Tiêu chuẩn',
-                'purchase_price' => $row[2], 'sell_price' => $row[3], 'quantity' => 0, 'status' => 'active',
-            ]));
+                ['DEMO-SP-001', 'Bàn phím cơ Nova 75', 1050000, 1590000, $keyboardMouseCategory->id, 'storefront/keyboard-black.png', 'Bàn phím cơ layout 75%, kết nối không dây, keycap PBT và đèn nền tùy chỉnh.'],
+                ['DEMO-SP-002', 'Chuột không dây Flow Pro', 620000, 990000, $keyboardMouseCategory->id, 'storefront/mouse-graphite.png', 'Chuột công thái học cảm biến chính xác, kết nối đa thiết bị và pin sử dụng dài ngày.'],
+                ['DEMO-SP-003', 'Tai nghe chụp tai AirBeat ANC', 1450000, 2290000, $hikingCategory->id, 'storefront/headphones-black.png', 'Tai nghe Bluetooth chống ồn chủ động, âm thanh cân bằng và đệm tai êm cho cả ngày.'],
+                ['DEMO-SP-004', 'Bàn phím cơ Nova Mini', 780000, 1290000, $keyboardMouseCategory->id, 'storefront/keyboard-black.png', 'Thiết kế nhỏ gọn tiết kiệm diện tích, switch tuyến tính và kết nối ba chế độ.'],
+                ['DEMO-SP-005', 'Tai nghe Studio One', 1180000, 1890000, $hikingCategory->id, 'storefront/headphones-black.png', 'Chất âm chi tiết, micro đàm thoại rõ và thiết kế tối giản phù hợp làm việc.'],
+                ['DEMO-SP-006', 'Chuột Silent Click S2', 390000, 650000, $dailyCategory->id, 'storefront/mouse-graphite.png', 'Nút bấm yên tĩnh, trọng lượng nhẹ và kết nối ổn định cho văn phòng.'],
+                ['DEMO-SP-007', 'Bàn phím WorkBoard Wireless', 890000, 1390000, $dailyCategory->id, 'storefront/keyboard-black.png', 'Bàn phím không dây gọn gàng với thời lượng pin dài và phím tắt đa phương tiện.'],
+                ['DEMO-SP-008', 'Tai nghe AirBeat Lite', 760000, 1190000, $hikingCategory->id, 'storefront/headphones-black.png', 'Tai nghe không dây nhẹ, micro kép và thời lượng pin phù hợp di chuyển hằng ngày.'],
+                ['DEMO-SP-009', 'Chuột Precision M3', 520000, 850000, $keyboardMouseCategory->id, 'storefront/mouse-graphite.png', 'Cảm biến độ phân giải cao, sáu nút tùy chỉnh và kiểu dáng ôm tay chắc chắn.'],
+                ['DEMO-SP-010', 'Bàn phím cơ Creator 98', 1320000, 1990000, $keyboardMouseCategory->id, 'storefront/keyboard-black.png', 'Layout đầy đủ cho sáng tạo nội dung, núm xoay đa chức năng và kết nối ba thiết bị.'],
+                ['DEMO-SP-011', 'Chuột Office Anywhere', 450000, 720000, $dailyCategory->id, 'storefront/mouse-graphite.png', 'Chuột không dây nhỏ gọn, cuộn chính xác và chuyển đổi nhanh giữa laptop, máy tính bảng.'],
+                ['DEMO-SP-012', 'Tai nghe Conference Pro', 1280000, 2090000, $hikingCategory->id, 'storefront/headphones-black.png', 'Micro lọc ồn cho họp trực tuyến, kết nối kép và đệm tai thoáng khí.'],
+                ['DEMO-SP-013', 'Nova Phone X1 128GB — Graphite', 7850000, 9990000, $phoneCategory->id, 'storefront/phone-graphite.png', 'Màn hình OLED 6.5 inch, camera ba ống kính, bộ nhớ 128GB và sạc nhanh 45W.'],
+                ['DEMO-SP-014', 'Nova Phone X1 Pro 256GB — Graphite', 11200000, 13990000, $phoneCategory->id, 'storefront/phone-graphite.png', 'Smartphone cao cấp với màn hình 120Hz, camera chống rung quang học và bộ nhớ 256GB.'],
+                ['DEMO-SP-015', 'Pulse Phone A5 128GB — Ocean Blue', 4650000, 5990000, $phoneCategory->id, 'storefront/phone-blue.png', 'Điện thoại tầm trung pin 5000mAh, màn hình lớn, camera kép và thiết kế xanh satin.'],
+                ['DEMO-SP-016', 'Củ sạc nhanh GaN 30W', 280000, 450000, $phoneAccessoryCategory->id, 'storefront/phone-accessories.png', 'Củ sạc USB-C công nghệ GaN nhỏ gọn, hỗ trợ sạc nhanh cho điện thoại và máy tính bảng.'],
+                ['DEMO-SP-017', 'Cáp USB-C bện dù 100W 1.5m', 120000, 220000, $phoneAccessoryCategory->id, 'storefront/phone-accessories.png', 'Cáp sạc bền chắc, hỗ trợ công suất tối đa 100W và truyền dữ liệu ổn định.'],
+                ['DEMO-SP-018', 'Pin dự phòng SlimCharge 10.000mAh', 520000, 790000, $phoneAccessoryCategory->id, 'storefront/phone-accessories.png', 'Pin dự phòng mỏng nhẹ, hai chiều USB-C và màn hình báo dung lượng pin.'],
+                ['DEMO-SP-019', 'Tai nghe True Wireless Pocket Buds', 690000, 1090000, $phoneAccessoryCategory->id, 'storefront/phone-accessories.png', 'Tai nghe không dây nhỏ gọn, chống ồn cuộc gọi và hộp sạc dùng đến 28 giờ.'],
+            ])->map(function ($row) use ($company, $unit) {
+                $attributes = [
+                    'company_id' => $company->id, 'name' => $row[1], 'category_id' => $row[4],
+                    'unit_id' => $unit->id, 'type' => 'hang_hoa',
+                    'purchase_price' => $row[2], 'sell_price' => $row[3], 'quantity' => 0, 'status' => 'active',
+                    'description' => $row[6], 'image' => $row[5], 'storefront_visible' => true,
+                ];
+                if (Schema::hasColumn('products', 'color')) $attributes['color'] = 'Tiêu chuẩn';
+                return Product::updateOrCreate(['sku' => $row[0]], $attributes);
+            });
 
             $warehouse = Warehouse::updateOrCreate(['company_id' => $company->id, 'code' => 'KHO-DEMO'], [
                 'name' => 'Kho trung tâm', 'address_id' => $address->id, 'address_detail' => 'Kho số 1',
@@ -150,7 +185,7 @@ class DemoDataSeeder extends Seeder
                 'total_inventory_value' => 12250000, 'status' => 'active',
             ]);
             foreach ($products as $index => $product) {
-                $quantity = [25, 8, 15][$index];
+                $quantity = [25, 18, 15, 12, 9, 20, 7, 11, 18, 10, 24, 13, 8, 6, 14, 35, 48, 22, 30][$index];
                 WarehouseProductStock::updateOrCreate(
                     ['company_id' => $company->id, 'warehouse_id' => $warehouse->id, 'product_id' => $product->id],
                     ['quantity' => $quantity, 'stock_value' => $quantity * (float) $product->purchase_price]

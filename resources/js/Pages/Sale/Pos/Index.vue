@@ -110,13 +110,9 @@
                         {{ selectedCustomer?.debt_eligible ? 'Khách đã từng mua hàng: được phép ghi nợ.' : 'Khách lẻ hoặc khách mới: phải thanh toán đủ, chưa được ghi nợ.' }}
                     </div>
 
-                    <label class="block text-sm font-medium text-gray-700">
-                        Loại hóa đơn
-                        <select v-model="invoiceType" class="mt-1 w-full rounded-xl border-gray-300">
-                            <option value="retail">Hóa đơn bán lẻ</option>
-                            <option value="vat">Hóa đơn VAT (10%)</option>
-                        </select>
-                    </label>
+                    <div class="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-700">
+                        Hóa đơn VAT (10%)
+                    </div>
 
                     <label class="block text-sm font-medium text-gray-700">
                         Phiếu giảm giá
@@ -217,7 +213,7 @@ const search = ref("");
 const warehouseId = ref("");
 const customerId = ref("");
 const paymentMethod = ref("cash");
-const invoiceType = ref("retail");
+const invoiceType = ref("vat");
 const couponCode = ref("");
 const paidAmount = ref(0);
 const paidAmountDisplay = ref('0');
@@ -269,7 +265,7 @@ const discount = computed(() => {
     const value = coupon.type === "percent" ? subtotal.value * Number(coupon.value) / 100 : Number(coupon.value);
     return Math.min(subtotal.value, coupon.maximum_discount == null ? value : Math.min(value, Number(coupon.maximum_discount)));
 });
-const vatAmount = computed(() => invoiceType.value === 'vat' ? subtotal.value * 0.1 : 0);
+const vatAmount = computed(() => subtotal.value * 0.1);
 const total = computed(() => Math.max(0, subtotal.value + vatAmount.value - discount.value));
 const paymentAmountBase = computed(() => Number(paidAmount.value || 0) * paymentRate.value);
 const settledAmount = computed(() => Math.min(total.value, paymentAmountBase.value));
@@ -358,7 +354,7 @@ async function loadDraft(item) {
     warehouseId.value = item.warehouse_id || '';
     customerId.value = item.customer?.code === 'KH_LE' ? '' : (item.customer?.id || '');
     couponCode.value = item.coupon_code || '';
-    invoiceType.value = item.invoice_type || 'retail';
+    invoiceType.value = 'vat';
     cart.value = (item.items || []).map((line) => {
         const product = options.products.find((candidate) => Number(candidate.id) === Number(line.product_id));
         return {
@@ -387,7 +383,7 @@ async function saveDraft() {
         const saved = (await axios.put(`/api/sale/pos/drafts/${draft.value.id}`, {
             customer_id: customerId.value || null,
             warehouse_id: warehouseId.value || null,
-            invoice_type: invoiceType.value,
+            invoice_type: 'vat',
             coupon_code: couponCode.value || null,
             items: cart.value.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
         })).data.data;
@@ -413,7 +409,7 @@ async function cancelDraft(item) {
             customerId.value = '';
             warehouseId.value = '';
             couponCode.value = '';
-            invoiceType.value = 'retail';
+            invoiceType.value = 'vat';
             await nextTick();
             hydratingDraft.value = false;
         }
@@ -452,18 +448,18 @@ async function checkout() {
             warehouse_id: warehouseId.value,
             payment_method: paymentMethod.value,
             payment_currency_id: paymentCurrencyId.value,
-            invoice_type: invoiceType.value,
+            invoice_type: 'vat',
             coupon_code: couponCode.value || null,
             paid_amount: paidAmount.value,
             payment_reference: paymentMethod.value === 'momo' ? paymentReference.value : null,
-            items: cart.value.map((item) => ({ product_id: item.product_id, quantity: item.quantity, vat_percent: invoiceType.value === 'vat' ? 10 : 0 })),
+            items: cart.value.map((item) => ({ product_id: item.product_id, quantity: item.quantity, vat_percent: 10 })),
         });
         receipt.value = response.data.data;
         pendingDrafts.value = pendingDrafts.value.filter((item) => item.id !== draft.value?.id);
         cart.value = [];
         customerId.value = "";
         couponCode.value = "";
-        invoiceType.value = 'retail';
+        invoiceType.value = 'vat';
         draft.value = null;
     } catch (e) {
         error.value = Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể tạo đơn bán tại quầy.";

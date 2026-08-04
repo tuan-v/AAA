@@ -8,7 +8,9 @@
         <div class="flex justify-between items-center mb-5">
             <h2 class="text-2xl font-bold">Danh sách phiếu</h2>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5">
+        <div
+            class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5"
+        >
             <SearchPage :filters="filters" @filter="handleFilter" />
         </div>
         <div class="flex items-center border-b mb-5 gap-2">
@@ -40,7 +42,11 @@
             <button
                 @click="activeTab = 'return'"
                 class="px-4 py-2 text-sm font-medium border-b-2 transition"
-                :class="activeTab === 'return' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-orange-500'"
+                :class="
+                    activeTab === 'return'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-500 hover:text-orange-500'
+                "
             >
                 Phiếu nhập hàng hoàn
             </button>
@@ -159,7 +165,10 @@ const columns = [
             h(
                 "span",
                 {},
-                row.return_of_slip_code || row.purchase_order_code || row.sales_order_code || "-",
+                row.return_of_slip_code ||
+                    row.purchase_order_code ||
+                    row.sales_order_code ||
+                    "-",
             ),
     },
     {
@@ -235,11 +244,16 @@ const columns = [
     },
     {
         label: "Hoàn hàng",
-        render: (row) => h("span", {}, ({
-            pending_warehouse: "Chờ kho nhận hàng",
-            pending_accountant: "Chờ kế toán duyệt hoàn",
-            approved: "Đã hoàn",
-        })[row.return_status] || "-"),
+        render: (row) =>
+            h(
+                "span",
+                {},
+                {
+                    pending_warehouse: "Chờ kho nhận hàng",
+                    pending_accountant: "Chờ kế toán duyệt hoàn",
+                    approved: "Đã hoàn",
+                }[row.return_status] || "-",
+            ),
     },
 ];
 const actions = [
@@ -301,13 +315,15 @@ const actions = [
                 await getData(slips.value.current_page);
             } catch (e) {
                 console.error(e);
-                toast.error(e.response?.data?.message || "Không thể duyệt phiếu");
+                toast.error(
+                    e.response?.data?.message || "Không thể duyệt phiếu",
+                );
             }
         },
     },
     {
         title: "Xác nhận đã giao hàng",
-        label: "Đã giao",
+
         icon: CheckIcon,
         hidden: (row) =>
             !isAccountantView ||
@@ -320,23 +336,29 @@ const actions = [
         onClick: async (row) => {
             const confirmed = await confirmAction({
                 title: "Xác nhận giao hàng",
-                message: `Xác nhận đơn ${row.sales_order_code || ''} đã giao đủ cho khách hàng?`,
+                message: `Xác nhận đơn ${row.sales_order_code || ""} đã giao đủ cho khách hàng?`,
                 confirmText: "Xác nhận đã giao",
                 tone: "success",
             });
             if (!confirmed) return;
             try {
-                await axios.post(`/api/warehouse/slips/${row.id}/confirm-delivery`);
+                await axios.post(
+                    `/api/warehouse/slips/${row.id}/confirm-delivery`,
+                );
                 toast.success("Đã xác nhận giao hàng và hoàn thành đơn bán");
                 await getData(slips.value.current_page);
             } catch (e) {
-                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể xác nhận giao hàng");
+                toast.error(
+                    Object.values(e.response?.data?.errors || {}).flat()[0] ||
+                        e.response?.data?.message ||
+                        "Không thể xác nhận giao hàng",
+                );
             }
         },
     },
     {
         title: "Hủy giao / hoàn hàng",
-        label: "Hủy giao",
+
         icon: DeleteIcon,
         hidden: (row) =>
             !isAccountantView ||
@@ -351,7 +373,8 @@ const actions = [
                 title: "Hủy giao và hoàn hàng",
                 message: `Đơn ${row.sales_order_code || `#${row.sales_order_id}`} sẽ chuyển sang chờ kho nhận lại hàng. Tồn kho và công nợ chỉ được cập nhật sau khi kế toán duyệt hoàn.`,
                 inputLabel: "Lý do hủy giao",
-                inputPlaceholder: "Ví dụ: Khách từ chối nhận hàng, giao không thành công...",
+                inputPlaceholder:
+                    "Ví dụ: Khách từ chối nhận hàng, giao không thành công...",
                 inputRequired: true,
                 inputMinLength: 5,
                 confirmText: "Xác nhận hủy giao",
@@ -360,11 +383,18 @@ const actions = [
             });
             if (!reason) return;
             try {
-                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/request-delivery-return`, { reason });
+                const { data } = await axios.post(
+                    `/api/warehouse/slips/${row.id}/request-delivery-return`,
+                    { reason },
+                );
                 toast.success(data.message);
                 await getData(slips.value.current_page);
             } catch (e) {
-                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể tạo yêu cầu hoàn hàng");
+                toast.error(
+                    Object.values(e.response?.data?.errors || {}).flat()[0] ||
+                        e.response?.data?.message ||
+                        "Không thể tạo yêu cầu hoàn hàng",
+                );
             }
         },
     },
@@ -372,7 +402,10 @@ const actions = [
         title: "Xác nhận nhận hàng hoàn",
         label: "Đã nhận hàng hoàn",
         icon: CheckIcon,
-        hidden: (row) => isAccountantView || !can("phieu_kho.duyet") || row.return_status !== "pending_warehouse",
+        hidden: (row) =>
+            isAccountantView ||
+            !can("phieu_kho.duyet") ||
+            row.return_status !== "pending_warehouse",
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({
@@ -383,11 +416,17 @@ const actions = [
             });
             if (!confirmed) return;
             try {
-                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/receive-delivery-return`);
+                const { data } = await axios.post(
+                    `/api/warehouse/slips/${row.id}/receive-delivery-return`,
+                );
                 toast.success(data.message);
                 await getData(slips.value.current_page);
             } catch (e) {
-                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể xác nhận hàng hoàn");
+                toast.error(
+                    Object.values(e.response?.data?.errors || {}).flat()[0] ||
+                        e.response?.data?.message ||
+                        "Không thể xác nhận hàng hoàn",
+                );
             }
         },
     },
@@ -395,7 +434,10 @@ const actions = [
         title: "Kế toán duyệt hoàn hàng",
         label: "Duyệt hoàn",
         icon: CheckIcon,
-        hidden: (row) => !isAccountantView || !can("phieu_kho.duyet_ke_toan") || row.return_status !== "pending_accountant",
+        hidden: (row) =>
+            !isAccountantView ||
+            !can("phieu_kho.duyet_ke_toan") ||
+            row.return_status !== "pending_accountant",
         confirm: false,
         onClick: async (row) => {
             const confirmed = await confirmAction({
@@ -406,11 +448,17 @@ const actions = [
             });
             if (!confirmed) return;
             try {
-                const { data } = await axios.post(`/api/warehouse/slips/${row.id}/accountant-approve-delivery-return`);
+                const { data } = await axios.post(
+                    `/api/warehouse/slips/${row.id}/accountant-approve-delivery-return`,
+                );
                 toast.success(data.message);
                 await getData(slips.value.current_page);
             } catch (e) {
-                toast.error(Object.values(e.response?.data?.errors || {}).flat()[0] || e.response?.data?.message || "Không thể duyệt hoàn hàng");
+                toast.error(
+                    Object.values(e.response?.data?.errors || {}).flat()[0] ||
+                        e.response?.data?.message ||
+                        "Không thể duyệt hoàn hàng",
+                );
             }
         },
     },

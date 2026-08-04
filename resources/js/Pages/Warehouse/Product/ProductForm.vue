@@ -193,6 +193,14 @@
                         </div>
 
                         <!-- Trạng thái -->
+                        <label class="flex items-center gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-800">
+                            <input v-model="form.storefront_visible" type="checkbox" :true-value="1" :false-value="0" />
+                            Hiển thị sản phẩm ngoài cửa hàng
+                        </label>
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-gray-700">Giá khuyến mãi</label>
+                            <input v-model.number="form.promotional_price" type="number" min="0" :max="form.sell_price" class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm" placeholder="Để trống nếu không khuyến mãi" />
+                        </div>
                     </div>
                 </div>
 
@@ -342,6 +350,8 @@ const form = ref({
     sell_price: 0,
     quantity: 0,
     status: "active",
+    storefront_visible: 1,
+    promotional_price: null,
     description: "",
     image: null,
 });
@@ -365,6 +375,8 @@ watch(
                 sell_price: 0,
                 quantity: 0,
                 status: "active",
+                storefront_visible: 1,
+                promotional_price: null,
                 description: "",
                 image: null,
             };
@@ -385,6 +397,8 @@ watch(
         form.value.sell_price = Number(p.sell_price || 0);
         form.value.quantity = Number(p.quantity || 0);
         form.value.status = p.status || "active";
+        form.value.storefront_visible = p.storefront_visible === false ? 0 : 1;
+        form.value.promotional_price = p.promotional_price ?? null;
         form.value.description = p.description || "";
         form.value.image = null;
 

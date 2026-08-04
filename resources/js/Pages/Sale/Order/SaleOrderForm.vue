@@ -642,7 +642,7 @@ function addItem() {
         product_id: "",
         quantity: 1,
         unit_price: "",
-        vat_percent: 0,
+        vat_percent: 10,
         amount: 0,
         stock_quantity: 0,
         allow_decimal: false,
@@ -678,7 +678,7 @@ function onSelectProduct(item) {
     item.stock_quantity = stock;
     item.allow_decimal = Boolean(product.allow_decimal ?? product.unit?.allow_decimal);
     item.quantity = 1;
-    item.vat_percent = item.vat_percent || 0;
+    item.vat_percent = item.vat_percent === "" || item.vat_percent == null ? 10 : item.vat_percent;
     calculateItem(item);
 }
 
@@ -818,7 +818,7 @@ function resetForm() {
             product_id: "",
             quantity: 1,
             unit_price: "",
-            vat_percent: 0,
+            vat_percent: 10,
             amount: 0,
             stock_quantity: 0,
             allow_decimal: false,

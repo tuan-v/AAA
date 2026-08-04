@@ -216,7 +216,7 @@ class PurchaseOrderController extends Controller
 
             // Giá trị dòng được tính từ dữ liệu gốc của đơn, không dùng amount cũ từ client.
             $lineAmount = round((float) $item->price * (float) $item->quantity, 2);
-            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 0) / 100), 2);
+            $lineVatAmount = round($lineAmount * ((float) ($item->vat_percent ?? 10) / 100), 2);
             $item->amount = $lineAmount;
             $item->vat_amount = $lineVatAmount;
             $item->total_amount = round($lineAmount + $lineVatAmount, 2);
@@ -315,7 +315,7 @@ class PurchaseOrderController extends Controller
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
-                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 0) / 100);
+                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 10) / 100);
 
                 $companyPrice =
                     $item['price']
@@ -326,7 +326,7 @@ class PurchaseOrderController extends Controller
                     'price'        => $item['price'], // giá NCC
                     'company_price' => round($companyPrice, 2),  // giá quy đổi
                     'amount'       => $amount,
-                    'vat_percent'  => $item['vat_percent'] ?? 0,
+                    'vat_percent'  => $item['vat_percent'] ?? 10,
                 ]);
 
                 $subtotal += $amount;
@@ -468,7 +468,7 @@ class PurchaseOrderController extends Controller
             foreach ($request->items as $item) {
 
                 $amount = $item['quantity'] * $item['price'];
-                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 0) / 100);
+                $itemVat = $amount * ((float) ($item['vat_percent'] ?? 10) / 100);
 
                 $companyPrice =
                     $item['price']
@@ -480,7 +480,7 @@ class PurchaseOrderController extends Controller
                     'price'         => $item['price'],
                     'company_price' =>  round($companyPrice, 2),
                     'amount'        => $amount,
-                    'vat_percent'   => $item['vat_percent'] ?? 0,
+                    'vat_percent'   => $item['vat_percent'] ?? 10,
                 ]);
 
                 $subtotal += $amount;
