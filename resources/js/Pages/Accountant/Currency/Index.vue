@@ -81,7 +81,7 @@ import Modal from "@/components/Modal.vue";
 import SearchPage from "@/components/SearchPage.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
 import CurrencyForm from "./CurrencyForm.vue";

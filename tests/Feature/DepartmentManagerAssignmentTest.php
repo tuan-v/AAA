@@ -77,6 +77,12 @@ class DepartmentManagerAssignmentTest extends TestCase
             'guard_name' => 'web',
             'description' => 'Thêm nhân sự',
         ]));
+        $owner->givePermissionTo(Permission::firstOrCreate([
+            'name' => 'phong_ban.them',
+            'guard_name' => 'web',
+        ], [
+            'description' => 'Thêm phòng ban',
+        ]));
 
         return [$owner->fresh(), $company];
     }

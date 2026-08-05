@@ -185,7 +185,7 @@
                             <template v-else>
                                 <component
                                     v-if="col.render"
-                                    :is="col.render(item)"
+                                    :is="normalizeRenderedCell(col.render(item))"
                                 />
 
                                 <template v-else>
@@ -329,12 +329,16 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, h, isVNode } from "vue";
 import Skeleton from "primevue/skeleton";
-import Tooltip from "@/Components/Tooltip.vue";
+import Tooltip from "@/components/Tooltip.vue";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 
 const { confirmAction } = useActionConfirm();
+
+const normalizeRenderedCell = (value) => isVNode(value)
+    ? value
+    : h("span", {}, value === null || value === undefined ? "" : String(value));
 
 const emit = defineEmits(["toggle-status"]);
 const getRoleBadgeClass = (name) => {

@@ -157,6 +157,18 @@
                             formatMoney(order?.vat_amount || 0, order?.currency)
                         }}</span>
                     </div>
+                    <div v-if="Number(order?.shipping_fee || 0) > 0" class="flex justify-between">
+                        <span class="text-gray-600">Phí giao hàng</span>
+                        <span class="font-semibold text-orange-600">{{
+                            formatMoney(order.shipping_fee, order?.currency)
+                        }}</span>
+                    </div>
+                    <div v-if="Number(order?.discount_amount || 0) > 0" class="flex justify-between">
+                        <span class="text-gray-600">Giảm giá</span>
+                        <span class="font-semibold text-green-600">-{{
+                            formatMoney(order.discount_amount, order?.currency)
+                        }}</span>
+                    </div>
                     <div
                         class="flex justify-between border-t pt-4 text-2xl font-bold text-blue-700"
                     >
@@ -289,7 +301,6 @@ const props = defineProps({
 const order = computed(() => props.order);
 const workflowSteps = computed(() => {
     const steps = [
-        { status: 'draft', label: 'Hóa đơn chờ' },
         { status: 'pending', label: 'Chờ xác nhận' },
         { status: 'approved', label: 'Đã xác nhận' },
         { status: 'partial', label: 'Đang giao hàng' },
@@ -332,7 +343,6 @@ const getStatusText = (status, returnStatus = null) => {
     if (returnStatus === 'pending_warehouse') return 'Chờ kho nhận hàng hoàn';
     if (returnStatus === 'pending_accountant') return 'Chờ kế toán duyệt hoàn';
     const businessMap = {
-        draft: "Hóa đơn chờ",
         pending: "Chờ xác nhận",
         approved: "Đã xác nhận",
         partial: "Đang giao hàng",
@@ -355,7 +365,6 @@ const getStatusText = (status, returnStatus = null) => {
 const statusBadgeClass = (status, returnStatus = null) => {
     if (returnStatus) return "bg-orange-100 text-orange-700";
     const businessClasses = {
-        draft: "bg-gray-100 text-gray-700",
         pending: "bg-yellow-100 text-yellow-700",
         approved: "bg-blue-100 text-blue-700",
         partial: "bg-purple-100 text-purple-700",

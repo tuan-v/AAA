@@ -35,7 +35,6 @@
                         <button type="button" class="password-toggle" @click="showLoginPassword = !showLoginPassword">{{ showLoginPassword ? 'Ẩn' : 'Hiện' }}</button>
                     </span>
                 </label>
-                <p v-if="error" class="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</p>
                 <button class="submit-button" :disabled="submitting">{{ submitting ? 'Đang đăng nhập...' : 'Đăng nhập' }}</button>
             </form>
 
@@ -55,7 +54,6 @@
                 </label>
                 <label class="field-label">Nhập lại mật khẩu<input v-model="registerForm.password_confirmation" :type="showRegisterPassword ? 'text' : 'password'" required autocomplete="new-password" class="field-input" placeholder="Nhập lại mật khẩu" /></label>
                 <p class="mt-4 text-xs leading-5 text-neutral-500">Bằng việc tạo tài khoản, bạn đồng ý với điều khoản mua hàng và chính sách bảo mật của cửa hàng.</p>
-                <p v-if="error" class="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</p>
                 <button class="submit-button" :disabled="submitting">{{ submitting ? 'Đang tạo tài khoản...' : 'Tạo tài khoản' }}</button>
             </form>
         </div>
@@ -65,6 +63,7 @@
 <script setup>
 import axios from 'axios';
 import { reactive, ref } from 'vue';
+import { storefrontToast as toast } from '@/utils/storefrontToast';
 
 const props = defineProps({ base: { type: String, required: true }, storeName: { type: String, required: true } });
 const emit = defineEmits(['authenticated']);
@@ -84,17 +83,17 @@ function switchMode() {
 
 async function login() {
     submitting.value = true; error.value = '';
-    try { await axios.post(`${props.base}/login`, loginForm); emit('authenticated'); }
-    catch (e) { error.value = message(e); }
+    try { await axios.post(`${props.base}/login`, loginForm); toast.success('Đăng nhập thành công.'); emit('authenticated'); }
+    catch (e) { error.value = message(e); toast.error(error.value); }
     finally { submitting.value = false; }
 }
 
 async function register() {
-    if (registerForm.password !== registerForm.password_confirmation) { error.value = 'Mật khẩu nhập lại chưa trùng khớp.'; return; }
-    if (!/^0[35789][0-9]{8}$/.test(registerForm.phone)) { error.value = 'Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.'; return; }
+    if (registerForm.password !== registerForm.password_confirmation) { error.value = 'Mật khẩu nhập lại chưa trùng khớp.'; toast.warning(error.value); return; }
+    if (!/^0[35789][0-9]{8}$/.test(registerForm.phone)) { error.value = 'Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.'; toast.warning(error.value); return; }
     submitting.value = true; error.value = '';
-    try { await axios.post(`${props.base}/register`, registerForm); emit('authenticated'); }
-    catch (e) { error.value = message(e); }
+    try { await axios.post(`${props.base}/register`, registerForm); toast.success('Tạo tài khoản thành công.'); emit('authenticated'); }
+    catch (e) { error.value = message(e); toast.error(error.value); }
     finally { submitting.value = false; }
 }
 </script>

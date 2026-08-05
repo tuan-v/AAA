@@ -1,0 +1,90 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    volumes:
+      - app_storage:/var/www/html/storage
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - app_storage:/var/www/html/storage:ro
+    depends_on:
+      - app
+
+  worker:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    command: php artisan queue:work --sleep=3 --tries=3 --timeout=120
+    volumes:
+      - app_storage:/var/www/html/storage
+    depends_on:
+      - app
+
+  scheduler:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    command: php artisan schedule:work
+    volumes:
+      - app_storage:/var/www/html/storage
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    env_file: .env.docker
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  db-init:
+    image: mysql:8.4
+    restart: "no"
+    env_file: .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        mysql -h db -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$$DB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; ALTER USER '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; GRANT ALL PRIVILEGES ON \`$$DB_DATABASE\`.* TO '$$DB_USERNAME'@'%'; FLUSH PRIVILEGES;"
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:80
+    depends_on:
+      - web
+
+volumes:
+  mysql_data:
+  app_storage:

@@ -11,11 +11,15 @@ class SalesOrder extends Model
     use BelongsToCompany;
 
     protected $appends = ['effective_status'];
+
     protected $fillable = [
         'code',
         'company_id',
         'customer_id',
         'customer_account_id',
+        'recipient_name',
+        'recipient_phone',
+        'recipient_email',
         'currency_id',
         'province_id',
         'ward_id',
@@ -35,9 +39,19 @@ class SalesOrder extends Model
         'sales_channel',
         'pos_warehouse_id',
         'payment_method',
+        'payment_status',
+        'cod_status',
+        'cod_amount',
+        'cod_collected_at',
+        'cod_reconciled_at',
+        'shipping_partner_id',
         'shipping_method',
         'shipping_fee',
+        'carrier_shipping_fee',
+        'carrier_service_fee',
+        'carrier_insurance_fee',
         'tracking_code',
+        'shipping_note',
         'cancellation_reason',
         'payment_currency_id',
         'payment_exchange_rate',
@@ -45,6 +59,10 @@ class SalesOrder extends Model
         'invoice_type',
         'paid_amount',
         'pos_coupon_id',
+        'coupon_code_snapshot',
+        'coupon_name_snapshot',
+        'coupon_type_snapshot',
+        'coupon_value_snapshot',
         'discount_amount',
         'tendered_amount',
         'change_amount',
@@ -53,6 +71,7 @@ class SalesOrder extends Model
         'return_status',
         'returned_at',
     ];
+
     protected $casts = [
         'expected_delivery_date' => 'date:Y-m-d',
         'paid_amount' => 'decimal:2',
@@ -62,11 +81,15 @@ class SalesOrder extends Model
         'payment_exchange_rate' => 'decimal:8',
         'payment_tendered_amount' => 'decimal:2',
         'completed_at' => 'datetime',
+        'cod_amount' => 'decimal:2',
+        'cod_collected_at' => 'datetime',
+        'cod_reconciled_at' => 'datetime',
         'approved_at' => 'datetime',
         'submitted_at' => 'datetime',
         'shipping_started_at' => 'datetime',
         'returned_at' => 'datetime',
     ];
+
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -101,23 +124,47 @@ class SalesOrder extends Model
     {
         return $this->hasMany(SalesOrderItem::class);
     }
-    public function customerAccount() { return $this->belongsTo(CustomerAccount::class); }
+
+    public function customerAccount()
+    {
+        return $this->belongsTo(CustomerAccount::class);
+    }
+
+    public function shippingPartner()
+    {
+        return $this->belongsTo(ShippingPartner::class);
+    }
+
+    public function codReconciliationItem()
+    {
+        return $this->hasOne(CodReconciliationItem::class);
+    }
+
     public function posCoupon()
     {
         return $this->belongsTo(PosCoupon::class, 'pos_coupon_id');
     }
+
+    public function couponUsage()
+    {
+        return $this->hasOne(CouponUsage::class);
+    }
+
     public function paymentCurrency()
     {
         return $this->belongsTo(Currency::class, 'payment_currency_id');
     }
+
     public function warehouseSlips()
     {
         return $this->hasMany(WarehouseSlip::class, 'sales_order_id');
     }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
@@ -132,11 +179,12 @@ class SalesOrder extends Model
             default => (string) $this->status,
         };
     }
+
     protected static function booted()
     {
         static::creating(function ($model) {
 
-            if (!$model->code) {
+            if (! $model->code) {
                 $model->code = app(CodeGeneratorService::class)
                     ->generate(self::class, 'SO');
             }

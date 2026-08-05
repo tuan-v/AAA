@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Customer;
-use App\Models\CustomerDebt;
+use App\Models\Company;
 use App\Models\CompanyCurrencyRate;
 use App\Models\Currency;
+use App\Models\Customer;
+use App\Models\CustomerDebt;
 use App\Models\PosCoupon;
 use App\Models\Product;
 use App\Models\SalesOrder;
 use App\Models\Warehouse;
 use App\Models\WarehouseProductStock;
+use App\Services\CouponService;
 use App\Services\InventoryMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,13 +54,14 @@ class PosController extends Controller
             ->map(function (Product $product) use ($company) {
                 $stocks = WarehouseProductStock::query()->where('company_id', $company->id)
                     ->where('product_id', $product->id)->pluck('quantity', 'warehouse_id');
+
                 return [...$product->toArray(), 'sell_price' => (float) $product->sell_price, 'stocks' => $stocks];
             });
         $coupons = PosCoupon::query()->where('company_id', $company->id)->where('is_active', true)
             ->where(fn ($query) => $query->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit'))
             ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
-            ->orderBy('code')->get();
+            ->with('assignedCustomers:id')->orderBy('code')->get()->filter(fn (PosCoupon $coupon) => $coupon->supportsChannel('pos'))->values();
         $currencies = Currency::query()->where('is_active', true)->orderBy('code')
             ->get(['id', 'code', 'name', 'symbol', 'exchange_rate'])
             ->map(fn (Currency $item) => [
@@ -126,7 +129,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->where(fn ($query) => $query->where('company_id', $company->id)->where('status', 'active'))],
             'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where(fn ($query) => $query->where('company_id', $company->id)->where('status', 'active'))],
-            'invoice_type' => ['required', Rule::in(['retail', 'vat'])],
+            'invoice_type' => ['required', Rule::in(['vat'])],
             'coupon_code' => ['nullable', 'string', 'max:100'],
             'items' => ['array'],
             'items.*.product_id' => ['required', 'integer', 'distinct'],
@@ -158,12 +161,8 @@ class PosController extends Controller
                 $vatAmount += round($amount * $vatPercent / 100, 2);
                 $items[] = compact('product', 'quantity', 'unitPrice', 'vatPercent', 'amount');
             }
-            $coupon = null;
-            $discount = 0;
-            if (! empty($validated['coupon_code'])) {
-                $coupon = PosCoupon::where('company_id', $company->id)->where('code', strtoupper(trim($validated['coupon_code'])))->first();
-                $discount = $coupon?->discountFor($subtotal) ?? 0;
-            }
+            ['coupon' => $coupon, 'discount' => $discount] = app(CouponService::class)
+                ->resolve($company->id, $validated['coupon_code'] ?? null, 'pos', $subtotal, $customer->id);
             $order->update([
                 'customer_id' => $customer->id,
                 'pos_warehouse_id' => $validated['warehouse_id'] ?? null,
@@ -209,7 +208,7 @@ class PosController extends Controller
             'warehouse_id' => ['required', Rule::exists('warehouses', 'id')->where(fn ($query) => $query->where('company_id', $company->id)->where('status', 'active'))],
             'payment_method' => ['required', Rule::in(['cash', 'momo'])],
             'payment_currency_id' => ['nullable', Rule::exists('currencies', 'id')->where(fn ($query) => $query->where('is_active', true))],
-            'invoice_type' => ['sometimes', Rule::in(['retail', 'vat'])],
+            'invoice_type' => ['required', Rule::in(['vat'])],
             'paid_amount' => ['required', 'numeric', 'min:0'],
             'coupon_code' => ['nullable', 'string', 'max:100'],
             'payment_reference' => ['nullable', 'required_if:payment_method,momo', 'string', 'max:255'],
@@ -239,7 +238,9 @@ class PosController extends Controller
                     throw ValidationException::withMessages(['draft_id' => 'Hóa đơn chờ không tồn tại hoặc đã được thanh toán.']);
                 }
             }
-            $subtotal = 0; $vatAmount = 0; $items = [];
+            $subtotal = 0;
+            $vatAmount = 0;
+            $items = [];
             foreach ($validated['items'] as $input) {
                 $product = Product::query()->where('company_id', $company->id)->where('status', 'active')->findOrFail($input['product_id']);
                 $stock = WarehouseProductStock::query()->where('company_id', $company->id)
@@ -253,18 +254,13 @@ class PosController extends Controller
                 $vatPercent = 10.0;
                 $amount = round($quantity * $unitPrice, 2);
                 $vat = round($amount * $vatPercent / 100, 2);
-                $subtotal += $amount; $vatAmount += $vat;
+                $subtotal += $amount;
+                $vatAmount += $vat;
                 $items[] = compact('product', 'stock', 'quantity', 'unitPrice', 'vatPercent', 'amount');
             }
 
-            $coupon = null; $discount = 0;
-            if (! empty($validated['coupon_code'])) {
-                $coupon = PosCoupon::query()->where('company_id', $company->id)
-                    ->where('code', strtoupper(trim($validated['coupon_code'])))->lockForUpdate()->first();
-                if (! $coupon || ($discount = $coupon->discountFor($subtotal)) <= 0) {
-                    throw ValidationException::withMessages(['coupon_code' => 'Phiếu giảm giá không hợp lệ hoặc chưa đủ giá trị đơn tối thiểu.']);
-                }
-            }
+            ['coupon' => $coupon, 'discount' => $discount] = app(CouponService::class)
+                ->resolve($company->id, $validated['coupon_code'] ?? null, 'pos', $subtotal, $customer->id, true);
             $total = round(max(0, $subtotal + $vatAmount - $discount), 2);
             $paymentTenderedAmount = round((float) $validated['paid_amount'], 2);
             $tenderedAmount = round($paymentTenderedAmount * $paymentRate, 2);
@@ -290,6 +286,7 @@ class PosController extends Controller
                 'discount_amount' => $discount, 'total_amount' => $total, 'status' => 'completed',
                 'sales_channel' => 'pos', 'pos_warehouse_id' => $validated['warehouse_id'],
                 'payment_method' => $validated['payment_method'], 'invoice_type' => 'vat',
+                'payment_status' => $paidAmount >= $total ? 'paid' : 'partial',
                 'payment_currency_id' => $paymentCurrencyId, 'payment_exchange_rate' => $paymentRate,
                 'payment_tendered_amount' => $paymentTenderedAmount,
                 'paid_amount' => $paidAmount,
@@ -304,9 +301,7 @@ class PosController extends Controller
             } else {
                 $order = SalesOrder::create($orderData);
             }
-            if ($coupon) {
-                $coupon->increment('used_count');
-            }
+            app(CouponService::class)->applyToOrder($order, $coupon, $discount, 'pos');
 
             foreach ($items as $item) {
                 $order->items()->create([
@@ -315,7 +310,8 @@ class PosController extends Controller
                     'vat_percent' => $item['vatPercent'], 'amount' => $item['amount'], 'company_amount' => $item['amount'],
                 ]);
                 $stock = $item['stock'];
-                $beforeQuantity = (float) $stock->quantity; $beforeValue = (float) $stock->stock_value;
+                $beforeQuantity = (float) $stock->quantity;
+                $beforeValue = (float) $stock->stock_value;
                 $unitCost = (float) $item['product']->purchase_price;
                 $stock->quantity = round($beforeQuantity - $item['quantity'], 3);
                 $stock->stock_value = round((float) $stock->quantity * $unitCost, 2);
@@ -345,12 +341,14 @@ class PosController extends Controller
         $company = $this->company($request);
         $orders = SalesOrder::with(['customer', 'currency'])->where('company_id', $company->id)
             ->where('sales_channel', 'pos')->latest()->paginate(20);
+
         return response()->json($orders);
     }
 
     public function show(Request $request, SalesOrder $order): JsonResponse
     {
         abort_unless($order->company_id === $this->company($request)->id && $order->sales_channel === 'pos', 404);
+
         return response()->json(['data' => $this->receipt($order->load(['items.product', 'customer', 'currency']))]);
     }
 
@@ -369,7 +367,7 @@ class PosController extends Controller
 
     private function paymentRate(int $companyId, Currency $currency): float
     {
-        $company = \App\Models\Company::with('currencies')->findOrFail($companyId);
+        $company = Company::with('currencies')->findOrFail($companyId);
         $defaultCurrencyId = $company->currencies
             ->first(fn ($item) => (bool) $item->pivot->is_default)?->id;
         if ((int) $defaultCurrencyId === (int) $currency->id) {
@@ -395,6 +393,7 @@ class PosController extends Controller
     private function receipt(SalesOrder $order): array
     {
         $order->loadMissing(['items.product', 'customer', 'currency', 'posCoupon', 'paymentCurrency']);
+
         return [
             'id' => $order->id, 'code' => $order->code, 'status' => $order->status,
             'created_at' => $order->created_at, 'completed_at' => $order->completed_at,

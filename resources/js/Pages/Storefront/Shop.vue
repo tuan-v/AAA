@@ -56,9 +56,11 @@
                     </button>
                     <Link
                         :href="`/shop/${store.slug}/my-account`"
-                        class="hidden rounded-full px-4 py-2 text-sm font-bold hover:bg-black/5 sm:block"
-                        >Tài khoản</Link
+                        class="hidden rounded-full px-4 py-2 text-sm font-bold hover:bg-black/5 xl:block"
                     >
+                        Tài khoản của tôi
+                    </Link>
+                    <NotificationBadgeLink :slug="store.slug" />
                     <Link
                         href="/shop"
                         class="hidden rounded-full px-4 py-2 text-sm font-bold hover:bg-black/5 md:block"
@@ -367,6 +369,8 @@ import { Head, Link } from "@inertiajs/vue3";
 import axios from "axios";
 import { computed, onMounted, ref } from "vue";
 import { useStorefrontCart } from "@/composables/useStorefrontCart";
+import { useAutoApiRefresh } from "@/composables/useAutoApiRefresh";
+import NotificationBadgeLink from "@/components/Storefront/NotificationBadgeLink.vue";
 
 const props = defineProps({ store: { type: Object, required: true } });
 const products = ref([]),
@@ -397,8 +401,8 @@ const number = (v) =>
     );
 const money = (v) =>
     `${new Intl.NumberFormat("vi-VN").format(Number(v || 0))} ${props.store.currency.symbol}`;
-async function loadProducts(page = 1, append = false) {
-    loading.value = !append;
+async function loadProducts(page = 1, append = false, options = {}) {
+    loading.value = options.silent ? loading.value : !append;
     try {
         const { data } = await axios.get(`/shop/${props.store.slug}/products`, {
             params: {
@@ -417,7 +421,7 @@ async function loadProducts(page = 1, append = false) {
             : null;
         searchOpen.value = false;
     } finally {
-        loading.value = false;
+        if (!options.silent) loading.value = false;
     }
 }
 function selectCategory(id) {
@@ -432,6 +436,7 @@ function addToCart(product) {
     add(product, 1);
 }
 onMounted(loadProducts);
+useAutoApiRefresh(({ silent }) => loadProducts(1, false, { silent }), 30000);
 </script>
 
 <style scoped>

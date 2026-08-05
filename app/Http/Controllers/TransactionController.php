@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\CodReconciliation;
+use App\Models\PurchaseOrder;
+use App\Models\SalesOrder;
 use App\Models\Transaction;
 use App\Services\CompanyCurrencyService;
 use App\Services\TransactionService;
@@ -27,8 +29,7 @@ class TransactionController extends Controller
             'category',
             'currency',
             'salesOrder',
-            'purchaseOrder'
-            ,'customer', 'supplier', 'createdBy', 'approvedBy', 'rejectedBy'
+            'purchaseOrder', 'customer', 'supplier', 'createdBy', 'approvedBy', 'rejectedBy',
         ]);
 
         // 🔥 FILTER theo yêu cầu nghiệp vụ
@@ -45,7 +46,7 @@ class TransactionController extends Controller
         if ($dateFrom && $dateTo) {
             $query->whereBetween('transaction_date', [
                 $dateFrom,
-                $dateTo
+                $dateTo,
             ]);
         }
 
@@ -65,8 +66,10 @@ class TransactionController extends Controller
             ->wherePivot('is_default', true)->first();
         $transactions = $query->latest()->paginate($perPage)->through(function ($transaction) use ($companyCurrency) {
             $transaction->setAttribute('company_currency', $companyCurrency);
+
             return $transaction;
         });
+        $this->attachCodReconciliations($transactions->getCollection());
 
         return response()->json($transactions);
     }
@@ -234,8 +237,31 @@ class TransactionController extends Controller
             'company_currency',
             auth()->user()->company?->currencies()->wherePivot('is_default', true)->first()
         );
+        $this->attachCodReconciliations(collect([$transaction]));
 
         return $transaction;
+    }
+
+    private function attachCodReconciliations($transactions): void
+    {
+        $ids = $transactions
+            ->where('reference_type', CodReconciliation::class)
+            ->pluck('reference_id')->filter()->unique();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $reconciliations = CodReconciliation::with([
+            'partner:id,code,name',
+            'items.order:id,code',
+        ])->where('company_id', auth()->user()->company_id)
+            ->whereIn('id', $ids)->get()->keyBy('id');
+
+        foreach ($transactions as $transaction) {
+            if ($transaction->reference_type === CodReconciliation::class) {
+                $transaction->setAttribute('cod_reconciliation', $reconciliations->get($transaction->reference_id));
+            }
+        }
     }
 
     public function approve(int $id, TransactionService $service)
@@ -280,14 +306,15 @@ class TransactionController extends Controller
         ]);
 
         if ($validated['type'] === 'sale') {
-            $order = \App\Models\SalesOrder::whereKey($validated['order_id'])->firstOrFail();
+            $order = SalesOrder::whereKey($validated['order_id'])->firstOrFail();
             $baseAmount = $this->service->salesOrderOutstanding($order->id);
         } else {
-            $order = \App\Models\PurchaseOrder::whereKey($validated['order_id'])->firstOrFail();
+            $order = PurchaseOrder::whereKey($validated['order_id'])->firstOrFail();
             $baseAmount = $this->service->purchaseOrderOutstanding($order->id);
         }
 
         $rate = (float) ($order->exchange_rate ?: 1);
+
         return response()->json([
             'remaining_base' => round($baseAmount, 2),
             'remaining_amount' => round($baseAmount / $rate, 2),
@@ -299,6 +326,7 @@ class TransactionController extends Controller
     {
         try {
             $this->service->delete($id);
+
             return response()->json(['message' => 'Xóa giao dịch chờ duyệt thành công']);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);

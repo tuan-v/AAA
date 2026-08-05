@@ -8,7 +8,10 @@
                     class="font-black text-indigo-700"
                     >← Quay lại giỏ hàng</Link
                 >
-                <b>Thanh toán an toàn</b>
+                <div class="flex items-center gap-3">
+                    <NotificationBadgeLink :slug="store.slug" :show-label="false" />
+                    <b>Thanh toán an toàn</b>
+                </div>
             </div>
         </nav>
 
@@ -16,44 +19,174 @@
             <form class="space-y-6 lg:col-span-2" @submit.prevent="submit">
                 <section class="rounded-3xl border bg-white p-6">
                     <h2 class="text-xl font-black">Thông tin nhận hàng</h2>
-                    <select
-                        v-if="addresses.length"
-                        class="mt-4 w-full rounded-xl border px-4 py-3"
-                        @change="selectAddress($event.target.value)"
-                    >
-                        <option value="">Chọn địa chỉ đã lưu</option>
-                        <option
-                            v-for="address in addresses"
-                            :key="address.id"
-                            :value="address.id"
+                    <div v-if="account" class="mt-4">
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <select
+                                v-model="selectedAddressId"
+                                class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                                @change="selectAddress(selectedAddressId)"
+                            >
+                                <option value="">
+                                    {{
+                                        addresses.length
+                                            ? "Chọn địa chỉ đã lưu"
+                                            : "Chưa có địa chỉ đã lưu"
+                                    }}
+                                </option>
+                                <option
+                                    v-for="address in addresses"
+                                    :key="address.id"
+                                    :value="address.id"
+                                >
+                                    {{ address.label }} — {{ address.address }}
+                                </option>
+                            </select>
+                            <button
+                                type="button"
+                                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+                                @click="toggleNewAddressForm"
+                            >
+                                <span class="text-lg leading-none">{{
+                                    showNewAddressForm ? "×" : "+"
+                                }}</span>
+                                {{
+                                    showNewAddressForm
+                                        ? "Đóng"
+                                        : "Thêm địa chỉ mới"
+                                }}
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="showNewAddressForm"
+                            class="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5"
                         >
-                            {{ address.label }} — {{ address.address }}
-                        </option>
-                    </select>
+                            <div class="mb-4">
+                                <h3 class="font-black text-slate-900">
+                                    Thêm địa chỉ nhận hàng
+                                </h3>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Địa chỉ sẽ được lưu vào tài khoản và tự động
+                                    chọn cho đơn hàng này.
+                                </p>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <input
+                                    v-model.trim="addressForm.label"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black"
+                                    placeholder="Tên địa chỉ, ví dụ: Nhà riêng *"
+                                />
+                                <input
+                                    v-model.trim="addressForm.recipient_name"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black"
+                                    placeholder="Tên người nhận *"
+                                />
+                                <input
+                                    v-model.trim="addressForm.phone"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black sm:col-span-2"
+                                    placeholder="Số điện thoại *"
+                                />
+                                <select
+                                    v-model="addressForm.province_id"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black"
+                                    @change="loadWards(addressForm.province_id)"
+                                >
+                                    <option value="">
+                                        Chọn Tỉnh/Thành phố *
+                                    </option>
+                                    <option
+                                        v-for="province in provinces"
+                                        :key="province.id"
+                                        :value="province.id"
+                                    >
+                                        {{ province.name }}
+                                    </option>
+                                </select>
+                                <select
+                                    v-model="addressForm.ward_id"
+                                    :disabled="
+                                        !addressForm.province_id || loadingWards
+                                    "
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black disabled:bg-slate-100 disabled:text-slate-400"
+                                >
+                                    <option value="">
+                                        {{
+                                            loadingWards
+                                                ? "Đang tải..."
+                                                : "Chọn Xã/Phường *"
+                                        }}
+                                    </option>
+                                    <option
+                                        v-for="ward in wards"
+                                        :key="ward.id"
+                                        :value="ward.id"
+                                    >
+                                        {{ ward.name }}
+                                    </option>
+                                </select>
+                                <textarea
+                                    v-model.trim="addressForm.address_detail"
+                                    rows="2"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-black sm:col-span-2"
+                                    placeholder="Số nhà, tên đường, tòa nhà, thôn/xóm... *"
+                                ></textarea>
+                                <label
+                                    class="flex items-center gap-2 text-sm text-slate-600 sm:col-span-2"
+                                >
+                                    <input
+                                        v-model="addressForm.is_default"
+                                        type="checkbox"
+                                        class="rounded border-slate-300 text-indigo-600"
+                                    />
+                                    Đặt làm địa chỉ mặc định
+                                </label>
+                            </div>
+                            <p
+                                v-if="addressError"
+                                class="mt-3 text-sm font-medium text-red-600"
+                            >
+                                {{ addressError }}
+                            </p>
+                            <div class="mt-4 flex justify-end">
+                                <button
+                                    type="button"
+                                    :disabled="savingAddress"
+                                    class="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                                    @click="saveNewAddress"
+                                >
+                                    {{
+                                        savingAddress
+                                            ? "Đang lưu..."
+                                            : "Lưu và sử dụng địa chỉ"
+                                    }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
                         <input
                             v-model="form.name"
                             required
-                            class="rounded-xl border px-4 py-3"
+                            class="rounded-xl border px-4 py-3 font-medium text-black placeholder:text-slate-500"
                             placeholder="Họ và tên *"
                         />
                         <input
                             v-model="form.phone"
                             required
-                            class="rounded-xl border px-4 py-3"
+                            class="rounded-xl border px-4 py-3 font-medium text-black placeholder:text-slate-500"
                             placeholder="Số điện thoại *"
                         />
                         <input
                             v-model="form.email"
                             type="email"
-                            class="rounded-xl border px-4 py-3 sm:col-span-2"
+                            class="rounded-xl border px-4 py-3 font-medium text-black placeholder:text-slate-500 sm:col-span-2"
                             placeholder="Email"
                         />
                         <textarea
                             v-model="form.address"
                             required
                             rows="3"
-                            class="rounded-xl border px-4 py-3 sm:col-span-2"
+                            class="rounded-xl border px-4 py-3 font-semibold text-black placeholder:text-slate-500 sm:col-span-2"
                             placeholder="Địa chỉ đầy đủ *"
                         />
                     </div>
@@ -114,9 +247,6 @@
                         placeholder="Ghi chú"
                     />
                 </section>
-                <p v-if="error" class="rounded-xl bg-red-50 p-4 text-red-700">
-                    {{ error }}
-                </p>
             </form>
 
             <aside class="h-fit rounded-3xl border bg-white p-6 shadow-sm">
@@ -195,11 +325,21 @@
 import { Head, Link, router } from "@inertiajs/vue3";
 import axios from "axios";
 import { computed, onMounted, reactive, ref } from "vue";
+import { storefrontToast as toast } from "@/utils/storefrontToast";
+import NotificationBadgeLink from "@/components/Storefront/NotificationBadgeLink.vue";
 import { useStorefrontCart } from "@/composables/useStorefrontCart";
 
 const props = defineProps({ store: Object });
 const { cart, total, clear } = useStorefrontCart(props.store.slug);
 const addresses = ref([]);
+const account = ref(null);
+const selectedAddressId = ref("");
+const showNewAddressForm = ref(false);
+const provinces = ref([]);
+const wards = ref([]);
+const loadingWards = ref(false);
+const savingAddress = ref(false);
+const addressError = ref("");
 const vouchers = ref([]);
 const submitting = ref(false);
 const error = ref("");
@@ -213,6 +353,15 @@ const form = reactive({
     payment_method: "cod",
     coupon_code: "",
     note: "",
+});
+const addressForm = reactive({
+    label: "Nhà riêng",
+    recipient_name: "",
+    phone: "",
+    province_id: "",
+    ward_id: "",
+    address_detail: "",
+    is_default: false,
 });
 const shippingFee = computed(() =>
     form.shipping_method === "express" ? 30000 : 0,
@@ -235,6 +384,86 @@ function selectAddress(id) {
     }
 }
 
+async function toggleNewAddressForm() {
+    showNewAddressForm.value = !showNewAddressForm.value;
+    addressError.value = "";
+    if (!showNewAddressForm.value) return;
+    addressForm.recipient_name = form.name || account.value?.name || "";
+    addressForm.phone = form.phone || account.value?.phone || "";
+    if (!provinces.value.length) {
+        provinces.value = (await axios.get("/shop/locations/provinces")).data;
+    }
+}
+
+async function loadWards(provinceId) {
+    addressForm.ward_id = "";
+    wards.value = [];
+    if (!provinceId) return;
+    loadingWards.value = true;
+    try {
+        wards.value = (
+            await axios.get(`/shop/locations/provinces/${provinceId}/wards`)
+        ).data;
+    } finally {
+        loadingWards.value = false;
+    }
+}
+
+async function saveNewAddress() {
+    addressError.value = "";
+    if (
+        !addressForm.label ||
+        !addressForm.recipient_name ||
+        !addressForm.phone ||
+        !addressForm.province_id ||
+        !addressForm.ward_id ||
+        !addressForm.address_detail
+    ) {
+        addressError.value = "Vui lòng nhập đầy đủ thông tin địa chỉ.";
+        return;
+    }
+    if (!/^0[35789][0-9]{8}$/.test(String(addressForm.phone).trim())) {
+        addressError.value =
+            "Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.";
+        return;
+    }
+    savingAddress.value = true;
+    try {
+        const { data } = await axios.post(
+            `/shop/${props.store.slug}/account/addresses`,
+            addressForm,
+        );
+        const createdAddress = data.address;
+        if (createdAddress.is_default) {
+            addresses.value.forEach((item) => {
+                item.is_default = false;
+            });
+        }
+        addresses.value.unshift(createdAddress);
+        selectedAddressId.value = createdAddress.id;
+        selectAddress(createdAddress.id);
+        showNewAddressForm.value = false;
+        toast.success("Đã thêm và chọn địa chỉ nhận hàng mới.");
+        Object.assign(addressForm, {
+            label: "Nhà riêng",
+            recipient_name: form.name,
+            phone: form.phone,
+            province_id: "",
+            ward_id: "",
+            address_detail: "",
+            is_default: false,
+        });
+        wards.value = [];
+    } catch (exception) {
+        addressError.value =
+            Object.values(exception.response?.data?.errors || {}).flat()[0] ||
+            exception.response?.data?.message ||
+            "Không thể lưu địa chỉ mới.";
+    } finally {
+        savingAddress.value = false;
+    }
+}
+
 function calculateVoucher() {
     const voucher = vouchers.value.find(
         (item) => item.code === form.coupon_code,
@@ -252,11 +481,14 @@ function calculateVoucher() {
 }
 
 async function submit() {
-    if (!form.name || !form.phone || !form.address || !cart.value.length)
-        return (error.value = "Vui lòng nhập đủ thông tin nhận hàng.");
-    if (!/^0[35789][0-9]{8}$/.test(String(form.phone).trim()))
-        return (error.value =
-            "Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.");
+    if (!form.name || !form.phone || !form.address || !cart.value.length) {
+        error.value = "Vui lòng nhập đủ thông tin nhận hàng.";
+        return toast.warning(error.value);
+    }
+    if (!/^0[35789][0-9]{8}$/.test(String(form.phone).trim())) {
+        error.value = "Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.";
+        return toast.warning(error.value);
+    }
     submitting.value = true;
     error.value = "";
     try {
@@ -280,6 +512,7 @@ async function submit() {
             },
         );
         clear();
+        toast.success("Đặt hàng thành công.");
         router.visit(
             `/shop/${props.store.slug}/order-success?code=${encodeURIComponent(data.order.code)}`,
         );
@@ -288,6 +521,7 @@ async function submit() {
             Object.values(exception.response?.data?.errors || {}).flat()[0] ||
             exception.response?.data?.message ||
             "Không thể đặt hàng.";
+        toast.error(error.value);
     } finally {
         submitting.value = false;
     }
@@ -302,16 +536,20 @@ onMounted(async () => {
     ]);
     vouchers.value = voucherResponse.data.vouchers;
     if (accountResponse.data.account) {
-        form.name = accountResponse.data.account.name;
-        form.phone = accountResponse.data.account.phone;
-        form.email = accountResponse.data.account.email;
+        account.value = accountResponse.data.account;
+        form.name = account.value.name;
+        form.phone = account.value.phone;
+        form.email = account.value.email;
         addresses.value = (
             await axios.get(`/shop/${props.store.slug}/account/addresses`)
         ).data.addresses;
         const defaultAddress =
             addresses.value.find((item) => item.is_default) ||
             addresses.value[0];
-        if (defaultAddress) selectAddress(defaultAddress.id);
+        if (defaultAddress) {
+            selectedAddressId.value = defaultAddress.id;
+            selectAddress(defaultAddress.id);
+        }
     }
 });
 </script>

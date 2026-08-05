@@ -61,10 +61,14 @@ class WarehouseFilterTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['id' => $warehouse->id, 'name' => 'Kho trung tâm']);
 
-        $this->actingAs($purchaseUser)
+        $expected = DB::table('warehouse_product_stocks')
+            ->where('warehouse_id', $warehouse->id)->where('quantity', '>', 0)
+            ->distinct()->count('product_id');
+        $response = $this->actingAs($purchaseUser)
             ->getJson('/api/purchase/products?warehouse_id='.$warehouse->id)
-            ->assertOk()
-            ->assertJsonCount(3, 'data');
+            ->assertOk();
+        $this->assertSame($expected, $response->json('total'));
+        $this->assertCount(min(5, $expected), $response->json('data'));
 
         $this->actingAs($purchaseUser)
             ->getJson('/api/warehouses')
@@ -83,9 +87,13 @@ class WarehouseFilterTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['id' => $warehouse->id, 'name' => 'Kho trung tâm']);
 
-        $this->actingAs($warehouseUser)
+        $expected = DB::table('warehouse_product_stocks')
+            ->where('warehouse_id', $warehouse->id)->where('quantity', '>', 0)
+            ->distinct()->count('product_id');
+        $response = $this->actingAs($warehouseUser)
             ->getJson('/api/warehouse/products?warehouse_id='.$warehouse->id)
-            ->assertOk()
-            ->assertJsonCount(3, 'data');
+            ->assertOk();
+        $this->assertSame($expected, $response->json('total'));
+        $this->assertCount(min(5, $expected), $response->json('data'));
     }
 }

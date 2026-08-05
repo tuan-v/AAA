@@ -6,5 +6,5 @@
 
 <script setup>
 // import { RouterLink } from 'vue-router'
-import NotificationCenter from '@/Components/Notifications/NotificationCenter.vue';
+import NotificationCenter from '@/components/Notifications/NotificationCenter.vue';
 </script>

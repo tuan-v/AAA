@@ -210,6 +210,8 @@
                     viewBox="0 0 600 200"
                     class="w-full h-52"
                     preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Biểu đồ dòng tiền thu và chi"
                 >
                     <line
                         v-for="n in 4"
@@ -222,22 +224,47 @@
                         class="text-gray-100 dark:text-gray-800"
                         stroke-width="1"
                     />
-                    <polyline
-                        :points="cashInPoints"
-                        fill="none"
-                        stroke="#16a34a"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                    <polyline
-                        :points="cashOutPoints"
-                        fill="none"
-                        stroke="#dc2626"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
+                    <g v-if="hasCashFlowData">
+                    <g v-for="(group, index) in cashBarGroups" :key="`cash-group-${index}`">
+                        <rect
+                            :x="group.inX"
+                            :y="cashBarY(group.inValue)"
+                            width="22"
+                            :height="cashBarHeight(group.inValue)"
+                            rx="5"
+                            fill="#16a34a"
+                            class="drop-shadow-sm"
+                        >
+                            <title>{{ cashFlow[index].month }} · Tiền vào: {{ formatMoney(group.inValue) }}</title>
+                        </rect>
+                        <rect
+                            :x="group.outX"
+                            :y="cashBarY(group.outValue)"
+                            width="22"
+                            :height="cashBarHeight(group.outValue)"
+                            rx="5"
+                            fill="#dc2626"
+                            class="drop-shadow-sm"
+                        >
+                            <title>{{ cashFlow[index].month }} · Tiền ra: {{ formatMoney(group.outValue) }}</title>
+                        </rect>
+                        <text :x="group.inX + 11" :y="Math.max(cashBarY(group.inValue) - 7, 12)" text-anchor="middle" class="fill-green-700 text-[10px] font-semibold dark:fill-green-300">
+                            {{ formatCompactMoney(group.inValue) }}
+                        </text>
+                        <text :x="group.outX + 11" :y="Math.max(cashBarY(group.outValue) - 7, 12)" text-anchor="middle" class="fill-red-700 text-[10px] font-semibold dark:fill-red-300">
+                            {{ formatCompactMoney(group.outValue) }}
+                        </text>
+                    </g>
+                    </g>
+                    <text
+                        v-else
+                        x="300"
+                        y="105"
+                        text-anchor="middle"
+                        class="fill-gray-400 text-sm dark:fill-gray-500"
+                    >
+                        Chưa có phiếu thu hoặc chi đã duyệt trong kỳ
+                    </text>
                 </svg>
                 <div
                     class="flex justify-between px-1 text-xs text-gray-400 mt-1"
@@ -255,9 +282,9 @@
         >
             <!-- Công nợ KH vs NCC -->
             <div
-                class="rounded-lg border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900"
+                class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
             >
-                <div class="flex items-center justify-between mb-5">
+                <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h3
                             class="text-base font-semibold text-gray-800 dark:text-white/90"
@@ -265,26 +292,34 @@
                             Biến động công nợ
                         </h3>
                         <p class="text-xs text-gray-400 mt-0.5">
-                            Phải thu (KH) &amp; Phải trả (NCC)
+                            Phát sinh ròng theo từng tháng
                         </p>
                     </div>
-                    <div class="flex items-center gap-4 text-xs font-medium">
-                        <span
-                            class="flex items-center gap-1.5 text-gray-600 dark:text-gray-300"
+                    <div v-if="latestDebtPoint" class="flex flex-wrap gap-2">
+                        <div
+                            class="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 dark:border-blue-500/20 dark:bg-blue-500/10"
+                            :title="`Phải thu ${latestDebtPoint.month}: ${formatMoney(latestDebtPoint.receivable)}`"
                         >
-                            <i
-                                class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"
-                            ></i>
-                            Phải thu (KH)
-                        </span>
-                        <span
-                            class="flex items-center gap-1.5 text-gray-600 dark:text-gray-300"
+                            <div class="flex items-center gap-1.5 text-[11px] font-medium text-blue-600 dark:text-blue-300">
+                                <i class="h-2 w-2 rounded-full bg-blue-500"></i>
+                                Phát sinh phải thu
+                            </div>
+                            <strong class="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-white">
+                                {{ formatCompactMoney(latestDebtPoint.receivable) }}
+                            </strong>
+                        </div>
+                        <div
+                            class="rounded-xl border border-orange-100 bg-orange-50/70 px-3 py-2 dark:border-orange-500/20 dark:bg-orange-500/10"
+                            :title="`Phải trả ${latestDebtPoint.month}: ${formatMoney(latestDebtPoint.payable)}`"
                         >
-                            <i
-                                class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"
-                            ></i>
-                            Phải trả (NCC)
-                        </span>
+                            <div class="flex items-center gap-1.5 text-[11px] font-medium text-orange-600 dark:text-orange-300">
+                                <i class="h-2 w-2 rounded-full bg-orange-500"></i>
+                                Phát sinh phải trả
+                            </div>
+                            <strong class="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-white">
+                                {{ formatCompactMoney(latestDebtPoint.payable) }}
+                            </strong>
+                        </div>
                     </div>
                 </div>
 
@@ -292,6 +327,8 @@
                     viewBox="0 0 600 200"
                     class="w-full h-52"
                     preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Biểu đồ biến động công nợ phải thu và phải trả"
                 >
                     <line
                         v-for="n in 4"
@@ -301,14 +338,49 @@
                         x2="600"
                         :y2="n * 40"
                         stroke="currentColor"
-                        class="text-gray-100 dark:text-gray-800"
+                        class="text-slate-100 dark:text-gray-800"
                         stroke-width="1"
+                        stroke-dasharray="4 6"
                     />
+                    <line
+                        x1="0"
+                        y1="100"
+                        x2="600"
+                        y2="100"
+                        stroke="currentColor"
+                        class="text-slate-200 dark:text-gray-700"
+                        stroke-width="1.25"
+                    />
+                    <g v-if="debtTrend.length === 1 && hasDebtData">
+                        <rect
+                            x="252"
+                            :y="debtBarY(debtTrend[0].receivable)"
+                            width="36"
+                            :height="debtBarHeight(debtTrend[0].receivable)"
+                            rx="6"
+                            fill="#3b82f6"
+                            class="drop-shadow-sm"
+                        >
+                            <title>Phải thu: {{ formatMoney(debtTrend[0].receivable) }}</title>
+                        </rect>
+                        <rect
+                            x="312"
+                            :y="debtBarY(debtTrend[0].payable)"
+                            width="36"
+                            :height="debtBarHeight(debtTrend[0].payable)"
+                            rx="6"
+                            fill="#f97316"
+                            class="drop-shadow-sm"
+                        >
+                            <title>Phải trả: {{ formatMoney(debtTrend[0].payable) }}</title>
+                        </rect>
+                    </g>
+                    <g v-else-if="hasDebtData">
                     <polyline
                         :points="receivablePoints"
                         fill="none"
                         stroke="#3b82f6"
-                        stroke-width="3"
+                        stroke-width="2.5"
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     />
@@ -316,10 +388,44 @@
                         :points="payablePoints"
                         fill="none"
                         stroke="#f97316"
-                        stroke-width="3"
+                        stroke-width="2.5"
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     />
+                    <circle
+                        v-for="(point, index) in receivableChartPoints"
+                        :key="`receivable-${index}`"
+                        :cx="point.x"
+                        :cy="point.y"
+                        :r="index === receivableChartPoints.length - 1 ? 5 : 3.5"
+                        fill="#3b82f6"
+                        stroke="white"
+                        stroke-width="2"
+                    >
+                        <title>{{ debtTrend[index].month }} · Phải thu: {{ formatMoney(point.value) }}</title>
+                    </circle>
+                    <circle
+                        v-for="(point, index) in payableChartPoints"
+                        :key="`payable-${index}`"
+                        :cx="point.x"
+                        :cy="point.y"
+                        :r="index === payableChartPoints.length - 1 ? 5 : 3.5"
+                        fill="#f97316"
+                        stroke="white"
+                        stroke-width="2"
+                    >
+                        <title>{{ debtTrend[index].month }} · Phải trả: {{ formatMoney(point.value) }}</title>
+                    </circle>
+                    </g>
+                    <text
+                        v-else
+                        x="300"
+                        y="105"
+                        text-anchor="middle"
+                        class="fill-gray-400 text-sm dark:fill-gray-500"
+                    >
+                        Chưa phát sinh công nợ trong kỳ
+                    </text>
                 </svg>
                 <div
                     class="flex justify-between px-1 text-xs text-gray-400 mt-1"
@@ -804,6 +910,7 @@ const operationStats = computed(() => state.operationStats);
 const monthlyFinance = computed(() => state.monthlyFinance);
 const cashFlow = computed(() => state.cashFlow);
 const debtTrend = computed(() => state.debtTrend);
+const latestDebtPoint = computed(() => state.debtTrend.at(-1) ?? null);
 const warehouseFlow = computed(() => state.warehouseFlow);
 const orderStatus = computed(() => state.orderStatus);
 const topCustomers = computed(() => state.topCustomers);
@@ -835,10 +942,25 @@ const purchaseOrderColumns = [
 ];
 const transactionColumns = [
     { label: "Mã GD", key: "code" },
-    { label: "Loại", key: "type" },
+    {
+        label: "Hướng",
+        key: "type",
+        render: (row) => renderTransactionDirection(row.type),
+    },
+    {
+        label: "Nghiệp vụ",
+        key: "business_type",
+        render: (row) => renderTransactionBusinessType(row),
+    },
     { label: "Đối tượng", key: "target" },
     { label: "Số tiền", key: "amount", align: "text-right" },
     { label: "Ngày", key: "date" },
+    {
+        label: "Trạng thái",
+        key: "status",
+        align: "text-center",
+        render: (row) => renderTransactionStatus(row.status),
+    },
 ];
 
 const renderOrderStatus = (status) => {
@@ -849,6 +971,85 @@ const renderOrderStatus = (status) => {
             class: `${meta.class} inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold`,
         },
         meta.label,
+    );
+};
+
+const renderTransactionStatus = (status) => {
+    const statuses = {
+        pending: {
+            label: "Chờ duyệt",
+            class: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+        },
+        approved: {
+            label: "Đã duyệt",
+            class: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+        },
+        rejected: {
+            label: "Từ chối",
+            class: "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+        },
+    };
+    const meta = statuses[status] ?? {
+        label: status || "Không xác định",
+        class: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300",
+    };
+
+    return h(
+        "span",
+        {
+            class: `${meta.class} inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold`,
+        },
+        meta.label,
+    );
+};
+
+const renderTransactionDirection = (type) => {
+    const directions = {
+        "Thu tiền": {
+            icon: "↙",
+            class: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+        },
+        "Chi tiền": {
+            icon: "↗",
+            class: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300",
+        },
+        "Chuyển quỹ": {
+            icon: "↔",
+            class: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+        },
+    };
+    const meta = directions[type] ?? {
+        icon: "•",
+        class: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300",
+    };
+
+    return h(
+        "span",
+        {
+            class: `${meta.class} inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold`,
+        },
+        [h("span", { class: "text-sm leading-none" }, meta.icon), type],
+    );
+};
+
+const renderTransactionBusinessType = (row) => {
+    const styles = {
+        CHI_NCC: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
+        CHI_KHAC: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300",
+        TAM_UNG_NCC: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+        HOAN_TAM_UNG_NCC: "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300",
+        THU_KH: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+        THU_KHAC: "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300",
+        TAM_UNG_KH: "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300",
+        HOAN_TAM_UNG_KH: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
+    };
+
+    return h(
+        "span",
+        {
+            class: `${styles[row.category_code] ?? "bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-300"} inline-flex whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium`,
+        },
+        row.business_type,
     );
 };
 
@@ -891,41 +1092,83 @@ const topSuppliersMax = computed(() =>
     Math.max(1, ...state.topSuppliers.map((s) => s.value)),
 );
 
-function toSvgPoints(values, allValuesForMax) {
-    if (!values.length) return "";
+function toSvgChartPoints(values, allValuesForMax) {
+    if (!values.length) return [];
     const max = Math.max(1, ...allValuesForMax);
-    const stepX = 600 / Math.max(values.length - 1, 1);
-    return values
-        .map((v, i) => {
-            const x = i * stepX;
+    const chartPadding = 48;
+    const stepX = (600 - chartPadding * 2) / Math.max(values.length - 1, 1);
+    return values.map((v, i) => {
+            const x = values.length === 1 ? 300 : chartPadding + i * stepX;
             const y = 190 - (v / max) * 180;
-            return `${x},${y}`;
-        })
-        .join(" ");
+            return { x, y, value: v };
+        });
 }
-const cashInPoints = computed(() =>
-    toSvgPoints(
-        state.cashFlow.map((r) => r.in),
-        state.cashFlow.flatMap((r) => [r.in, r.out]),
+
+function toSignedSvgChartPoints(values, allValues) {
+    if (!values.length) return [];
+    const maxAbsolute = Math.max(1, ...allValues.map((value) => Math.abs(value)));
+    const chartPadding = 48;
+    const stepX = (600 - chartPadding * 2) / Math.max(values.length - 1, 1);
+
+    return values.map((value, index) => ({
+        x: values.length === 1 ? 300 : chartPadding + index * stepX,
+        y: 100 - (value / maxAbsolute) * 80,
+        value,
+    }));
+}
+const cashFlowValues = computed(() =>
+    state.cashFlow.flatMap((row) => [Number(row.in) || 0, Number(row.out) || 0]),
+);
+const cashFlowMax = computed(() => Math.max(1, ...cashFlowValues.value));
+const hasCashFlowData = computed(() => cashFlowValues.value.some((value) => value > 0));
+const cashBarHeight = (value) => value > 0 ? Math.max((value / cashFlowMax.value) * 170, 4) : 0;
+const cashBarY = (value) => 190 - cashBarHeight(value);
+const formatCompactMoney = (value) => new Intl.NumberFormat("vi-VN", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+}).format(Number(value) || 0);
+const cashBarGroups = computed(() => {
+    const count = state.cashFlow.length;
+    const padding = 48;
+    const step = (600 - padding * 2) / Math.max(count - 1, 1);
+
+    return state.cashFlow.map((row, index) => {
+        const center = count === 1 ? 300 : padding + index * step;
+        return {
+            inX: center - 25,
+            outX: center + 3,
+            inValue: Number(row.in) || 0,
+            outValue: Number(row.out) || 0,
+        };
+    });
+});
+const debtValues = computed(() =>
+    state.debtTrend.flatMap((row) => [
+        Number(row.receivable) || 0,
+        Number(row.payable) || 0,
+    ]),
+);
+const debtMax = computed(() => Math.max(1, ...debtValues.value.map((value) => Math.abs(value))));
+const hasDebtData = computed(() => debtValues.value.some((value) => value !== 0));
+const debtBarHeight = (value) => value !== 0 ? Math.max((Math.abs(value) / debtMax.value) * 80, 4) : 0;
+const debtBarY = (value) => value >= 0 ? 100 - debtBarHeight(value) : 100;
+const receivableChartPoints = computed(() =>
+    toSignedSvgChartPoints(
+        state.debtTrend.map((row) => Number(row.receivable) || 0),
+        debtValues.value,
     ),
 );
-const cashOutPoints = computed(() =>
-    toSvgPoints(
-        state.cashFlow.map((r) => r.out),
-        state.cashFlow.flatMap((r) => [r.in, r.out]),
+const payableChartPoints = computed(() =>
+    toSignedSvgChartPoints(
+        state.debtTrend.map((row) => Number(row.payable) || 0),
+        debtValues.value,
     ),
 );
 const receivablePoints = computed(() =>
-    toSvgPoints(
-        state.debtTrend.map((r) => r.receivable),
-        state.debtTrend.flatMap((r) => [r.receivable, r.payable]),
-    ),
+    receivableChartPoints.value.map(({ x, y }) => `${x},${y}`).join(" "),
 );
 const payablePoints = computed(() =>
-    toSvgPoints(
-        state.debtTrend.map((r) => r.payable),
-        state.debtTrend.flatMap((r) => [r.receivable, r.payable]),
-    ),
+    payableChartPoints.value.map(({ x, y }) => `${x},${y}`).join(" "),
 );
 
 const orderStatusTotal = computed(() =>

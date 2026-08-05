@@ -23,11 +23,7 @@
                     class="ml-auto rounded-full px-4 py-3 text-sm font-bold transition hover:bg-black/5"
                     >Tiếp tục mua sắm</Link
                 >
-                <Link
-                    :href="`/shop/${store.slug}/my-account`"
-                    class="hidden rounded-full px-4 py-3 text-sm font-bold transition hover:bg-black/5 sm:block"
-                    >Tài khoản</Link
-                >
+                <NotificationBadgeLink :slug="store.slug" />
             </div>
         </header>
 
@@ -166,7 +162,7 @@
                     </article>
                     <button
                         class="mt-6 text-xs font-bold text-black/45 underline decoration-black/20 underline-offset-4 hover:text-black"
-                        @click="clearCart"
+                        @click="showClearCartModal = true"
                     >
                         Xóa toàn bộ giỏ hàng
                     </button>
@@ -222,16 +218,28 @@
                 </aside>
             </div>
         </main>
+        <ActionModal
+            :open="showClearCartModal"
+            title="Xóa toàn bộ giỏ hàng"
+            message="Tất cả sản phẩm đang chọn sẽ bị xóa khỏi giỏ hàng. Bạn có muốn tiếp tục?"
+            confirm-text="Xóa toàn bộ"
+            @close="showClearCartModal = false"
+            @confirm="clearCart"
+        />
     </div>
 </template>
 
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
+import { ref } from "vue";
 import { useStorefrontCart } from "@/composables/useStorefrontCart";
+import NotificationBadgeLink from "@/components/Storefront/NotificationBadgeLink.vue";
+import ActionModal from "@/components/Storefront/ActionModal.vue";
 const props = defineProps({ store: { type: Object, required: true } });
 const { cart, count, total, remove, clear } = useStorefrontCart(
     props.store.slug,
 );
+const showClearCartModal = ref(false);
 const money = (v) =>
     `${new Intl.NumberFormat("vi-VN").format(Number(v || 0))} ${props.store.currency.symbol}`;
 function decrease(item) {
@@ -241,6 +249,7 @@ function increase(item) {
     item.quantity = Math.min(Number(item.stock), Number(item.quantity) + 1);
 }
 function clearCart() {
-    if (window.confirm("Bạn muốn xóa toàn bộ sản phẩm khỏi giỏ hàng?")) clear();
+    clear();
+    showClearCartModal.value = false;
 }
 </script>

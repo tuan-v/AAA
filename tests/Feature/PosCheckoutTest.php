@@ -2,13 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
 use App\Models\CompanyCurrencyRate;
 use App\Models\Currency;
+use App\Models\Customer;
 use App\Models\PosCoupon;
 use App\Models\SalesOrder;
 use App\Models\User;
 use App\Models\WarehouseProductStock;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,13 +18,15 @@ class PosCheckoutTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Customer $customer;
+
     private WarehouseProductStock $stock;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
         $this->user = User::where('email', 'admin@demo.vn')->firstOrFail();
         $this->actingAs($this->user);
         $this->stock = WarehouseProductStock::query()
@@ -40,14 +43,31 @@ class PosCheckoutTest extends TestCase
             'customer_id' => $this->customer->id,
             'warehouse_id' => $this->stock->warehouse_id,
             'payment_method' => 'cash',
-            'invoice_type' => 'retail',
+            'invoice_type' => 'vat',
             'paid_amount' => $paidAmount,
             'items' => [[
                 'product_id' => $this->stock->product_id,
                 'quantity' => 1,
-                'vat_percent' => 0,
+                'vat_percent' => 10,
             ]],
         ];
+    }
+
+    private function total(float $price, float $discount = 0): float
+    {
+        return round($price + ($price * 0.1) - $discount, 2);
+    }
+
+    public function test_pos_rejects_non_vat_invoice_type(): void
+    {
+        $price = (float) $this->stock->product()->value('sell_price');
+        $payload = $this->payload($this->total($price));
+        $payload['invoice_type'] = 'retail';
+
+        $this->actingAs($this->user)
+            ->postJson('/api/sale/pos/orders', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('invoice_type');
     }
 
     public function test_new_customer_can_create_a_fully_paid_pos_order(): void
@@ -55,7 +75,7 @@ class PosCheckoutTest extends TestCase
         $price = (float) $this->stock->product()->value('sell_price');
 
         $orderId = $this->actingAs($this->user)
-            ->postJson('/api/sale/pos/orders', $this->payload($price))
+            ->postJson('/api/sale/pos/orders', $this->payload($this->total($price)))
             ->assertCreated()
             ->assertJsonPath('data.code', SalesOrder::latest('id')->value('code'))
             ->json('data.id');
@@ -63,7 +83,7 @@ class PosCheckoutTest extends TestCase
         $this->assertDatabaseHas('sales_orders', [
             'customer_id' => $this->customer->id,
             'sales_channel' => 'pos',
-            'paid_amount' => $price,
+            'paid_amount' => $this->total($price),
         ]);
 
         $this->getJson('/api/saleorders/warehouse')
@@ -85,14 +105,14 @@ class PosCheckoutTest extends TestCase
             ->assertOk()
             ->assertJsonMissing(['id' => $draftId]);
         $price = (float) $this->stock->product()->value('sell_price');
-        $payload = $this->payload($price);
+        $payload = $this->payload($this->total($price));
         $payload['draft_id'] = $draftId;
 
         $this->postJson('/api/sale/pos/orders', $payload)
             ->assertCreated()
             ->assertJsonPath('data.id', $draftId)
             ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.invoice_type', 'retail');
+            ->assertJsonPath('data.invoice_type', 'vat');
 
         $this->assertSame(1, SalesOrder::whereKey($draftId)->count());
         $this->assertDatabaseHas('sales_orders', ['id' => $draftId, 'status' => 'completed']);
@@ -105,7 +125,7 @@ class PosCheckoutTest extends TestCase
         $this->putJson("/api/sale/pos/drafts/{$draftId}", [
             'customer_id' => $this->customer->id,
             'warehouse_id' => $this->stock->warehouse_id,
-            'invoice_type' => 'retail',
+            'invoice_type' => 'vat',
             'items' => [[
                 'product_id' => $this->stock->product_id,
                 'quantity' => 1,
@@ -210,7 +230,7 @@ class PosCheckoutTest extends TestCase
     {
         $price = (float) $this->stock->product()->value('sell_price');
         $quantityBefore = (float) $this->stock->quantity;
-        $payload = $this->payload($price);
+        $payload = $this->payload($this->total($price));
         unset($payload['customer_id']);
         $payload['payment_method'] = 'momo';
         $payload['payment_reference'] = 'MOMO-TEST-001';
@@ -235,7 +255,7 @@ class PosCheckoutTest extends TestCase
     public function test_completed_walk_in_pos_order_detail_shows_sold_quantity_as_exported(): void
     {
         $price = (float) $this->stock->product()->value('sell_price');
-        $payload = $this->payload($price);
+        $payload = $this->payload($this->total($price));
         unset($payload['customer_id']);
 
         $orderId = $this->postJson('/api/sale/pos/orders', $payload)
@@ -261,14 +281,15 @@ class PosCheckoutTest extends TestCase
             'minimum_order_amount' => 0,
             'is_active' => true,
         ]);
-        $payload = $this->payload(round($price * 0.9, 2));
+        $discount = round($price * 0.1, 2);
+        $payload = $this->payload($this->total($price, $discount));
         $payload['coupon_code'] = 'DETAIL10';
         $orderId = $this->postJson('/api/sale/pos/orders', $payload)->assertCreated()->json('data.id');
 
         $response = $this->getJson("/api/sale/orders/{$orderId}")
             ->assertOk()
             ->assertJsonPath('discount_amount', number_format($price * 0.1, 2, '.', ''));
-        $this->assertEquals(round($price * 0.9, 2), $response->json('total_amount'));
+        $this->assertEquals($this->total($price, $discount), $response->json('total_amount'));
     }
 
     public function test_valid_coupon_reduces_pos_invoice_total(): void
@@ -283,23 +304,25 @@ class PosCheckoutTest extends TestCase
             'minimum_order_amount' => 0,
             'is_active' => true,
         ]);
-        $payload = $this->payload(round($price * 0.9, 2));
+        $discount = round($price * 0.1, 2);
+        $payload = $this->payload($this->total($price, $discount));
         $payload['coupon_code'] = 'GIAM10';
 
         $response = $this->postJson('/api/sale/pos/orders', $payload)->assertCreated();
         $this->assertEquals(round($price * 0.1, 2), $response->json('data.discount_amount'));
-        $this->assertEquals(round($price * 0.9, 2), $response->json('data.total_amount'));
+        $this->assertEquals($this->total($price, $discount), $response->json('data.total_amount'));
     }
 
     public function test_cash_checkout_returns_change_without_overpaying_the_order(): void
     {
         $price = (float) $this->stock->product()->value('sell_price');
-        $payload = $this->payload($price + 50000);
+        $total = $this->total($price);
+        $payload = $this->payload($total + 50000);
 
         $response = $this->postJson('/api/sale/pos/orders', $payload)->assertCreated();
 
-        $this->assertEquals($price, $response->json('data.paid_amount'));
-        $this->assertEquals($price + 50000, $response->json('data.tendered_amount'));
+        $this->assertEquals($total, $response->json('data.paid_amount'));
+        $this->assertEquals($total + 50000, $response->json('data.tendered_amount'));
         $this->assertEquals(50000, $response->json('data.change_amount'));
     }
 
@@ -314,7 +337,8 @@ class PosCheckoutTest extends TestCase
             ['rate_to_base' => 25000, 'created_by' => $this->user->id]
         );
         $price = (float) $this->stock->product()->value('sell_price');
-        $payload = $this->payload(round($price / 25000, 2));
+        $paymentAmount = round($this->total($price) / 25000, 2);
+        $payload = $this->payload($paymentAmount);
         $payload['payment_currency_id'] = $usd->id;
 
         $this->getJson('/api/sale/pos/options')
@@ -325,7 +349,7 @@ class PosCheckoutTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.payment_currency.code', 'USD')
             ->assertJsonPath('data.payment_exchange_rate', 25000)
-            ->assertJsonPath('data.payment_tendered_amount', round($price / 25000, 2));
+            ->assertJsonPath('data.payment_tendered_amount', $paymentAmount);
     }
 
     public function test_coupon_usage_limit_is_enforced(): void
@@ -336,7 +360,7 @@ class PosCheckoutTest extends TestCase
             'type' => 'fixed', 'value' => 1000, 'minimum_order_amount' => 0,
             'usage_limit' => 1, 'used_count' => 1, 'is_active' => true,
         ]);
-        $payload = $this->payload($price - 1000);
+        $payload = $this->payload($this->total($price, 1000));
         $payload['coupon_code'] = 'ONCE';
 
         $this->postJson('/api/sale/pos/orders', $payload)
@@ -362,7 +386,7 @@ class PosCheckoutTest extends TestCase
     public function test_momo_checkout_requires_a_payment_reference(): void
     {
         $price = (float) $this->stock->product()->value('sell_price');
-        $payload = $this->payload($price);
+        $payload = $this->payload($this->total($price));
         $payload['payment_method'] = 'momo';
 
         $this->postJson('/api/sale/pos/orders', $payload)

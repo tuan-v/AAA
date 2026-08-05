@@ -13,11 +13,7 @@
                     >/ {{ product?.category?.name || "Sản phẩm" }}</span
                 >
                 <div class="ml-auto flex gap-2">
-                    <Link
-                        :href="`/shop/${store.slug}/my-account`"
-                        class="rounded-full px-4 py-3 text-sm font-bold hover:bg-black/5"
-                        >Tài khoản</Link
-                    ><Link
+                    <NotificationBadgeLink :slug="store.slug" /><Link
                         :href="`/shop/${store.slug}/cart`"
                         class="rounded-full bg-black px-5 py-3 text-sm font-bold text-white"
                         >Giỏ hàng ({{ count }})</Link
@@ -134,6 +130,8 @@ import { Head, Link } from "@inertiajs/vue3";
 import axios from "axios";
 import { onMounted, ref } from "vue";
 import { useStorefrontCart } from "@/composables/useStorefrontCart";
+import { useAutoApiRefresh } from "@/composables/useAutoApiRefresh";
+import NotificationBadgeLink from "@/components/Storefront/NotificationBadgeLink.vue";
 const props = defineProps({ store: Object, productId: Number });
 const product = ref(null),
     quantity = ref(1);
@@ -149,12 +147,11 @@ function addProduct() {
         ),
     );
 }
-onMounted(
-    async () =>
-        (product.value = (
-            await axios.get(
-                `/shop/${props.store.slug}/products/${props.productId}`,
-            )
-        ).data.product),
-);
+async function loadProduct() {
+    product.value = (
+        await axios.get(`/shop/${props.store.slug}/products/${props.productId}`)
+    ).data.product;
+}
+onMounted(loadProduct);
+useAutoApiRefresh(loadProduct, 30000);
 </script>

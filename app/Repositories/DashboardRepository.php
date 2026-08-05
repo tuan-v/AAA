@@ -15,6 +15,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseSlip;
 use App\Models\Transaction;
 use App\Models\Account;
+use App\Models\CodReconciliation;
 use App\Services\CompanyCurrencyService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +58,7 @@ class DashboardRepository implements DashboardRepositoryInterface
         // customer_debts không có company_id trực tiếp -> lọc qua quan hệ customer.
         $movements = (float) CustomerDebt::query()
             ->whereHas('customer', fn($q) => $q->where('company_id', $companyId)->where('code', '!=', 'KH_LE'))
+            ->whereIn('type', ['opening', 'sale', 'payment', 'opening_payment', 'refund'])
             ->sum('amount');
         $opening = (float) Customer::where('company_id', $companyId)
             ->where('code', '!=', 'KH_LE')->sum('opening_debt_base');
@@ -68,6 +70,12 @@ class DashboardRepository implements DashboardRepositoryInterface
     {
         $movements = (float) SupplierDebt::query()
             ->whereHas('supplier', fn($q) => $q->where('company_id', $companyId))
+            ->whereIn('type', [
+                SupplierDebt::TYPE_INVOICE,
+                SupplierDebt::TYPE_PAYMENT,
+                SupplierDebt::TYPE_OPENING_PAYMENT,
+                SupplierDebt::TYPE_REFUND,
+            ])
             ->sum('amount');
         $opening = (float) Supplier::where('company_id', $companyId)->sum('opening_debt_base');
 
@@ -174,16 +182,23 @@ class DashboardRepository implements DashboardRepositoryInterface
     {
         $result = [];
 
-        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, , $endOfMonth]) {
+        foreach ($this->monthlyPeriods($months, $from, $to) as [$monthDate, $periodFrom, $periodTo]) {
 
             $receivable = (float) CustomerDebt::query()
                 ->whereHas('customer', fn($q) => $q->where('company_id', $companyId)->where('code', '!=', 'KH_LE'))
-                ->where('created_at', '<=', $endOfMonth)
+                ->whereIn('type', ['opening', 'sale', 'payment', 'opening_payment', 'refund'])
+                ->whereBetween('created_at', [$periodFrom, $periodTo])
                 ->sum('amount');
 
             $payable = (float) SupplierDebt::query()
                 ->whereHas('supplier', fn($q) => $q->where('company_id', $companyId))
-                ->where('created_at', '<=', $endOfMonth)
+                ->whereIn('type', [
+                    SupplierDebt::TYPE_INVOICE,
+                    SupplierDebt::TYPE_PAYMENT,
+                    SupplierDebt::TYPE_OPENING_PAYMENT,
+                    SupplierDebt::TYPE_REFUND,
+                ])
+                ->whereBetween('created_at', [$periodFrom, $periodTo])
                 ->sum('amount');
 
             $result[] = [
@@ -352,12 +367,37 @@ class DashboardRepository implements DashboardRepositoryInterface
 
     public function getRecentTransactions(int $companyId, int $limit = 5, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        return Transaction::with(['customer:id,name', 'supplier:id,name'])
+        $transactions = Transaction::with([
+            'customer:id,name',
+            'supplier:id,name',
+            'category:id,code,name',
+            'salesOrder:id,code,customer_id',
+            'salesOrder.customer:id,name',
+            'purchaseOrder:id,code,supplier_id',
+            'purchaseOrder.supplier:id,name',
+            'fromAccount:id,name',
+            'toAccount:id,name',
+        ])
             ->where('company_id', $companyId)
             ->when($from && $to, fn ($q) => $q->whereBetween('transaction_date', [$from, $to]))
             ->latest('transaction_date')
             ->limit($limit)
+            ->get();
+
+        $codReconciliations = CodReconciliation::with([
+            'partner:id,name',
+            'items:id,cod_reconciliation_id,sales_order_id',
+            'items.order:id,code',
+        ])
+            ->where('company_id', $companyId)
+            ->whereIn('id', $transactions
+                ->where('reference_type', CodReconciliation::class)
+                ->pluck('reference_id')
+                ->filter())
             ->get()
+            ->keyBy('id');
+
+        return $transactions
             ->map(fn($t) => [
                 'code' => $t->code,
                 'type' => match ($t->type) {
@@ -366,11 +406,82 @@ class DashboardRepository implements DashboardRepositoryInterface
                     'transfer' => 'Chuyển quỹ',
                     default => $t->type,
                 },
-                'target' => $t->customer->name ?? $t->supplier->name ?? '—',
+                'business_type' => $this->transactionBusinessType($t),
+                'category_code' => $t->category?->code,
+                'target' => $this->transactionCounterparty(
+                    $t,
+                    $codReconciliations->get($t->reference_id)
+                ),
                 'amount' => (float) $t->amount_base,
                 'date' => $t->transaction_date->format('d/m/Y'),
+                'status' => $t->status,
             ])
             ->toArray();
+    }
+
+    private function transactionCounterparty(Transaction $transaction, ?CodReconciliation $codReconciliation): string
+    {
+        if ($transaction->reference_type === CodReconciliation::class && $codReconciliation) {
+            $partner = $codReconciliation->partner?->name ?? 'đơn vị vận chuyển chưa xác định';
+            $orders = $codReconciliation->items
+                ->pluck('order.code')
+                ->filter()
+                ->join(', ');
+
+            return 'Thu COD từ '.$partner.($orders ? ' · '.$orders : '');
+        }
+
+        if ($transaction->customer) {
+            return $transaction->type === 'payment'
+                ? 'Hoàn cho KH '.$transaction->customer->name
+                : 'Thu từ KH '.$transaction->customer->name;
+        }
+
+        if ($transaction->supplier) {
+            return $transaction->type === 'receipt'
+                ? 'Thu từ NCC '.$transaction->supplier->name
+                : 'Chi cho NCC '.$transaction->supplier->name;
+        }
+
+        if ($transaction->salesOrder?->customer) {
+            return 'Thu từ KH '.$transaction->salesOrder->customer->name.' · '.$transaction->salesOrder->code;
+        }
+
+        if ($transaction->purchaseOrder?->supplier) {
+            return 'Chi cho NCC '.$transaction->purchaseOrder->supplier->name.' · '.$transaction->purchaseOrder->code;
+        }
+
+        if ($transaction->type === 'transfer') {
+            return ($transaction->fromAccount?->name ?? 'Tài khoản nguồn chưa xác định')
+                .' → '.($transaction->toAccount?->name ?? 'Tài khoản nhận chưa xác định');
+        }
+
+        if ($transaction->type === 'receipt') {
+            return 'Thu vào '.($transaction->toAccount?->name ?? 'tài khoản chưa xác định')
+                .' · Chưa khai báo người nộp';
+        }
+
+        return 'Chi từ '.($transaction->fromAccount?->name ?? 'tài khoản chưa xác định')
+            .' · Chưa khai báo người nhận';
+    }
+
+    private function transactionBusinessType(Transaction $transaction): string
+    {
+        return match ($transaction->category?->code) {
+            'CHI_NCC' => 'Thanh toán công nợ',
+            'CHI_KHAC' => 'Thanh toán nợ đầu kỳ',
+            'TAM_UNG_NCC' => 'Tạm ứng nhà cung cấp',
+            'HOAN_TAM_UNG_NCC' => 'Hoàn tạm ứng NCC',
+            'THU_KH' => 'Thu công nợ khách hàng',
+            'THU_KHAC' => 'Thu công nợ đầu kỳ',
+            'TAM_UNG_KH' => 'Khách hàng tạm ứng',
+            'HOAN_TAM_UNG_KH' => 'Hoàn tạm ứng khách hàng',
+            default => $transaction->category?->name ?? match ($transaction->type) {
+                'transfer' => 'Chuyển quỹ nội bộ',
+                'receipt' => 'Khoản thu khác',
+                default => 'Khoản chi khác',
+            },
+        };
     }
 
     private function monthlyPeriods(int $months, ?Carbon $from, ?Carbon $to): array

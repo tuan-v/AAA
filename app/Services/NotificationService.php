@@ -65,6 +65,27 @@ class NotificationService
         return $notifications;
     }
 
+    public function createForCustomerAccount(
+        int $customerAccountId,
+        int $companyId,
+        string $title,
+        string $message,
+        ?array $data = null,
+        ?string $urlLink = null,
+        ?string $category = 'sale'
+    ): Notification {
+        return Notification::create([
+            'user_id' => null,
+            'customer_account_id' => $customerAccountId,
+            'company_id' => $companyId,
+            'title' => $title,
+            'message' => $message,
+            'data' => $data,
+            'url_link' => $urlLink,
+            'category' => $category,
+        ]);
+    }
+
     /**
      * Tạo thông báo cho các thành viên trong công ty có một quyền cụ thể.
      */
@@ -107,6 +128,48 @@ class NotificationService
                 $query->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission))
                     ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->where('name', $permission));
             })
+            ->distinct()
+            ->pluck('id')
+            ->all();
+
+        return $this->createForUsers(
+            $userIds,
+            $companyId,
+            $title,
+            $message,
+            $data,
+            $urlLink,
+            category: $category
+        );
+    }
+
+    /**
+     * Tạo thông báo cho đúng một vai trò trong công ty.
+     */
+    public function createForRole(
+        string $roleName,
+        int $companyId,
+        string $title,
+        string $message,
+        ?array $data = null,
+        ?string $urlLink = null,
+        ?string $category = 'system',
+        bool $excludeCompanyOwner = true
+    ): Collection {
+        $companyOwnerId = Company::query()->whereKey($companyId)->value('owner_id');
+
+        $userIds = User::query()
+            ->where('status', User::STATUS_ACTIVE)
+            ->where(function ($companyQuery) use ($companyId) {
+                $companyQuery
+                    ->where('company_id', $companyId)
+                    ->orWhereHas('companies', fn ($query) => $query->whereKey($companyId));
+            })
+            ->when(
+                $excludeCompanyOwner && $companyOwnerId,
+                fn ($query) => $query->whereKeyNot($companyOwnerId)
+            )
+            ->whereHas('roles', fn ($query) => $query->where('name', $roleName))
             ->distinct()
             ->pluck('id')
             ->all();

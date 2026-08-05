@@ -103,7 +103,7 @@ import Modal from "@/components/Modal.vue";
 import UnitForm from "./UnitForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 const { can, canAny } = usePermission();

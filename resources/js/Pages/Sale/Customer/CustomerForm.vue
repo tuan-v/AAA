@@ -358,6 +358,7 @@ const errors = ref({});
 
 const provinces = ref([]);
 const wards = ref([]);
+const hydratingAddress = ref(false);
 
 const form = reactive({
     id: null,
@@ -398,6 +399,8 @@ watch(
             return;
         }
 
+        hydratingAddress.value = true;
+
         form.id = customer.id;
         form.code = customer.code ?? "";
         form.name = customer.name ?? "";
@@ -408,16 +411,20 @@ watch(
 
         form.opening_debt = customer.opening_debt ?? 0;
 
-        form.province_id = customer.province_id ?? "";
-        form.ward_id = customer.ward_id ?? "";
+        const provinceId = customer.province_id ? Number(customer.province_id) : "";
+        const wardId = customer.ward_id ? Number(customer.ward_id) : "";
+        form.province_id = provinceId;
+        form.ward_id = "";
 
         form.address_detail = customer.address_detail ?? "";
 
         form.status = customer.status;
 
-        if (form.province_id) {
-            await fetchWards(form.province_id);
+        if (provinceId) {
+            await fetchWards(provinceId);
+            form.ward_id = wardId;
         }
+        hydratingAddress.value = false;
     },
     { immediate: true },
 );
@@ -450,6 +457,7 @@ async function fetchWards(provinceId) {
 watch(
     () => form.province_id,
     async (value) => {
+        if (hydratingAddress.value) return;
         if (!value) {
             form.ward_id = "";
             wards.value = [];

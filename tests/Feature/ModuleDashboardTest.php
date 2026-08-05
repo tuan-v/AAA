@@ -136,6 +136,44 @@ class ModuleDashboardTest extends TestCase
         }
     }
 
+    public function test_debt_trend_reports_only_movements_inside_each_month(): void
+    {
+        Carbon::setTestNow('2026-08-05 12:00:00');
+
+        try {
+            $this->seed(\Database\Seeders\DatabaseSeeder::class);
+            $user = User::where('email', 'admin@demo.vn')->firstOrFail();
+            $repository = app(DashboardRepository::class);
+            $trend = $repository->getMonthlyDebtTrend(
+                $user->company_id,
+                6,
+                now()->startOfMonth(),
+                now()->endOfDay(),
+            );
+            $point = collect($trend)->last();
+            $expectedReceivable = (float) DB::table('customer_debts')
+                ->join('customers', 'customers.id', '=', 'customer_debts.customer_id')
+                ->where('customers.company_id', $user->company_id)
+                ->where('customers.code', '!=', 'KH_LE')
+                ->whereIn('customer_debts.type', ['opening', 'sale', 'payment', 'opening_payment', 'refund'])
+                ->whereBetween('customer_debts.created_at', [now()->startOfMonth(), now()->endOfDay()])
+                ->sum('customer_debts.amount');
+            $expectedPayable = (float) DB::table('supplier_debts')
+                ->join('suppliers', 'suppliers.id', '=', 'supplier_debts.supplier_id')
+                ->where('suppliers.company_id', $user->company_id)
+                ->whereIn('supplier_debts.type', ['invoice', 'payment', 'opening_payment', 'refund'])
+                ->whereBetween('supplier_debts.created_at', [now()->startOfMonth(), now()->endOfDay()])
+                ->sum('supplier_debts.amount');
+
+            $this->assertSame($expectedReceivable, $point['receivable']);
+            $this->assertSame($expectedPayable, $point['payable']);
+            $this->assertNotSame($repository->getTotalReceivableDebt($user->company_id), $point['receivable']);
+            $this->assertNotSame($repository->getTotalPayableDebt($user->company_id), $point['payable']);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_each_business_module_has_a_real_dashboard_api(): void
     {
         $user = User::factory()->create(['company_id' => null]);

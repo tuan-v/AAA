@@ -249,6 +249,22 @@
                                 {{ fullAddress }}
                             </p>
                         </div>
+                        <div v-if="webAddresses.length" class="mt-4">
+                            <div class="mb-3 flex items-center justify-between gap-3">
+                                <p class="text-xs font-bold uppercase tracking-wide text-blue-600">Sổ địa chỉ từ website</p>
+                                <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ webAddresses.length }} địa chỉ</span>
+                            </div>
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <article v-for="address in webAddresses" :key="address.id" class="rounded-xl border p-4" :class="address.is_default ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="font-bold text-gray-900">{{ address.label }}</p>
+                                        <span v-if="address.is_default" class="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Mặc định</span>
+                                    </div>
+                                    <p class="mt-2 text-sm font-semibold text-gray-900">{{ address.recipient_name }} · {{ address.phone }}</p>
+                                    <p class="mt-1 text-sm font-medium leading-6 text-gray-800">{{ address.address }}</p>
+                                </article>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Đơn hàng gần đây -->
@@ -578,6 +594,7 @@ const fullAddress = computed(() => {
     ].filter(Boolean);
     return parts.join(", ") || "Chưa có địa chỉ";
 });
+const webAddresses = computed(() => customer.value.storefront_account?.addresses || []);
 
 const paidPercent = computed(() => {
     const total = debtSummary.value.total_receivable || 0;

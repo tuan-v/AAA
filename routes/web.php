@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StorefrontAccountController;
+use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\WEB\UserController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -16,10 +17,12 @@ Route::get('/csrf-token', fn () => response()->json(['token' => csrf_token()]))
     ->name('csrf.token');
 
 Route::get('/shop', [StorefrontController::class, 'directory'])->name('storefront.directory');
-Route::get('/shop/locations/provinces', [\App\Http\Controllers\AddressController::class, 'provinces']);
-Route::get('/shop/locations/provinces/{province}/wards', [\App\Http\Controllers\AddressController::class, 'wards']);
+Route::get('/shop/locations/provinces', [AddressController::class, 'provinces']);
+Route::get('/shop/locations/provinces/{province}/wards', [AddressController::class, 'wards']);
 Route::get('/shop/{company:storefront_slug}', [StorefrontController::class, 'shop'])->name('storefront.shop');
 Route::get('/shop/{company:storefront_slug}/my-account', [StorefrontController::class, 'accountPage'])->name('storefront.account');
+Route::get('/shop/{company:storefront_slug}/my-account/notifications', [StorefrontAccountController::class, 'notificationPage'])
+    ->name('storefront.account.notifications');
 Route::get('/shop/{company:storefront_slug}/my-account/orders/{code}', [StorefrontAccountController::class, 'orderPage'])
     ->name('storefront.account.orders.show');
 Route::get('/shop/{company:storefront_slug}/product/{product}', [StorefrontController::class, 'productPage']);
@@ -39,9 +42,16 @@ Route::prefix('/shop/{company:storefront_slug}/account')->group(function () {
     Route::put('/profile', [StorefrontAccountController::class, 'updateProfile'])->middleware('throttle:20,1');
     Route::put('/password', [StorefrontAccountController::class, 'updatePassword'])->middleware('throttle:10,1');
     Route::get('/orders', [StorefrontAccountController::class, 'orders']);
+    Route::get('/notifications', [StorefrontAccountController::class, 'notifications']);
+    Route::get('/notifications/unread-count', [StorefrontAccountController::class, 'notificationUnreadCount']);
+    Route::get('/notification-history', [StorefrontAccountController::class, 'notificationHistory']);
+    Route::post('/notifications/read-all', [StorefrontAccountController::class, 'markAllNotificationsRead']);
+    Route::post('/notifications/{notification}/read', [StorefrontAccountController::class, 'markNotificationRead']);
+    Route::delete('/notifications/{notification}', [StorefrontAccountController::class, 'destroyNotification']);
     Route::post('/orders/{code}/cancel', [StorefrontAccountController::class, 'cancelOrder']);
     Route::get('/addresses', [StorefrontAccountController::class, 'addresses']);
     Route::post('/addresses', [StorefrontAccountController::class, 'storeAddress']);
+    Route::put('/addresses/{address}', [StorefrontAccountController::class, 'updateAddress']);
     Route::delete('/addresses/{address}', [StorefrontAccountController::class, 'destroyAddress']);
 });
 
@@ -131,6 +141,8 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:don_ban.xem');
         Route::get('/pos', fn () => Inertia::render('Sale/Pos/Index'))
             ->middleware('permission:don_ban.them');
+        Route::get('/coupons', fn () => Inertia::render('Sale/Coupon/Index'))
+            ->middleware('permission:phieu_giam_gia.xem');
     });
 
     /*
@@ -155,6 +167,8 @@ Route::middleware('auth')->group(function () {
         // Giao dich, so tai khoan va bao cao.
         Route::get('/transactions', fn () => Inertia::render('Accountant/Transaction/Index'))
             ->middleware('permission:giao_dich.xem');
+        Route::get('/cod-reconciliations', fn () => Inertia::render('Accountant/CodReconciliation/Index'))
+            ->middleware('permission:doi_soat_cod.xem');
         Route::get('/warehouse-slips', fn () => Inertia::render('Warehouse/Slip/Index'))
             ->middleware('permission:phieu_kho.xem');
         Route::get('/account-ledgers', fn () => Inertia::render('Accountant/AccountLedger/Index'))

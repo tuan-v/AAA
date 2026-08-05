@@ -183,8 +183,16 @@ const columns = [
     },
     {
         label: "Đơn hàng",
-        render: (row) =>
-            h("span", row.sales_order?.code || row.purchase_order?.code || "-"),
+        render: (row) => {
+            const codOrders = row.cod_reconciliation?.items?.map((item) => item.order?.code).filter(Boolean) || [];
+            if (codOrders.length) {
+                return h("div", { class: "min-w-36" }, [
+                    h("div", { class: "font-semibold text-blue-700" }, codOrders.join(", ")),
+                    h("div", { class: "mt-1 text-xs text-gray-500" }, `Phiếu ${row.cod_reconciliation.code}`),
+                ]);
+            }
+            return h("span", row.sales_order?.code || row.purchase_order?.code || "-");
+        },
     },
     {
         label: "Nghiệp vụ",
@@ -193,9 +201,16 @@ const columns = [
                 "span",
                 {
                     customer_receipt: "Thu tiền khách hàng",
+                    opening_customer_receipt: "Thu công nợ đầu kỳ",
+                    customer_advance: "Khách hàng tạm ứng",
+                    customer_advance_refund: "Hoàn tạm ứng khách hàng",
                     supplier_payment: "Thanh toán nhà cung cấp",
+                    opening_supplier_payment: "Thanh toán công nợ đầu kỳ",
+                    supplier_advance: "Tạm ứng nhà cung cấp",
+                    supplier_advance_refund: "Hoàn tạm ứng nhà cung cấp",
                     customer_refund: "Hoàn tiền khách hàng",
                     supplier_refund: "Nhà cung cấp hoàn tiền",
+                    cod_receipt: "Thu đối soát COD",
                     internal_transfer: "Chuyển nội bộ",
                     other_receipt: "Thu khác",
                     other_payment: "Chi khác",

@@ -1,38 +1,39 @@
 <?php
 
+use App\Http\Controllers\Accountant\AccountLedgerController;
+use App\Http\Controllers\Accountant\ProfitLossReportController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AddressController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CodReconciliationController;
 use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\CouponController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\ProvinceController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\InventoryMovementController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\PositionController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TransactionCategoryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
-use App\Http\Controllers\WarehouseSlipController;
-use App\Http\Controllers\PosController;
 use App\Http\Controllers\WarehouseInventoryController;
-use App\Http\Controllers\InventoryMovementController;
+use App\Http\Controllers\WarehouseSlipController;
 use App\Http\Controllers\WarehouseTransferController;
-use App\Http\Controllers\Accountant\AccountLedgerController;
-use App\Http\Controllers\Accountant\ProfitLossReportController;
-use App\Http\Controllers\AuditLogController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DepartmentController;
-use App\Http\Controllers\PositionController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -152,6 +153,8 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         });
 
         Route::controller(WarehouseSlipController::class)->prefix('slips')->group(function () {
+            Route::get('/shipping/partners', 'shippingPartners')->middleware('permission:phieu_kho.xem');
+            Route::post('/shipping/partners', 'storeShippingPartner')->middleware('permission:phieu_kho.sua|phieu_kho.duyet_ke_toan');
             Route::get('/', 'index')->middleware('permission:phieu_kho.xem');
             Route::post('/', 'store')->middleware('permission:phieu_kho.them');
             Route::get('/{slip}', 'show')->middleware('permission:phieu_kho.xem_chi_tiet');
@@ -159,6 +162,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
             Route::post('/{id}/approve', 'approve')->middleware('permission:phieu_kho.duyet');
             Route::post('/{id}/accountant-approve', 'accountantApprove')->middleware('permission:phieu_kho.duyet_ke_toan');
             Route::post('/{id}/confirm-delivery', 'confirmDelivery')->middleware('permission:phieu_kho.duyet_ke_toan');
+            Route::put('/{id}/shipping', 'assignShipping')->middleware('permission:phieu_kho.sua|phieu_kho.duyet_ke_toan');
             Route::post('/{id}/request-delivery-return', 'requestDeliveryReturn')->middleware('permission:phieu_kho.duyet_ke_toan');
             Route::post('/{id}/receive-delivery-return', 'receiveDeliveryReturn')->middleware('permission:phieu_kho.duyet');
             Route::post('/{id}/accountant-approve-delivery-return', 'accountantApproveDeliveryReturn')->middleware('permission:phieu_kho.duyet_ke_toan');
@@ -234,6 +238,14 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
     |--------------------------------------------------------------------------
     */
     Route::prefix('sale')->group(function () {
+        Route::controller(CouponController::class)->prefix('coupons')->group(function () {
+            Route::get('/active', 'active')->middleware('permission:phieu_giam_gia.xem|don_ban.them');
+            Route::get('/', 'index')->middleware('permission:phieu_giam_gia.xem');
+            Route::post('/', 'store')->middleware('permission:phieu_giam_gia.them');
+            Route::put('/{coupon}', 'update')->middleware('permission:phieu_giam_gia.sua');
+            Route::delete('/{coupon}', 'destroy')->middleware('permission:phieu_giam_gia.xoa');
+            Route::get('/{coupon}/usages', 'usages')->middleware('permission:phieu_giam_gia.xem_chi_tiet');
+        });
         Route::controller(PosController::class)->prefix('pos')->middleware('permission:don_ban.them')->group(function () {
             Route::get('/options', 'options');
             Route::get('/drafts', 'drafts');
@@ -321,6 +333,13 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'audit'])->group(function () 
         Route::controller(CustomerController::class)->prefix('customers-debt')->group(function () {
             Route::get('/', 'index')->middleware('permission:cong_no_khach_hang.xem')->name('accountant.customers-debt.index');
             Route::get('/{id}/detail', 'detail')->middleware('permission:cong_no_khach_hang.xem_chi_tiet')->name('accountant.customers-debt.detail');
+        });
+
+        Route::controller(CodReconciliationController::class)->prefix('cod-reconciliations')->group(function () {
+            Route::get('/', 'index')->middleware('permission:doi_soat_cod.xem');
+            Route::post('/', 'store')->middleware('permission:doi_soat_cod.duyet');
+            Route::post('/partners', 'storePartner')->middleware('permission:doi_soat_cod.them');
+            Route::get('/{reconciliation}', 'show')->middleware('permission:doi_soat_cod.xem_chi_tiet');
         });
 
         Route::controller(SupplierController::class)->prefix('suppliers-debt')->group(function () {

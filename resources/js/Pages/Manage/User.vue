@@ -176,7 +176,7 @@ import UserDetail from "./UserDetail.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { useActionConfirm } from "@/composables/useActionConfirm";
 

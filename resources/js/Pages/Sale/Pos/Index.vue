@@ -118,8 +118,8 @@
                         Phiếu giảm giá
                         <select v-model="couponCode" class="mt-1 w-full rounded-xl border-gray-300">
                             <option value="">Không áp dụng</option>
-                            <option v-for="coupon in options.coupons" :key="coupon.id" :value="coupon.code">
-                                {{ coupon.code }} - {{ coupon.name }}
+                            <option v-for="coupon in options.coupons" :key="coupon.id" :value="coupon.code" :disabled="!couponEligibility(coupon).eligible">
+                                {{ coupon.code }} - {{ coupon.name }}{{ couponEligibility(coupon).eligible ? '' : ` (${couponEligibility(coupon).reason})` }}
                             </option>
                         </select>
                     </label>
@@ -259,6 +259,13 @@ const filteredProducts = computed(() => {
 const stockOf = (product) => Number(product.stocks?.[warehouseId.value] || 0);
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.quantity * item.unit_price, 0));
 const selectedCoupon = computed(() => options.coupons.find((item) => item.code === couponCode.value));
+const couponEligibility = (coupon) => {
+    if (subtotal.value < Number(coupon.minimum_order_amount || 0)) return { eligible: false, reason: `Đơn tối thiểu ${formatMoney(coupon.minimum_order_amount)}` };
+    if (coupon.scope === 'personal' && !coupon.assigned_customers?.some((customer) => Number(customer.id) === Number(customerId.value))) {
+        return { eligible: false, reason: customerId.value ? 'Không dành cho khách này' : 'Cần chọn khách hàng' };
+    }
+    return { eligible: true, reason: '' };
+};
 const discount = computed(() => {
     const coupon = selectedCoupon.value;
     if (!coupon || subtotal.value < Number(coupon.minimum_order_amount || 0)) return 0;
@@ -278,7 +285,11 @@ watch(total, (value, oldValue) => {
     if (Math.abs(paymentAmountBase.value - Number(oldValue || 0)) < 0.01 || !selectedCustomer.value?.debt_eligible) setPaidAmount(value / paymentRate.value);
 });
 watch(customerId, () => {
+    if (selectedCoupon.value && !couponEligibility(selectedCoupon.value).eligible) couponCode.value = '';
     if (!selectedCustomer.value?.debt_eligible) setPaidAmount(total.value / paymentRate.value);
+});
+watch(subtotal, () => {
+    if (selectedCoupon.value && !couponEligibility(selectedCoupon.value).eligible) couponCode.value = '';
 });
 watch(paymentCurrencyId, () => setPaidAmount(total.value / paymentRate.value));
 watch(warehouseId, (value, oldValue) => {

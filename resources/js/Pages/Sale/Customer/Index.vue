@@ -122,7 +122,7 @@ import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import SearchPage from "../../../components/SearchPage.vue";
 import CustomerForm from "./CustomerForm.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";

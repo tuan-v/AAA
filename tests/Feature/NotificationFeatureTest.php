@@ -83,7 +83,7 @@ class NotificationFeatureTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        $this->postJson("/api/sale/orders/{$order->id}/cancel")
+        $this->postJson("/api/sale/orders/{$order->id}/cancel", ['reason' => 'Khách yêu cầu hủy đơn'])
             ->assertOk();
 
         $this->assertDatabaseHas('notifications', [

@@ -117,7 +117,7 @@ import DataTable from "@/components/DataTable.vue";
 import Pagination from "@/components/Pagination.vue";
 import Modal from "@/components/Modal.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import ProductForm from "./ProductForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { formatMoney, formatQuantity } from "@/config/helpers";

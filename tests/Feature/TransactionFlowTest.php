@@ -275,6 +275,7 @@ class TransactionFlowTest extends TestCase
             'category_id' => $customerAdvanceCategory->id, 'to_account_id' => $account->id,
             'customer_id' => $customer->id, 'transaction_date' => '2026-07-20',
         ]);
+        $this->assertSame('customer_advance', $advanceReceipt->purpose);
         $service->approve($advanceReceipt->id);
         $this->assertEquals(40, app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
         $advanceRefund = $service->create([
@@ -282,6 +283,7 @@ class TransactionFlowTest extends TestCase
             'category_id' => $customerAdvanceRefundCategory->id, 'from_account_id' => $bankSource->id,
             'customer_id' => $customer->id, 'transaction_date' => '2026-07-20',
         ]);
+        $this->assertSame('customer_advance_refund', $advanceRefund->purpose);
         $service->approve($advanceRefund->id);
         $this->assertEquals(25, app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
         $this->assertEquals(25, (float) $customer->fresh()->total_advance);
@@ -303,6 +305,7 @@ class TransactionFlowTest extends TestCase
             'category_id' => $otherPaymentCategory->id, 'from_account_id' => $bankSource->id,
             'supplier_id' => $supplier->id, 'transaction_date' => '2026-07-20',
         ]);
+        $this->assertSame('opening_supplier_payment', $openingDebtPayment->purpose);
         $service->approve($openingDebtPayment->id);
         $this->assertDatabaseHas('supplier_debts', [
             'supplier_id' => $supplier->id,
@@ -316,6 +319,7 @@ class TransactionFlowTest extends TestCase
             'amount' => 10,
             'customer_id' => $customer->id,
         ]);
+        $this->assertSame('opening_customer_receipt', $otherCustomerReceipt->purpose);
         $this->assertSame($customer->id, $otherCustomerReceipt->customer_id);
         $this->assertNull($otherCustomerReceipt->sales_order_id);
         $service->approve($otherCustomerReceipt->id);

@@ -9,6 +9,7 @@ class Notification extends Model
 {
     protected $fillable = [
         'user_id',
+        'customer_account_id',
         'company_id',
         'title',
         'message',
@@ -17,11 +18,13 @@ class Notification extends Model
         'subdomain',
         'category',
         'read_at',
+        'delivered_at',
     ];
 
     protected $casts = [
         'data' => 'array',
         'read_at' => 'datetime',
+        'delivered_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -35,6 +38,11 @@ class Notification extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function customerAccount(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAccount::class);
     }
 
     // Scopes
@@ -52,6 +60,7 @@ class Notification extends Model
     {
         return $query->where('user_id', $userId);
     }
+
     public function scopeForUserLogin($query)
     {
         $userId = auth()->id();
@@ -59,10 +68,13 @@ class Notification extends Model
         if ($companyId) {
             return $query->where('company_id', $companyId)
                 ->where(function ($q) use ($userId) {
-                    $q->whereNull('user_id')
+                    $q->where(function ($broadcast) {
+                        $broadcast->whereNull('user_id')->whereNull('customer_account_id');
+                    })
                         ->orWhere('user_id', $userId);
                 });
         }
+
         return $query->where('user_id', $userId);
     }
 
@@ -94,7 +106,7 @@ class Notification extends Model
 
     public function isRead(): bool
     {
-        return !is_null($this->read_at);
+        return ! is_null($this->read_at);
     }
 
     public function isUnread(): bool

@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
@@ -40,10 +40,12 @@ class RolePermissionSeeder extends Seeder
             'Nhân viên bán hàng' => [
                 'khach_hang.xem', 'khach_hang.them', 'khach_hang.sua',
                 'don_ban.xem', 'don_ban.xem_chi_tiet', 'don_ban.them', 'don_ban.sua',
+                'phieu_giam_gia.xem',
             ],
             'Nhân viên kế toán' => [
                 'tien_te.xem', 'ngan_hang.xem', 'tai_khoan.xem', 'loai_giao_dich.xem',
                 'giao_dich.xem', 'giao_dich.them', 'giao_dich.sua',
+                'doi_soat_cod.xem', 'doi_soat_cod.xem_chi_tiet', 'doi_soat_cod.them', 'doi_soat_cod.duyet',
                 'cong_no_khach_hang.xem', 'cong_no_khach_hang.xem_chi_tiet',
                 'cong_no_nha_cung_cap.xem', 'cong_no_nha_cung_cap.xem_chi_tiet',
                 'phieu_kho.xem', 'phieu_kho.xem_chi_tiet', 'phieu_kho.duyet_ke_toan',
@@ -58,8 +60,8 @@ class RolePermissionSeeder extends Seeder
             'Quản lý nhân sự' => ['nhan_su', 'phong_ban', 'chuc_vu', 'vai_tro', 'quyen', 'nhat_ky'],
             'Quản lý mua hàng' => ['nha_cung_cap', 'danh_muc_mua_hang', 'don_vi_mua_hang', 'san_pham_mua_hang', 'don_mua'],
             'Quản lý kho' => ['kho', 'danh_muc_kho', 'don_vi_kho', 'san_pham_kho', 'phieu_kho', 'chuyen_kho'],
-            'Quản lý bán hàng' => ['khach_hang', 'don_ban'],
-            'Quản lý kế toán' => ['tien_te', 'ngan_hang', 'tai_khoan', 'loai_giao_dich', 'giao_dich', 'cong_no_khach_hang', 'cong_no_nha_cung_cap'],
+            'Quản lý bán hàng' => ['khach_hang', 'don_ban', 'phieu_giam_gia'],
+            'Quản lý kế toán' => ['tien_te', 'ngan_hang', 'tai_khoan', 'loai_giao_dich', 'giao_dich', 'doi_soat_cod', 'cong_no_khach_hang', 'cong_no_nha_cung_cap'],
         ];
 
         foreach ($managerModules as $roleName => $modules) {

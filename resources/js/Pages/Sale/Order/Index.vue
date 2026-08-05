@@ -195,7 +195,6 @@ const filters = [
         type: "select",
         placeholder: "Trạng thái",
         options: [
-            { value: "draft", label: "Hóa đơn chờ" },
             { value: "pending", label: "Chờ xác nhận" },
             { value: "approved", label: "Đã xác nhận" },
             { value: "partial", label: "Đang giao hàng" },
@@ -206,12 +205,19 @@ const filters = [
 ];
 
 const statusConfig = {
-    draft: { text: "Hóa đơn chờ", class: "bg-gray-100 text-gray-700" },
     pending: { text: "Chờ xác nhận", class: "bg-yellow-100 text-yellow-700" },
     approved: { text: "Đã xác nhận", class: "bg-blue-100 text-blue-700" },
     partial: { text: "Đang giao hàng", class: "bg-purple-100 text-purple-700" },
     completed: { text: "Hoàn thành", class: "bg-green-100 text-green-700" },
     cancelled: { text: "Đã hủy", class: "bg-red-100 text-red-700" },
+};
+
+const codStatusConfig = {
+    pending: { text: "Chờ giao", class: "bg-yellow-100 text-yellow-700" },
+    shipping: { text: "Đang giao", class: "bg-blue-100 text-blue-700" },
+    collected: { text: "Chờ đối soát", class: "bg-orange-100 text-orange-700" },
+    reconciled: { text: "Đã đối soát", class: "bg-green-100 text-green-700" },
+    failed: { text: "Giao thất bại", class: "bg-red-100 text-red-700" },
 };
 
 // Data
@@ -281,6 +287,26 @@ const columns = [
         render: (row) => h("span", {}, row.expected_delivery_date ?? "-"),
     },
     {
+        label: "Vận chuyển",
+        render: (row) => h("div", { class: "min-w-40" }, [
+            h("div", { class: row.shipping_partner ? "font-semibold text-gray-800" : "text-gray-400" },
+                row.shipping_partner?.name || "Chưa gán đơn vị"),
+            h("div", { class: row.tracking_code ? "mt-1 font-mono text-xs text-blue-600" : "mt-1 text-xs text-gray-400" },
+                row.tracking_code ? `Mã: ${row.tracking_code}` : "Chưa có mã vận đơn"),
+        ]),
+    },
+    {
+        label: "COD",
+        align: "text-right",
+        render: (row) => row.payment_method === "cod"
+            ? h("div", { class: "min-w-28" }, [
+                h("div", { class: "font-semibold text-gray-800" }, `${formatMoney(row.cod_amount)} ${row.currency?.symbol ?? ""}`),
+                h("span", { class: `mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${codStatusConfig[row.cod_status]?.class || "bg-gray-100 text-gray-600"}` },
+                    codStatusConfig[row.cod_status]?.text || "Chờ xử lý"),
+            ])
+            : h("span", { class: "text-gray-400" }, "Không COD"),
+    },
+    {
         label: "SL SP",
         align: "text-right",
         render: (row) =>
@@ -339,13 +365,6 @@ const actions = [
     },
     {
         icon: CheckIcon,
-        type: "submit",
-        title: "Gửi xác nhận",
-        onClick: (item) => transitionOrder(item, 'submit'),
-        hidden: (item) => !can("don_ban.sua") || item.status !== "draft",
-    },
-    {
-        icon: CheckIcon,
         type: "approve",
         confirm: false,
         title: "Xác nhận đơn",
@@ -370,7 +389,7 @@ const actions = [
         confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("don_ban.huy") || HIDDEN_EDIT_STATUSES.includes(item.status),
+            !can("don_ban.huy") || item.status !== "pending",
     },
     {
         icon: DetailButtonIcon,
@@ -379,7 +398,7 @@ const actions = [
         hidden: () => !can("don_ban.xem_chi_tiet"),
     },
 ];
-const HIDDEN_EDIT_STATUSES = ["pending", "approved", "completed", "partial", "cancelled"];
+const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"];
 const LOCKED_STATUSES = ["approved", "partial", "completed"];
 const { confirmAction } = useActionConfirm();
 
@@ -456,10 +475,8 @@ function openDuplicate(order) {
 }
 
 async function openEdit(item) {
-    if (item.status !== "draft") {
-        toast.warning(
-            "Chỉ hóa đơn chờ mới có thể chỉnh sửa.",
-        );
+    if (item.status !== "pending") {
+        toast.warning("Chỉ được chỉnh sửa đơn bán đang chờ xác nhận.");
         return;
     }
     try {
@@ -480,32 +497,24 @@ function openApproveConfirm(item) {
     showConfirm.value = true;
 }
 async function cancelOrder(item) {
-    const confirmed = await confirmAction({
+    const reason = await confirmAction({
         title: "Xác nhận hủy đơn bán",
-        message: `Bạn có chắc muốn hủy đơn ${item.code || `#${item.id}`}? Hành động này không thể hoàn tác.`,
+        message: `Lý do hủy sẽ được hiển thị cho khách hàng trong tài khoản website.`,
         confirmText: "Hủy đơn",
         tone: "danger",
+        inputLabel: "Lý do hủy đơn",
+        inputPlaceholder: "Ví dụ: Sản phẩm tạm hết hàng, không thể giao đúng hẹn...",
+        inputRequired: true,
+        inputMinLength: 5,
     });
-    if (!confirmed) return;
+    if (!reason) return;
 
     try {
-        await axios.post(`/api/sale/orders/${item.id}/cancel`);
+        await axios.post(`/api/sale/orders/${item.id}/cancel`, { reason });
         toast.success("Hủy đơn bán thành công");
         getData();
     } catch (error) {
         toast.error(error.response?.data?.message || "Không thể hủy đơn bán");
-    }
-}
-async function transitionOrder(item, action) {
-    const messages = { question: `Gửi đơn ${item.code} sang chờ xác nhận?`, success: 'Đã gửi đơn chờ xác nhận' };
-    const confirmed = await confirmAction({ title: 'Xác nhận chuyển trạng thái', message: messages.question, confirmText: 'Xác nhận' });
-    if (!confirmed) return;
-    try {
-        await axios.post(`/api/sale/orders/${item.id}/${action}`);
-        toast.success(messages.success);
-        getData();
-    } catch (error) {
-        toast.error(error.response?.data?.message || 'Không thể chuyển trạng thái đơn');
     }
 }
 // function openDetail() {}

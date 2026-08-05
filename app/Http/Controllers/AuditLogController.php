@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AuditLogController extends Controller
 {
@@ -30,6 +32,8 @@ class AuditLogController extends Controller
                 'description',
                 'model_type',
                 'model_id',
+                'old_values',
+                'new_values',
                 'ip_address',
                 'created_at'
             ]);
@@ -107,7 +111,10 @@ class AuditLogController extends Controller
         abort_unless((int) $auditLog->company_id === $this->companyId(request()), 404);
         abort_unless(ActivityLog::canonicalAction($auditLog->action) && $auditLog->model_id > 0, 404);
 
-        return $this->present($auditLog->load('user:id,name'));
+        $log = $this->present($auditLog->load('user:id,name'));
+        $log->setAttribute('relation_labels', $this->relationLabels($log));
+
+        return $log;
     }
 
     private function companyId(Request $request): int
@@ -125,11 +132,119 @@ class AuditLogController extends Controller
         $log->setAttribute('action_key', $canonicalAction);
         $log->setAttribute('action_label', ActivityLog::actionLabel($log->action));
         $log->setAttribute('model_label', ActivityLog::modelLabel($log->model_type));
+        $log->setAttribute('record_reference', $this->recordReference($log));
+        $log->setAttribute('summary', $this->activitySummary($log, $canonicalAction));
         $log->setAttribute(
             'created_at_formatted',
             $log->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i:s')
         );
 
         return $log;
+    }
+
+    private function recordReference(ActivityLog $log): string
+    {
+        $values = array_merge($log->old_values ?? [], $log->new_values ?? []);
+
+        foreach (['code', 'name', 'username', 'email'] as $field) {
+            if (! empty($values[$field]) && is_scalar($values[$field])) {
+                return (string) $values[$field];
+            }
+        }
+
+        return '#'.$log->model_id;
+    }
+
+    private function activitySummary(ActivityLog $log, ?string $action): string
+    {
+        $verbs = [
+            'create' => 'đã tạo',
+            'update' => 'đã cập nhật',
+            'approve' => 'đã duyệt',
+            'reject' => 'đã từ chối',
+            'cancel' => 'đã hủy',
+            'delete' => 'đã xóa',
+            'lock' => 'đã khóa',
+            'unlock' => 'đã mở khóa',
+        ];
+        $actor = $log->user?->name ?? 'Hệ thống';
+        $model = mb_strtolower(ActivityLog::modelLabel($log->model_type));
+
+        return trim($actor.' '.($verbs[$action] ?? 'đã thao tác').' '.$model.' '.$this->recordReference($log));
+    }
+
+    private function relationLabels(ActivityLog $log): array
+    {
+        $definitions = [
+            'user_id' => ['users', ['name', 'email']],
+            'created_by' => ['users', ['name', 'email']],
+            'approved_by' => ['users', ['name', 'email']],
+            'rejected_by' => ['users', ['name', 'email']],
+            'submitted_to_accountant_by' => ['users', ['name', 'email']],
+            'manager_id' => ['users', ['name', 'email']],
+            'creater_id' => ['users', ['name', 'email']],
+            'last_resubmitted_by' => ['users', ['name', 'email']],
+            'return_requested_by' => ['users', ['name', 'email']],
+            'return_received_by' => ['users', ['name', 'email']],
+            'return_approved_by' => ['users', ['name', 'email']],
+            'warehouse_id' => ['warehouses', ['name', 'code']],
+            'pos_warehouse_id' => ['warehouses', ['name', 'code']],
+            'from_warehouse_id' => ['warehouses', ['name', 'code']],
+            'to_warehouse_id' => ['warehouses', ['name', 'code']],
+            'customer_id' => ['customers', ['name', 'code']],
+            'customer_account_id' => ['customer_accounts', ['name', 'email']],
+            'supplier_id' => ['suppliers', ['name', 'code']],
+            'currency_id' => ['currencies', ['name', 'code']],
+            'payment_currency_id' => ['currencies', ['name', 'code']],
+            'department_id' => ['departments', ['name', 'code']],
+            'position_id' => ['positions', ['name', 'code']],
+            'product_id' => ['products', ['name', 'code']],
+            'unit_id' => ['units', ['name', 'code']],
+            'bank_id' => ['banks', ['name', 'code']],
+            'account_id' => ['accounts', ['name', 'code']],
+            'from_account_id' => ['accounts', ['name', 'code']],
+            'to_account_id' => ['accounts', ['name', 'code']],
+            'purchase_order_id' => ['purchase_orders', ['code']],
+            'sales_order_id' => ['sales_orders', ['code']],
+            'return_of_slip_id' => ['warehouse_slips', ['code']],
+            'shipping_partner_id' => ['shipping_partners', ['name', 'code']],
+            'province_id' => ['provinces', ['name', 'code']],
+            'ward_id' => ['wards', ['name', 'code']],
+            'pos_coupon_id' => ['pos_coupons', ['name', 'code']],
+            'address_id' => ['addresses', ['address_detail']],
+        ];
+        $definitions['category_id'] = class_basename($log->model_type) === 'Transaction'
+            ? ['transaction_categories', ['name', 'code']]
+            : ['categories', ['name', 'code']];
+
+        $labels = [];
+
+        foreach ($definitions as $field => [$table, $columns]) {
+            $ids = collect([$log->old_values[$field] ?? null, $log->new_values[$field] ?? null])
+                ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+                ->map(fn ($id) => (int) $id)
+                ->unique();
+            if ($ids->isEmpty() || ! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $availableColumns = collect($columns)->filter(fn ($column) => Schema::hasColumn($table, $column))->values();
+            $query = DB::table($table)->whereIn('id', $ids);
+            if (Schema::hasColumn($table, 'company_id')) {
+                $query->where('company_id', $log->company_id);
+            }
+
+            foreach ($query->get(['id', ...$availableColumns])->all() as $record) {
+                $parts = $availableColumns->map(fn ($column) => $record->{$column} ?? null)->filter()->values();
+                if ($parts->isEmpty()) {
+                    continue;
+                }
+                $labels[$field][(string) $record->id] = $parts->count() > 1
+                    ? $parts[0].' ('.$parts[1].')'
+                    : (string) $parts[0];
+            }
+        }
+
+        return $labels;
     }
 }

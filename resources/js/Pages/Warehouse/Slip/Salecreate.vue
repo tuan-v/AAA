@@ -25,6 +25,13 @@
             <div v-if="order && !order.can_export" class="mb-6 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
                 {{ order.export_block_reason || "Đơn này không còn được phép xuất kho." }}
             </div>
+            <div v-else-if="isCodOrder" class="mb-6 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <i class="ti ti-package-export mt-0.5 text-lg"></i>
+                <div>
+                    <p class="font-semibold">Đơn COD phải xuất đầy đủ</p>
+                    <p class="mt-0.5 text-blue-700">Số lượng xuất đã được cố định bằng toàn bộ số lượng còn lại của đơn và không thể chỉnh sửa.</p>
+                </div>
+            </div>
 
             <!-- CHỌN KHO -->
             <div class="mb-6">
@@ -118,7 +125,7 @@
                                 "
                                 :max="maxExportQuantity(item)"
                                 v-model="item.export_quantity"
-                                :disabled="order && !order.can_export"
+                                :disabled="(order && !order.can_export) || isCodOrder"
                                 @input="onInputQuantity(item)"
                                 class="w-full border rounded px-3 py-2 text-center"
                                 :class="{
@@ -133,7 +140,9 @@
                             </p>
                             <p class="mt-1 text-xs text-gray-500 text-center">
                                 {{
-                                    item.product?.unit?.allow_decimal
+                                    isCodOrder
+                                        ? "Đơn COD bắt buộc xuất đủ"
+                                        : item.product?.unit?.allow_decimal
                                         ? "Cho phép số lẻ"
                                         : "Chỉ được nhập số nguyên"
                                 }}
@@ -225,6 +234,10 @@ const showWarehouseModal = ref(false);
 const showDetailModal = ref(false);
 const selectedSlip = ref(null);
 const orderId = new URLSearchParams(window.location.search).get("order_id");
+const isCodOrder = computed(() =>
+    order.value?.sales_channel === "storefront" &&
+    order.value?.payment_method === "cod"
+);
 
 // ===================== WAREHOUSE
 const warehouseOptions = computed(() =>
@@ -291,6 +304,10 @@ const onWarehouseCreated = (w) => {
 
 // ===================== INPUT CONTROL
 function onInputQuantity(item) {
+    if (isCodOrder.value) {
+        item.export_quantity = Math.max(0, Number(item.quantity) - Number(item.exported_quantity || 0));
+        return;
+    }
     const max = item.quantity - (item.exported_quantity || 0);
 
     if (item.export_quantity > max) item.export_quantity = max;
@@ -311,11 +328,16 @@ async function loadOrder() {
         );
 
         order.value = res.data;
-        items.value = (res.data.items || []).map((i) => ({
-            ...i,
-            export_quantity: 0,
-            exported_quantity: i.exported_quantity || 0,
-        }));
+        items.value = (res.data.items || []).map((i) => {
+            const exportedQuantity = Number(i.exported_quantity || 0);
+            return {
+                ...i,
+                exported_quantity: exportedQuantity,
+                export_quantity: res.data.sales_channel === "storefront" && res.data.payment_method === "cod"
+                    ? Math.max(0, Number(i.quantity) - exportedQuantity)
+                    : 0,
+            };
+        });
     } catch (error) {
         console.error(error.response?.data);
         if (error.response?.status === 404) {
@@ -371,6 +393,16 @@ async function submit() {
 
     if (!validItems.length) {
         return toast.warning("Vui lòng nhập số lượng xuất");
+    }
+
+    if (isCodOrder.value) {
+        const isFullExport = items.value.every((item) => {
+            const remaining = Math.max(0, Number(item.quantity) - Number(item.exported_quantity || 0));
+            return Math.abs(Number(item.export_quantity || 0) - remaining) < 0.000001;
+        });
+        if (!isFullExport) {
+            return toast.warning("Đơn COD phải xuất đầy đủ toàn bộ số lượng còn lại, không được xuất một phần.");
+        }
     }
 
     const insufficientItem = validItems.find(hasInsufficientStock);

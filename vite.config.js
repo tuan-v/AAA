@@ -30,7 +30,7 @@ export default defineConfig({
         }),
         // Thêm analyzer
         visualizer({
-            open: true,
+            open: false,
             filename: 'storage/app/bundle-stats.html',
             gzipSize: true,
             brotliSize: true,

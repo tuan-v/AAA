@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerAccount;
-use App\Models\Product;
 use App\Models\PosCoupon;
+use App\Models\Product;
 use App\Models\SalesOrder;
 use App\Models\WarehouseProductStock;
 use App\Services\CodeGeneratorService;
+use App\Services\CouponService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,8 @@ use Inertia\Response;
 
 class StorefrontController extends Controller
 {
+    public function __construct(protected NotificationService $notificationService) {}
+
     public function directory(): Response
     {
         return Inertia::render('Storefront/Directory', [
@@ -39,6 +43,7 @@ class StorefrontController extends Controller
     public function accountPage(Company $company): Response
     {
         $this->ensureEnabled($company);
+
         return Inertia::render('Storefront/Account', ['store' => $this->companyData($company)]);
     }
 
@@ -46,11 +51,30 @@ class StorefrontController extends Controller
     {
         $this->ensureEnabled($company);
         abort_unless($product->company_id === $company->id && $product->storefront_visible, 404);
+
         return Inertia::render('Storefront/Product', ['store' => $this->companyData($company), 'productId' => $product->id]);
     }
-    public function cartPage(Company $company): Response { $this->ensureEnabled($company); return Inertia::render('Storefront/Cart', ['store' => $this->companyData($company)]); }
-    public function checkoutPage(Company $company): Response { $this->ensureEnabled($company); return Inertia::render('Storefront/Checkout', ['store' => $this->companyData($company)]); }
-    public function successPage(Company $company): Response { $this->ensureEnabled($company); return Inertia::render('Storefront/Success', ['store' => $this->companyData($company)]); }
+
+    public function cartPage(Company $company): Response
+    {
+        $this->ensureEnabled($company);
+
+        return Inertia::render('Storefront/Cart', ['store' => $this->companyData($company)]);
+    }
+
+    public function checkoutPage(Company $company): Response
+    {
+        $this->ensureEnabled($company);
+
+        return Inertia::render('Storefront/Checkout', ['store' => $this->companyData($company)]);
+    }
+
+    public function successPage(Company $company): Response
+    {
+        $this->ensureEnabled($company);
+
+        return Inertia::render('Storefront/Success', ['store' => $this->companyData($company)]);
+    }
 
     public function products(Request $request, Company $company): JsonResponse
     {
@@ -82,6 +106,7 @@ class StorefrontController extends Controller
             ->when(($validated['sort'] ?? 'name') === 'name', fn ($q) => $q->orderBy('name'))->paginate(12);
 
         $products->getCollection()->transform(fn (Product $product) => $this->productData($product));
+
         return response()->json([
             'products' => $products,
             'categories' => DB::table('categories')->where('company_id', $company->id)
@@ -96,17 +121,19 @@ class StorefrontController extends Controller
         abort_unless($product->company_id === $company->id && $product->status === 'active'
             && $product->storefront_visible, 404);
         $product->load(['category:id,name', 'unit:id,name'])->loadSum('stocks as available_stock', 'quantity');
+
         return response()->json(['product' => $this->productData($product)]);
     }
 
     public function vouchers(Company $company): JsonResponse
     {
         $this->ensureEnabled($company);
-        $items = PosCoupon::where('company_id', $company->id)->where('is_active', true)->get()
-            ->filter(fn ($coupon) => $coupon->discountFor(max(1, (float) $coupon->minimum_order_amount)) > 0)
+        $items = PosCoupon::where('company_id', $company->id)->where('is_active', true)->where('scope', 'public')->get()
+            ->filter(fn ($coupon) => $coupon->supportsChannel('web') && $coupon->discountFor(max(1, (float) $coupon->minimum_order_amount)) > 0)
             ->map(fn ($coupon) => ['code' => $coupon->code, 'name' => $coupon->name, 'type' => $coupon->type,
                 'value' => (float) $coupon->value, 'minimum_order_amount' => (float) $coupon->minimum_order_amount,
                 'maximum_discount' => $coupon->maximum_discount !== null ? (float) $coupon->maximum_discount : null])->values();
+
         return response()->json(['vouchers' => $items]);
     }
 
@@ -164,19 +191,15 @@ class StorefrontController extends Controller
                     'email' => $customerInput['email'] ?? null, 'address_detail' => $customerInput['address'],
                     'currency_id' => $currency->id, 'status' => 'active',
                 ]);
-            } else {
+            } elseif (! $account) {
                 $customer->update([
                     'name' => $customerInput['name'], 'email' => $customerInput['email'] ?? $customer->email,
                     'address_detail' => $customerInput['address'],
                 ]);
             }
 
-            $coupon = null; $discount = 0;
-            if (! empty($validated['coupon_code'])) {
-                $coupon = PosCoupon::where('company_id', $company->id)->where('code', strtoupper(trim($validated['coupon_code'])))->lockForUpdate()->first();
-                $discount = $coupon?->discountFor($subtotal) ?? 0;
-                if ($discount <= 0) throw ValidationException::withMessages(['coupon_code' => 'Mã giảm giá không hợp lệ hoặc chưa đủ giá trị đơn tối thiểu.']);
-            }
+            ['coupon' => $coupon, 'discount' => $discount] = app(CouponService::class)
+                ->resolve($company->id, $validated['coupon_code'] ?? null, 'web', $subtotal, $customer->id, true);
             $shippingFee = $validated['shipping_method'] === 'express' ? 30000 : 0;
             $vatPercent = 10.0;
             $vatAmount = round($subtotal * $vatPercent / 100, 2);
@@ -187,11 +210,19 @@ class StorefrontController extends Controller
                 'address_detail' => $customerInput['address'], 'note' => $validated['note'] ?? null,
                 'expected_delivery_date' => now()->addDays($validated['shipping_method'] === 'express' ? 1 : 3)->toDateString(),
                 'customer_account_id' => $account?->id,
+                'recipient_name' => $customerInput['name'],
+                'recipient_phone' => $customerInput['phone'],
+                'recipient_email' => $customerInput['email'] ?? null,
                 'subtotal' => $subtotal, 'vat_amount' => $vatAmount, 'shipping_fee' => $shippingFee,
                 'discount_amount' => $discount, 'pos_coupon_id' => $coupon?->id,
                 'total_amount' => round(max(0, $subtotal + $vatAmount - $discount) + $shippingFee, 2),
                 'status' => 'pending', 'sales_channel' => 'storefront',
                 'payment_method' => $validated['payment_method'], 'payment_currency_id' => $currency->id,
+                'payment_status' => 'unpaid',
+                'cod_status' => $validated['payment_method'] === 'cod' ? 'pending' : null,
+                'cod_amount' => $validated['payment_method'] === 'cod'
+                    ? round(max(0, $subtotal + $vatAmount - $discount) + $shippingFee, 2)
+                    : 0,
                 'shipping_method' => $validated['shipping_method'],
                 'payment_exchange_rate' => 1, 'paid_amount' => 0,
                 'created_by' => $company->owner_id,
@@ -203,9 +234,27 @@ class StorefrontController extends Controller
                     'vat_percent' => $vatPercent, 'amount' => $line['amount'], 'company_amount' => $line['amount'],
                 ]);
             }
-            if ($coupon) $coupon->increment('used_count');
+            app(CouponService::class)->applyToOrder($order, $coupon, $discount, 'web', false);
+
             return $order;
         });
+
+        $this->notificationService->createForRole(
+            'Quản lý bán hàng',
+            $company->id,
+            'Có đơn đặt hàng mới từ website',
+            "Khách {$order->recipient_name} vừa đặt đơn {$order->code} trị giá ".number_format((float) $order->total_amount, 0, ',', '.').' đ.',
+            [
+                'sales_order_id' => $order->id,
+                'status' => $order->status,
+                'sales_channel' => 'storefront',
+                'event_type' => 'storefront_order_created',
+                'toast_type' => 'info',
+            ],
+            '/sale/orders',
+            'sale',
+            excludeCompanyOwner: true
+        );
 
         return response()->json(['message' => 'Đặt hàng thành công.', 'order' => [
             'code' => $order->code, 'total' => (float) $order->total_amount,
@@ -223,6 +272,7 @@ class StorefrontController extends Controller
         if ($logo && ! preg_match('#^https?://#i', $logo) && ! str_starts_with($logo, '/')) {
             $logo = asset('storage/'.ltrim($logo, '/'));
         }
+
         return ['slug' => $company->storefront_slug, 'name' => $company->name, 'logo' => $logo,
             'address' => $company->address, 'phone' => $company->phone, 'email' => $company->email,
             'currency' => $this->currencyData($company)];
@@ -231,6 +281,7 @@ class StorefrontController extends Controller
     private function currencyData(Company $company): array
     {
         $currency = $company->default_currency;
+
         return ['code' => $currency?->code ?? 'VND', 'symbol' => $currency?->symbol ?? '₫'];
     }
 
@@ -239,6 +290,7 @@ class StorefrontController extends Controller
         $promotionActive = $product->promotional_price !== null
             && (! $product->promotion_starts_at || $product->promotion_starts_at->lte(now()))
             && (! $product->promotion_ends_at || $product->promotion_ends_at->gte(now()));
+
         return (float) ($promotionActive ? $product->promotional_price : $product->sell_price);
     }
 
@@ -255,7 +307,10 @@ class StorefrontController extends Controller
 
     private function sessionAccount(Request $request, Company $company): ?CustomerAccount
     {
-        if ((int) $request->session()->get('storefront_company_id') !== $company->id) return null;
+        if ((int) $request->session()->get('storefront_company_id') !== $company->id) {
+            return null;
+        }
+
         return CustomerAccount::with('customer')->where('company_id', $company->id)
             ->find($request->session()->get('storefront_customer_account_id'));
     }

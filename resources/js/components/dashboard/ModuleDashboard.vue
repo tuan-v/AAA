@@ -58,11 +58,7 @@
                     >
                         <p class="text-sm text-gray-500">{{ metric.label }}</p>
                         <p class="mt-2 text-2xl font-bold text-gray-900">
-                            {{
-                                metric.type === "money"
-                                    ? formatMoney(metric.value)
-                                    : formatNumber(metric.value)
-                            }}
+                            {{ metric.type === "money" ? formatMoney(metric.value) : formatNumber(metric.value) }}
                         </p>
                     </article>
                 </section>
@@ -90,36 +86,47 @@
                                 >
                             </div>
                         </div>
-                        <div
-                            class="flex h-64 items-end gap-3 border-b border-gray-200 pb-2"
-                        >
+                        <div class="relative h-72 overflow-hidden rounded-xl bg-slate-50/70 px-4 pb-3 pt-5">
+                            <div class="pointer-events-none absolute inset-x-4 bottom-9 top-5 flex flex-col justify-between">
+                                <span v-for="line in 5" :key="line" class="block border-t border-dashed border-slate-200/90"></span>
+                            </div>
+                            <div class="relative flex h-full items-end gap-3">
                             <div
                                 v-for="row in data.trend"
                                 :key="row.label"
-                                class="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+                                class="group flex min-w-0 flex-1 flex-col items-center justify-end"
                             >
                                 <div
-                                    class="flex h-52 w-full items-end justify-center gap-1"
+                                    class="flex h-[218px] w-full items-end justify-center gap-2"
                                 >
                                     <div
-                                        class="w-1/3 rounded-t bg-blue-600"
+                                        class="relative w-full max-w-[42px] rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400 shadow-[0_5px_16px_rgba(37,99,235,0.16)] transition duration-300 group-hover:brightness-105"
                                         :style="{
                                             height: barHeight(row.primary),
                                         }"
                                         :title="formatNumber(row.primary)"
-                                    ></div>
+                                    >
+                                        <span v-if="Number(row.primary) > 0" class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-blue-700">
+                                            {{ formatCompact(row.primary) }}
+                                        </span>
+                                    </div>
                                     <div
                                         v-if="config.secondaryLabel"
-                                        class="w-1/3 rounded-t bg-amber-500"
+                                        class="relative w-full max-w-[42px] rounded-t-lg bg-gradient-to-t from-amber-500 to-orange-300 shadow-[0_5px_16px_rgba(245,158,11,0.16)] transition duration-300 group-hover:brightness-105"
                                         :style="{
                                             height: barHeight(row.secondary),
                                         }"
                                         :title="formatNumber(row.secondary)"
-                                    ></div>
+                                    >
+                                        <span v-if="Number(row.secondary) > 0" class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-amber-700">
+                                            {{ formatCompact(row.secondary) }}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span class="truncate text-xs text-gray-500">{{
+                                <span class="mt-2 max-w-full truncate text-xs font-medium text-slate-500">{{
                                     row.label
                                 }}</span>
+                            </div>
                             </div>
                         </div>
                     </article>
@@ -367,6 +374,13 @@ const formatNumber = (value) =>
     new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(
         Number(value || 0),
     );
+const formatCompact = (value) => {
+    const number = Number(value || 0);
+    if (number >= 1_000_000_000) return `${formatNumber(number / 1_000_000_000)} tỷ`;
+    if (number >= 1_000_000) return `${formatNumber(number / 1_000_000)} tr`;
+    if (number >= 1_000) return `${formatNumber(number / 1_000)} nghìn`;
+    return formatNumber(number);
+};
 const statusMeta = (status) => getOrderStatusMeta(status);
 
 const loadDashboard = async () => {

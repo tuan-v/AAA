@@ -10,7 +10,7 @@ export function useStorefrontCart(slug) {
         const item = cart.value.find(row => row.product_id === product.id);
         if (item) item.quantity = Math.min(item.stock, item.quantity + quantity);
         else cart.value.push({ product_id: product.id, name: product.name, image: product.image,
-            price: Number(product.selling_price), quantity, stock: Number(product.available_stock) });
+            price: Number(product.selling_price), quantity: Math.min(Number(product.available_stock), Number(quantity)), stock: Number(product.available_stock) });
     };
     const remove = id => { cart.value = cart.value.filter(item => item.product_id !== id); };
     const clear = () => { cart.value = []; };

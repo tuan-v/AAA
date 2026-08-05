@@ -116,7 +116,7 @@ import SupplierForm from "./SupplierForm.vue";
 import PurchaseOrderForm from "../Order/PurchaseOrderForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import SearchPage from "../../../components/SearchPage.vue";
 import DetailButtonIcon from "@/icons/DetailButtonIcon.vue";
 import { getStatusLabel } from "@/config/status";

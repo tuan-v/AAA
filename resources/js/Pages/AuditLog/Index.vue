@@ -132,27 +132,29 @@ const users = ref([]);
 const columns = [
     {
         label: "Người thực hiện",
-        render: (row) => h("span", {}, row.user?.name ?? "Hệ thống"),
+        render: (row) => {
+            const name = row.user?.name ?? "Hệ thống";
+            return h("div", { class: "flex min-w-36 items-center gap-2.5" }, [
+                h("span", { class: "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300" }, name.charAt(0).toUpperCase()),
+                h("span", { class: "font-medium text-slate-800 dark:text-slate-100" }, name),
+            ]);
+        },
     },
     {
-        label: "Hành động",
+        label: "Nội dung hoạt động",
         render: (row) => {
             const config = actionConfig[row.action_key] ?? {
                 text: row.action_label || "Hành động khác",
                 class: "bg-gray-100 text-gray-600",
             };
-            return h(
-                "span",
-                {
-                    class: `${config.class} px-3 py-1 rounded-full text-xs font-medium`,
-                },
-                config.text,
-            );
+            return h("div", { class: "min-w-72" }, [
+                h("div", { class: "flex flex-wrap items-center gap-2" }, [
+                    h("span", { class: `${config.class} rounded-full px-2.5 py-1 text-[11px] font-semibold` }, config.text),
+                    h("span", { class: "font-medium text-slate-800 dark:text-slate-100" }, row.summary || row.description),
+                ]),
+                h("div", { class: "mt-1 text-xs text-slate-400" }, `${row.model_label || "Dữ liệu"} · ${row.record_reference || `#${row.model_id}`}`),
+            ]);
         },
-    },
-    {
-        key: "description",
-        label: "Mô tả",
     },
     {
         key: "created_at",
@@ -160,7 +162,11 @@ const columns = [
         align: "text-right",
         render: (row) => {
             const time = row.created_at_formatted || "-";
-            return h("span", { class: "whitespace-nowrap" }, time);
+            const [date, clock] = time.split(" ");
+            return h("div", { class: "whitespace-nowrap text-right" }, [
+                h("div", { class: "font-medium text-slate-700 dark:text-slate-200" }, date),
+                h("div", { class: "mt-0.5 text-xs text-slate-400" }, clock || ""),
+            ]);
         },
     },
 ];

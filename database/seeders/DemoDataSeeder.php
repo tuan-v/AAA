@@ -26,9 +26,9 @@ use App\Models\WarehouseProductStock;
 use App\Models\WarehouseSlip;
 use App\Services\TransactionService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 class DemoDataSeeder extends Seeder
@@ -50,6 +50,11 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Công ty TNHH Demo Việt', 'phone' => '0901000000', 'email' => 'contact@demo.vn',
                 'address' => '1 Tràng Tiền, Hà Nội', 'owner_id' => $owner->id,
             ]);
+            $company->update([
+                'storefront_slug' => 'cong-ty-tnhh-demo-viet',
+                'storefront_enabled' => true,
+            ]);
+
             $department = Department::updateOrCreate(
                 ['company_id' => $company->id, 'code' => 'PB-001'],
                 ['name' => 'Phòng Điều hành', 'status' => 'active', 'manager_id' => $owner->id]
@@ -65,7 +70,7 @@ class DemoDataSeeder extends Seeder
                 'Quản lý nhân sự' => ['nhan_su', 'vai_tro', 'quyen', 'nhat_ky'],
                 'Quản lý mua hàng' => ['nha_cung_cap', 'danh_muc_mua_hang', 'don_vi_mua_hang', 'san_pham_mua_hang', 'don_mua'],
                 'Quản lý kho' => ['kho', 'danh_muc_kho', 'don_vi_kho', 'san_pham_kho', 'phieu_kho', 'chuyen_kho'],
-                'Quản lý bán hàng' => ['khach_hang', 'don_ban'],
+                'Quản lý bán hàng' => ['khach_hang', 'don_ban', 'phieu_giam_gia'],
                 'Quản lý kế toán' => ['tien_te', 'ngan_hang', 'tai_khoan', 'loai_giao_dich', 'giao_dich', 'cong_no_khach_hang', 'cong_no_nha_cung_cap'],
             ];
 
@@ -81,21 +86,21 @@ class DemoDataSeeder extends Seeder
                     ]
                 );
                 $rolePermissions = DB::table('permissions')
-                        ->where(function ($query) use ($modules) {
-                            foreach ($modules as $module) {
-                                $query->orWhere('name', 'like', $module.'.%');
-                            }
-                        })
-                        ->pluck('name')
-                        ->when(
-                            $roleName === 'Quản lý kế toán',
-                            fn ($permissions) => $permissions->merge([
-                                'phieu_kho.xem',
-                                'phieu_kho.xem_chi_tiet',
-                                'phieu_kho.duyet_ke_toan',
-                            ])
-                        )
-                        ->all();
+                    ->where(function ($query) use ($modules) {
+                        foreach ($modules as $module) {
+                            $query->orWhere('name', 'like', $module.'.%');
+                        }
+                    })
+                    ->pluck('name')
+                    ->when(
+                        $roleName === 'Quản lý kế toán',
+                        fn ($permissions) => $permissions->merge([
+                            'phieu_kho.xem',
+                            'phieu_kho.xem_chi_tiet',
+                            'phieu_kho.duyet_ke_toan',
+                        ])
+                    )
+                    ->all();
                 $role->syncPermissions($rolePermissions);
             }
 
@@ -116,7 +121,7 @@ class DemoDataSeeder extends Seeder
             }
 
             $province = Province::firstOrCreate(['code' => '1'], ['name' => 'Thành phố Hà Nội']);
-            $ward = Ward::firstOrCreate(['code' => '00001'], ['province_id' => $province->id, 'name' => 'Phường Hoàn Kiếm']);
+            $ward = Ward::firstOrCreate(['code' => '70'], ['province_id' => $province->id, 'name' => 'Phường Hoàn Kiếm']);
             $addressId = DB::table('addresses')->updateOrInsert(
                 ['province_id' => $province->id, 'ward_id' => $ward->id, 'address_detail' => 'Kho số 1'],
                 ['updated_at' => now(), 'created_at' => now()]
@@ -175,7 +180,10 @@ class DemoDataSeeder extends Seeder
                     'purchase_price' => $row[2], 'sell_price' => $row[3], 'quantity' => 0, 'status' => 'active',
                     'description' => $row[6], 'image' => $row[5], 'storefront_visible' => true,
                 ];
-                if (Schema::hasColumn('products', 'color')) $attributes['color'] = 'Tiêu chuẩn';
+                if (Schema::hasColumn('products', 'color')) {
+                    $attributes['color'] = 'Tiêu chuẩn';
+                }
+
                 return Product::updateOrCreate(['sku' => $row[0]], $attributes);
             });
 

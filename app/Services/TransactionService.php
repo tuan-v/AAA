@@ -324,6 +324,26 @@ class TransactionService extends BaseService
 
     private function determinePurpose(array $data): string
     {
+        $categoryCode = TransactionCategory::whereKey($data['category_id'] ?? null)->value('code');
+
+        $categoryPurpose = match ($categoryCode) {
+            'THU_KH' => 'customer_receipt',
+            'THU_KHAC' => 'opening_customer_receipt',
+            'TAM_UNG_KH' => 'customer_advance',
+            'HOAN_TAM_UNG_KH' => 'customer_advance_refund',
+            'CHI_NCC' => 'supplier_payment',
+            'CHI_KHAC' => 'opening_supplier_payment',
+            'TAM_UNG_NCC' => 'supplier_advance',
+            'HOAN_TAM_UNG_NCC' => 'supplier_advance_refund',
+            'CHUYEN_KHOAN' => 'internal_transfer',
+            'THU_COD' => 'cod_receipt',
+            default => null,
+        };
+
+        if ($categoryPurpose) {
+            return $categoryPurpose;
+        }
+
         return match (true) {
             $data['type'] === 'transfer' => 'internal_transfer',
             $data['type'] === 'receipt' && !empty($data['customer_id']) => 'customer_receipt',

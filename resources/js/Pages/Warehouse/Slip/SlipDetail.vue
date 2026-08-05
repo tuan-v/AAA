@@ -107,6 +107,13 @@
                             </p>
                         </div>
                     </div>
+
+                    <div v-if="slip.type === 'export'" class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-xs text-blue-500 uppercase">Vận chuyển</p>
+                        <p class="font-semibold text-gray-900 text-lg">{{ slip.sale_order?.shipping_partner?.name || 'Chưa chọn đơn vị' }}</p>
+                        <p class="text-sm text-gray-600">Mã vận đơn: <b>{{ slip.sale_order?.tracking_code || '—' }}</b></p>
+                        <p v-if="slip.sale_order?.shipping_note" class="mt-1 text-xs text-gray-500">{{ slip.sale_order.shipping_note }}</p>
+                    </div>
                 </div>
 
                 <!-- ITEMS -->

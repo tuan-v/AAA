@@ -240,6 +240,19 @@ layer(base);
     font-weight: 500 !important;
     line-height: 1.45 !important;
     letter-spacing: -0.01em;
+    color: #1e293b !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.Toastify__toast-body > div:last-child,
+.Toastify__toast-text,
+.Toastify__toast-text-title,
+.Toastify__toast-text-content {
+    color: #1e293b !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    -webkit-text-fill-color: #1e293b !important;
 }
 
 .Toastify__toast-icon {
@@ -305,6 +318,15 @@ layer(base);
     box-shadow:
         0 20px 50px rgb(0 0 0 / 0.38),
         0 4px 14px rgb(0 0 0 / 0.24) !important;
+}
+
+.dark .Toastify__toast-body,
+.dark .Toastify__toast-body > div:last-child,
+.dark .Toastify__toast-text,
+.dark .Toastify__toast-text-title,
+.dark .Toastify__toast-text-content {
+    color: #f1f5f9 !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
 }
 
 .dark .Toastify__close-button {

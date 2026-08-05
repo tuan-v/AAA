@@ -53,9 +53,9 @@ import { toast } from 'vue3-toastify'
 import { route } from 'ziggy-js'
 
 import Modal from '@/components/Modal.vue'
-import FormTextarea from '@/Components/ui/FormTextare.vue'
-import CancelButton from '@/Components/Button/CancelButton.vue'
-import SubmitButton from '@/Components/Button/SubmitButton.vue'
+import FormTextarea from '@/components/ui/FormTextare.vue'
+import CancelButton from '@/components/Button/CancelButton.vue'
+import SubmitButton from '@/components/Button/SubmitButton.vue'
 
 const page = usePage()
 

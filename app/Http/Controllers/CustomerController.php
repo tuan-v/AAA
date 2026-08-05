@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerDebt;
 use App\Models\SalesOrder;
 use App\Models\Transaction;
-use Illuminate\Http\Request;
 use App\Services\CompanyCurrencyService;
+use App\Services\CustomerDebtService;
+use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::with('currency');
+        $query = Customer::with([
+            'currency',
+            'storefrontAccount.addresses' => fn ($query) => $query->orderByDesc('is_default')->latest(),
+        ]);
         if ($request->routeIs('accountant.customers-debt.index')) {
             $query->where('code', '!=', 'KH_LE');
         }
@@ -37,6 +41,7 @@ class CustomerController extends Controller
             );
         }
         $perPage = min((int) $request->input('per_page', 5), 100);
+
         return $query
             ->latest()
             ->orderByDesc('id')
@@ -47,6 +52,9 @@ class CustomerController extends Controller
                 $totalReceivable = (float) abs($debtEntries->whereIn('type', ['sale', 'refund'])->sum('amount'));
                 $totalPaid = (float) abs($debtEntries->where('type', 'payment')->sum('amount'));
                 $currentDebt = (float) $customer->opening_debt_base + $totalReceivable - $totalPaid;
+                $webAddress = $customer->storefrontAccount?->addresses?->first();
+                $useWebAddress = (! $customer->province_id || ! $customer->ward_id)
+                    && $webAddress?->province_id && $webAddress?->ward_id;
 
                 return [
                     'id' => $customer->id,
@@ -64,11 +72,11 @@ class CustomerController extends Controller
                     'currency' => $customer->currency,
                     'company_currency' => $companyCurrency,
 
-                    'province_id' => $customer->province_id,
+                    'province_id' => $useWebAddress ? $webAddress->province_id : $customer->province_id,
 
-                    'ward_id' => $customer->ward_id,
+                    'ward_id' => $useWebAddress ? $webAddress->ward_id : $customer->ward_id,
 
-                    'address_detail' => $customer->address_detail,
+                    'address_detail' => $useWebAddress ? $webAddress->address_detail : $customer->address_detail,
 
                     'opening_debt' => $customer->opening_debt,
                     'opening_debt_base' => $customer->opening_debt_base,
@@ -80,33 +88,35 @@ class CustomerController extends Controller
                 ];
             });
     }
+
     public function all()
     {
         $customers = Customer::with('currency')->select(
-                'id',
-                'code',
-                'name',
-                'currency_id',
-                'opening_debt',
-                'opening_debt_base',
-                'opening_debt_exchange_rate',
-                'province_id',
-                'ward_id',
-                'address_detail',
-            )
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->get()
-                ->each(function (Customer $customer) {
-                    $openingPayments = (float) $customer->debts()
-                        ->where('type', \App\Models\CustomerDebt::TYPE_OPENING_PAYMENT)
-                        ->sum('amount');
-                    $customer->setAttribute('opening_debt_remaining', max(0, (float) $customer->opening_debt_base + $openingPayments));
-                    $customer->setAttribute('advance_balance', app(\App\Services\CustomerDebtService::class)->getAdvanceBalance($customer->id));
-                });
+            'id',
+            'code',
+            'name',
+            'currency_id',
+            'opening_debt',
+            'opening_debt_base',
+            'opening_debt_exchange_rate',
+            'province_id',
+            'ward_id',
+            'address_detail',
+        )
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get()
+            ->each(function (Customer $customer) {
+                $openingPayments = (float) $customer->debts()
+                    ->where('type', CustomerDebt::TYPE_OPENING_PAYMENT)
+                    ->sum('amount');
+                $customer->setAttribute('opening_debt_remaining', max(0, (float) $customer->opening_debt_base + $openingPayments));
+                $customer->setAttribute('advance_balance', app(CustomerDebtService::class)->getAdvanceBalance($customer->id));
+            });
 
         return response()->json($customers);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate(
@@ -116,7 +126,7 @@ class CustomerController extends Controller
 
                 'phone' => [
                     'required',
-                    'regex:/^(0|\+84)[0-9]{9,10}$/'
+                    'regex:/^(0|\+84)[0-9]{9,10}$/',
                 ],
 
                 'email' => 'required|email',
@@ -138,7 +148,7 @@ class CustomerController extends Controller
                 'phone.regex' => 'Số điện thoại không đúng định dạng.',
                 'phone.required' => 'Số điện thoại không được bỏ trống',
 
-                'email.required' => "Email không được bỏ trống",
+                'email.required' => 'Email không được bỏ trống',
                 'email.email' => 'Email không đúng định dạng.',
 
                 'currency_id.required' => 'Vui lòng chọn tiền tệ.',
@@ -165,6 +175,7 @@ class CustomerController extends Controller
 
         return Customer::create($validated);
     }
+
     public function update(
         Request $request,
         $id
@@ -178,7 +189,7 @@ class CustomerController extends Controller
 
                 'phone' => [
                     'required',
-                    'regex:/^(0|\+84)[0-9]{9,10}$/'
+                    'regex:/^(0|\+84)[0-9]{9,10}$/',
                 ],
 
                 'email' => 'required|email',
@@ -203,7 +214,7 @@ class CustomerController extends Controller
                 'phone.regex' => 'Số điện thoại không đúng định dạng.',
                 'phone.required' => 'Số điện thoại không được bỏ trống',
 
-                'email.required' => "Email không được bỏ trống",
+                'email.required' => 'Email không được bỏ trống',
                 'email.email' => 'Email không đúng định dạng.',
 
                 'currency_id.required' => 'Vui lòng chọn tiền tệ.',
@@ -230,9 +241,10 @@ class CustomerController extends Controller
         $customer->update($validated);
 
         return response()->json([
-            'message' => 'Cập nhật thành công'
+            'message' => 'Cập nhật thành công',
         ]);
     }
+
     public function show($id)
     {
         $customer = Customer::with(['orders' => function ($q) {
@@ -266,6 +278,7 @@ class CustomerController extends Controller
             'debt_history' => $customer->debts,
         ]);
     }
+
     public function detail($id)
     {
         $canViewDebt = auth()->user()->can('khach_hang.xem')
@@ -276,6 +289,7 @@ class CustomerController extends Controller
             'currency',
             'province',
             'ward',
+            'storefrontAccount.addresses' => fn ($query) => $query->orderByDesc('is_default')->latest(),
             'orders' => function ($query) {
                 $query->latest()->limit(8);
             },
@@ -321,10 +335,10 @@ class CustomerController extends Controller
             'company_currency' => $displayCurrency,
             'display_currency' => $displayCurrency,
             'debt_summary' => [
-                'opening_debt'     => $openingDebt,
+                'opening_debt' => $openingDebt,
                 'total_receivable' => abs($totalReceivable),
-                'total_paid'       => abs($totalPaid),
-                'remaining_debt'   => $remainingDebt,
+                'total_paid' => abs($totalPaid),
+                'remaining_debt' => $remainingDebt,
             ],
             'recent_orders' => $customer->orders->map(fn ($order) => [
                 'id' => $order->id,
@@ -335,7 +349,7 @@ class CustomerController extends Controller
                 'total_amount_base' => $toPartyCurrency(round((float) $order->total_amount * (float) ($order->exchange_rate ?: 1), 2)),
                 'status' => $order->status,
             ]),
-            'debt_history'  => $debtEntries->map(fn ($item) => [
+            'debt_history' => $debtEntries->map(fn ($item) => [
                 'id' => $item->id,
                 'type' => $item->type,
                 'note' => $item->note,
@@ -355,20 +369,21 @@ class CustomerController extends Controller
                     'direction' => 'receipt',
                 ] : null,
             ]),
-            'payments'      => $payments,
+            'payments' => $payments,
             'can_view_debt' => $canViewDebt,
         ]);
     }
+
     public function createQuickOrder(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
 
         $order = SalesOrder::create([
-            'company_id'   => $customer->company_id,
-            'customer_id'  => $customer->id,
-            'code'         => 'SO' . date('YmdHi') . rand(10, 99),
-            'order_date'   => now(),
-            'status'       => 'draft',
+            'company_id' => $customer->company_id,
+            'customer_id' => $customer->id,
+            'code' => 'SO'.date('YmdHi').rand(10, 99),
+            'order_date' => now(),
+            'status' => 'draft',
             'total_amount' => 0,
             // thêm các field khác nếu cần
         ]);
@@ -377,9 +392,10 @@ class CustomerController extends Controller
             'success' => true,
             'message' => 'Đơn hàng mới đã được tạo thành công!',
             'order_id' => $order->id,
-            'redirect_url' => "/sale/orders/{$order->id}/edit"   // điều chỉnh theo route Vue của bạn
+            'redirect_url' => "/sale/orders/{$order->id}/edit",   // điều chỉnh theo route Vue của bạn
         ]);
     }
+
     public function toggleStatus($id)
     {
         $customer = Customer::findOrFail($id);
@@ -392,9 +408,10 @@ class CustomerController extends Controller
         $customer->save();
 
         return response()->json([
-            'status' => $customer->status
+            'status' => $customer->status,
         ]);
     }
+
     private function ensureCompanyCurrency(int $currencyId): void
     {
         $company = auth()->user()->company;

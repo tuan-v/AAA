@@ -67,7 +67,7 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb.vue";
 import DataTable from "@/components/DataTable.vue";
 import Modal from "@/components/Modal.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import WarehouseForm from "./WarehouseForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import { get } from "lodash";

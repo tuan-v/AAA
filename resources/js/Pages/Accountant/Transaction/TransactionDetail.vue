@@ -139,7 +139,28 @@
                 Đơn hàng liên quan
             </p>
             <div
-                v-if="linkedOrder"
+                v-if="codReconciliation"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 p-3"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <p class="text-xs text-emerald-700">Phiếu đối soát COD</p>
+                        <p class="font-mono text-sm font-bold text-emerald-900">{{ codReconciliation.code }}</p>
+                    </div>
+                    <span class="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        {{ codReconciliation.partner?.name || 'Đơn vị vận chuyển' }}
+                    </span>
+                </div>
+                <div class="mt-3 space-y-2">
+                    <div v-for="item in codReconciliation.items" :key="item.id" class="flex flex-wrap justify-between gap-2 rounded-md bg-white px-3 py-2 text-sm">
+                        <span class="font-mono font-semibold text-blue-700">{{ item.order?.code }}</span>
+                        <span class="text-gray-500">Vận đơn: {{ item.tracking_code || '—' }}</span>
+                        <span class="font-semibold">{{ formatMoney(item.cod_amount, transaction.currency) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div
+                v-else-if="linkedOrder"
                 class="flex items-center justify-between gap-4 rounded-lg border border-blue-100 bg-blue-50 p-3"
             >
                 <div>
@@ -308,9 +329,16 @@ const typeBadgeClass = computed(
 
 const PURPOSE_MAP = {
     customer_receipt: "Thu tiền khách hàng",
+    opening_customer_receipt: "Thu công nợ đầu kỳ",
+    customer_advance: "Khách hàng tạm ứng",
+    customer_advance_refund: "Hoàn tạm ứng khách hàng",
     supplier_payment: "Thanh toán nhà cung cấp",
+    opening_supplier_payment: "Thanh toán công nợ đầu kỳ",
+    supplier_advance: "Tạm ứng nhà cung cấp",
+    supplier_advance_refund: "Hoàn tạm ứng nhà cung cấp",
     customer_refund: "Hoàn tiền khách hàng",
     supplier_refund: "Nhà cung cấp hoàn tiền",
+    cod_receipt: "Thu đối soát COD",
     internal_transfer: "Chuyển tiền nội bộ",
     other_receipt: "Khoản thu khác",
     other_payment: "Khoản chi khác",
@@ -332,6 +360,7 @@ const linkedOrder = computed(() => {
     }
     return null;
 });
+const codReconciliation = computed(() => transaction.value?.cod_reconciliation || null);
 
 const STATUS_MAP = {
     pending: {

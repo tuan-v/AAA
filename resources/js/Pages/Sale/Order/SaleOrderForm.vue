@@ -407,6 +407,12 @@
                     <div
                         class="bg-blue-50 border border-blue-100 rounded-xl p-5 min-w-[340px] space-y-2.5"
                     >
+                        <label class="block text-sm font-semibold text-gray-700">Phiếu giảm giá
+                            <select v-model="form.coupon_code" class="mt-1 w-full rounded-lg border-gray-300 bg-white text-sm">
+                                <option value="">Không áp dụng</option>
+                                <option v-for="coupon in coupons" :key="coupon.id" :value="coupon.code">{{ coupon.code }} - {{ coupon.name }}</option>
+                            </select>
+                        </label>
                         <div class="flex justify-between text-sm text-gray-600">
                             <span>Tạm tính hàng hóa:</span>
                             <span class="font-medium text-gray-800">{{
@@ -419,6 +425,7 @@
                                 formatMoney(vatAmount, currentCurrency)
                             }}</span>
                         </div>
+                        <div v-if="discountAmount > 0" class="flex justify-between text-sm font-semibold text-green-700"><span>Giảm giá:</span><span>-{{ formatMoney(discountAmount, currentCurrency) }}</span></div>
                         <div
                             class="flex justify-between pt-3 border-t border-blue-200 text-base font-bold text-blue-700"
                         >
@@ -524,6 +531,7 @@ const loading = ref(false);
 const wards = ref([]);
 const errors = ref({});
 const productOptions = ref([]);
+const coupons = ref([]);
 
 // Khách hàng tạo nhanh ngay trong đơn hàng — chưa có trong props.customers
 // vì props là dữ liệu tĩnh được trang cha truyền xuống lúc mở modal, không
@@ -564,6 +572,7 @@ const form = reactive({
     address_detail: "",
     expected_delivery_date: "",
     note: "",
+    coupon_code: "",
     items: [],
 });
 
@@ -580,7 +589,14 @@ const vatAmount = computed(() =>
         return sum + (sub * Number(item.vat_percent || 0)) / 100;
     }, 0),
 );
-const totalAmount = computed(() => subtotal.value + vatAmount.value);
+const selectedCoupon = computed(() => coupons.value.find((item) => item.code === form.coupon_code));
+const discountAmount = computed(() => {
+    const coupon = selectedCoupon.value;
+    if (!coupon || subtotal.value < Number(coupon.minimum_order_amount || 0)) return 0;
+    const value = coupon.type === "percent" ? subtotal.value * Number(coupon.value) / 100 : Number(coupon.value);
+    return Math.min(subtotal.value, coupon.maximum_discount ? Math.min(value, Number(coupon.maximum_discount)) : value);
+});
+const totalAmount = computed(() => subtotal.value + vatAmount.value - discountAmount.value);
 
 const currentCurrency = computed(
     () => props.currencies.find((c) => c.id == form.currency_id) || null,
@@ -813,6 +829,7 @@ function resetForm() {
     form.address_detail = "";
     form.expected_delivery_date = "";
     form.note = "";
+    form.coupon_code = "";
     form.items = [
         {
             product_id: "",
@@ -881,6 +898,7 @@ watch(
             ? String(order.expected_delivery_date).substring(0, 10)
             : "";
         form.note = order.note || "";
+        form.coupon_code = order.coupon_code_snapshot || order.pos_coupon?.code || "";
 
         if (order.items?.length > 0) {
             form.items = order.items.map((item) => ({
@@ -901,6 +919,12 @@ watch(
 
 // ==================== LIFECYCLE ====================
 onMounted(async () => {
+    try {
+        const { data } = await axios.get("/api/sale/coupons/active", { params: { channel: "admin" } });
+        coupons.value = data.data || [];
+    } catch (_) {
+        coupons.value = [];
+    }
     if (form.items.length === 0) addItem();
 
     if (props.products.length > 0) {
@@ -953,6 +977,7 @@ async function submit() {
         address_detail: form.address_detail,
         expected_delivery_date: form.expected_delivery_date,
         note: form.note,
+        coupon_code: form.coupon_code || null,
         subtotal: subtotal.value,
         vat_amount: vatAmount.value,
         total_amount: totalAmount.value,

@@ -104,7 +104,7 @@ import Modal from "@/components/Modal.vue";
 import CategoryForm from "./CategoryForm.vue";
 import EditButtonIcon from "@/icons/EditButtonIcon.vue";
 import Lock from "@/icons/Lock.vue";
-import Unlock from "@/icons/Unlock.vue";
+import Unlock from "@/icons/UnLock.vue";
 import { usePermission } from "@/composables/usePermission";
 import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh";
 import { useActionConfirm } from "@/composables/useActionConfirm";

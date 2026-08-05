@@ -34,6 +34,7 @@ class Customer extends Model
         'opening_debt_base' => 'decimal:2',
         'total_advance' => 'decimal:2',
     ];
+
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -71,6 +72,12 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerPayment::class);
     }
+
+    public function storefrontAccount()
+    {
+        return $this->hasOne(CustomerAccount::class);
+    }
+
     protected static function booted()
     {
         static::creating(function ($model) {
@@ -80,7 +87,7 @@ class Customer extends Model
                 $model->opening_debt_base = $model->opening_debt ?? 0;
             }
 
-            if (!$model->code) {
+            if (! $model->code) {
                 $model->code = app(CodeGeneratorService::class)
                     ->generate(self::class, 'KH');
             }

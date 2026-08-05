@@ -20,7 +20,7 @@
                     :href="`/shop/${store.slug}`"
                     class="ml-auto rounded-full px-4 py-3 text-sm font-bold hover:bg-black/5"
                     >Tiếp tục mua sắm</Link
-                ><Link
+                ><NotificationBadgeLink :slug="store.slug" class="border border-black/15" /><Link
                     :href="`/shop/${store.slug}/cart`"
                     class="rounded-full bg-black px-5 py-3 text-sm font-bold text-white"
                     >Giỏ hàng</Link
@@ -112,21 +112,6 @@
                     </aside>
 
                     <section class="min-w-0">
-                        <div
-                            v-if="notice"
-                            class="mb-6 flex justify-between rounded-xl bg-emerald-100 px-5 py-4 text-sm font-bold text-emerald-900"
-                        >
-                            <span>{{ notice }}</span
-                            ><button @click="notice = ''">×</button>
-                        </div>
-                        <div
-                            v-if="error"
-                            class="mb-6 flex justify-between rounded-xl bg-red-100 px-5 py-4 text-sm font-bold text-red-800"
-                        >
-                            <span>{{ error }}</span
-                            ><button @click="error = ''">×</button>
-                        </div>
-
                         <div v-if="tab === 'overview'">
                             <SectionTitle
                                 eyebrow="Tổng quan"
@@ -188,7 +173,8 @@
                                     class="mt-5"
                                     :order="orders[0]"
                                     :store="store"
-                                    @cancel="cancelOrder"
+                                    @cancel="openCancelModal"
+                                    @repurchase="repurchaseOrder"
                                 />
                                 <p
                                     v-else
@@ -211,7 +197,8 @@
                                     :key="order.code"
                                     :order="order"
                                     :store="store"
-                                    @cancel="cancelOrder"
+                                    @cancel="openCancelModal"
+                                    @repurchase="repurchaseOrder"
                                 />
                             </div>
                             <div
@@ -278,7 +265,7 @@
                                     text="Chọn tỉnh, xã/phường và nhập địa chỉ chi tiết."
                                 /><button
                                     class="rounded-full bg-black px-6 py-3 text-sm font-black text-white"
-                                    @click="showAddressForm = !showAddressForm"
+                                    @click="showAddressForm ? closeAddressForm() : openCreateAddress()"
                                 >
                                     {{
                                         showAddressForm
@@ -290,7 +277,7 @@
                             <form
                                 v-if="showAddressForm"
                                 class="mt-7 grid gap-4 border border-black/15 bg-white/60 p-6 sm:grid-cols-2"
-                                @submit.prevent="addAddress"
+                                @submit.prevent="saveAddress"
                             >
                                 <input
                                     v-model="addressForm.label"
@@ -308,7 +295,7 @@
                                     class="field-input mt-0 sm:col-span-2"
                                     placeholder="Số điện thoại"
                                 /><label
-                                    class="text-xs font-black uppercase tracking-wider text-black/45"
+                                    class="text-xs font-black uppercase tracking-wider text-black/80"
                                     >Tỉnh/Thành phố<select
                                         v-model="addressForm.province_id"
                                         required
@@ -327,7 +314,7 @@
                                         </option>
                                     </select></label
                                 ><label
-                                    class="text-xs font-black uppercase tracking-wider text-black/45"
+                                    class="text-xs font-black uppercase tracking-wider text-black/80"
                                     >Xã/Phường<select
                                         v-model="addressForm.ward_id"
                                         required
@@ -353,7 +340,7 @@
                                         </option>
                                     </select></label
                                 ><label
-                                    class="text-xs font-black uppercase tracking-wider text-black/45 sm:col-span-2"
+                                    class="text-xs font-black uppercase tracking-wider text-black/80 sm:col-span-2"
                                     >Địa chỉ chi tiết<textarea
                                         v-model.trim="
                                             addressForm.address_detail
@@ -372,7 +359,7 @@
                                 ><button
                                     class="action-button mt-0 sm:justify-self-end"
                                 >
-                                    Lưu địa chỉ
+                                    {{ editingAddressId ? "Cập nhật địa chỉ" : "Lưu địa chỉ" }}
                                 </button>
                             </form>
                             <div class="mt-8 grid gap-4 sm:grid-cols-2">
@@ -392,19 +379,17 @@
                                                 {{ address.label }}
                                             </h3>
                                         </div>
-                                        <button
-                                            class="text-xs font-bold underline"
-                                            @click="deleteAddress(address.id)"
-                                        >
-                                            Xóa
-                                        </button>
+                                        <div class="flex gap-3">
+                                            <button type="button" class="text-xs font-bold text-blue-700 underline" @click="editAddress(address)">Sửa</button>
+                                            <button type="button" class="text-xs font-bold text-red-600 underline" @click="openDeleteAddressModal(address)">Xóa</button>
+                                        </div>
                                     </div>
-                                    <p class="mt-5 text-sm font-bold">
+                                    <p class="mt-5 text-sm font-black text-black">
                                         {{ address.recipient_name }} ·
                                         {{ address.phone }}
                                     </p>
                                     <p
-                                        class="mt-2 text-sm leading-6 text-black/50"
+                                        class="mt-2 text-sm font-semibold leading-6 text-black"
                                     >
                                         {{ address.address }}
                                     </p>
@@ -473,16 +458,38 @@
                 </div>
             </template>
         </main>
+        <ActionModal
+            :open="actionModal.open"
+            :title="actionModal.title"
+            :message="actionModal.message"
+            :confirm-text="actionModal.confirmText"
+            :loading-text="actionModal.loadingText"
+            :loading="actionModal.loading"
+            :error="actionModal.error"
+            :require-reason="actionModal.type === 'cancel-order'"
+            :reason-options="actionModal.type === 'cancel-order' ? cancelReasonOptions : []"
+            reason-placeholder="Ví dụ: Tôi muốn thay đổi sản phẩm..."
+            @close="closeActionModal"
+            @confirm="confirmModalAction"
+        />
     </div>
 </template>
 
 <script setup>
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, router } from "@inertiajs/vue3";
 import axios from "axios";
-import { computed, defineComponent, h, onMounted, reactive, ref } from "vue";
-import CustomerAuthPanel from "@/Components/Storefront/CustomerAuthPanel.vue";
+import { computed, defineComponent, h, nextTick, onMounted, reactive, ref } from "vue";
+import CustomerAuthPanel from "@/components/Storefront/CustomerAuthPanel.vue";
+import ActionModal from "@/components/Storefront/ActionModal.vue";
+import { storefrontToast as toast } from "@/utils/storefrontToast";
+import { useStorefrontCart } from "@/composables/useStorefrontCart";
+import { useStorefrontNotifications } from "@/composables/useStorefrontNotifications";
+import { useAutoApiRefresh } from "@/composables/useAutoApiRefresh";
+import NotificationBadgeLink from "@/components/Storefront/NotificationBadgeLink.vue";
 const props = defineProps({ store: { type: Object, required: true } }),
     base = `/shop/${props.store.slug}/account`;
+const { add } = useStorefrontCart(props.store.slug);
+const { start: startNotifications } = useStorefrontNotifications(props.store.slug);
 const account = ref(null),
     orders = ref([]),
     addresses = ref([]),
@@ -494,7 +501,20 @@ const account = ref(null),
     error = ref(""),
     notice = ref(""),
     tab = ref("overview"),
-    showAddressForm = ref(false);
+    showAddressForm = ref(false),
+    editingAddressId = ref(null);
+const actionModal = reactive({
+    open: false, type: "", target: null, title: "", message: "",
+    confirmText: "Xác nhận", loadingText: "Đang xử lý...", loading: false, error: "",
+});
+const cancelReasonOptions = [
+    { value: "change_product", label: "Muốn thay đổi sản phẩm" },
+    { value: "change_address", label: "Muốn thay đổi địa chỉ nhận hàng" },
+    { value: "change_payment", label: "Muốn thay đổi phương thức thanh toán" },
+    { value: "no_longer_needed", label: "Không còn nhu cầu mua hàng" },
+    { value: "ordered_by_mistake", label: "Đặt nhầm đơn hàng" },
+    { value: "other", label: "Lý do khác" },
+];
 const profileForm = reactive({ name: "", phone: "" }),
     addressForm = reactive({
         label: "Nhà riêng",
@@ -559,17 +579,17 @@ async function logout() {
 }
 async function updateProfile() {
     if (!validPhone(profileForm.phone))
-        return (error.value =
-            "Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.");
+        return toast.warning("Số điện thoại phải gồm 10 chữ số và đúng đầu số di động Việt Nam.");
     await act(async () => {
         const { data } = await axios.put(`${base}/profile`, profileForm);
         account.value = data.account;
         notice.value = data.message;
+        toast.success(data.message);
     });
 }
 async function updatePassword() {
     if (passwordForm.password !== passwordForm.password_confirmation)
-        return (error.value = "Mật khẩu nhập lại chưa trùng khớp.");
+        return toast.warning("Mật khẩu nhập lại chưa trùng khớp.");
     await act(async () => {
         const { data } = await axios.put(`${base}/password`, passwordForm);
         Object.assign(passwordForm, {
@@ -578,6 +598,7 @@ async function updatePassword() {
             password_confirmation: "",
         });
         notice.value = data.message;
+        toast.success(data.message);
     });
 }
 async function loadProvinces() {
@@ -586,55 +607,143 @@ async function loadProvinces() {
 }
 async function onProvinceChange() {
     addressForm.ward_id = "";
+    await loadWards(addressForm.province_id);
+}
+async function loadWards(provinceId) {
     wards.value = [];
-    if (!addressForm.province_id) return;
+    if (!provinceId) return;
     loadingWards.value = true;
     try {
         const { data } = await axios.get(
-            `/shop/locations/provinces/${addressForm.province_id}/wards`,
+            `/shop/locations/provinces/${provinceId}/wards`,
         );
         wards.value = data;
     } finally {
         loadingWards.value = false;
     }
 }
-async function addAddress() {
+function resetAddressForm() {
+    Object.assign(addressForm, {
+        label: "Nhà riêng",
+        recipient_name: account.value?.name || "",
+        phone: account.value?.phone || "",
+        province_id: "",
+        ward_id: "",
+        address_detail: "",
+        is_default: false,
+    });
+    wards.value = [];
+    editingAddressId.value = null;
+}
+function openCreateAddress() {
+    resetAddressForm();
+    showAddressForm.value = true;
+}
+function closeAddressForm() {
+    showAddressForm.value = false;
+    resetAddressForm();
+}
+async function editAddress(address) {
+    const provinceId = Number(address.province_id);
+    const wardId = Number(address.ward_id);
+    editingAddressId.value = address.id;
+    Object.assign(addressForm, {
+        label: address.label,
+        recipient_name: address.recipient_name,
+        phone: address.phone,
+        province_id: provinceId,
+        ward_id: "",
+        address_detail: address.address_detail,
+        is_default: Boolean(address.is_default),
+    });
+    showAddressForm.value = true;
+    await loadWards(provinceId);
+    await nextTick();
+    addressForm.ward_id = wardId;
+}
+async function saveAddress() {
     if (!validPhone(addressForm.phone))
-        return (error.value =
-            "Số điện thoại người nhận phải gồm 10 chữ số và đúng đầu số di động Việt Nam.");
+        return toast.warning("Số điện thoại người nhận phải gồm 10 chữ số và đúng đầu số di động Việt Nam.");
     await act(async () => {
-        await axios.post(`${base}/addresses`, addressForm);
-        Object.assign(addressForm, {
-            label: "Nhà riêng",
-            recipient_name: "",
-            phone: "",
-            province_id: "",
-            ward_id: "",
-            address_detail: "",
-            is_default: false,
-        });
-        wards.value = [];
-        showAddressForm.value = false;
+        const updating = Boolean(editingAddressId.value);
+        if (updating) {
+            await axios.put(`${base}/addresses/${editingAddressId.value}`, addressForm);
+        } else {
+            await axios.post(`${base}/addresses`, addressForm);
+        }
+        closeAddressForm();
         await refresh();
-        notice.value = "Đã thêm địa chỉ nhận hàng.";
+        notice.value = updating ? "Đã cập nhật địa chỉ nhận hàng." : "Đã thêm địa chỉ nhận hàng.";
+        toast.success(notice.value);
     });
 }
-async function deleteAddress(id) {
-    if (!confirm("Bạn muốn xóa địa chỉ này?")) return;
-    await act(async () => {
-        await axios.delete(`${base}/addresses/${id}`);
-        await refresh();
-        notice.value = "Đã xóa địa chỉ.";
+function openDeleteAddressModal(address) {
+    Object.assign(actionModal, {
+        open: true, type: "delete-address", target: address, error: "",
+        title: "Xóa địa chỉ đã lưu",
+        message: `Bạn có chắc muốn xóa địa chỉ “${address.label}”? Thao tác này không thể hoàn tác.`,
+        confirmText: "Xóa địa chỉ", loadingText: "Đang xóa...",
     });
 }
-async function cancelOrder(order) {
-    const reason = prompt("Vui lòng nhập lý do hủy đơn:");
-    if (!reason) return;
-    await act(async () => {
-        await axios.post(`${base}/orders/${order.code}/cancel`, { reason });
-        await refresh();
-        notice.value = "Đã hủy đơn hàng.";
+function openCancelModal(order) {
+    Object.assign(actionModal, {
+        open: true, type: "cancel-order", target: order, error: "",
+        title: "Hủy đơn hàng",
+        message: `Bạn đang yêu cầu hủy đơn ${order.code}. Thao tác này không thể hoàn tác.`,
+        confirmText: "Xác nhận hủy đơn", loadingText: "Đang hủy đơn...",
     });
+}
+function closeActionModal() {
+    if (actionModal.loading) return;
+    actionModal.open = false;
+    actionModal.error = "";
+}
+async function confirmModalAction(reason) {
+    actionModal.loading = true;
+    actionModal.error = "";
+    try {
+        if (actionModal.type === "delete-address") {
+            await axios.delete(`${base}/addresses/${actionModal.target.id}`);
+            await refresh();
+            notice.value = "Đã xóa địa chỉ.";
+            toast.success(notice.value);
+        } else if (actionModal.type === "cancel-order") {
+            await axios.post(`${base}/orders/${actionModal.target.code}/cancel`, { reason });
+            await refresh();
+            notice.value = "Đã hủy đơn hàng.";
+            toast.success(notice.value);
+        }
+        closeActionModal();
+    } catch (e) {
+        actionModal.error = message(e);
+    } finally {
+        actionModal.loading = false;
+        if (!actionModal.error) actionModal.open = false;
+    }
+}
+function repurchaseOrder(order) {
+    let added = 0;
+    let unavailable = 0;
+    let reduced = 0;
+    for (const item of order.items || []) {
+        const product = item.repurchase;
+        if (!product?.available) {
+            unavailable++;
+            continue;
+        }
+        const quantity = Math.min(Number(product.requested_quantity || 1), Number(product.available_stock || 0));
+        if (quantity <= 0) {
+            unavailable++;
+            continue;
+        }
+        if (quantity < Number(product.requested_quantity || 1)) reduced++;
+        add(product, quantity);
+        added++;
+    }
+    if (!added) return toast.warning("Các sản phẩm trong đơn hiện không còn khả dụng để mua lại.");
+    if (unavailable || reduced) toast.warning("Một số sản phẩm đã hết hàng hoặc số lượng được điều chỉnh theo tồn kho hiện tại.");
+    else toast.success("Đã thêm lại toàn bộ sản phẩm vào giỏ hàng.");
+    router.visit(`/shop/${props.store.slug}/cart`);
 }
 async function act(callback) {
     saving.value = true;
@@ -644,6 +753,7 @@ async function act(callback) {
         await callback();
     } catch (e) {
         error.value = message(e);
+        toast.error(error.value);
     } finally {
         saving.value = false;
     }
@@ -673,7 +783,7 @@ const SectionTitle = defineComponent({
 });
 const OrderCard = defineComponent({
     props: ["order", "store"],
-    emits: ["cancel"],
+    emits: ["cancel", "repurchase"],
     setup: (p, { emit }) =>
         () =>
             h("article", { class: "border border-black/15 bg-white/55 p-6" }, [
@@ -734,6 +844,17 @@ const OrderCard = defineComponent({
                               "Hủy đơn hàng",
                           )
                         : null,
+                    p.order.repurchasable
+                        ? h(
+                              "button",
+                              {
+                                  type: "button",
+                                  class: "rounded-full border border-black/20 px-5 py-2.5 text-xs font-black transition hover:bg-[#d8ff43]",
+                                  onClick: () => emit("repurchase", p.order),
+                              },
+                              "Mua lại",
+                          )
+                        : null,
                 ]),
             ]),
 });
@@ -755,7 +876,11 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
+    if (account.value) startNotifications();
 });
+useAutoApiRefresh(async () => {
+    if (account.value) await refresh();
+}, 20000);
 </script>
 
 <style scoped>

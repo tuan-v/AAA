@@ -241,6 +241,11 @@ class AppServiceProvider extends ServiceProvider
                     'name' => 'Bán hàng tại quầy',
                     'path' => '/sale/pos',
                 ] : null,
+                $this->can('phieu_giam_gia.xem') ? [
+                    'icon' => 'ShoppingCartIcon',
+                    'name' => 'Phiếu giảm giá',
+                    'path' => '/sale/coupons',
+                ] : null,
                 ['icon' => 'DocsIcon', 'name' => 'Hướng dẫn sử dụng', 'path' => '/guide'],
             ])),
 
@@ -298,6 +303,12 @@ class AppServiceProvider extends ServiceProvider
                     'icon' => 'TransactionIcon',
                     'name' => 'Giao dịch',
                     'path' => '/accountant/transactions',
+                ] : null,
+
+                $this->can('doi_soat_cod.xem') ? [
+                    'icon' => 'TruckIcon',
+                    'name' => 'Đối soát COD',
+                    'path' => '/accountant/cod-reconciliations',
                 ] : null,
 
                 $this->can('phieu_kho.xem') ? [

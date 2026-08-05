@@ -9,6 +9,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseSlipItem;
 use App\Services\ActivityLogService;
 use App\Services\CompanyCurrencyService;
+use App\Services\CouponService;
 use App\Services\CustomerDebtService;
 use App\Services\NotificationService;
 use App\Services\OrderQuantityValidationService;
@@ -45,6 +46,7 @@ class SalesOrderController extends Controller
             'items.product.stocks',
             'items.product.unit',
             'warehouseSlips',
+            'shippingPartner:id,code,name',
         ])->whereIn('status', [
             'pending',
             'approved',
@@ -99,7 +101,15 @@ class SalesOrderController extends Controller
                 2
             );
 
-            $total = $subtotal + $vatAmount;
+            $shippingFee = round(
+                ($item->shipping_fee ?? 0) * $item->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
+            $discountAmount = round(
+                ($item->discount_amount ?? 0) * $item->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
+            $total = $subtotal + $vatAmount + $shippingFee - $discountAmount;
             $totalQuantity = $item->items->sum('quantity');
 
             return [
@@ -110,6 +120,11 @@ class SalesOrderController extends Controller
                 'shipping_method' => $item->shipping_method,
                 'shipping_fee' => (float) ($item->shipping_fee ?? 0),
                 'tracking_code' => $item->tracking_code,
+                'shipping_partner' => $item->shippingPartner?->only(['id', 'code', 'name']),
+                'payment_method' => $item->payment_method,
+                'payment_status' => $item->payment_status,
+                'cod_status' => $item->cod_status,
+                'cod_amount' => (float) ($item->cod_amount ?? 0),
                 'return_status' => $item->return_status,
                 'effective_status' => $item->effective_status,
                 'customer' => $item->customer,
@@ -119,6 +134,8 @@ class SalesOrderController extends Controller
                 'exchange_rate' => $item->exchange_rate,
                 'items' => $item->items,
                 'vat_amount' => round($vatAmount, 2),
+                'shipping_fee' => $shippingFee,
+                'discount_amount' => $discountAmount,
                 'total_amount' => round($total, 2),
                 'total_quantity' => $totalQuantity,
                 'expected_delivery_date' => $item->expected_delivery_date?->format('d/m/Y'),
@@ -159,8 +176,7 @@ class SalesOrderController extends Controller
                 }
             }
             $hasExport = collect($approvedExported)->sum() > 0;
-            $isFullyExported = $order->items->every(fn ($item) =>
-                (float) ($approvedExported[$item->product_id] ?? 0) >= (float) $item->quantity
+            $isFullyExported = $order->items->every(fn ($item) => (float) ($approvedExported[$item->product_id] ?? 0) >= (float) $item->quantity
             );
             $warehouseStatus = match (true) {
                 $order->return_status === 'pending_warehouse' => 'return_pending_warehouse',
@@ -192,7 +208,15 @@ class SalesOrderController extends Controller
                 2
             );
 
-            $total = $subtotal + $vatAmount;
+            $shippingFee = round(
+                ($order->shipping_fee ?? 0) * $order->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
+            $discountAmount = round(
+                ($order->discount_amount ?? 0) * $order->exchange_rate / ($companyCurrency->exchange_rate ?: 1),
+                2
+            );
+            $total = $subtotal + $vatAmount + $shippingFee - $discountAmount;
             $totalQuantity = $order->items->sum('quantity');
 
             return [
@@ -206,6 +230,8 @@ class SalesOrderController extends Controller
                 'currency' => $companyCurrency ?: $order->currency,
                 'items' => $order->items,
                 'vat_amount' => round($vatAmount, 2),
+                'shipping_fee' => $shippingFee,
+                'discount_amount' => $discountAmount,
                 'total_amount' => round($total, 2),
                 'total_quantity' => $totalQuantity,
                 'expected_delivery_date' => $order->expected_delivery_date->format('d/m/Y'),
@@ -280,6 +306,7 @@ class SalesOrderController extends Controller
             'approvedBy',
             'province',
             'ward',
+            'posCoupon',
         ])->findOrFail($id);
 
         // Tính toán thêm exported quantity
@@ -319,6 +346,7 @@ class SalesOrderController extends Controller
         $order->total_amount = round(
             (float) $order->subtotal
             + (float) ($order->vat_amount ?? 0)
+            + (float) ($order->shipping_fee ?? 0)
             - (float) ($order->discount_amount ?? 0),
             2
         );
@@ -335,6 +363,7 @@ class SalesOrderController extends Controller
     {
         $validated = $request->validate([
             'source_order_id' => 'nullable|integer',
+            'coupon_code' => ['nullable', 'string', 'max:100'],
             'customer_id' => 'required|exists:customers,id',
             'currency_id' => 'required|exists:currencies,id',
 
@@ -488,11 +517,15 @@ class SalesOrderController extends Controller
                 $total += $amount + $vatAmount;
             }
 
+            ['coupon' => $coupon, 'discount' => $discount] = app(CouponService::class)
+                ->resolve($company->id, $validated['coupon_code'] ?? null, 'admin', $subtotal, (int) $validated['customer_id'], true);
             $order->update([
                 'subtotal' => $subtotal,
                 'vat_amount' => round($vatAmountTotal, 2),
-                'total_amount' => $total,
+                'discount_amount' => $discount,
+                'total_amount' => round(max(0, $total - $discount), 2),
             ]);
+            app(CouponService::class)->applyToOrder($order, $coupon, $discount, 'admin', false);
 
             DB::commit();
 
@@ -531,12 +564,13 @@ class SalesOrderController extends Controller
         if (! in_array($order->status, ['draft', 'pending'], true)) {
 
             return response()->json([
-                'message' => 'Chỉ được chỉnh sửa hóa đơn chờ hoặc đơn đang chờ xác nhận.',
+                'message' => 'Chá»‰ Ä‘Æ°á»£c chá»‰nh sá»­a hÃ³a Ä‘Æ¡n chá» hoáº·c Ä‘Æ¡n Ä‘ang chá» xÃ¡c nháº­n.',
             ], 422);
         }
 
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
+            'coupon_code' => ['nullable', 'string', 'max:100'],
             'currency_id' => ['nullable', 'exists:currencies,id'],
             'province_id' => ['nullable'],
             'ward_id' => ['nullable'],
@@ -648,11 +682,17 @@ class SalesOrderController extends Controller
                 $total += $lineAmount + $lineVat;
             }
 
+            app(CouponService::class)->reverseForOrder($order);
+            ['coupon' => $coupon, 'discount' => $discount] = app(CouponService::class)
+                ->resolve($company->id, $validated['coupon_code'] ?? null, 'admin', $subtotal, (int) $validated['customer_id'], true, $order->id);
             $order->update([
                 'subtotal' => round($subtotal, 2),
                 'vat_amount' => round($vatAmountTotal, 2),
-                'total_amount' => round($total, 2),
+                'discount_amount' => $discount,
+                'pos_coupon_id' => $coupon?->id,
+                'total_amount' => round(max(0, $total - $discount), 2),
             ]);
+            app(CouponService::class)->applyToOrder($order, $coupon, $discount, 'admin', false);
             DB::commit();
 
             $this->notificationService->createForPermission(
@@ -676,7 +716,7 @@ class SalesOrderController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => $e->getMessage()], 422);
         }
     }
 
@@ -696,6 +736,7 @@ class SalesOrderController extends Controller
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
             ]);
+            if ($order->sales_channel !== 'storefront') app(CouponService::class)->redeemForOrder($order);
             ActivityLogService::log(
                 $order,
                 'approve',
@@ -727,22 +768,14 @@ class SalesOrderController extends Controller
         ]);
     }
 
-    public function submitForApproval($id)
+    public function cancel(Request $request, $id)
     {
-        $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
-        if ($order->status !== 'draft') {
-            return response()->json(['message' => 'Chỉ hóa đơn chờ mới có thể gửi xác nhận.'], 422);
-        }
-
-        $order->update(['status' => 'pending', 'submitted_at' => now()]);
-        ActivityLogService::log($order, 'submit', "Gửi xác nhận đơn bán {$order->code}",
-            ['status' => 'draft'], ['status' => 'pending']);
-
-        return response()->json(['message' => 'Đã gửi đơn bán chờ xác nhận.']);
-    }
-
-    public function cancel($id)
-    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'reason.required' => 'Vui lòng nhập lý do hủy đơn.',
+            'reason.min' => 'Lý do hủy đơn phải có ít nhất 5 ký tự.',
+        ]);
         $order = SalesOrder::withCount('warehouseSlips')
             ->where('company_id', $this->companyId())
             ->findOrFail($id);
@@ -760,30 +793,54 @@ class SalesOrderController extends Controller
         }
 
         $oldStatus = $order->status;
-        $order->update(['status' => 'cancelled']);
+        $order->update([
+            'status' => 'cancelled',
+            'cancellation_reason' => $validated['reason'],
+        ]);
+        app(CouponService::class)->reverseForOrder($order);
         ActivityLogService::log(
             $order,
             'cancel',
             "Hủy đơn bán {$order->code}",
             ['status' => $oldStatus],
-            ['status' => 'cancelled']
+            ['status' => 'cancelled', 'cancellation_reason' => $validated['reason']]
         );
 
-        if ($order->created_by) {
+        if ($order->created_by && $order->sales_channel !== 'storefront') {
             $this->notificationService->create(
                 (int) $order->created_by,
                 (int) $order->company_id,
                 'Đơn bán đã bị hủy',
-                "Đơn bán {$order->code} của bạn đã bị hủy.",
+                "Đơn bán {$order->code} của bạn đã bị hủy. Lý do: {$validated['reason']}",
                 [
                     'priority' => 'high',
                     'sales_order_id' => $order->id,
                     'status' => 'cancelled',
                     'event_type' => 'sales_order_cancelled',
+                    'cancellation_reason' => $validated['reason'],
                     'toast_type' => 'error',
                 ],
                 '/sale/orders',
                 category: 'sale',
+            );
+        }
+
+        if ($order->sales_channel === 'storefront' && $order->customer_account_id) {
+            $this->notificationService->createForCustomerAccount(
+                (int) $order->customer_account_id,
+                (int) $order->company_id,
+                'Đơn hàng đã bị hủy',
+                "Đơn {$order->code} đã được cửa hàng hủy. Lý do: {$validated['reason']}",
+                [
+                    'sales_order_id' => $order->id,
+                    'order_code' => $order->code,
+                    'status' => 'cancelled',
+                    'event_type' => 'storefront_order_cancelled_by_manager',
+                    'cancellation_reason' => $validated['reason'],
+                    'toast_type' => 'warning',
+                ],
+                "/shop/{$order->company->storefront_slug}/my-account/orders/{$order->code}",
+                'sale'
             );
         }
 
@@ -847,7 +904,12 @@ class SalesOrderController extends Controller
 
         $order->subtotal = round($order->items->sum('amount'), 2);
         $order->vat_amount = round(($order->vat_amount ?? 0) * ($order->exchange_rate ?? 1), 2);
-        $order->total_amount = round($order->subtotal + $order->vat_amount, 2);
+        $order->shipping_fee = round(($order->shipping_fee ?? 0) * ($order->exchange_rate ?? 1), 2);
+        $order->discount_amount = round(($order->discount_amount ?? 0) * ($order->exchange_rate ?? 1), 2);
+        $order->total_amount = round(
+            $order->subtotal + $order->vat_amount + $order->shipping_fee - $order->discount_amount,
+            2
+        );
         $order->setRelation('currency', $companyCurrency ?: $order->currency);
         $order->setAttribute('can_export', $order->return_status === null
             && in_array($order->status, ['approved', 'partial'], true));
