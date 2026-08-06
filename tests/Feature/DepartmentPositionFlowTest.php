@@ -11,6 +11,7 @@ use App\Events\NotificationCreated;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DepartmentDemoSeeder;
 use Database\Seeders\DepartmentEmployeeDemoSeeder;
+use Database\Seeders\PositionDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,73 @@ use Tests\TestCase;
 class DepartmentPositionFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_company_director_role_is_immutable_when_editing_the_owner(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+
+        $this->actingAs($owner)->putJson("/api/users/user/{$owner->id}", [
+            'name' => $owner->name,
+            'username' => $owner->username,
+            'email' => $owner->email,
+            'phone' => $owner->phone,
+            'password' => null,
+            'password_confirmation' => null,
+            'status' => User::STATUS_ACTIVE,
+            'role' => 'Quản lý nhân sự',
+            'department_id' => null,
+            'position_id' => null,
+        ])->assertOk();
+
+        $this->assertTrue($owner->fresh()->hasRole('Giám đốc'));
+        $this->assertFalse($owner->fresh()->hasRole('Quản lý nhân sự'));
+    }
+
+    public function test_company_cannot_assign_a_second_director(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed([DepartmentDemoSeeder::class, PositionDemoSeeder::class]);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $department = Department::where('company_id', $owner->company_id)->where('code', 'PB-002')->firstOrFail();
+        $position = Position::where('company_id', $owner->company_id)->where('code', 'CV-002')->firstOrFail();
+
+        $this->actingAs($owner)->postJson('/api/users/user', [
+            'name' => 'Giám đốc thứ hai',
+            'username' => 'second_director',
+            'email' => 'second-director@example.com',
+            'phone' => '0909999999',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'status' => User::STATUS_ACTIVE,
+            'role' => 'Giám đốc',
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('role');
+    }
+
+    public function test_role_must_match_the_selected_department_and_position(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed([DepartmentDemoSeeder::class, PositionDemoSeeder::class]);
+        $owner = User::where('email', 'admin@demo.vn')->firstOrFail();
+        $employee = User::where('email', 'hr@demo.vn')->firstOrFail();
+        $department = Department::where('company_id', $owner->company_id)->where('code', 'PB-002')->firstOrFail();
+        $position = Position::where('company_id', $owner->company_id)->where('code', 'CV-002')->firstOrFail();
+
+        $this->actingAs($owner)->putJson("/api/users/user/{$employee->id}", [
+            'name' => $employee->name,
+            'username' => $employee->username,
+            'email' => $employee->email,
+            'phone' => $employee->phone,
+            'password' => null,
+            'password_confirmation' => null,
+            'status' => User::STATUS_ACTIVE,
+            'role' => 'Quản lý mua hàng',
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('role');
+    }
 
     public function test_hr_account_can_load_role_options_without_role_management_permission(): void
     {

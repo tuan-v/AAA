@@ -70,6 +70,7 @@ class SalesOrder extends Model
         'completed_at',
         'return_status',
         'returned_at',
+        'source_order_id',
     ];
 
     protected $casts = [

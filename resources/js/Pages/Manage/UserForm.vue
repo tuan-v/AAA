@@ -266,12 +266,13 @@
                                 ></i>
                                 <select
                                     v-model="form.role"
+                                    :disabled="isCompanyOwner || !form.department_id || !form.position_id"
                                     :class="errors.role ? 'border-red-400' : ''"
-                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white"
+                                    class="w-full appearance-none border border-gray-200 rounded-lg pl-5 pr-8 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
                                 >
-                                    <option value="" disabled>Chọn vai trò</option>
+                                    <option value="" disabled>{{ rolePlaceholder }}</option>
                                     <option
-                                        v-for="role in roles"
+                                        v-for="role in filteredRoles"
                                         :key="role.id"
                                         :value="role.name"
                                     >
@@ -283,6 +284,8 @@
                                 ></i>
                             </div>
                             <p v-if="errors.role" class="mt-1 text-xs text-red-600">{{ errors.role[0] }}</p>
+                            <p v-else-if="isCompanyOwner" class="mt-1 text-xs text-indigo-600">Vai trò Giám đốc được cố định cho chủ công ty.</p>
+                            <p v-else class="mt-1 text-xs text-gray-500">Vai trò được xác định theo phòng ban và chức vụ.</p>
                         </div>
 
                         <div class="order-1">
@@ -465,6 +468,35 @@ const positions = ref([]);
 const permissions = computed(() => page.props.auth?.permissions || []);
 const canCreateDepartment = computed(() => permissions.value.includes("phong_ban.them"));
 const canCreatePosition = computed(() => permissions.value.includes("chuc_vu.them"));
+const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+const selectedDepartment = computed(() => departments.value.find(item => Number(item.id) === Number(form.department_id)) || null);
+const selectedPosition = computed(() => positions.value.find(item => Number(item.id) === Number(form.position_id)) || null);
+const expectedRoleName = computed(() => {
+    if (isCompanyOwner.value) return "Giám đốc";
+    if (!selectedDepartment.value || !selectedPosition.value) return "";
+    const department = normalizeText(`${selectedDepartment.value.code || ""} ${selectedDepartment.value.name || ""}`);
+    const position = normalizeText(selectedPosition.value.name);
+    let module = "";
+    if (["pb-002", "nhan su", "hanh chinh"].some(value => department.includes(value))) module = "nhân sự";
+    else if (["pb-003", "mua hang", "thu mua"].some(value => department.includes(value))) module = "mua hàng";
+    else if (["pb-004", "kho", "van"].some(value => department.includes(value))) module = "kho";
+    else if (["pb-005", "kinh doanh", "ban hang"].some(value => department.includes(value))) module = "bán hàng";
+    else if (["pb-006", "ke toan", "tai chinh"].some(value => department.includes(value))) module = "kế toán";
+    if (!module) return "";
+    const manager = ["truong", "pho phong", "quan ly", "giam sat", "lead", "manager"].some(value => position.includes(value));
+    return `${manager ? "Quản lý" : "Nhân viên"} ${module}`;
+});
+const filteredRoles = computed(() => {
+    if (isCompanyOwner.value) return roles.value.filter(role => role.name === "Giám đốc");
+    if (!expectedRoleName.value) return roles.value.filter(role => role.name !== "Giám đốc");
+    return roles.value.filter(role => role.name === expectedRoleName.value);
+});
+const rolePlaceholder = computed(() => {
+    if (isCompanyOwner.value) return "Giám đốc";
+    if (!form.department_id) return "Chọn phòng ban trước";
+    if (!form.position_id) return "Chọn chức vụ trước";
+    return "Chọn vai trò phù hợp";
+});
 const departmentOptions = computed(() =>
     departments.value.map((department) => ({
         value: department.id,
@@ -575,6 +607,15 @@ const getPositions = async (departmentId) => {
     }
 };
 watch(() => form.department_id, value => getPositions(value), { immediate: true });
+watch([expectedRoleName, () => roles.value.length], ([roleName]) => {
+    if (isCompanyOwner.value) {
+        form.role = "Giám đốc";
+    } else if (roleName && roles.value.some(role => role.name === roleName)) {
+        form.role = roleName;
+    } else if (form.role === "Giám đốc" || (roleName && form.role !== roleName)) {
+        form.role = "";
+    }
+});
 
 function openDepartmentModal() {
     Object.assign(departmentForm, { name: "", description: "", status: "active" });

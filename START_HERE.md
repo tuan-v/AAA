@@ -18,8 +18,10 @@
 | Quản trị | `/dashboard`, `/user`, `/role` | `resources/js/Pages/Manage` | User/Role/Permission controllers |
 | Mua hàng | `/purchase` | `resources/js/Pages/Purchase` | `PurchaseOrderController`, services mua hàng |
 | Bán hàng | `/sale` | `resources/js/Pages/Sale` | `SalesOrderController`, services bán hàng |
+| POS & khuyến mãi | `/sale/pos`, `/sale/coupons` | `resources/js/Pages/Sale/Pos`, `resources/js/Pages/Sale/Coupon` | `PosController`, `CouponController` |
+| Cửa hàng trực tuyến | `/shop`, `/shop/{storefront_slug}` | `resources/js/Pages/Storefront` | `StorefrontController`, `StorefrontAccountController` |
 | Kho | `/warehouse` | `resources/js/Pages/Warehouse` | `WarehouseSlipController`, inventory services |
-| Kế toán | `/accountant` | `resources/js/Pages/Accountant` | `TransactionController`, `TransactionService`, debt/ledger services |
+| Kế toán | `/accountant` | `resources/js/Pages/Accountant` | `TransactionController`, `TransactionService`, debt/ledger/COD services |
 | Hướng dẫn người dùng | `/guide` | `resources/js/Pages/Guide` | Inertia route trong `routes/web.php` |
 
 ## Quy tắc không được quên
@@ -41,4 +43,3 @@ npm run build
 ```
 
 Kiểm tra thêm: permission, cô lập công ty, migration, thông báo/realtime, tài liệu nghiệp vụ và test hồi quy.
-

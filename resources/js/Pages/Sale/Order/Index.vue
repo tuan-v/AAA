@@ -205,6 +205,7 @@ const filters = [
 ];
 
 const statusConfig = {
+    draft: { text: "Nháp", class: "bg-gray-100 text-gray-700" },
     pending: { text: "Chờ xác nhận", class: "bg-yellow-100 text-yellow-700" },
     approved: { text: "Đã xác nhận", class: "bg-blue-100 text-blue-700" },
     partial: { text: "Đang giao hàng", class: "bg-purple-100 text-purple-700" },
@@ -356,10 +357,7 @@ const actions = [
         title: "Chỉnh sửa",
         disabled: (row) => isLocked(row),
         class: (row) => (isLocked(row) ? "opacity-40 cursor-not-allowed" : ""),
-        onClick: (item) => {
-            if (item.status === "approved") return;
-            openEdit(item);
-        },
+        onClick: (item) => openEdit(item),
         hidden: (item) =>
             !can("don_ban.sua") || HIDDEN_EDIT_STATUSES.includes(item.status),
     },
@@ -389,7 +387,7 @@ const actions = [
         confirm: false,
         onClick: (item) => cancelOrder(item),
         hidden: (item) =>
-            !can("don_ban.huy") || item.status !== "pending",
+            !can("don_ban.huy") || !["draft", "pending"].includes(item.status),
     },
     {
         icon: DetailButtonIcon,
@@ -398,7 +396,7 @@ const actions = [
         hidden: () => !can("don_ban.xem_chi_tiet"),
     },
 ];
-const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"];
+const HIDDEN_EDIT_STATUSES = ["approved", "completed", "partial", "cancelled"]; // draft + pending hiển thị nút edit
 const LOCKED_STATUSES = ["approved", "partial", "completed"];
 const { confirmAction } = useActionConfirm();
 
@@ -475,8 +473,8 @@ function openDuplicate(order) {
 }
 
 async function openEdit(item) {
-    if (item.status !== "pending") {
-        toast.warning("Chỉ được chỉnh sửa đơn bán đang chờ xác nhận.");
+    if (!["draft", "pending"].includes(item.status)) {
+        toast.warning("Chỉ được chỉnh sửa đơn bán đang nháp hoặc chờ xác nhận.");
         return;
     }
     try {

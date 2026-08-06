@@ -48,6 +48,7 @@ class SalesOrderController extends Controller
             'warehouseSlips',
             'shippingPartner:id,code,name',
         ])->whereIn('status', [
+            'draft',
             'pending',
             'approved',
             'partial',
@@ -464,8 +465,9 @@ class SalesOrderController extends Controller
             $last = SalesOrder::latest('id')->first();
 
             $order = SalesOrder::create([
-                'company_id' => auth()->user()->company_id,
+                'company_id' => $company->id,
 
+                'source_order_id' => $validated['source_order_id'] ?? null,
                 'customer_id' => $validated['customer_id'],
                 'currency_id' => $validated['currency_id'],
                 'exchange_rate' => $exchangeRate,
@@ -475,7 +477,7 @@ class SalesOrderController extends Controller
                 'address_detail' => $validated['address_detail'] ?? null,
                 'note' => $validated['note'] ?? null,
 
-                'status' => $validated['status'] ?? 'pending',
+                'status' => (! empty($validated['status']) && $validated['status'] !== 'draft') ? $validated['status'] : 'pending',
                 'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
 
                 'vat_amount' => $validated['vat_amount'],
@@ -564,7 +566,7 @@ class SalesOrderController extends Controller
         if (! in_array($order->status, ['draft', 'pending'], true)) {
 
             return response()->json([
-                'message' => 'Chá»‰ Ä‘Æ°á»£c chá»‰nh sá»­a hÃ³a Ä‘Æ¡n chá» hoáº·c Ä‘Æ¡n Ä‘ang chá» xÃ¡c nháº­n.',
+                'message' => 'Chỉ được chỉnh sửa đơn hàng chờ duyệt hoặc đơn đang chờ xác nhận.',
             ], 422);
         }
 
@@ -718,6 +720,57 @@ class SalesOrderController extends Controller
 
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Chuyển đơn bán từ trạng thái 'draft' → 'pending' (Chờ xác nhận).
+     * Đây là bước xác nhận nội bộ trước khi người có quyền duyệt đơn.
+     */
+    public function submitForApproval($id)
+    {
+        $order = SalesOrder::where('company_id', $this->companyId())->findOrFail($id);
+
+        if ($order->status !== 'draft') {
+            return response()->json([
+                'message' => 'Chỉ được gửi duyệt đơn bán đang ở trạng thái nháp.',
+            ], 422);
+        }
+
+        $order->update([
+            'status' => 'pending',
+            'submitted_at' => now(),
+        ]);
+
+        ActivityLogService::log(
+            $order,
+            'submit',
+            "Gửi duyệt đơn bán {$order->code}",
+            ['status' => 'draft'],
+            ['status' => 'pending']
+        );
+
+        $company = auth()->user()->company ?? auth()->user()->companies()->first();
+
+        if ($company) {
+            $this->notificationService->createForPermission(
+                'don_ban.duyet',
+                $company->id,
+                'Đơn bán chờ duyệt',
+                "Đơn bán {$order->code} vừa được gửi và đang chờ duyệt.",
+                [
+                    'sales_order_id' => $order->id,
+                    'status' => 'pending',
+                    'event_type' => 'sales_order_submitted',
+                    'toast_type' => 'info',
+                ],
+                '/sale/orders',
+                auth()->id(),
+                'accountant',
+                includeCompanyOwner: false
+            );
+        }
+
+        return response()->json(['message' => 'Gửi duyệt đơn bán thành công.']);
     }
 
     public function approve($id, CustomerDebtService $customerDebtService)

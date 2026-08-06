@@ -5,11 +5,15 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\Department;
+use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -225,6 +229,13 @@ class UserController extends Controller
             ->first();
         abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
 
+        $this->validateRoleForOrganization(
+            $assignableRole,
+            (int) auth()->user()->company_id,
+            (int) $validated['department_id'],
+            (int) $validated['position_id']
+        );
+
         $actor = $request->user();
         $user = User::create([
             'name' => $validated['name'],
@@ -303,11 +314,24 @@ class UserController extends Controller
             ],
         ]);
 
-        $assignableRole = Role::query()
-            ->visibleTo(auth()->user())
-            ->where('name', $validated['role'])
-            ->first();
-        abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
+        if ($isCompanyOwner) {
+            $assignableRole = $user->roles()->first();
+            abort_unless($assignableRole?->name === 'Giám đốc', 422, 'Chủ công ty phải giữ vai trò Giám đốc.');
+        } else {
+            $assignableRole = Role::query()
+                ->visibleTo(auth()->user())
+                ->where('name', $validated['role'])
+                ->first();
+            abort_unless($assignableRole, 403, 'Bạn không thể gán vai trò cao hơn vai trò của mình.');
+
+            $this->validateRoleForOrganization(
+                $assignableRole,
+                (int) auth()->user()->company_id,
+                (int) $validated['department_id'],
+                (int) $validated['position_id'],
+                (int) $user->id
+            );
+        }
 
         $data = [
             'name' => $validated['name'],
@@ -327,7 +351,9 @@ class UserController extends Controller
         // 🔥 đảm bảo vẫn thuộc company hiện tại
         $user->companies()->sync([auth()->user()->company_id]);
 
-        $user->syncRoles([$assignableRole]);
+        if (! $isCompanyOwner) {
+            $user->syncRoles([$assignableRole]);
+        }
 
         return response()->json([
             'message' => 'Cập nhật thành công',
@@ -535,6 +561,69 @@ class UserController extends Controller
             403,
             'Bạn không thể chỉnh sửa tài khoản có vai trò cao hơn mình.'
         );
+    }
+
+    private function validateRoleForOrganization(
+        Role $role,
+        int $companyId,
+        int $departmentId,
+        int $positionId,
+        ?int $targetUserId = null
+    ): void {
+        if ($role->name === 'Giám đốc') {
+            $directorExists = User::query()
+                ->where('company_id', $companyId)
+                ->when($targetUserId, fn ($query) => $query->where('id', '!=', $targetUserId))
+                ->whereHas('roles', fn ($query) => $query->where('name', 'Giám đốc'))
+                ->exists();
+
+            throw ValidationException::withMessages([
+                'role' => [$directorExists
+                    ? 'Mỗi công ty chỉ có một Giám đốc.'
+                    : 'Vai trò Giám đốc chỉ dành cho chủ công ty và không thể gán trong màn hình nhân sự.'],
+            ]);
+        }
+
+        $department = Department::query()
+            ->where('company_id', $companyId)
+            ->whereKey($departmentId)
+            ->firstOrFail();
+        $position = Position::query()
+            ->where('company_id', $companyId)
+            ->where('department_id', $department->id)
+            ->whereKey($positionId)
+            ->firstOrFail();
+
+        $allowedRoles = $this->organizationRoleNames($department, $position);
+        if ($allowedRoles !== [] && ! in_array($role->name, $allowedRoles, true)) {
+            throw ValidationException::withMessages([
+                'role' => ['Vai trò không phù hợp với phòng ban và chức vụ đã chọn. Vai trò phù hợp: '.implode(', ', $allowedRoles).'.'],
+            ]);
+        }
+    }
+
+    private function organizationRoleNames(Department $department, Position $position): array
+    {
+        $departmentText = Str::lower(Str::ascii($department->code.' '.$department->name));
+        $positionText = Str::lower(Str::ascii($position->name));
+        $module = match (true) {
+            Str::contains($departmentText, ['pb-002', 'nhan su', 'hanh chinh']) => 'nhân sự',
+            Str::contains($departmentText, ['pb-003', 'mua hang', 'thu mua']) => 'mua hàng',
+            Str::contains($departmentText, ['pb-004', 'kho', 'van']) => 'kho',
+            Str::contains($departmentText, ['pb-005', 'kinh doanh', 'ban hang']) => 'bán hàng',
+            Str::contains($departmentText, ['pb-006', 'ke toan', 'tai chinh']) => 'kế toán',
+            default => null,
+        };
+
+        if ($module === null) {
+            return [];
+        }
+
+        $isManager = Str::contains($positionText, [
+            'truong', 'pho phong', 'quan ly', 'giam sat', 'lead', 'manager',
+        ]);
+
+        return [$isManager ? "Quản lý {$module}" : "Nhân viên {$module}"];
     }
 
     private function canReviewEmployee(Request $request): bool

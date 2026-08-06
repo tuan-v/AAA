@@ -894,9 +894,19 @@ watch(
         form.ward_id = order.ward_id || "";
         form.address_detail =
             order.address_detail || order.shipping_address || "";
-        form.expected_delivery_date = order.expected_delivery_date
-            ? String(order.expected_delivery_date).substring(0, 10)
-            : "";
+        const rawDate = order.expected_delivery_date;
+        if (rawDate) {
+            // API có thể trả về "dd/mm/yyyy" (d/m/Y) hoặc ISO "yyyy-mm-dd"
+            // InputDate cần format ISO "yyyy-mm-dd"
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+                const [day, month, year] = rawDate.split("/");
+                form.expected_delivery_date = `${year}-${month}-${day}`;
+            } else {
+                form.expected_delivery_date = String(rawDate).substring(0, 10);
+            }
+        } else {
+            form.expected_delivery_date = "";
+        }
         form.note = order.note || "";
         form.coupon_code = order.coupon_code_snapshot || order.pos_coupon?.code || "";
 
@@ -981,7 +991,7 @@ async function submit() {
         subtotal: subtotal.value,
         vat_amount: vatAmount.value,
         total_amount: totalAmount.value,
-        status: form.id ? undefined : 'draft',
+        status: form.id ? undefined : 'pending',
         items: cleanItems,
     };
 

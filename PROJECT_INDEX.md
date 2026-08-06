@@ -4,7 +4,7 @@ Tài liệu này phân tích cấu trúc mã nguồn, các module nghiệp vụ,
 
 > Người mới nên bắt đầu tại [`MODULE_INDEX.md`](MODULE_INDEX.md) để tra cứu nhanh từng module nằm ở đâu trên FE, BE, database và test; quay lại tài liệu này khi cần hiểu sâu kiến trúc và luồng nghiệp vụ.
 
-> Cập nhật theo mã nguồn ngày 27/07/2026. Nguồn đúng cuối cùng khi tài liệu và code lệch nhau là `routes/api.php`, `routes/web.php` và implementation trong controller/service.
+> Cập nhật theo mã nguồn ngày 06/08/2026. Nguồn đúng cuối cùng khi tài liệu và code lệch nhau là `routes/api.php`, `routes/web.php` và implementation trong controller/service.
 
 ---
 
@@ -44,7 +44,7 @@ Tài liệu này phân tích cấu trúc mã nguồn, các module nghiệp vụ,
 - FE: Vue 3, Inertia.js 2, Vite 7, Tailwind CSS, Axios.
 - Realtime: Laravel Reverb + Echo.
 - Tác vụ nền: Laravel Queue.
-- Nghiệp vụ chính: quản trị nhân sự/phân quyền, mua hàng, bán hàng, kho, kế toán, dashboard, thông báo và nhật ký.
+- Nghiệp vụ chính: quản trị nhân sự/phân quyền, mua hàng, bán hàng/POS, storefront, kho/giao vận, kế toán/COD, dashboard, thông báo và nhật ký.
 - Đặc tả nghiệp vụ đầy đủ: [`Document.md`](Document.md).
 - Quy ước kiến trúc: [`resources/docs/ARCHITECTURE.md`](resources/docs/ARCHITECTURE.md).
 - Quy tắc FE: [`resources/docs/FRONTEND_COMPONENTS.md`](resources/docs/FRONTEND_COMPONENTS.md).
@@ -198,9 +198,10 @@ Axios dùng session cookie + CSRF của Laravel, không phải API token do FE t
 | Nhân sự | user, duyệt/từ chối/yêu cầu sửa, phòng ban, chức vụ | `Pages/Manage/User*`, `Manage/Department`, `Manage/Position` | `API/UserController`, `DepartmentController`, `PositionController` | `/api/users`, `/api/departments`, `/api/positions` |
 | Phân quyền | role, permission, gán quyền | `Pages/Manage/Role*`, `Permission*` | `RoleController`, `PermissionController` | `/api/roles`, `/api/permissions` |
 | Mua hàng | NCC, danh mục, đơn vị, sản phẩm, đơn mua | `Pages/Purchase/**` | `SupplierController`, `CategoryController`, `UnitController`, `ProductController`, `PurchaseOrderController` | `/api/purchase` |
-| Bán hàng | khách hàng và đơn bán | `Pages/Sale/**` | `CustomerController`, `SalesOrderController` | `/api/sale` |
+| Bán hàng | khách hàng, đơn bán, POS và coupon/khuyến mãi | `Pages/Sale/**` | `CustomerController`, `SalesOrderController`, `PosController`, `CouponController` | `/api/sale` |
+| Storefront | danh bạ shop, gian hàng, giỏ, checkout, tài khoản khách, địa chỉ, đơn và thông báo | `Pages/Storefront/**` | `StorefrontController`, `StorefrontAccountController` | web `/shop/*` |
 | Kho | kho, tồn, phiếu nhập/xuất, chuyển kho, biến động | `Pages/Warehouse/**` | `WarehouseController`, `WarehouseSlipController`, `WarehouseTransferController`, `WarehouseInventoryController`, `InventoryMovementController` | `/api/warehouse`, `/api/warehouses` |
-| Kế toán | tiền tệ, ngân hàng, tài khoản, giao dịch, sổ, công nợ, lãi lỗ | `Pages/Accountant/**` | controllers kế toán + `TransactionService` và các service số dư/công nợ | `/api/accountant` |
+| Kế toán | tiền tệ, ngân hàng, tài khoản, giao dịch, sổ, công nợ, đối soát COD, lãi lỗ | `Pages/Accountant/**` | controllers kế toán + `CodReconciliationController`, `TransactionService` và các service số dư/công nợ | `/api/accountant` |
 | Dashboard | tổng quan toàn hệ thống/từng module | `Pages/DashBoard.vue`, các `*/Dashboard.vue`, `components/dashboard/ModuleDashboard.vue` | `DashboardController` -> `DashboardService` -> `DashboardRepository` | `/api/dashboard` |
 | Thông báo/realtime | notification center, badge, refresh dữ liệu công ty | `components/Notifications`, `realtime/companyData.js` | `NotificationController/Service`, events, `BroadcastController` | `/api/notifications`, `/broadcasting/auth` |
 | Audit log | lịch sử hành động và trace | `Pages/AuditLog/**` | `AuditLogController`, `ActivityLogService`, middleware log | `/api/audit-logs` |
@@ -256,6 +257,15 @@ Route trang bắt đầu bằng `/sale`; JSON API bắt đầu bằng `/api/sale
 |---|---|---|---|
 | Khách hàng | danh sách, CRUD, khóa, địa chỉ, chi tiết đơn/công nợ | `Pages/Sale/Customer/*` | CRUD `/customers`, `/all`, `/next-code`, `/{id}/detail`, status, `/{id}/quick-order` -> `CustomerController`; `Customer`, `CustomerDebt` |
 | Đơn bán | tạo/sửa/xem, duyệt/hủy, kiểm tra sản phẩm và tồn khả dụng | `Pages/Sale/Order/*` | CRUD `/orders`, `POST /{id}/approve|cancel` -> `SalesOrderController`; `SalesOrder`, `SalesOrderItem`; dùng `CustomerDebtService`, `NotificationService` |
+| POS | đơn nháp, chọn khách/sản phẩm/kho, thanh toán và lịch sử bán tại quầy | `Pages/Sale/Pos/Index.vue` | `/api/sale/pos/options|drafts|orders|history` -> `PosController` |
+| Coupon/khuyến mãi | CRUD, giới hạn sử dụng, lịch sử áp dụng và voucher dùng chung với storefront | `Pages/Sale/Coupon/*` | `/api/sale/coupons`, `/{coupon}/usages` -> `CouponController`; `PosCoupon`, assignments/usages |
+
+### Storefront và tài khoản khách hàng
+
+- FE: `resources/js/Pages/Storefront/**`, component tại `resources/js/components/Storefront` và các composable `useStorefront*`.
+- Web route: `/shop`, `/shop/{company:storefront_slug}` cùng product, cart, checkout, account, address, notification và order detail/cancel trong `routes/web.php`.
+- BE: `StorefrontController`, `StorefrontAccountController`; dữ liệu chính gồm storefront fields của `Company`, `CustomerAccount`, `CustomerAddress`, `Notification` gắn `customer_account_id`, `SalesOrder` và coupon.
+- Checkout tạo đơn bán với snapshot người nhận/địa chỉ/tiền tệ; luồng sau checkout tiếp tục qua kho, giao vận, COD và thông báo.
 
 Form đơn bán gọi thêm `/api/products/for-select`, `/api/currencies/for-select`, `/api/provinces/{id}/wards` và `/api/sale/customers/{id}/detail`. Kho dùng các endpoint `warehouseIndex`, `stockOutData` và `availableForExport` của cùng `SalesOrderController` để tạo phiếu xuất.
 
@@ -269,6 +279,7 @@ Route trang bắt đầu bằng `/warehouse`. Do lịch sử phát triển, API 
 | Danh mục/đơn vị/sản phẩm | cùng master data nhưng permission theo ngữ cảnh kho | `Pages/Warehouse/Category`, `Unit`, `Product` | CRUD `/api/warehouse/categories|units|products` -> controller dùng chung với Mua hàng |
 | Đơn chờ kho | tổng hợp đơn mua cần nhập và đơn bán cần xuất | `Pages/Warehouse/Order/Index.vue` | `GET /api/warehouse/orders`, `/api/saleorders/warehouse`; chi tiết lấy từ API order |
 | Phiếu nhập/xuất | tạo từ order; kho xác nhận rồi kế toán duyệt/từ chối; chỉ kế toán duyệt mới làm thay đổi tồn/công nợ | `Pages/Warehouse/Slip/*` | CRUD `/api/warehouse/slips`, `POST /{id}/approve|accountant-approve|reject`, `/warehouse/orders/{id}/stock-in|stock-out`, `/available-for-export` -> `WarehouseSlipController` và order controllers; `WarehouseSlip`, `WarehouseSlipItem` |
+| Giao vận/hoàn hàng | gán đối tác vận chuyển, xác nhận giao, yêu cầu/nhận hàng hoàn và kế toán duyệt hoàn | `Pages/Warehouse/Slip/*` | `/shipping`, `/confirm-delivery`, `/request-delivery-return`, `/receive-delivery-return`, `/accountant-approve-delivery-return` -> `WarehouseSlipController` |
 | Chuyển kho | tạo, duyệt, hủy chuyển nội bộ | `Pages/Warehouse/Transfer/Index.vue` | `GET/POST /api/warehouse/transfers`, `POST /{id}/approve|cancel` -> `WarehouseTransferController`; `WarehouseTransfer`, items; dùng `OrderQuantityValidationService`, `InventoryMovementService` |
 | Biến động/tồn | tra cứu lịch sử nhập, xuất, chuyển và tồn hiện tại | `Pages/Warehouse/InventoryMovement/Index.vue`, detail kho | `GET /api/warehouse/inventory-movements`, `/inventory`, `/stocks` -> `InventoryMovementController`, `WarehouseInventoryController`, `WarehouseController`; `InventoryMovement` |
 
@@ -288,6 +299,7 @@ Route trang bắt đầu bằng `/accountant`; API bắt đầu bằng `/api/acc
 | Sổ tài khoản | biến động số dư theo giao dịch | `Pages/Accountant/AccountLedger/Index.vue` | `GET /account-ledgers`, `/accounts/{account}/ledger` -> `AccountLedgerController`; `AccountLedger` |
 | Công nợ khách | tổng hợp/chi tiết phải thu | `Pages/Accountant/Customer/*` | `GET /customers-debt`, `/{id}/detail` -> `CustomerController`; `CustomerDebt`, `CustomerPayment` |
 | Công nợ NCC | tổng hợp/chi tiết phải trả | `Pages/Accountant/Supplier/Index.vue` | `GET /suppliers-debt`, `/{id}/detail` -> `SupplierController`; `SupplierDebt` |
+| Đối soát COD | lập đợt đối soát theo đối tác giao hàng, ghi nhận tiền và tra chi tiết | `Pages/Accountant/CodReconciliation/Index.vue` | `/cod-reconciliations`, `/partners`, `/{reconciliation}` -> `CodReconciliationController` |
 | Lãi lỗ | báo cáo doanh thu/chi phí/lợi nhuận theo kỳ | `Pages/Accountant/Report/ProfitLoss.vue` | `GET /profit-loss-report` -> `Accountant/ProfitLossReportController` |
 
 `TransactionService` là trung tâm của luồng tiền: phối hợp `TransactionRepository`, `AccountBalanceService`, `LedgerService`, `CustomerDebtService`, `SupplierDebtService` và `NotificationService`. Việc duyệt giao dịch có thể đồng thời đổi số dư tài khoản, ghi sổ và giảm công nợ; luôn giữ database transaction và idempotency hiện có.

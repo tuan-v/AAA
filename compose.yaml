@@ -57,6 +57,8 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     env_file: .env.docker
+    ports:
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -76,7 +78,7 @@ services:
       - sh
       - -c
       - |
-        mysql -h db -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$$DB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; ALTER USER '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; GRANT ALL PRIVILEGES ON \`$$DB_DATABASE\`.* TO '$$DB_USERNAME'@'%'; FLUSH PRIVILEGES;"
+        mysql --default-character-set=utf8mb4 -h db -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$$DB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER IF NOT EXISTS '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; ALTER USER '$$DB_USERNAME'@'%' IDENTIFIED BY '$$DB_PASSWORD'; GRANT ALL PRIVILEGES ON \`$$DB_DATABASE\`.* TO '$$DB_USERNAME'@'%'; FLUSH PRIVILEGES;"
 
   tunnel:
     image: cloudflare/cloudflared:latest
