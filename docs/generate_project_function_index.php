@@ -376,6 +376,39 @@ function classMethodLine(string $path, string $method): int
     return 1;
 }
 
+function serviceResponsibility(string $service): string
+{
+    return match ($service) {
+        'AccountBalanceService' => 'tính và xây dựng lại số dư tài khoản từ dữ liệu giao dịch',
+        'CodReconciliationService' => 'tạo và xử lý phiên đối soát tiền thu hộ COD',
+        'CompanyCurrencyService' => 'xác định tiền tệ công ty và tỷ giá tại ngày chứng từ',
+        'CouponService' => 'kiểm tra, áp dụng và hoàn tác coupon theo vòng đời đơn',
+        'CustomerDebtService' => 'ghi nhận, thanh toán và tính công nợ khách hàng',
+        'DashboardService' => 'tổng hợp dữ liệu widget theo module và khoảng ngày',
+        'InventoryMovementService' => 'ghi biến động tồn và liên kết chứng từ nguồn',
+        'LedgerService' => 'ghi và truy vấn bút toán sổ tài khoản',
+        'NotificationService' => 'tạo và phân phối thông báo nội bộ',
+        'OrderQuantityValidationService' => 'kiểm tra số lượng lẻ theo cấu hình đơn vị tính; không kiểm tra tồn kho',
+        'StockService' => 'áp biến động phiếu kho vào tồn sản phẩm theo kho',
+        'SupplierDebtService' => 'ghi nhận, thanh toán và tính công nợ nhà cung cấp',
+        'TransactionService' => 'tạo/duyệt giao dịch, cập nhật số dư, ledger và đồng bộ công nợ',
+        default => 'đóng gói logic nghiệp vụ dùng lại của phân hệ',
+    };
+}
+
+function modelResponsibility(string $model): string
+{
+    return match ($model) {
+        'WarehouseProductStock' => 'tồn hiện tại của một sản phẩm tại một kho',
+        'InventoryMovement' => 'sổ biến động tồn có truy vết chứng từ nguồn',
+        'CustomerDebt' => 'phát sinh và điều chỉnh công nợ khách hàng',
+        'SupplierDebt' => 'phát sinh và điều chỉnh công nợ nhà cung cấp',
+        'AccountLedger' => 'bút toán làm cơ sở đối chiếu số dư tài khoản',
+        'Transaction' => 'chứng từ thu/chi/chuyển tiền và trạng thái duyệt',
+        default => 'dữ liệu nghiệp vụ của ' . $model,
+    };
+}
+
 function functionDependencyLinks(string $root, string $controllerSource, string $body): array
 {
     $dependencies = [];
@@ -395,7 +428,7 @@ function functionDependencyLinks(string $root, string $controllerSource, string 
             $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . $service . '.php';
             $key = 'service:' . $service . ':' . $call[2];
             $dependencies[$key] = is_file($path)
-                ? codeLink($root, $path, classMethodLine($path, $call[2]), $service . '::' . $call[2] . '()')
+                ? codeLink($root, $path, classMethodLine($path, $call[2]), $service . '::' . $call[2] . '()') . ' (' . serviceResponsibility($service) . ')'
                 : '`' . $service . '::' . $call[2] . '()`';
         }
     }
@@ -405,7 +438,7 @@ function functionDependencyLinks(string $root, string $controllerSource, string 
             if (!$service) continue;
             $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . $service . '.php';
             $dependencies['service:' . $service . ':' . $call[2]] = is_file($path)
-                ? codeLink($root, $path, classMethodLine($path, $call[2]), $service . '::' . $call[2] . '()')
+                ? codeLink($root, $path, classMethodLine($path, $call[2]), $service . '::' . $call[2] . '()') . ' (' . serviceResponsibility($service) . ')'
                 : '`' . $service . '::' . $call[2] . '()`';
         }
     }
@@ -413,14 +446,14 @@ function functionDependencyLinks(string $root, string $controllerSource, string 
         foreach ($staticCalls as $call) {
             $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . $call[1] . '.php';
             $dependencies['service:' . $call[1] . ':' . $call[2]] = is_file($path)
-                ? codeLink($root, $path, classMethodLine($path, $call[2]), $call[1] . '::' . $call[2] . '()')
+                ? codeLink($root, $path, classMethodLine($path, $call[2]), $call[1] . '::' . $call[2] . '()') . ' (' . serviceResponsibility($call[1]) . ')'
                 : '`' . $call[1] . '::' . $call[2] . '()`';
         }
     }
     if (preg_match_all('/\b([A-Z][A-Za-z0-9_]*)::(?:query|with|find|findOrFail|where|create|updateOrCreate|firstOrCreate)\s*\(/', $body, $modelCalls, PREG_SET_ORDER)) {
         foreach ($modelCalls as $call) {
             $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR . $call[1] . '.php';
-            if (is_file($path)) $dependencies['model:' . $call[1]] = codeLink($root, $path, 1, 'Model ' . $call[1]);
+            if (is_file($path)) $dependencies['model:' . $call[1]] = codeLink($root, $path, 1, 'Model ' . $call[1]) . ' (' . modelResponsibility($call[1]) . ')';
         }
     }
     return array_values($dependencies);
@@ -1166,7 +1199,7 @@ $servicePurposes = [
     'InventoryMovementService' => 'Ghi biến động tăng/giảm/chuyển tồn kho và liên kết chứng từ nguồn.',
     'LedgerService' => 'Truy vấn và trình bày sổ cái/bút toán tài khoản.',
     'NotificationService' => 'Tạo, phân phối và quản lý thông báo nội bộ.',
-    'OrderQuantityValidationService' => 'Kiểm tra số lượng đặt/nhập/xuất so với tồn và lượng đã xử lý.',
+    'OrderQuantityValidationService' => 'Kiểm tra số lượng lẻ theo cấu hình `allow_decimal` của đơn vị tính; Service này không kiểm tra tồn kho.',
     'PurchaseOrderService' => 'Đóng gói logic nghiệp vụ dùng cho đơn mua.',
     'StockService' => 'Truy vấn và cập nhật tồn kho.',
     'SupplierDebtService' => 'Ghi nhận và tính công nợ phải trả nhà cung cấp.',
@@ -1210,12 +1243,13 @@ foreach ($modules as $moduleName => $module) {
                     }
                 }
                 $pageLinks = array_values($pageLinksByPath);
+                // Bản tra cứu hằng ngày chỉ giữ API đã ánh xạ được tới caller
+                // Vue/JS. Route đầy đủ vẫn có trong PROJECT_FUNCTION_INDEX.md.
+                if (str_starts_with($route['uri'], 'api/') && !$pageLinks) continue;
                 $key = $label . '|' . $route['method'] . '|' . $route['uri'] . '|' . $controller['class'] . '|' . $function['name'];
                 $businessItems[$key] = '- **' . $label . '** → `' . $method . ' /' . $route['uri'] . '` → '
                     . codeLink($root, $controller['path'], $function['line'], $shortController . '::' . $function['name'] . '()')
-                    . ($pageLinks
-                        ? ' → Trang/Component: ' . implode(', ', $pageLinks)
-                        : ' → Chưa phát hiện Vue/JS gọi endpoint này; có thể endpoint chưa được dùng hoặc được gọi gián tiếp');
+                    . ($pageLinks ? ' → Trang/Component: ' . implode(', ', $pageLinks) : '');
                 foreach (symptomCategories($function['name'], $function['body']) as $symptom) {
                     $diagnosticItems[$symptom][$key] = '- `' . $method . ' /' . $route['uri'] . '` → '
                         . codeLink($root, $controller['path'], $function['line'], $shortController . '::' . $function['name'] . '()')
@@ -1234,14 +1268,44 @@ foreach ($modules as $moduleName => $module) {
 $moduleDoc[] = '';
 $moduleDoc[] = '## Mục lục tìm lỗi theo triệu chứng';
 $moduleDoc[] = '';
-$moduleDoc[] = '> Dùng khi chưa biết Function nào sai. Chọn triệu chứng gần nhất, mở Controller/Function rồi kiểm tra lần lượt input, Service/model và trang gọi được liên kết.';
-foreach ($diagnosticItems as $symptom => $items) {
-    $moduleDoc[] = '';
-    $moduleDoc[] = '### ' . $symptom;
-    $moduleDoc[] = '';
-    ksort($items, SORT_NATURAL | SORT_FLAG_CASE);
-    foreach ($items as $item) $moduleDoc[] = $item;
-}
+$moduleDoc[] = '> Knowledge Base theo nguyên nhân gốc. Chọn câu hỏi gần nhất với điều người dùng báo; chỉ mở chỉ mục endpoint đầy đủ nếu các bước này chưa khoanh vùng được lỗi.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao tạo/sửa đơn báo “số lượng không hợp lệ”?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** sản phẩm dùng đơn vị `allow_decimal = false` nhưng payload gửi số lượng lẻ.';
+$moduleDoc[] = '- **Cách check:** đọc field 422 → mở ' . codeLink($root, $root . '/app/Services/OrderQuantityValidationService.php', 10, 'OrderQuantityValidationService::validate()') . ' → kiểm tra `Product → Unit → allow_decimal` và `items.*.quantity`.';
+$moduleDoc[] = '- **Lưu ý:** Service này không kiểm tra tồn kho. Nếu lỗi nói không đủ tồn hoặc không thể xuất, dùng câu hỏi kế tiếp.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao còn hàng nhưng không thể tạo phiếu xuất?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** tồn khả dụng khác tồn thực tế vì phiếu xuất `pending` đang giữ chỗ, chọn sai kho hoặc đơn đã xuất một phần.';
+$moduleDoc[] = '- **Cách check:** đối chiếu `WarehouseProductStock.quantity` với lượng giữ chỗ → mở ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 245, 'availableForExport()') . ' và ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 923, 'stockOutData()') . ' → kiểm tra warehouse/product/company và lượng đã xuất.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao PO/SO đã duyệt nhưng Kho không thấy?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** trạng thái chưa đúng, đơn đã xử lý hết, loại đơn bị loại khỏi danh sách, permission kho hoặc scope công ty.';
+$moduleDoc[] = '- **Cách check:** xác nhận trạng thái `approved/partial` → tính lượng còn nhập/xuất sau các phiếu hiện có → kiểm tra endpoint danh sách chờ kho bằng tài khoản role Kho.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao phiếu đã duyệt nhưng tồn hoặc công nợ chưa đổi?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** mới hoàn thành bước kho xác nhận, chưa qua kế toán duyệt; hoặc transaction duyệt kế toán đã rollback.';
+$moduleDoc[] = '- **Cách check:** phân biệt ' . codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 818, 'approve() của kho') . ' với ' . codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 862, 'accountantApprove()') . ' → tìm `InventoryMovement` và debt theo phiếu nguồn.';
+$moduleDoc[] = '- **Ràng buộc:** ' . codeLink($root, $root . '/resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md', 1, 'ADR-001') . ' quy định chỉ kế toán duyệt mới cập nhật tồn, movement và công nợ.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao duyệt giao dịch xong nhưng công nợ không giảm?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** sai `type` (`receipt/payment`), sai category (`THU_KH/CHI_NCC`), thiếu customer/supplier hoặc không gắn đúng PO/SO.';
+$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/TransactionService.php', 191, 'TransactionService::approve()') . ' và ' . codeLink($root, $root . '/app/Services/TransactionService.php', 850, 'syncDebt()') . ' → kiểm tra type/category/đối tượng/đơn → đối chiếu debt và `AccountLedger` của cùng transaction.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao giá vốn xuất/chuyển không giống giá bình quân?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- Đây có thể không phải bug. ' . codeLink($root, $root . '/resources/docs/decisions/ADR-002-INVENTORY-COST.md', 1, 'ADR-002') . ' quy định dùng giá nhập gần nhất; giá trị nhập gồm VAT, không dùng bình quân gia quyền.';
+$moduleDoc[] = '- **Cách check:** lần từ sản phẩm đến đơn mua/phiếu nhập gần nhất và đối chiếu `cost_price`, `cost_amount` của phiếu/movement.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao thay tỷ giá làm số liệu mới khác chứng từ cũ?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- ' . codeLink($root, $root . '/resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md', 1, 'ADR-003') . ' yêu cầu VND luôn bằng 1; ngoại tệ có lịch sử và không sửa hồi tố chứng từ.';
+$moduleDoc[] = '- **Cách check:** phân biệt tỷ giá hiện hành trong `CompanyCurrencyRate` với `exchange_rate`/giá trị base snapshot trên chứng từ.';
 
 $moduleDoc[] = '';
 $moduleDoc[] = '## Luồng trạng thái và điểm dễ phát sinh lỗi';
