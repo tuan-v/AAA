@@ -45,6 +45,39 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 
 > Luồng nghiệp vụ nằm trong [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md); các quyết định kỹ thuật nằm trong [`resources/docs/decisions/`](resources/docs/decisions/).
 
+<a id="luong-lien-module"></a>
+
+## Bản đồ luồng liên module
+
+Phần này dùng khi lỗi xuất hiện ở module sau nhưng nguyên nhân có thể nằm ở chứng từ nguồn của module trước. Đây là bản đồ điều hướng nhanh; quy tắc trạng thái và số liệu đầy đủ nằm trong [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md).
+
+```mermaid
+flowchart LR
+    Purchase[Đơn mua] --> Import[Phiếu nhập kho]
+    Import --> SupplierDebt[Công nợ nhà cung cấp]
+    SupplierDebt --> Payment[Giao dịch chi]
+    Payment --> SupplierLedger[Sổ tài khoản]
+
+    Sale[Đơn bán / POS / Storefront] --> Export[Phiếu xuất kho]
+    Export --> CustomerDebt[Công nợ khách hàng]
+    CustomerDebt --> Receipt[Giao dịch thu]
+    Receipt --> CustomerLedger[Sổ tài khoản]
+
+    Export --> Delivery[Giao hàng]
+    Delivery --> COD[Đối soát COD]
+    COD --> Receipt
+```
+
+| Đang debug | Kiểm tra theo thứ tự | Tài liệu/điểm vào |
+| --- | --- | --- |
+| Đơn mua không làm tăng tồn hoặc công nợ | PO đã duyệt → phiếu nhập → kho xác nhận → kế toán duyệt → tồn/công nợ NCC | [Luồng mua hàng](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán) · [Mua hàng](#5-mua-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) |
+| Đơn bán không giảm tồn hoặc tạo công nợ | SO đã duyệt → phiếu xuất → kho xác nhận → kế toán duyệt → tồn/công nợ khách hàng | [Luồng bán hàng](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền) · [Bán hàng](#6-bán-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) |
+| POS/Storefront lệch với đơn bán | nguồn tạo đơn → SalesOrder/items → phiếu xuất → công nợ/giao dịch | [Bán hàng](#6-bán-hàng) · [Storefront](#6a-cửa-hàng-trực-tuyến) · [Kho](#7-kho) |
+| Số dư hoặc công nợ không giảm | chứng từ nguồn → giao dịch gắn PO/SO → duyệt giao dịch → ledger → debt summary | [Giao dịch và lịch sử thanh toán](resources/docs/BUSINESS_FLOWS.md#giao-dịch-và-lịch-sử-thanh-toán) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) |
+| COD không khớp tiền thu | phiếu xuất/giao hàng → trạng thái giao → phiên đối soát → giao dịch thu → ledger | [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) · [`CodReconciliationTest`](tests/Feature/CodReconciliationTest.php) |
+
+> Không suy luận số liệu chỉ từ trạng thái PO/SO. Theo nghiệp vụ hiện hành, tồn kho và công nợ chỉ thay đổi tại bước duyệt có hiệu lực của phiếu kho; số dư tài khoản thay đổi khi giao dịch được duyệt.
+
 <!-- GENERATED_COMBINED_LOOKUP_START -->
 
 > Phần tra cứu hợp nhất từ `PROJECT_MODULE_DETAIL_INDEX.md`, được sinh tự động từ code.
@@ -1785,6 +1818,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Backend:** [`PurchaseOrderController`](app/Http/Controllers/PurchaseOrderController.php), [`SupplierController`](app/Http/Controllers/SupplierController.php), [`ProductController`](app/Http/Controllers/ProductController.php), [`CategoryController`](app/Http/Controllers/CategoryController.php), [`UnitController`](app/Http/Controllers/UnitController.php); service chính [`PurchaseOrderService`](app/Services/PurchaseOrderService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Supplier`, `PurchaseOrder`, `PurchaseOrderItem`, `SupplierDebt`, `Product`, `Category`, `Unit`; migration tại [`database/migrations`](database/migrations).
 - **Kiểm thử:** [`PurchaseToPaymentEndToEndTest`](tests/Feature/PurchaseToPaymentEndToEndTest.php), [`DebtFlowEndToEndTest`](tests/Feature/DebtFlowEndToEndTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
+- **Liên thông:** đơn mua được duyệt đi sang [Kho](#7-kho) để lập/xác nhận phiếu nhập, sau đó sang [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) để duyệt phiếu, ghi tồn, công nợ NCC và giao dịch chi. [Xem luồng đầy đủ](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán).
 
 > `ProductController`, `CategoryController` và `UnitController` được dùng chung với Kho. Hãy xác định ngữ cảnh bằng prefix route `/api/purchase` hoặc `/api/warehouse`.
 
@@ -2324,6 +2358,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Backend:** [`SalesOrderController`](app/Http/Controllers/SalesOrderController.php), [`CustomerController`](app/Http/Controllers/CustomerController.php), [`PosController`](app/Http/Controllers/PosController.php), [`CouponController`](app/Http/Controllers/CouponController.php); service liên quan [`CustomerDebtService`](app/Services/CustomerDebtService.php), [`StockService`](app/Services/StockService.php), [`CodeGeneratorService`](app/Services/CodeGeneratorService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Customer`, `CustomerDebt`, `CustomerPayment`, `SalesOrder`, `SalesOrderItem`, `PosCoupon`, `CouponUsage`, `CouponCustomerAssignment`; migration tại [`database/migrations`](database/migrations).
 - **Kiểm thử:** [`InventoryLifecycleEndToEndTest`](tests/Feature/InventoryLifecycleEndToEndTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php), [`DebtSummaryTest`](tests/Feature/DebtSummaryTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
+- **Liên thông:** đơn bán/POS được duyệt đi sang [Kho](#7-kho) để xuất hàng, rồi sang [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) để ghi công nợ, thu tiền và sổ tài khoản. [Xem luồng đầy đủ](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền).
 
 <!-- GENERATED_MODULE_GROUP_6_B_AN_H_ANG_START -->
 
@@ -2802,6 +2837,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Backend:** [`StorefrontController`](app/Http/Controllers/StorefrontController.php), [`StorefrontAccountController`](app/Http/Controllers/StorefrontAccountController.php); route công khai và account route tại [`routes/web.php`](routes/web.php).
 - **Dữ liệu:** `Company` storefront fields, `CustomerAccount`, `CustomerAddress`, `Notification` gắn `customer_account_id`, `SalesOrder`, coupon assignment/usage và snapshot giao nhận.
 - **Luồng chính:** khách chọn sản phẩm → giỏ hàng → voucher → checkout → tạo đơn bán; khách có thể theo dõi/hủy đơn theo chính sách và nhận thông báo riêng.
+- **Liên thông:** checkout tạo `SalesOrder`; từ đó dùng chung luồng [Bán hàng](#6-bán-hàng) → [Kho](#7-kho) → [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ). Khi debug, kiểm tra thêm snapshot khách hàng, giao nhận và coupon tại thời điểm đặt hàng.
 
 <!-- GENERATED_MODULE_GROUP_6A_CA_H_ANG_TRC_TUYN_START -->
 
@@ -3183,6 +3219,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Backend:** [`WarehouseController`](app/Http/Controllers/WarehouseController.php), [`WarehouseSlipController`](app/Http/Controllers/WarehouseSlipController.php), [`WarehouseInventoryController`](app/Http/Controllers/WarehouseInventoryController.php), [`InventoryMovementController`](app/Http/Controllers/InventoryMovementController.php), [`WarehouseTransferController`](app/Http/Controllers/WarehouseTransferController.php); service [`StockService`](app/Services/StockService.php), [`InventoryMovementService`](app/Services/InventoryMovementService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Warehouse`, `WarehouseProductStock`, `Stock`, `WarehouseSlip`, `WarehouseSlipItem`, `WarehouseTransfer`, `WarehouseTransferItem`, `InventoryMovement`; migration tại [`database/migrations`](database/migrations).
 - **Kiểm thử:** [`InventoryLifecycleEndToEndTest`](tests/Feature/InventoryLifecycleEndToEndTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php), [`WarehouseFilterTest`](tests/Feature/WarehouseFilterTest.php), [`ProductAvailabilityTest`](tests/Feature/ProductAvailabilityTest.php).
+- **Liên thông:** nhận chứng từ nguồn từ [Mua hàng](#5-mua-hàng) hoặc [Bán hàng](#6-bán-hàng); kho xác nhận trước, [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) duyệt sau. Khi lỗi tồn/công nợ, kiểm tra cả phiếu `pending`, lượng giữ chỗ, bước duyệt kế toán và biến động kho. [Xem luồng mua](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán) · [luồng bán](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền).
 
 <!-- GENERATED_MODULE_GROUP_7_KHO_START -->
 
@@ -3824,6 +3861,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Nghiệp vụ:** [`TransactionService`](app/Services/TransactionService.php), [`LedgerService`](app/Services/LedgerService.php), [`CurrencyService`](app/Services/CurrencyService.php), [`AccountBalanceService`](app/Services/AccountBalanceService.php); repository tại [`app/Repositories`](app/Repositories).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Currency`, `CurrencyRate`, `CompanyCurrencyRate`, `Bank`, `Account`, `AccountLedger`, `Transaction`, `TransactionCategory`, `CustomerDebt`, `SupplierDebt`; migration tại [`database/migrations`](database/migrations).
 - **Kiểm thử:** [`TransactionFlowTest`](tests/Feature/TransactionFlowTest.php), [`DebtSummaryTest`](tests/Feature/DebtSummaryTest.php), [`DebtFlowEndToEndTest`](tests/Feature/DebtFlowEndToEndTest.php), [`OpeningBalanceCurrencySnapshotTest`](tests/Feature/OpeningBalanceCurrencySnapshotTest.php), [`TransactionCategoryCompanyIsolationTest`](tests/Feature/TransactionCategoryCompanyIsolationTest.php), [`InventoryAccountingFlowTest`](tests/Feature/InventoryAccountingFlowTest.php).
+- **Liên thông:** duyệt phiếu nhập/xuất từ [Kho](#7-kho) để ghi nhận tồn và công nợ; duyệt giao dịch gắn PO/SO để cập nhật số dư, ledger và giảm công nợ tương ứng. Với COD, lần ngược từ phiếu giao hàng → phiên đối soát → giao dịch thu. [Xem quy tắc thanh toán](resources/docs/BUSINESS_FLOWS.md#giao-dịch-và-lịch-sử-thanh-toán).
 
 <!-- GENERATED_MODULE_GROUP_8_K_TO_AN_GIAO_DCH_V_A_C_ONG_N_START -->
 
