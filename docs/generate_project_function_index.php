@@ -771,23 +771,133 @@ function quickFixPath(string $root, array $pages, array $routes, string $control
     return implode(' → ', $steps);
 }
 
-function impact(string $root, string $class, string $name, string $visibility, string $subject, string $body, bool $hasRoute, array $pages, array $tests, array $callers): string
+function impact(string $root, string $class, string $name, string $visibility, string $subject, string $body, bool $hasRoute, array $pages, array $tests, array $callers, string $crossModuleImpact = ''): string
 {
     if ($name === '__construct') return 'Ảnh hưởng việc khởi tạo controller và tất cả endpoint của controller nếu dependency thay đổi.';
     if ($visibility !== 'public') {
         return $callers ? 'Ảnh hưởng các hàm gọi hàm hỗ trợ trong cùng bộ điều khiển.' : 'Ảnh hưởng nội bộ bộ điều khiển; chưa tìm thấy lời gọi trực tiếp bằng phân tích tĩnh.';
     }
     $parts = [backendImpact($name, $subject, $body)];
-    foreach ($pages as $page) {
-        $label = pageName($root, $page['path']);
-        $link = codeLink($root, $page['path'], $page['line'], $label);
-        $parts[] = '<br>• ' . $link . ': ' . pageEffect($name, $subject, $page['path']) . '.';
-    }
+    if ($crossModuleImpact !== '') $parts[] = $crossModuleImpact;
     $parts = array_merge($parts, indirectPageImpacts($root, $class, $name));
     if (!$hasRoute) $parts[] = 'Phân tích tĩnh chưa thấy route trực tiếp; kiểm tra caller nội bộ, event, job hoặc framework hook trước khi sửa.';
     if (!$pages) $parts[] = 'Phân tích tĩnh chưa ánh xạ được trang Vue/JS trực tiếp; không đồng nghĩa Function không được sử dụng.';
     if (!$tests) $parts[] = 'Phân tích tĩnh chưa ánh xạ được test theo route/Controller; cần tìm theo tên nghiệp vụ hoặc bổ sung test hồi quy.';
     return implode(' ', $parts);
+}
+
+function modelsReferencedByFunction(string $body, array $modelNames): array
+{
+    $found = [];
+    foreach ($modelNames as $model) {
+        if (preg_match('/\b' . preg_quote($model, '/') . '\b/', $body)) $found[$model] = true;
+    }
+    return array_keys($found);
+}
+
+function pageModuleName(string $root, string $path): string
+{
+    $relative = relativePath($root, $path);
+    if (preg_match('#resources/js/Pages/([^/]+)/#', $relative, $match)) {
+        return match ($match[1]) {
+            'Accountant' => 'Kế toán', 'Company' => 'Công ty', 'Manage' => 'Quản trị',
+            'Purchase' => 'Mua hàng', 'Sale' => 'Bán hàng', 'Storefront' => 'Cửa hàng trực tuyến',
+            'Warehouse' => 'Kho', default => $match[1],
+        };
+    }
+    return str_contains($relative, 'resources/js/components/') ? 'Component dùng chung' : 'Frontend';
+}
+
+function highImpactDomains(string $class, string $name, string $body, array $models): array
+{
+    $haystack = $class . ' ' . $name . ' ' . $body . ' ' . implode(' ', $models);
+    $domains = [];
+    if (preg_match('/WarehouseSlip|WarehouseProductStock|InventoryMovement|StockService|stock|inventory|quantity/i', $haystack)) {
+        $domains[] = 'tồn kho và biến động kho';
+    }
+    if (preg_match('/CustomerDebt|SupplierDebt|DebtService|syncDebt|debt/i', $haystack)) {
+        $domains[] = 'công nợ khách hàng/nhà cung cấp';
+    }
+    if (in_array('Transaction', $models, true)
+        || preg_match('/TransactionController|TransactionService|AccountBalance|AccountLedger|LedgerService|account_balance|ledger/i', $haystack)) {
+        $domains[] = 'giao dịch, số dư và sổ tài khoản';
+    }
+    if (preg_match('/cost_price|cost_amount|stock_value|purchase_price|ProfitLoss|revenue|profit/i', $haystack)) {
+        $domains[] = 'giá vốn và báo cáo lãi lỗ';
+    }
+    if (preg_match('/\bcod\b|CodReconciliation|payment_method.{0,80}cod/i', $haystack)) {
+        $domains[] = 'COD và đối soát tiền thu hộ';
+    }
+    if (preg_match('/Coupon|coupon|voucher|discount/i', $haystack)) {
+        $domains[] = 'coupon/khuyến mãi và lịch sử sử dụng';
+    }
+    if (preg_match('/Notification|notificationService|notify\s*\(/i', $haystack)) {
+        $domains[] = 'thông báo và người nhận';
+    }
+    if (preg_match('/ActivityLog|AuditLog/i', $haystack)) {
+        $domains[] = 'nhật ký hoạt động/audit';
+    }
+    return array_values(array_unique($domains));
+}
+
+function businessDomainLink(string $root, string $domain): string
+{
+    if ($domain === 'công nợ khách hàng/nhà cung cấp') {
+        $customerPath = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . 'CustomerDebtService.php';
+        $supplierPath = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . 'SupplierDebtService.php';
+        return codeLink($root, $customerPath, classMethodLine($customerPath, 'createFromWarehouseSlip'), 'công nợ khách hàng')
+            . '/' . codeLink($root, $supplierPath, classMethodLine($supplierPath, 'createFromWarehouseSlip'), 'nhà cung cấp');
+    }
+    $targets = [
+        'tồn kho và biến động kho' => ['app/Services/InventoryMovementService.php', 'record', 'tồn kho và biến động kho'],
+        'giao dịch, số dư và sổ tài khoản' => ['app/Services/TransactionService.php', 'approve', 'giao dịch, số dư và sổ tài khoản'],
+        'giá vốn và báo cáo lãi lỗ' => ['app/Http/Controllers/Accountant/ProfitLossReportController.php', 'index', 'giá vốn và báo cáo lãi lỗ'],
+        'COD và đối soát tiền thu hộ' => ['app/Http/Controllers/CodReconciliationController.php', 'index', 'COD và đối soát tiền thu hộ'],
+        'coupon/khuyến mãi và lịch sử sử dụng' => ['app/Services/CouponService.php', 'validate', 'coupon/khuyến mãi và lịch sử sử dụng'],
+        'thông báo và người nhận' => ['app/Services/NotificationService.php', 'create', 'thông báo và người nhận'],
+        'nhật ký hoạt động/audit' => ['app/Services/ActivityLogService.php', 'log', 'nhật ký hoạt động/audit'],
+    ];
+    if (!isset($targets[$domain])) return $domain;
+    [$relative, $method, $label] = $targets[$domain];
+    $path = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+    if (!is_file($path)) return $domain;
+    return codeLink($root, $path, classMethodLine($path, $method), $label);
+}
+
+function crossModuleImpactText(string $root, array $directPages, array $models, array $assessment, array $highImpactDomains = []): string
+{
+    $lines = ['<br>**Ảnh hưởng xuyên module:**'];
+    if (in_array($assessment[0] ?? '', ['Cao', 'Rất cao'], true)) {
+        $summary = $highImpactDomains
+            ? implode(' + ', array_map(fn ($domain) => businessDomainLink($root, $domain), $highImpactDomains))
+            : 'các luồng ghi dữ liệu, trạng thái nghiệp vụ và module sử dụng kết quả của Function';
+        $lines[] = '<br>• **Phạm vi nghiệp vụ (' . $assessment[0] . '):** ' . $summary
+            . '. Cần kiểm tra đồng bộ dữ liệu và test hồi quy xuyên suốt các luồng này.';
+    }
+    if ($directPages) {
+        $links = [];
+        foreach ($directPages as $page) {
+            $key = strtolower(str_replace('\\', '/', $page['path']));
+            $label = pageName($root, $page['path']) . ' (' . pageModuleName($root, $page['path']) . ')';
+            $links[$key] = codeLink($root, $page['path'], $page['line'], $label);
+        }
+        $lines[] = '<br>• **Direct Impact (Trang/FE trực tiếp — mức cao):** ' . implode(', ', $links)
+            . '. Sửa logic, dữ liệu trả về, validation hoặc trạng thái của Function sẽ tác động trực tiếp các trang này.';
+    } else {
+        $lines[] = '<br>• **Direct Impact (Trang/FE trực tiếp — chưa xác định):** chưa ánh xạ được caller FE trực tiếp; cần kiểm tra caller động, event, job hoặc framework hook.';
+    }
+    if ($models) {
+        $modelLinks = [];
+        foreach ($models as $model) {
+            $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR . $model . '.php';
+            $modelLinks[] = is_file($path) ? codeLink($root, $path, 1, 'Model ' . $model) : '`Model ' . $model . '`';
+        }
+        $lines[] = '<br>• **Indirect Impact (Dữ liệu dùng chung — có điều kiện):** ' . implode(', ', $modelLinks)
+            . '. Chỉ khi sửa schema, relation, cast, scope, trạng thái dùng chung hoặc quy tắc ghi dữ liệu mới cần rà tất cả nơi sử dụng các Model này; thay đổi logic cục bộ của Function thường chỉ tác động nhóm Direct Impact.';
+    } else {
+        $lines[] = '<br>• **Indirect Impact (Dữ liệu dùng chung — thấp/chưa phát hiện):** chưa phát hiện Model được Function sử dụng trực tiếp.';
+    }
+    return implode('', $lines);
 }
 
 function findReferences(string $root, array $paths, array $needles, int $limit = 4): array
@@ -1004,6 +1114,11 @@ foreach ($controllerFiles as $path) {
     $controllers[] = compact('path', 'relative', 'class', 'functions');
 }
 
+$modelNames = array_map(
+    fn ($path) => basename($path, '.php'),
+    files($root, 'app/Models', ['php'])
+);
+
 $totalFunctions = array_sum(array_map(fn ($c) => count($c['functions']), $controllers));
 $out = [];
 $out[] = '# Chỉ mục function toàn dự án';
@@ -1016,6 +1131,7 @@ $out[] = '- **Function** mở đúng dòng trong controller.';
 $out[] = '- **Route/API** cho biết HTTP method, URI và permission middleware.';
 $out[] = '- **Trang gọi trực tiếp** trỏ tới dòng Vue/JS có endpoint tương ứng (kết quả phân tích tĩnh).';
 $out[] = '- **Ảnh hưởng khi sửa** phân biệt thao tác đọc và thao tác có khả năng ghi dữ liệu.';
+$out[] = '- **Ảnh hưởng xuyên module** tách `Direct Impact` (caller FE bị tác động bởi logic Function) và `Indirect Impact` (Model dùng chung chỉ lan rộng khi đổi schema, relation, cast, scope, trạng thái hoặc quy tắc ghi).';
 $out[] = '- **Kiểm thử liên quan** là nơi có tuyến API/bộ điều khiển tương ứng; dấu `—` là khoảng trống cần kiểm tra thủ công.';
 $out[] = '';
 $out[] = '## Tổng quan';
@@ -1072,13 +1188,17 @@ foreach ($controllers as $controller) {
         }
         $callerLinks = [];
         foreach ($function['callers'] as $line) $callerLinks[] = codeLink($root, $controller['path'], $line, 'dòng gọi ' . $line);
-        $impactText = impact($root, $controller['class'], $function['name'], $function['visibility'], $subject, $function['body'], (bool) $methodRoutes, $pages, $tests, $function['callers']);
+        $functionKey = $controller['class'] . '::' . $function['name'];
+        $referencedModels = modelsReferencedByFunction($function['body'], $modelNames);
         $dependencies = functionDependencyLinks($root, $source, $function['body']);
         $assessment = impactAssessment($function['name'], $function['visibility'], $function['body'], $dependencies, $pages);
+        $domains = highImpactDomains($controller['class'], $function['name'], $function['body'], $referencedModels);
+        $crossModuleImpact = crossModuleImpactText($root, $pages, $referencedModels, $assessment, $domains);
+        $impactText = impact($root, $controller['class'], $function['name'], $function['visibility'], $subject, $function['body'], (bool) $methodRoutes, $pages, $tests, $function['callers'], $crossModuleImpact);
         $controllerFunctionLink = codeLink($root, $controller['path'], $function['line'], $short . '::' . $function['name'] . '()');
         $quickPath = quickFixPath($root, $pages, $methodRoutes, $controllerFunctionLink, $dependencies, $tests);
         if ($callerLinks) $impactText .= '<br>Được gọi tại: ' . implode(', ', $callerLinks) . '.';
-        $functionAnalysis[$controller['class'] . '::' . $function['name']] = [
+        $functionAnalysis[$functionKey] = [
             'routes' => $methodRoutes,
             'pages' => $pages,
             'tests' => $tests,
@@ -1086,6 +1206,9 @@ foreach ($controllers as $controller) {
             'impact' => $impactText,
             'assessment' => $assessment,
             'quick_path' => $quickPath,
+            'models' => $referencedModels,
+            'cross_module_impact' => $crossModuleImpact,
+            'impact_domains' => $domains,
         ];
         $out[] = '| `' . $function['visibility'] . '` ' . codeLink($root, $controller['path'], $function['line'], '`' . $function['name'] . '()`')
             . ' | ' . describe($function['name'], $function['visibility'], $subject, $function['body'], $controller['class'])
