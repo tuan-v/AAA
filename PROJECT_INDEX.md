@@ -10,7 +10,7 @@ Tài liệu này phân tích cấu trúc mã nguồn, các module nghiệp vụ,
 
 > Người mới nên bắt đầu tại [`MODULE_INDEX.md`](MODULE_INDEX.md) để tra cứu nhanh từng module nằm ở đâu trên FE, BE, database và test; quay lại tài liệu này khi cần hiểu sâu kiến trúc và luồng nghiệp vụ.
 
-> Cập nhật theo mã nguồn ngày 06/08/2026. Nguồn đúng cuối cùng khi tài liệu và code lệch nhau là `routes/api.php`, `routes/web.php` và implementation trong controller/service.
+> Cập nhật theo mã nguồn ngày 11/08/2026. Nguồn đúng cuối cùng khi tài liệu và code lệch nhau là `routes/api.php`, `routes/web.php` và implementation trong controller/service.
 
 ---
 

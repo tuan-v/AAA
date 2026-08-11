@@ -43,6 +43,31 @@
 - [ADR-003](vscode://file/D:/clone/project-base/resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md:1) yêu cầu VND luôn bằng 1; ngoại tệ có lịch sử và không sửa hồi tố chứng từ.
 - **Cách check:** phân biệt tỷ giá hiện hành trong `CompanyCurrencyRate` với `exchange_rate`/giá trị base snapshot trên chứng từ.
 
+### Vì sao POS hoặc Storefront tạo trùng đơn?
+
+- **Nguyên nhân thường gặp:** double-click/retry tạo hai request, draft POS được checkout lại hoặc transaction checkout không bao phủ toàn bộ thao tác ghi.
+- **Cách check:** tìm đơn theo customer/session, thời điểm và tổng tiền → kiểm tra `PosController::store()` hoặc `StorefrontController::checkout()` → kiểm tra transaction, code generation và retry frontend.
+
+### Vì sao coupon hợp lệ nhưng không áp dụng hoặc không được hoàn lại?
+
+- **Nguyên nhân thường gặp:** sai thời gian, channel, customer assignment, giới hạn sử dụng; hoặc nhánh hủy không hoàn tác `CouponUsage`.
+- **Cách check:** mở [CouponService](vscode://file/D:/clone/project-base/app/Services/CouponService.php:1) → đối chiếu điều kiện áp dụng, usage theo đơn và nguồn Sale/POS/Storefront.
+
+### Vì sao có thông báo nhưng màn hình không tự cập nhật?
+
+- **Nguyên nhân thường gặp:** queue/Reverb chưa chạy, private channel từ chối, sai company channel hoặc listener frontend không đăng ký.
+- **Cách check:** xác nhận notification đã commit → queue/Reverb → `routes/channels.php` → `companyData.js`/`useRealtimeRefresh.js`; phân biệt lỗi lưu, broadcast và render.
+
+### Vì sao Dashboard lệch số liệu chi tiết?
+
+- **Nguyên nhân thường gặp:** khác khoảng ngày/timezone, khác trạng thái được tính hoặc repository dùng điều kiện khác màn hình chi tiết.
+- **Cách check:** mở [DashboardService::getOverview()](vscode://file/D:/clone/project-base/app/Services/DashboardService.php:14) và [DashboardRepository](vscode://file/D:/clone/project-base/app/Repositories/DashboardRepository.php:1) → cố định `date_from/date_to`, company và trạng thái rồi đối chiếu.
+
+### Vì sao dữ liệu công ty khác xuất hiện trên màn hình?
+
+- **Nguyên nhân thường gặp:** query thiếu `company_id`, relation/eager-load không có scope hoặc ID từ request chưa được xác minh thuộc công ty hiện tại.
+- **Cách check:** lần từ controller xuống query → kiểm tra `BelongsToCompany`, điều kiện company trên relation và test cô lập công ty. Đây là lỗi bảo mật, không chỉ lỗi hiển thị.
+
 ## Luồng trạng thái và điểm dễ phát sinh lỗi
 
 > Các luồng dưới đây được đối chiếu với trạng thái đang ghi trong Controller/Service. Xem thêm [Luồng nghiệp vụ hiện hành](vscode://file/D:/clone/project-base/resources/docs/BUSINESS_FLOWS.md:1).

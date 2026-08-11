@@ -1306,6 +1306,31 @@ $moduleDoc[] = '### Vì sao thay tỷ giá làm số liệu mới khác chứng 
 $moduleDoc[] = '';
 $moduleDoc[] = '- ' . codeLink($root, $root . '/resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md', 1, 'ADR-003') . ' yêu cầu VND luôn bằng 1; ngoại tệ có lịch sử và không sửa hồi tố chứng từ.';
 $moduleDoc[] = '- **Cách check:** phân biệt tỷ giá hiện hành trong `CompanyCurrencyRate` với `exchange_rate`/giá trị base snapshot trên chứng từ.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao POS hoặc Storefront tạo trùng đơn?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** double-click/retry tạo hai request, draft POS được checkout lại hoặc transaction checkout không bao phủ toàn bộ thao tác ghi.';
+$moduleDoc[] = '- **Cách check:** tìm đơn theo customer/session, thời điểm và tổng tiền → kiểm tra `PosController::store()` hoặc `StorefrontController::checkout()` → kiểm tra transaction, code generation và retry frontend.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao coupon hợp lệ nhưng không áp dụng hoặc không được hoàn lại?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** sai thời gian, channel, customer assignment, giới hạn sử dụng; hoặc nhánh hủy không hoàn tác `CouponUsage`.';
+$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/CouponService.php', 1, 'CouponService') . ' → đối chiếu điều kiện áp dụng, usage theo đơn và nguồn Sale/POS/Storefront.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao có thông báo nhưng màn hình không tự cập nhật?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** queue/Reverb chưa chạy, private channel từ chối, sai company channel hoặc listener frontend không đăng ký.';
+$moduleDoc[] = '- **Cách check:** xác nhận notification đã commit → queue/Reverb → `routes/channels.php` → `companyData.js`/`useRealtimeRefresh.js`; phân biệt lỗi lưu, broadcast và render.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao Dashboard lệch số liệu chi tiết?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** khác khoảng ngày/timezone, khác trạng thái được tính hoặc repository dùng điều kiện khác màn hình chi tiết.';
+$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/DashboardService.php', 14, 'DashboardService::getOverview()') . ' và ' . codeLink($root, $root . '/app/Repositories/DashboardRepository.php', 1, 'DashboardRepository') . ' → cố định `date_from/date_to`, company và trạng thái rồi đối chiếu.';
+$moduleDoc[] = '';
+$moduleDoc[] = '### Vì sao dữ liệu công ty khác xuất hiện trên màn hình?';
+$moduleDoc[] = '';
+$moduleDoc[] = '- **Nguyên nhân thường gặp:** query thiếu `company_id`, relation/eager-load không có scope hoặc ID từ request chưa được xác minh thuộc công ty hiện tại.';
+$moduleDoc[] = '- **Cách check:** lần từ controller xuống query → kiểm tra `BelongsToCompany`, điều kiện company trên relation và test cô lập công ty. Đây là lỗi bảo mật, không chỉ lỗi hiển thị.';
 
 $moduleDoc[] = '';
 $moduleDoc[] = '## Luồng trạng thái và điểm dễ phát sinh lỗi';
@@ -1326,14 +1351,13 @@ $moduleDoc[] = '4. Đối chiếu trạng thái trước/sau với luồng ở t
 $moduleDoc[] = '5. Chạy **kiểm thử liên quan**; nếu tài liệu báo chưa phát hiện test thì cần bổ sung test tái hiện lỗi trước khi sửa.';
 $moduleDoc[] = '';
 $combinedLookupSections = [
-    ['heading' => '## Mục lục theo chức năng/nghiệp vụ', 'anchor' => 'tra-cuu-theo-chuc-nang-nghiep-vu', 'summary' => 'Tra cứu theo chức năng/nghiệp vụ — khi quên tên file'],
-    ['heading' => '## Mục lục tìm lỗi theo triệu chứng', 'anchor' => 'tra-cuu-tim-loi-theo-trieu-chung', 'summary' => 'Tìm lỗi theo triệu chứng — khi chưa biết Function sai'],
+    ['heading' => '## Mục lục tìm lỗi theo triệu chứng', 'anchor' => 'tra-cuu-tim-loi-theo-trieu-chung', 'summary' => 'Knowledge Base — khoanh vùng theo nguyên nhân gốc'],
     ['heading' => '## Luồng trạng thái và điểm dễ phát sinh lỗi', 'anchor' => 'tra-cuu-luong-trang-thai', 'summary' => 'Luồng trạng thái và thứ tự debug'],
 ];
 $moduleIndexLookupLines = [
-    '## Tra cứu hợp nhất',
+    '## Cẩm nang chẩn đoán nhanh',
     '',
-    '> Ba phần bên dưới được chuyển từ `PROJECT_MODULE_DETAIL_INDEX.md`; nội dung được thu gọn để mục lục module vẫn dễ đọc.',
+    '> Chỉ giữ Knowledge Base và luồng trạng thái trong trang chính. Danh sách endpoint/function đầy đủ nằm tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md).',
     '',
 ];
 foreach ($combinedLookupSections as $sectionIndex => $section) {
@@ -1997,6 +2021,12 @@ if ($moduleIndexSource !== false) {
     $moduleIndexSource = preg_replace('/<!-- GENERATED_MODULE_DETAILS_START -->[\s\S]*?<!-- GENERATED_MODULE_DETAILS_END -->\R*/', '', $moduleIndexSource);
     $moduleIndexSource = preg_replace('/<!-- GENERATED_COMBINED_LOOKUP_START -->[\s\S]*?<!-- GENERATED_COMBINED_LOOKUP_END -->\R*/', '', $moduleIndexSource);
     $moduleIndexSource = preg_replace('/<!-- GENERATED_MODULE_GROUP_[A-Z0-9_]+_START -->[\s\S]*?<!-- GENERATED_MODULE_GROUP_[A-Z0-9_]+_END -->\R*/', '', $moduleIndexSource);
+    $moduleIndexSource = preg_replace(
+        '/Cập nhật theo mã nguồn ngày \*\*\d{2}\/\d{2}\/\d{4}\*\*/',
+        'Cập nhật theo mã nguồn ngày **' . $generatedAt . '**',
+        $moduleIndexSource,
+        1
+    );
     if ($moduleIndexLookupLines) {
         $combinedLookupSection = implode(PHP_EOL, array_merge([
             '<!-- GENERATED_COMBINED_LOOKUP_START -->',

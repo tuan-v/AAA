@@ -1,6 +1,6 @@
 # 📖 API Documentation — Hệ thống ERP nội bộ
 
-Tài liệu này hỗ trợ Frontend, Backend, QA và AI/Coding Assistant tra cứu API đang được triển khai trong repository. Danh sách được đối chiếu với `php artisan route:list --path=api` ngày 27/07/2026.
+Tài liệu này hỗ trợ Frontend, Backend, QA và AI/Coding Assistant tra cứu API đang được triển khai trong repository. Danh sách được đối chiếu với `php artisan route:list --path=api` ngày **11/08/2026**.
 
 > Nguồn đúng cuối cùng: `routes/api.php` → method controller → validation/service/model. Nếu tài liệu lệch code, ưu tiên code và cập nhật lại tài liệu này.
 

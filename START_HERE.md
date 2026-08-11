@@ -69,7 +69,8 @@ Nếu toàn bộ test quá lâu, trước tiên chạy file test gần nhất v�
 | --- | --- |
 | Tìm màn hình, module, API hoặc backend liên quan | [`MODULE_INDEX.md`](MODULE_INDEX.md) |
 | Tìm một controller/function, route, trang Vue hoặc test cụ thể | [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md) |
-| Tìm lỗi theo triệu chứng | [`docs/PROJECT_DEBUGGING_INDEX.md`](docs/PROJECT_DEBUGGING_INDEX.md) |
+| Tìm lỗi theo triệu chứng và nguyên nhân gốc | [`Knowledge Base trong MODULE_INDEX.md`](MODULE_INDEX.md#tra-cuu-tim-loi-theo-trieu-chung) |
+| Xem toàn bộ ánh xạ lỗi sinh tự động | [`docs/PROJECT_DEBUGGING_INDEX.md`](docs/PROJECT_DEBUGGING_INDEX.md) |
 | Tra model, bảng và migration | [`docs/PROJECT_DATABASE_INDEX.md`](docs/PROJECT_DATABASE_INDEX.md) |
 | Hiểu luồng mua, bán, kho, công nợ và giao dịch | [`resources/docs/BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md) |
 | Hiểu kiến trúc và luồng request tổng thể | [`PROJECT_INDEX.md`](PROJECT_INDEX.md) |
