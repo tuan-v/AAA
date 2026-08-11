@@ -1,5 +1,11 @@
 # Hướng dẫn Cấu trúc Dự án, Module & Quy chuẩn Phát triển (Cho Con người & AI)
 
+> Tra cứu đến từng controller/function, route, trang Vue và test tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md). Tài liệu này được sinh lại bằng `php docs/generate_project_function_index.php`.
+
+> Tra cứu theo từng module (trang, API, controller, validation, service, model, test và ảnh hưởng khi sửa) tại [`MODULE_INDEX.md`](MODULE_INDEX.md). Nội dung chi tiết trước đây của `PROJECT_MODULE_DETAIL_INDEX.md` đã được hợp nhất vào trang này.
+
+> Tìm lỗi theo triệu chứng tại [`docs/PROJECT_DEBUGGING_INDEX.md`](docs/PROJECT_DEBUGGING_INDEX.md); tra Model, bảng và migration tại [`docs/PROJECT_DATABASE_INDEX.md`](docs/PROJECT_DATABASE_INDEX.md).
+
 Tài liệu này phân tích cấu trúc mã nguồn, các module nghiệp vụ, vị trí BE/FE, luồng gọi API và quy chuẩn phát triển của hệ thống ERP nội bộ. Đối tượng sử dụng là lập trình viên mới, người vận hành và AI/Coding Assistant tham gia bảo trì hoặc phát triển dự án.
 
 > Người mới nên bắt đầu tại [`MODULE_INDEX.md`](MODULE_INDEX.md) để tra cứu nhanh từng module nằm ở đâu trên FE, BE, database và test; quay lại tài liệu này khi cần hiểu sâu kiến trúc và luồng nghiệp vụ.
