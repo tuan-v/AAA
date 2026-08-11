@@ -1351,13 +1351,14 @@ $moduleDoc[] = '4. Đối chiếu trạng thái trước/sau với luồng ở t
 $moduleDoc[] = '5. Chạy **kiểm thử liên quan**; nếu tài liệu báo chưa phát hiện test thì cần bổ sung test tái hiện lỗi trước khi sửa.';
 $moduleDoc[] = '';
 $combinedLookupSections = [
+    ['heading' => '## Mục lục theo chức năng/nghiệp vụ', 'anchor' => 'tra-cuu-theo-chuc-nang-nghiep-vu', 'summary' => 'Tra cứu theo chức năng/nghiệp vụ — khi quên tên Function'],
     ['heading' => '## Mục lục tìm lỗi theo triệu chứng', 'anchor' => 'tra-cuu-tim-loi-theo-trieu-chung', 'summary' => 'Knowledge Base — khoanh vùng theo nguyên nhân gốc'],
     ['heading' => '## Luồng trạng thái và điểm dễ phát sinh lỗi', 'anchor' => 'tra-cuu-luong-trang-thai', 'summary' => 'Luồng trạng thái và thứ tự debug'],
 ];
 $moduleIndexLookupLines = [
     '## Cẩm nang chẩn đoán nhanh',
     '',
-    '> Chỉ giữ Knowledge Base và luồng trạng thái trong trang chính. Danh sách endpoint/function đầy đủ nằm tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md).',
+    '> Mở đúng khối theo nhu cầu. Tra cứu nghiệp vụ chỉ giữ endpoint đã ánh xạ được tới Vue/JS; danh sách Function đầy đủ nằm tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md).',
     '',
 ];
 foreach ($combinedLookupSections as $sectionIndex => $section) {
