@@ -1,36 +1,75 @@
 # Mục lục module ERP
 
-Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. Cập nhật theo mã nguồn ngày **11/08/2026**.
+Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. Cập nhật theo mã nguồn ngày **12/08/2026**.
 
 > Nếu tài liệu khác code, ưu tiên [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php) và phần hiện thực trong mã nguồn.
 
 ## Chọn đường đọc
 
-### Người mới — hiểu dự án trong 15 phút
+### Người mới — nắm bản đồ dự án trước khi đọc chi tiết
 
 1. Đọc [`START_HERE.md`](START_HERE.md) để chạy dự án và dùng dữ liệu demo.
-2. Xem [bản đồ liên module](#luong-lien-module) để hiểu Mua/Bán → Kho → Kế toán.
-3. Chọn module; đọc Vai trò, Điểm vào, Liên thông, Ràng buộc và Kịch bản tái hiện trước.
+2. Đọc [Tổng quan cho người mới](#tong-quan-cho-nguoi-moi) và [bản đồ liên module](#luong-lien-module) để hiểu Mua/Bán → Kho → Kế toán.
+3. Chọn module; chỉ đọc **Vai trò**, **Điểm vào**, **Liên thông**, **Ràng buộc** và **Luồng demo nhanh** trước. Các khối chi tiết sinh tự động chỉ mở khi cần sửa hoặc tìm lỗi.
 4. Khi nhận task, lần theo `màn hình → API → Controller → Service → dữ liệu → test`.
 
 ### Người đã quen dự án — tra cứu trong 30 giây
 
 1. Có triệu chứng lỗi → [Knowledge Base](#tra-cuu-tim-loi-theo-trieu-chung).
 2. Biết module → [Chọn module](#chon-module).
-3. Chỉ nhớ việc cần làm nhưng quên Function → [Tra cứu theo chức năng/nghiệp vụ](#tra-cuu-theo-chuc-nang-nghiep-vu).
+3. Chỉ nhớ việc cần làm nhưng quên hàm xử lý → [Tra cứu theo chức năng/nghiệp vụ](#tra-cuu-theo-chuc-nang-nghiep-vu).
 4. Biết endpoint/class/method → [`PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md) hoặc `rg`.
 5. Nghi sai schema → [`PROJECT_DATABASE_INDEX.md`](docs/PROJECT_DATABASE_INDEX.md).
 
 ## Chọn cách tra cứu
 
-| Tôi đang muốn                                  | Đi tới                                                                                                    |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Tìm một màn hình hoặc phân hệ                  | [Chọn module](#chon-module)                                                                               |
-| Chỉ nhớ chức năng/nghiệp vụ, quên tên Function | [Tra cứu theo chức năng/nghiệp vụ](#tra-cuu-theo-chuc-nang-nghiep-vu)                                     |
-| Đã biết endpoint, class hoặc method            | [`PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md)                                             |
-| Tìm nguyên nhân theo lỗi đang gặp              | [Tra cứu tìm lỗi theo triệu chứng](#tra-cuu-tim-loi-theo-trieu-chung)                                     |
-| Tìm API, permission hoặc vị trí cần sửa        | [Tra cứu nhanh khi sửa code](#tra-cuu-nhanh-khi-sua-code)                                                 |
-| Tìm database hoặc test liên quan               | [Database](docs/PROJECT_DATABASE_INDEX.md) · [Function và test ảnh hưởng](docs/PROJECT_FUNCTION_INDEX.md) |
+| Tôi đang muốn                             | Đi tới                                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Tìm một màn hình hoặc phân hệ             | [Chọn module](#chon-module)                                                                               |
+| Chỉ nhớ chức năng/nghiệp vụ, quên tên hàm | [Tra cứu theo chức năng/nghiệp vụ](#tra-cuu-theo-chuc-nang-nghiep-vu)                                     |
+| Đã biết endpoint, class hoặc method       | [`PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md)                                             |
+| Tìm nguyên nhân theo lỗi đang gặp         | [Tra cứu tìm lỗi theo triệu chứng](#tra-cuu-tim-loi-theo-trieu-chung)                                     |
+| Tìm API, quyền hoặc vị trí cần sửa        | [Tra cứu nhanh khi sửa code](#tra-cuu-nhanh-khi-sua-code)                                                 |
+| Tìm database hoặc test liên quan          | [Database](docs/PROJECT_DATABASE_INDEX.md) · [Function và test ảnh hưởng](docs/PROJECT_FUNCTION_INDEX.md) |
+
+<a id="tong-quan-cho-nguoi-moi"></a>
+
+## Tổng quan cho người mới
+
+### Hệ thống này giải quyết việc gì?
+
+Đây là hệ thống ERP kết nối các công việc vốn dễ bị tách rời: mua hàng, bán hàng, quản lý kho và kế toán. Một đơn hàng chưa tự làm thay đổi tồn kho hoặc tiền. Nó tạo **chứng từ nguồn** để bộ phận tiếp theo kiểm tra và xác nhận. Nhờ vậy, hệ thống lưu được ai đã làm gì và số liệu thay đổi ở bước nào.
+
+### Một yêu cầu đi qua mã nguồn như thế nào?
+
+`Màn hình Vue → API → Controller → Service → Model/cơ sở dữ liệu → Test`
+
+- **Màn hình Vue (giao diện):** nơi người dùng xem dữ liệu và bấm thao tác.
+- **API:** địa chỉ mà giao diện gọi để đọc hoặc thay đổi dữ liệu.
+- **Controller (bộ điều khiển):** nhận yêu cầu, kiểm tra quyền/đầu vào và gọi xử lý phù hợp.
+- **Service (dịch vụ nghiệp vụ):** chứa quy tắc dùng chung như cập nhật tồn, công nợ hoặc sổ tài khoản.
+- **Model/cơ sở dữ liệu:** cấu trúc và nơi lưu dữ liệu.
+- **Test (kiểm thử tự động):** mô tả kết quả hệ thống phải giữ đúng sau khi sửa code.
+
+Khi mới tìm hiểu, dừng ở **Vai trò**, **Liên thông** và **Luồng demo nhanh** của mỗi module là đủ. Chỉ lần tiếp xuống API/Controller/Service khi đã có một màn hình hoặc lỗi cụ thể.
+
+### Thuật ngữ xuất hiện nhiều
+
+| Thuật ngữ                    | Nghĩa trong tài liệu                                                 |
+| ---------------------------- | -------------------------------------------------------------------- |
+| PO (Purchase Order)          | Đơn mua hàng gửi nhà cung cấp.                                       |
+| SO (Sales Order)             | Đơn bán hàng cho khách.                                              |
+| NCC                          | Nhà cung cấp.                                                        |
+| POS (Point of Sale)          | Màn hình bán hàng tại quầy.                                          |
+| Storefront                   | Cửa hàng trực tuyến dành cho khách mua hàng.                         |
+| COD (Cash on Delivery)       | Thu tiền khi giao hàng; cần đối soát tiền đã thu.                    |
+| Ledger                       | Sổ tài khoản, lưu từng lần tăng/giảm số dư.                          |
+| Công nợ                      | Số tiền còn phải thu từ khách hoặc còn phải trả nhà cung cấp.        |
+| Chứng từ nguồn               | Đơn mua, đơn bán hoặc phiếu làm căn cứ cho bước nghiệp vụ sau.       |
+| Tồn thực tế / tồn khả dụng   | Số đang có trong kho / số còn có thể dùng sau khi trừ lượng giữ chỗ. |
+| Frontend (FE) / Backend (BE) | Phần giao diện / phần xử lý phía máy chủ.                            |
+| `pending`                    | Trạng thái đang chờ xử lý hoặc chờ duyệt.                            |
+| `base amount`                | Số tiền đã quy đổi về tiền tệ cơ sở của công ty.                     |
 
 <a id="chon-module"></a>
 
@@ -61,6 +100,10 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 
 Phần này dùng khi lỗi xuất hiện ở module sau nhưng nguyên nhân có thể nằm ở chứng từ nguồn của module trước. Đây là bản đồ điều hướng nhanh; quy tắc trạng thái và số liệu đầy đủ nằm trong [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md).
 
+**Ví dụ: công ty mua 10 sản phẩm:** nhân viên mua hàng tạo và duyệt đơn mua → nhân viên kho nhận đủ 10 sản phẩm và xác nhận phiếu nhập → kế toán duyệt phiếu để ghi tăng tồn kho và ghi nhận số tiền còn nợ nhà cung cấp → khi công ty thanh toán, kế toán duyệt giao dịch chi để giảm công nợ và ghi vào sổ tài khoản. Nếu tồn kho chưa tăng, hãy kiểm tra phiếu nhập và bước duyệt kế toán trước khi kiểm tra giao dịch thanh toán.
+
+Chiều bán hàng diễn ra ngược lại: nhân viên tạo đơn bán → kho xuất hàng → kế toán duyệt để giảm tồn và ghi công nợ khách hàng → khi thu tiền, giao dịch thu làm giảm công nợ và tăng số dư tài khoản.
+
 ```mermaid
 flowchart LR
     Purchase[Đơn mua] --> Import[Phiếu nhập kho]
@@ -78,13 +121,13 @@ flowchart LR
     COD --> Receipt
 ```
 
-| Triệu chứng lỗi                         | Kiểm tra theo thứ tự                                                             | Tài liệu/điểm vào                                                                                                                                                        |
-| --------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Đơn mua không làm tăng tồn hoặc công nợ | PO đã duyệt → phiếu nhập → kho xác nhận → kế toán duyệt → tồn/công nợ NCC        | [Luồng mua hàng](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán) · [Mua hàng](#5-mua-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) |
-| Đơn bán không giảm tồn hoặc tạo công nợ | SO đã duyệt → phiếu xuất → kho xác nhận → kế toán duyệt → tồn/công nợ khách hàng | [Luồng bán hàng](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền) · [Bán hàng](#6-bán-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ)   |
-| POS/Storefront lệch với đơn bán         | nguồn tạo đơn → SalesOrder/items → phiếu xuất → công nợ/giao dịch                | [Bán hàng](#6-bán-hàng) · [Storefront](#6a-cửa-hàng-trực-tuyến) · [Kho](#7-kho)                                                                                          |
-| Số dư hoặc công nợ không giảm           | chứng từ nguồn → giao dịch gắn PO/SO → duyệt giao dịch → ledger → debt summary   | [Giao dịch và lịch sử thanh toán](resources/docs/BUSINESS_FLOWS.md#giao-dịch-và-lịch-sử-thanh-toán) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ)                         |
-| COD không khớp tiền thu                 | phiếu xuất/giao hàng → trạng thái giao → phiên đối soát → giao dịch thu → ledger | [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) · [`CodReconciliationTest`](tests/Feature/CodReconciliationTest.php)                                          |
+| Triệu chứng lỗi                                   | Kiểm tra theo thứ tự                                                                               | Tài liệu/điểm vào                                                                                                                                                        |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Đơn mua không làm tăng tồn hoặc công nợ           | đơn mua (PO) đã duyệt → phiếu nhập → kho xác nhận → kế toán duyệt → tồn/công nợ nhà cung cấp       | [Luồng mua hàng](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán) · [Mua hàng](#5-mua-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) |
+| Đơn bán không giảm tồn hoặc tạo công nợ           | đơn bán (SO) đã duyệt → phiếu xuất → kho xác nhận → kế toán duyệt → tồn/công nợ khách hàng         | [Luồng bán hàng](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền) · [Bán hàng](#6-bán-hàng) · [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ)   |
+| Bán tại quầy/cửa hàng trực tuyến lệch với đơn bán | nguồn tạo đơn → đơn bán và dòng sản phẩm → phiếu xuất → công nợ/giao dịch                          | [Bán hàng](#6-bán-hàng) · [Cửa hàng trực tuyến](#6a-cửa-hàng-trực-tuyến) · [Kho](#7-kho)                                                                                 |
+| Số dư hoặc công nợ không giảm                     | chứng từ nguồn → giao dịch gắn đơn mua/đơn bán → duyệt giao dịch → sổ tài khoản → tổng hợp công nợ | [Giao dịch và lịch sử thanh toán](resources/docs/BUSINESS_FLOWS.md#giao-dịch-và-lịch-sử-thanh-toán) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ)                         |
+| Tiền thu khi giao hàng (COD) không khớp           | phiếu xuất/giao hàng → trạng thái giao → phiên đối soát → giao dịch thu → sổ tài khoản             | [Kho](#7-kho) · [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) · [`CodReconciliationTest`](tests/Feature/CodReconciliationTest.php)                                          |
 
 > Không suy luận số liệu chỉ từ trạng thái PO/SO. Theo nghiệp vụ hiện hành, tồn kho và công nợ chỉ thay đổi tại bước duyệt có hiệu lực của phiếu kho; số dư tài khoản thay đổi khi giao dịch được duyệt.
 
@@ -358,11 +401,11 @@ flowchart LR
 - **Xóa thông báo** → `DELETE /api/notifications/{notification}` → [NotificationController::destroy()](app/Http/Controllers/NotificationController.php#L45) → Trang/Component: [Component NotificationCenter](resources/js/components/Notifications/NotificationCenter.vue#L935)
 - **Đánh dấu tất cả đã đọc thông báo** → `POST /api/notifications/mark-all-read` → [NotificationController::markAllAsRead()](app/Http/Controllers/NotificationController.php#L39) → Trang/Component: [Component NotificationCenter](resources/js/components/Notifications/NotificationCenter.vue#L916)
 - **Đánh dấu đã đọc thông báo** → `POST /api/notifications/{notification}/mark-as-read` → [NotificationController::markAsRead()](app/Http/Controllers/NotificationController.php#L33) → Trang/Component: [Component NotificationCenter](resources/js/components/Notifications/NotificationCenter.vue#L904)
-- **Đếm thông báo chưa đọc thông báo** → `GET/HEAD /api/notifications/unread-count` → [NotificationController::unreadCount()](app/Http/Controllers/NotificationController.php#L24) → Trang/Component: [Component NotificationCenter](resources/js/components/Notifications/NotificationCenter.vue#L779), [Component UserMenu](resources/js/components/layout/header/UserMenu.vue#L403)
+- **Đếm số thông báo chưa đọc** → `GET/HEAD /api/notifications/unread-count` → [NotificationController::unreadCount()](app/Http/Controllers/NotificationController.php#L24) → Trang/Component: [Component NotificationCenter](resources/js/components/Notifications/NotificationCenter.vue#L779), [Component UserMenu](resources/js/components/layout/header/UserMenu.vue#L403)
 
 ### Xác thực và API dùng chung
 
-- **Chuyển tới đăng nhập Google đăng nhập Google** → `GET/HEAD /login/google` → [Auth\GoogleController::redirectToGoogle()](app/Http/Controllers/Auth/GoogleController.php#L19)
+- **Chuyển tới trang đăng nhập Google** → `GET/HEAD /login/google` → [Auth\GoogleController::redirectToGoogle()](app/Http/Controllers/Auth/GoogleController.php#L19)
 - **Lấy danh sách phường/xã địa chỉ hành chính** → `GET/HEAD /api/provinces/{province}/wards` → [AddressController::wards()](app/Http/Controllers/AddressController.php#L15) → Trang/Component: [Trang Tạo công ty](resources/js/Pages/Company/Create.vue#L233), [Trang Biểu mẫu nhà cung cấp — Mua hàng](resources/js/Pages/Purchase/Supplier/SupplierForm.vue#L458), [Trang Biểu mẫu khách hàng — Bán hàng](resources/js/Pages/Sale/Customer/CustomerForm.vue#L449), [Form tạo/sửa đơn bán — Bán hàng](resources/js/Pages/Sale/Order/SaleOrderForm.vue#L628), [Trang Biểu mẫu kho — Kho](resources/js/Pages/Warehouse/WarehouseForm.vue#L185)
 - **Lấy danh sách phường/xã địa chỉ hành chính** → `GET/HEAD /shop/locations/provinces/{province}/wards` → [AddressController::wards()](app/Http/Controllers/AddressController.php#L15) → Trang/Component: [Trang tài khoản cửa hàng trực tuyến — Cửa hàng trực tuyến](resources/js/Pages/Storefront/Account.vue#L618), [Trang thanh toán cửa hàng trực tuyến — Cửa hàng trực tuyến](resources/js/Pages/Storefront/Checkout.vue#L405)
 - **Lấy danh sách tỉnh/thành địa chỉ hành chính** → `GET/HEAD /api/provinces` → [AddressController::provinces()](app/Http/Controllers/AddressController.php#L10) → Trang/Component: [Trang Tạo công ty](resources/js/Pages/Company/Create.vue#L223), [Trang Biểu mẫu nhà cung cấp — Mua hàng](resources/js/Pages/Purchase/Supplier/SupplierForm.vue#L445), [Trang Biểu mẫu khách hàng — Bán hàng](resources/js/Pages/Sale/Customer/CustomerForm.vue#L434), [Trang Khách hàng — Bán hàng](resources/js/Pages/Sale/Customer/Index.vue#L392), [Trang Đơn bán — Bán hàng](resources/js/Pages/Sale/Order/Index.vue#L567), [Trang Biểu mẫu kho — Kho](resources/js/Pages/Warehouse/WarehouseForm.vue#L240)
@@ -382,7 +425,7 @@ flowchart LR
 - **Xem chi tiết xác nhận mật khẩu** → `GET/HEAD /confirm-password` → [Auth\ConfirmablePasswordController::show()](app/Http/Controllers/Auth/ConfirmablePasswordController.php#L17)
 - **Xem danh sách số điện thoại** → `GET/HEAD /phone-update` → [Auth\UpdatePhoneController::index()](app/Http/Controllers/Auth/UpdatePhoneController.php#L11)
 - **Xóa phiên đăng nhập** → `GET/POST/HEAD /logout` → [Auth\AuthenticatedSessionController::destroy()](app/Http/Controllers/Auth/AuthenticatedSessionController.php#L44) → Trang/Component: [Trang tài khoản cửa hàng trực tuyến — Cửa hàng trực tuyến](resources/js/Pages/Storefront/Account.vue#L574)
-- **Xử lý đăng nhập Google đăng nhập Google** → `GET/HEAD /login/google/callback` → [Auth\GoogleController::handleGoogleCallback()](app/Http/Controllers/Auth/GoogleController.php#L31)
+- **Xử lý phản hồi đăng nhập từ Google** → `GET/HEAD /login/google/callback` → [Auth\GoogleController::handleGoogleCallback()](app/Http/Controllers/Auth/GoogleController.php#L31)
 
 
 </details>
@@ -491,7 +534,7 @@ flowchart LR
 
 **Vai trò:** trang vào hệ thống, dashboard tổng hợp và khung giao diện dùng chung.
 
-- **Điểm vào:** `/`, `/dashboard`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Điểm vào:** `/`, `/dashboard`; xem trực tiếp [web route Dashboard](routes/web.php#L251) và [API Dashboard](routes/api.php#L425).
 - **Frontend:** [`DashBoard.vue`](resources/js/Pages/DashBoard.vue), [`AdminLayout.vue`](resources/js/Layouts/AdminLayout.vue), [`components/layout`](resources/js/components/layout); dashboard riêng nằm trong từng module.
 - **Backend:** [`DashboardController`](app/Http/Controllers/DashboardController.php), [`DashboardService`](app/Services/DashboardService.php), [`DashboardRepository`](app/Repositories/DashboardRepository.php).
 - **Kiểm thử:** [`ModuleDashboardTest`](tests/Feature/ModuleDashboardTest.php), [`DemoAccountPageSmokeTest`](tests/Feature/DemoAccountPageSmokeTest.php).
@@ -596,7 +639,7 @@ flowchart LR
 
 **Vai trò:** tạo công ty, thiết lập ngữ cảnh công ty và quản lý hồ sơ người dùng hiện tại.
 
-- **Điểm vào:** `/company/create`, `/company`, `/profile`; web route tại [`routes/web.php`](routes/web.php).
+- **Điểm vào:** `/company/create`, `/company`, `/profile`; xem trực tiếp [web route Công ty/Hồ sơ](routes/web.php#L242) và [API Công ty](routes/api.php#L94).
 - **Frontend:** [`Company/Create.vue`](resources/js/Pages/Company/Create.vue), [`Profile/Edit.vue`](resources/js/Pages/Profile/Edit.vue).
 - **Backend:** [`CompanyController`](app/Http/Controllers/CompanyController.php), [`ProfileController`](app/Http/Controllers/ProfileController.php), middleware `EnsureCompanyCreated`, `HandleInertiaRequests` và trait [`BelongsToCompany`](app/Traits/BelongsToCompany.php).
 - **Dữ liệu:** [`Company`](app/Models/Company.php), [`User`](app/Models/User.php), [`CompanyCurrencyRate`](app/Models/CompanyCurrencyRate.php); migration tại [`database/migrations`](database/migrations).
@@ -723,7 +766,7 @@ flowchart LR
 
 **Vai trò:** tạo và quản lý nhân viên đang hoạt động, phòng ban, chức vụ và quan hệ quản lý. Theo ADR-003, nhân sự do công ty tạo không còn luồng gửi duyệt/từ chối tài khoản.
 
-- **Điểm vào:** `/user`, `/user/{id}`, `/departments`, `/positions`; API `/api/users`, `/api/departments`, `/api/positions`.
+- **Điểm vào:** `/user`, `/user/{id}`, `/departments`, `/positions`; xem trực tiếp [web route Nhân sự/Tổ chức](routes/web.php#L195) và các API [Người dùng](routes/api.php#L51), [Phòng ban](routes/api.php#L61), [Chức vụ](routes/api.php#L70).
 - **Frontend:** [`User.vue`](resources/js/Pages/Manage/User.vue), [`UserForm.vue`](resources/js/Pages/Manage/UserForm.vue), [`UserDetail.vue`](resources/js/Pages/Manage/UserDetail.vue), [`Department`](resources/js/Pages/Manage/Department), [`Position`](resources/js/Pages/Manage/Position).
 - **Backend:** [`UserController`](app/Http/Controllers/API/UserController.php), [`DepartmentController`](app/Http/Controllers/DepartmentController.php), [`PositionController`](app/Http/Controllers/PositionController.php).
 - **Dữ liệu:** [`User`](app/Models/User.php), [`Department`](app/Models/Department.php), [`Position`](app/Models/Position.php), [`Company`](app/Models/Company.php); migration tại [`database/migrations`](database/migrations).
@@ -1246,7 +1289,7 @@ flowchart LR
 
 **Vai trò:** định nghĩa vai trò, permission và giới hạn hành động của từng tài khoản.
 
-- **Điểm vào:** `/role`, `/permission`; API `/api/roles`, `/api/permissions`.
+- **Điểm vào:** `/role`, `/permission`; xem trực tiếp [web route Vai trò/Quyền](routes/web.php#L204) và các API [Vai trò](routes/api.php#L78), [Quyền](routes/api.php#L87).
 - **Frontend:** [`Role.vue`](resources/js/Pages/Manage/Role.vue), [`RoleForm.vue`](resources/js/Pages/Manage/RoleForm.vue), [`Permission.vue`](resources/js/Pages/Manage/Permission.vue), [`PermissionForm.vue`](resources/js/Pages/Manage/PermissionForm.vue), [`usePermission.js`](resources/js/composables/usePermission.js).
 - **Backend:** [`RoleController`](app/Http/Controllers/RoleController.php), [`PermissionController`](app/Http/Controllers/PermissionController.php); middleware Spatie được khai báo tại [`bootstrap/app.php`](bootstrap/app.php).
 - **Dữ liệu:** [`Role`](app/Models/Role.php), [`Permission`](app/Models/Permission.php), [`User`](app/Models/User.php), [`create_permission_tables`](database/migrations/2025_11_26_032146_create_permission_tables.php).
@@ -1402,7 +1445,7 @@ flowchart LR
 
 **Vai trò:** nhà cung cấp, danh mục/sản phẩm mua, đơn mua, duyệt đơn và chuyển sang nhập kho/công nợ.
 
-- **Điểm vào:** `/purchase/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Điểm vào:** `/purchase/*`; xem trực tiếp [web route Mua hàng](routes/web.php#L112) và [API Mua hàng](routes/api.php#L182).
 - **Frontend:** [`Purchase`](resources/js/Pages/Purchase) gồm [`Supplier`](resources/js/Pages/Purchase/Supplier), [`Product`](resources/js/Pages/Purchase/Product), [`Category`](resources/js/Pages/Purchase/Category), [`Unit`](resources/js/Pages/Purchase/Unit), [`Order`](resources/js/Pages/Purchase/Order).
 - **Backend:** [`PurchaseOrderController`](app/Http/Controllers/PurchaseOrderController.php), [`SupplierController`](app/Http/Controllers/SupplierController.php), [`ProductController`](app/Http/Controllers/ProductController.php), [`CategoryController`](app/Http/Controllers/CategoryController.php), [`UnitController`](app/Http/Controllers/UnitController.php); service chính [`PurchaseOrderService`](app/Services/PurchaseOrderService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Supplier`, `PurchaseOrder`, `PurchaseOrderItem`, `SupplierDebt`, `Product`, `Category`, `Unit`; migration tại [`database/migrations`](database/migrations).
@@ -1410,7 +1453,14 @@ flowchart LR
 - **Liên thông:** đơn mua được duyệt đi sang [Kho](#7-kho) để lập/xác nhận phiếu nhập, sau đó sang [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) để duyệt phiếu, ghi tồn, công nợ NCC và giao dịch chi. [Xem luồng đầy đủ](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán).
 - **Ràng buộc/giới hạn chính:** theo [`ADR-001`](resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md), PO được duyệt chỉ mở đường cho việc lập phiếu nhập; tồn và công nợ NCC chỉ thay đổi khi kế toán duyệt phiếu. Theo [`ADR-002`](resources/docs/decisions/ADR-002-INVENTORY-COST.md), giá trị nhập gồm VAT và trở thành nguồn giá nhập gần nhất.
 
-> **Kịch bản tái hiện nhanh:** seed dữ liệu, đăng nhập `purchase@demo.vn`, tạo PO cho `NCC-DEMO` với `DEMO-SP-001`, duyệt PO; đăng nhập `warehouse@demo.vn` để lập và xác nhận phiếu nhập; đăng nhập `accountant@demo.vn` để duyệt. Chụp tồn `KHO-DEMO` và công nợ `NCC-DEMO` trước/sau từng bước. Chỉ bước cuối được làm tăng số liệu.
+> **Luồng demo nhanh — mua hàng đến nhập kho**
+>
+> **Chuẩn bị:** chạy dữ liệu mẫu (seed), dùng nhà cung cấp `NCC-DEMO`, sản phẩm `DEMO-SP-001` và kho `KHO-DEMO`. Ghi lại tồn kho và công nợ nhà cung cấp trước khi bắt đầu.
+>
+> 1. Đăng nhập `purchase@demo.vn`, mở **Mua hàng → Đơn mua**, tạo đơn mua (PO) rồi duyệt. **Kỳ vọng:** có thể lập phiếu nhập; tồn và công nợ chưa đổi.
+> 2. Đăng nhập `warehouse@demo.vn`, mở đơn chờ kho, lập phiếu nhập và xác nhận. **Kỳ vọng:** phiếu chờ kế toán duyệt; tồn và công nợ vẫn chưa đổi.
+> 3. Đăng nhập `accountant@demo.vn`, mở phiếu nhập và duyệt. **Kỳ vọng:** tồn `KHO-DEMO` tăng đúng số lượng, công nợ `NCC-DEMO` tăng đúng giá trị và có một biến động kho.
+> 4. Nếu kết quả sai, đối chiếu dữ liệu trước/sau từng bước để xác định lỗi bắt đầu ở đơn mua, phiếu nhập hay bước duyệt kế toán.
 
 > `ProductController`, `CategoryController` và `UnitController` được dùng chung với Kho. Hãy xác định ngữ cảnh bằng prefix route `/api/purchase` hoặc `/api/warehouse`.
 
@@ -1943,9 +1993,9 @@ flowchart LR
 
 ## 6. Bán hàng
 
-**Vai trò:** khách hàng, đơn bán, POS, coupon/khuyến mãi, duyệt đơn, xuất kho, doanh thu và công nợ khách hàng.
+**Vai trò:** khách hàng, đơn bán, bán tại quầy (POS), mã giảm giá/khuyến mãi, duyệt đơn, xuất kho, doanh thu và công nợ khách hàng.
 
-- **Điểm vào:** `/sale/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Điểm vào:** `/sale/*`; xem trực tiếp [web route Bán hàng](routes/web.php#L135) và [API Bán hàng](routes/api.php#L240).
 - **Frontend:** [`Customer`](resources/js/Pages/Sale/Customer), [`Order`](resources/js/Pages/Sale/Order), [`Pos`](resources/js/Pages/Sale/Pos), [`Coupon`](resources/js/Pages/Sale/Coupon), [`Dashboard.vue`](resources/js/Pages/Sale/Dashboard.vue).
 - **Backend:** [`SalesOrderController`](app/Http/Controllers/SalesOrderController.php), [`CustomerController`](app/Http/Controllers/CustomerController.php), [`PosController`](app/Http/Controllers/PosController.php), [`CouponController`](app/Http/Controllers/CouponController.php); service liên quan [`CustomerDebtService`](app/Services/CustomerDebtService.php), [`StockService`](app/Services/StockService.php), [`CodeGeneratorService`](app/Services/CodeGeneratorService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Customer`, `CustomerDebt`, `CustomerPayment`, `SalesOrder`, `SalesOrderItem`, `PosCoupon`, `CouponUsage`, `CouponCustomerAssignment`; migration tại [`database/migrations`](database/migrations).
@@ -1953,7 +2003,15 @@ flowchart LR
 - **Liên thông:** đơn bán/POS được duyệt đi sang [Kho](#7-kho) để xuất hàng, rồi sang [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) để ghi công nợ, thu tiền và sổ tài khoản. [Xem luồng đầy đủ](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền).
 - **Ràng buộc/giới hạn chính:** theo [`ADR-001`](resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md), duyệt SO chưa giảm tồn hoặc tạo công nợ. Theo [`ADR-002`](resources/docs/decisions/ADR-002-INVENTORY-COST.md), giá vốn xuất dùng giá nhập gần nhất, không dùng bình quân.
 
-> **Kịch bản tái hiện nhanh:** seed dữ liệu, đăng nhập `sales@demo.vn`, tạo SO cho `KH-DEMO` với `DEMO-SP-002`, gửi/duyệt đơn; dùng `warehouse@demo.vn` lập và xác nhận phiếu xuất; dùng `accountant@demo.vn` duyệt phiếu rồi tạo giao dịch thu category `THU_KH` gắn SO. Nếu công nợ không giảm, kiểm tra `TransactionService::syncDebt()`, `customer_debts` và ledger của giao dịch.
+> **Luồng demo nhanh — bán hàng đến thu tiền**
+>
+> **Chuẩn bị:** chạy dữ liệu mẫu, dùng khách hàng `KH-DEMO`, sản phẩm `DEMO-SP-002` và ghi lại tồn kho, công nợ khách hàng trước khi bắt đầu.
+>
+> 1. Đăng nhập `sales@demo.vn`, mở **Bán hàng → Đơn bán**, tạo đơn bán (SO), gửi duyệt rồi duyệt đơn. **Kỳ vọng:** có thể lập phiếu xuất; tồn và công nợ chưa đổi.
+> 2. Đăng nhập `warehouse@demo.vn`, lập phiếu xuất từ đơn và xác nhận. **Kỳ vọng:** phiếu chờ kế toán duyệt; tồn và công nợ vẫn chưa đổi.
+> 3. Đăng nhập `accountant@demo.vn`, duyệt phiếu xuất. **Kỳ vọng:** tồn giảm đúng số lượng và công nợ khách hàng tăng đúng giá trị.
+> 4. Tạo giao dịch thu thuộc loại `THU_KH`, gắn đúng đơn bán rồi duyệt. **Kỳ vọng:** số dư tài khoản tăng, công nợ khách hàng giảm và sổ tài khoản có đúng một bút toán.
+> 5. Nếu công nợ không giảm, kiểm tra lần lượt liên kết với đơn bán, trạng thái duyệt, `TransactionService::syncDebt()`, bảng `customer_debts` và sổ tài khoản của giao dịch.
 
 <!-- GENERATED_MODULE_GROUP_6_B_AN_H_ANG_START -->
 
@@ -2425,9 +2483,9 @@ flowchart LR
 
 ## 6A. Cửa hàng trực tuyến
 
-**Vai trò:** danh bạ cửa hàng, gian hàng công khai, giỏ hàng, checkout, voucher, tài khoản khách, địa chỉ, lịch sử đơn và thông báo khách hàng.
+**Vai trò:** danh bạ cửa hàng, gian hàng công khai, giỏ hàng, thanh toán/đặt hàng (checkout), mã giảm giá (voucher), tài khoản khách, địa chỉ, lịch sử đơn và thông báo khách hàng.
 
-- **Điểm vào:** `/shop`, `/shop/{company:storefront_slug}` và các trang con `product`, `cart`, `checkout`, `my-account`, `notifications`, `orders/{code}`.
+- **Điểm vào:** `/shop`, `/shop/{company:storefront_slug}` và các trang con `product`, `cart`, `checkout`, `my-account`, `notifications`, `orders/{code}`; xem trực tiếp [web route Cửa hàng trực tuyến](routes/web.php#L19). Các thao tác dữ liệu của cửa hàng cũng được khai báo trong nhóm web route này, không có nhóm riêng trong `routes/api.php`.
 - **Frontend:** [`Storefront`](resources/js/Pages/Storefront), [`components/Storefront`](resources/js/components/Storefront), [`useStorefrontCart.js`](resources/js/composables/useStorefrontCart.js), [`useStorefrontNotifications.js`](resources/js/composables/useStorefrontNotifications.js).
 - **Backend:** [`StorefrontController`](app/Http/Controllers/StorefrontController.php), [`StorefrontAccountController`](app/Http/Controllers/StorefrontAccountController.php); route công khai và account route tại [`routes/web.php`](routes/web.php).
 - **Dữ liệu:** `Company` storefront fields, `CustomerAccount`, `CustomerAddress`, `Notification` gắn `customer_account_id`, `SalesOrder`, coupon assignment/usage và snapshot giao nhận.
@@ -2809,7 +2867,7 @@ flowchart LR
 
 **Vai trò:** kho, sản phẩm tồn, phiếu nhập/xuất, chuyển kho, giao vận/hoàn hàng và sổ biến động tồn.
 
-- **Điểm vào:** `/warehouse/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Điểm vào:** `/warehouse/*`; xem trực tiếp [web route Kho](routes/web.php#L73) và [API Kho](routes/api.php#L105).
 - **Frontend:** [`Warehouse`](resources/js/Pages/Warehouse) gồm `Product`, `Category`, `Unit`, `Order`, `Slip`, `Transfer`, `InventoryMovement`.
 - **Backend:** [`WarehouseController`](app/Http/Controllers/WarehouseController.php), [`WarehouseSlipController`](app/Http/Controllers/WarehouseSlipController.php), [`WarehouseInventoryController`](app/Http/Controllers/WarehouseInventoryController.php), [`InventoryMovementController`](app/Http/Controllers/InventoryMovementController.php), [`WarehouseTransferController`](app/Http/Controllers/WarehouseTransferController.php); service [`StockService`](app/Services/StockService.php), [`InventoryMovementService`](app/Services/InventoryMovementService.php).
 - **Dữ liệu:** model tại [`app/Models`](app/Models): `Warehouse`, `WarehouseProductStock`, `Stock`, `WarehouseSlip`, `WarehouseSlipItem`, `WarehouseTransfer`, `WarehouseTransferItem`, `InventoryMovement`; migration tại [`database/migrations`](database/migrations).
@@ -2817,7 +2875,14 @@ flowchart LR
 - **Liên thông:** nhận chứng từ nguồn từ [Mua hàng](#5-mua-hàng) hoặc [Bán hàng](#6-bán-hàng); kho xác nhận trước, [Kế toán](#8-kế-toán-giao-dịch-và-công-nợ) duyệt sau. Khi lỗi tồn/công nợ, kiểm tra cả phiếu `pending`, lượng giữ chỗ, bước duyệt kế toán và biến động kho. [Xem luồng mua](resources/docs/BUSINESS_FLOWS.md#mua-hàng--nhập-kho--thanh-toán) · [luồng bán](resources/docs/BUSINESS_FLOWS.md#bán-hàng--xuất-kho--thu-tiền).
 - **Ràng buộc/giới hạn chính:** [`ADR-001`](resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md) bắt buộc hai bước kho xác nhận → kế toán duyệt và chống duyệt lặp trong transaction. [`ADR-002`](resources/docs/decisions/ADR-002-INVENTORY-COST.md) yêu cầu nhập gồm VAT, còn xuất/chuyển dùng cùng nguồn giá nhập gần nhất.
 
-> **Kịch bản tái hiện nhanh:** dùng `SO-DEMO-001`, `PX-DEMO-001`, `KHO-DEMO` làm mẫu cấu trúc. Với lỗi giữ chỗ, tạo thêm phiếu xuất `pending` cho cùng sản phẩm rồi so sánh tồn thực tế với tồn khả dụng. Với lỗi duyệt lặp, gọi lại bước kế toán duyệt và xác nhận không có thêm `InventoryMovement`, debt hoặc thay đổi tồn lần hai.
+> **Luồng demo nhanh — kiểm tra giữ chỗ và duyệt lặp**
+>
+> **Chuẩn bị:** dùng đơn bán `SO-DEMO-001`, phiếu xuất `PX-DEMO-001`, kho `KHO-DEMO`; ghi lại tồn thực tế, tồn khả dụng, số biến động kho và công nợ.
+>
+> 1. Tạo thêm một phiếu xuất đang chờ (`pending`) cho cùng sản phẩm. **Kỳ vọng:** tồn thực tế chưa giảm nhưng tồn khả dụng giảm theo lượng được giữ chỗ.
+> 2. Hủy phiếu đang chờ. **Kỳ vọng:** lượng giữ chỗ được trả lại, tồn khả dụng bằng mức trước bước 1.
+> 3. Với `PX-DEMO-001`, hoàn tất xác nhận kho và duyệt kế toán một lần. Ghi lại tồn, công nợ và số bản ghi biến động kho (`InventoryMovement`).
+> 4. Gửi lại yêu cầu duyệt kế toán cho cùng phiếu. **Kỳ vọng:** hệ thống từ chối hoặc không tạo tác động mới; không có biến động kho, công nợ hay thay đổi tồn lần hai.
 
 <!-- GENERATED_MODULE_GROUP_7_KHO_START -->
 
@@ -3451,9 +3516,9 @@ flowchart LR
 
 ## 8. Kế toán, giao dịch và công nợ
 
-**Vai trò:** tiền tệ, ngân hàng, tài khoản/quỹ, giao dịch, sổ tài khoản, công nợ, đối soát COD và báo cáo lãi lỗ.
+**Vai trò:** tiền tệ, ngân hàng, tài khoản/quỹ, giao dịch, sổ tài khoản, công nợ, đối soát thu tiền khi giao hàng (COD) và báo cáo lãi lỗ.
 
-- **Điểm vào:** `/accountant/*`; web và API route tại [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php).
+- **Điểm vào:** `/accountant/*`; xem trực tiếp [web route Kế toán](routes/web.php#L153) và [API Kế toán](routes/api.php#L292).
 - **Frontend:** [`Accountant`](resources/js/Pages/Accountant) gồm danh mục kế toán, giao dịch, sổ tài khoản, công nợ và báo cáo.
 - **Backend:** [`AccountController`](app/Http/Controllers/AccountController.php), [`TransactionController`](app/Http/Controllers/TransactionController.php), [`CodReconciliationController`](app/Http/Controllers/CodReconciliationController.php), [`AccountLedgerController`](app/Http/Controllers/Accountant/AccountLedgerController.php), [`ProfitLossReportController`](app/Http/Controllers/Accountant/ProfitLossReportController.php); các controller còn lại nằm trong [`app/Http/Controllers`](app/Http/Controllers).
 - **Nghiệp vụ:** [`TransactionService`](app/Services/TransactionService.php), [`LedgerService`](app/Services/LedgerService.php), [`CurrencyService`](app/Services/CurrencyService.php), [`AccountBalanceService`](app/Services/AccountBalanceService.php); repository tại [`app/Repositories`](app/Repositories).
@@ -3462,7 +3527,14 @@ flowchart LR
 - **Liên thông:** duyệt phiếu nhập/xuất từ [Kho](#7-kho) để ghi nhận tồn và công nợ; duyệt giao dịch gắn PO/SO để cập nhật số dư, ledger và giảm công nợ tương ứng. Với COD, lần ngược từ phiếu giao hàng → phiên đối soát → giao dịch thu. [Xem quy tắc thanh toán](resources/docs/BUSINESS_FLOWS.md#giao-dịch-và-lịch-sử-thanh-toán).
 - **Ràng buộc/giới hạn chính:** [`ADR-001`](resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md) không cho kế toán thao tác trước khi kho xác nhận. [`ADR-003`](resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md) khóa VND ở tỷ giá 1 và yêu cầu chứng từ ngoại tệ dùng snapshot, không sửa hồi tố.
 
-> **Kịch bản tái hiện nhanh:** dùng `SO-DEMO-001`, `KH-DEMO` và tài khoản `TM-DEMO`; tạo giao dịch `receipt` category `THU_KH`, gắn đúng SO rồi duyệt. Ghi lại `current_balance`, tổng `customer_debts` và `AccountLedger` trước/sau. Kỳ vọng số dư tăng đúng số tiền base, công nợ giảm đúng số tiền và chỉ có một bút toán cho giao dịch.
+> **Luồng demo nhanh — thu tiền và giảm công nợ**
+>
+> **Chuẩn bị:** dùng đơn bán `SO-DEMO-001`, khách hàng `KH-DEMO` và tài khoản `TM-DEMO`. Ghi lại số dư hiện tại (`current_balance`), tổng công nợ khách hàng và số bút toán trong sổ tài khoản (`AccountLedger`).
+>
+> 1. Tạo giao dịch thu (`receipt`) thuộc loại `THU_KH`, chọn tài khoản `TM-DEMO` và gắn đúng đơn bán. **Kỳ vọng trước khi duyệt:** số dư và công nợ chưa đổi.
+> 2. Duyệt giao dịch. **Kỳ vọng:** số dư tăng đúng số tiền đã quy đổi về tiền tệ cơ sở (`base amount`), công nợ giảm đúng số tiền và chỉ có một bút toán mới.
+> 3. Mở lại giao dịch hoặc gửi lại yêu cầu duyệt. **Kỳ vọng:** không tăng số dư, giảm công nợ hoặc tạo bút toán lần hai.
+> 4. Nếu kết quả sai, kiểm tra theo thứ tự: trạng thái giao dịch → liên kết với đơn bán → số tiền quy đổi → sổ tài khoản → bản ghi công nợ.
 
 <!-- GENERATED_MODULE_GROUP_8_K_TO_AN_GIAO_DCH_V_A_C_ONG_N_START -->
 
@@ -4342,7 +4414,7 @@ flowchart LR
 
 **Vai trò:** lưu vết ai đã làm gì, trên dữ liệu nào và trong công ty nào.
 
-- **Điểm vào:** `/audit-logs`; API `/api/audit-logs`.
+- **Điểm vào:** `/audit-logs`; xem trực tiếp [web route Nhật ký hoạt động](routes/web.php#L208) và [API Nhật ký hoạt động](routes/api.php#L95).
 - **Frontend:** [`Index.vue`](resources/js/Pages/AuditLog/Index.vue), [`AuditLogDetail.vue`](resources/js/Pages/AuditLog/AuditLogDetail.vue).
 - **Backend:** [`AuditLogController`](app/Http/Controllers/AuditLogController.php), [`ActivityLogService`](app/Services/ActivityLogService.php), middleware `LogPermissionAction`, `LogUserActivity`.
 - **Dữ liệu:** [`ActivityLog`](app/Models/ActivityLog.php), [`create_activity_logs_table`](database/migrations/2026_06_19_152918_create_activity_logs_table.php).
@@ -4431,9 +4503,9 @@ flowchart LR
 
 ## 10. Thông báo và realtime
 
-**Vai trò:** thông báo theo người dùng/module và tự làm mới dữ liệu khi công ty có thay đổi.
+**Vai trò:** thông báo theo nhân sự/module và tự làm mới dữ liệu khi công ty có thay đổi.
 
-- **Điểm vào:** menu trên header; API `/api/notifications`; WebSocket tại [`routes/channels.php`](routes/channels.php).
+- **Điểm vào:** menu trên header; xem trực tiếp [API Thông báo](routes/api.php#L408) và [kênh WebSocket](routes/channels.php#L1). Module này không có web route riêng vì giao diện nằm trong header dùng chung.
 - **Frontend:** [`NotificationMenu.vue`](resources/js/components/layout/header/NotificationMenu.vue), [`echo.js`](resources/js/echo.js), [`companyData.js`](resources/js/realtime/companyData.js), [`useRealtimeRefresh.js`](resources/js/composables/useRealtimeRefresh.js).
 - **Backend:** [`NotificationController`](app/Http/Controllers/NotificationController.php), [`BroadcastController`](app/Http/Controllers/BroadcastController.php), [`NotificationService`](app/Services/NotificationService.php); event `NotificationCreated`, `CompanyDataChanged`.
 - **Dữ liệu:** [`Notification`](app/Models/Notification.php), [`create_notifications_table`](database/migrations/2026_07_22_120000_create_notifications_table.php).
@@ -4537,7 +4609,7 @@ flowchart LR
 
 **Vai trò:** đăng nhập, đăng ký, đăng xuất, đặt lại mật khẩu, xác minh email và Google OAuth.
 
-- **Điểm vào:** `/login`, `/register`, `/forgot-password`; route tại [`routes/auth.php`](routes/auth.php).
+- **Điểm vào:** `/login`, `/register`, `/forgot-password`; xem trực tiếp [web route Xác thực](routes/auth.php#L1). Module này không có nhóm API riêng trong `routes/api.php`.
 - **Frontend:** Blade và shell view tại [`resources/views`](resources/views).
 - **Backend:** controller tại [`app/Http/Controllers/Auth`](app/Http/Controllers/Auth), cấu hình tại [`config/auth.php`](config/auth.php), [`config/services.php`](config/services.php).
 - **Dữ liệu:** [`User`](app/Models/User.php), [`PasswordResetToken`](app/Models/PasswordResetToken.php), [`Session`](app/Models/Session.php).
@@ -4908,7 +4980,7 @@ flowchart LR
 
 **Vai trò:** cung cấp hướng dẫn thao tác và tài liệu nghiệp vụ ngay trong ứng dụng.
 
-- **Điểm vào:** `/guide`; route tại [`routes/web.php`](routes/web.php).
+- **Điểm vào:** `/guide`; xem trực tiếp [web route Hướng dẫn](routes/web.php#L253). Module này không có API riêng.
 - **Frontend:** [`resources/js/Pages/Guide/Index.vue`](resources/js/Pages/Guide/Index.vue).
 - **Nội dung tham chiếu:** [`Document.md`](Document.md), [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md).
 - **Lưu ý:** đây là trang nội dung tĩnh, hiện không có Controller, Model hoặc API riêng.

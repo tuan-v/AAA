@@ -254,6 +254,15 @@ function describe(string $name, string $visibility, string $subject, string $bod
 
 function businessActionLabel(string $name, string $subject): string
 {
+    // Các nhãn này đã là câu nghiệp vụ hoàn chỉnh. Không nối thêm chủ thể,
+    // nếu không sẽ sinh các câu lặp như “đăng nhập Google đăng nhập Google”.
+    $completeLabels = [
+        'unreadCount' => 'Đếm số thông báo chưa đọc',
+        'handleGoogleCallback' => 'Xử lý phản hồi đăng nhập từ Google',
+        'redirectToGoogle' => 'Chuyển tới trang đăng nhập Google',
+    ];
+    if (isset($completeLabels[$name])) return $completeLabels[$name];
+
     $actions = [
         'index' => 'Xem danh sách', 'show' => 'Xem chi tiết', 'detail' => 'Xem hồ sơ chi tiết',
         'store' => 'Tạo', 'update' => 'Sửa', 'destroy' => 'Xóa', 'approve' => 'Duyệt',
@@ -273,7 +282,7 @@ function businessActionLabel(string $name, string $subject): string
         'drafts' => 'Xem đơn nháp', 'history' => 'Xem lịch sử', 'checkout' => 'Đặt hàng và thanh toán',
         'login' => 'Đăng nhập', 'logout' => 'Đăng xuất', 'register' => 'Đăng ký',
         'markAsRead' => 'Đánh dấu đã đọc', 'markAllAsRead' => 'Đánh dấu tất cả đã đọc',
-        'unreadCount' => 'Đếm thông báo chưa đọc', 'rates' => 'Xem lịch sử tỷ giá',
+        'rates' => 'Xem lịch sử tỷ giá',
         'storeRate' => 'Thêm tỷ giá', 'permissions' => 'Lấy danh sách quyền',
         'roles' => 'Lấy danh sách vai trò', 'products' => 'Xem danh sách sản phẩm',
         'product' => 'Xem chi tiết sản phẩm', 'vouchers' => 'Lấy mã giảm giá khả dụng',
@@ -300,9 +309,7 @@ function businessActionLabel(string $name, string $subject): string
         'updateProfile' => 'Sửa hồ sơ', 'shippingPartners' => 'Lấy danh sách đối tác vận chuyển',
         'storeShippingPartner' => 'Tạo đối tác vận chuyển',
         'storePartner' => 'Tạo đối tác đối soát',
-        'handleGoogleCallback' => 'Xử lý đăng nhập Google',
         'provinces' => 'Lấy danh sách tỉnh/thành',
-        'redirectToGoogle' => 'Chuyển tới đăng nhập Google',
         'wards' => 'Lấy danh sách phường/xã',
     ];
     if (isset($actions[$name])) return $actions[$name] . ' ' . $subject;

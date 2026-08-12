@@ -1,6 +1,6 @@
 # Chỉ mục tìm lỗi theo triệu chứng
 
-> Sinh tự động ngày **11/08/2026**. Quay lại [mục lục module hợp nhất](../MODULE_INDEX.md).
+> Sinh tự động ngày **12/08/2026**. Quay lại [mục lục module hợp nhất](../MODULE_INDEX.md).
 
 ## Mục lục tìm lỗi theo triệu chứng
 

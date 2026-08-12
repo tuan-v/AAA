@@ -1,6 +1,6 @@
 # Chỉ mục function toàn dự án
 
-> Sinh tự động từ mã nguồn ngày **11/08/2026**. Nguồn đúng cuối cùng vẫn là mã triển khai và tuyến API. Chạy lại: `php docs/generate_project_function_index.php`.
+> Sinh tự động từ mã nguồn ngày **12/08/2026**. Nguồn đúng cuối cùng vẫn là mã triển khai và tuyến API. Chạy lại: `php docs/generate_project_function_index.php`.
 
 ## Cách đọc
 
