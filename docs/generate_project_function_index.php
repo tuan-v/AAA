@@ -8,10 +8,13 @@ declare(strict_types=1);
  */
 
 $root = dirname(__DIR__);
-$output = __DIR__ . '/PROJECT_FUNCTION_INDEX.md';
-$moduleOutput = __DIR__ . '/PROJECT_MODULE_DETAIL_INDEX.md';
-$debugOutput = __DIR__ . '/PROJECT_DEBUGGING_INDEX.md';
-$databaseOutput = __DIR__ . '/PROJECT_DATABASE_INDEX.md';
+$outputRoot = getenv('DOC_OUTPUT_ROOT') ?: $root;
+$outputDirectory = $outputRoot . DIRECTORY_SEPARATOR . 'docs';
+if (!is_dir($outputDirectory)) mkdir($outputDirectory, 0777, true);
+$output = $outputDirectory . '/PROJECT_FUNCTION_INDEX.md';
+$moduleOutput = $outputDirectory . '/PROJECT_MODULE_DETAIL_INDEX.md';
+$debugOutput = $outputDirectory . '/PROJECT_DEBUGGING_INDEX.md';
+$databaseOutput = $outputDirectory . '/PROJECT_DATABASE_INDEX.md';
 $generatedAt = date('d/m/Y');
 
 function files(string $root, string $path, array $extensions): array
@@ -2146,7 +2149,7 @@ foreach ($moduleIndexGroups as $groupDefinition) {
     $moduleIndexBlocksByTitle[$groupDefinition['title']] = array_slice($moduleIndexDetailBlocks, $groupBlockStart);
 }
 
-$moduleIndexPath = $root . DIRECTORY_SEPARATOR . 'MODULE_INDEX.md';
+$moduleIndexPath = $outputRoot . DIRECTORY_SEPARATOR . 'MODULE_INDEX.md';
 $moduleIndexSource = @file_get_contents($moduleIndexPath);
 if ($moduleIndexSource !== false) {
     $moduleIndexSource = preg_replace('/<!-- GENERATED_MODULE_DETAILS_START -->[\s\S]*?<!-- GENERATED_MODULE_DETAILS_END -->\R*/', '', $moduleIndexSource);

@@ -63,6 +63,9 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "docs:generate": "@php docs/generate_project_function_index.php",
+        "docs:check": "@php docs/check_documentation.php",
+        "docs:check-drift": "@php docs/check_documentation.php --drift",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
