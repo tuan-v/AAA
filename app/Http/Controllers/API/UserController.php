@@ -573,8 +573,8 @@ class UserController extends Controller
         if ($role->name === 'Giám đốc') {
             $directorExists = User::query()
                 ->where('company_id', $companyId)
-                ->when($targetUserId, fn ($query) => $query->where('id', '!=', $targetUserId))
-                ->whereHas('roles', fn ($query) => $query->where('name', 'Giám đốc'))
+                ->when($targetUserId, fn($query) => $query->where('id', '!=', $targetUserId))
+                ->whereHas('roles', fn($query) => $query->where('name', 'Giám đốc'))
                 ->exists();
 
             throw ValidationException::withMessages([
@@ -597,14 +597,14 @@ class UserController extends Controller
         $allowedRoles = $this->organizationRoleNames($department, $position);
         if ($allowedRoles !== [] && ! in_array($role->name, $allowedRoles, true)) {
             throw ValidationException::withMessages([
-                'role' => ['Vai trò không phù hợp với phòng ban và chức vụ đã chọn. Vai trò phù hợp: '.implode(', ', $allowedRoles).'.'],
+                'role' => ['Vai trò không phù hợp với phòng ban và chức vụ đã chọn. Vai trò phù hợp: ' . implode(', ', $allowedRoles) . '.'],
             ]);
         }
     }
 
     private function organizationRoleNames(Department $department, Position $position): array
     {
-        $departmentText = Str::lower(Str::ascii($department->code.' '.$department->name));
+        $departmentText = Str::lower(Str::ascii($department->code . ' ' . $department->name));
         $positionText = Str::lower(Str::ascii($position->name));
         $module = match (true) {
             Str::contains($departmentText, ['pb-002', 'nhan su', 'hanh chinh']) => 'nhân sự',
@@ -620,7 +620,12 @@ class UserController extends Controller
         }
 
         $isManager = Str::contains($positionText, [
-            'truong', 'pho phong', 'quan ly', 'giam sat', 'lead', 'manager',
+            'truong',
+            'pho phong',
+            'quan ly',
+            'giam sat',
+            'lead',
+            'manager',
         ]);
 
         return [$isManager ? "Quản lý {$module}" : "Nhân viên {$module}"];

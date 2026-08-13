@@ -173,7 +173,7 @@ function describe(string $name, string $visibility, string $subject, string $bod
     ];
     $shortClass = substr($class, strrpos($class, '\\') + 1);
     if (isset($curated[$shortClass . '.' . $name])) return $curated[$shortClass . '.' . $name];
-    if ($name === '__construct') return 'Inject các service/dependency mà controller cần để xử lý ' . $subject . '.';
+    if ($name === '__construct') return 'Khởi tạo các dịch vụ và thành phần mà lớp cần để xử lý ' . $subject . '.';
     $special = [
         'companyId' => 'Xác định công ty của người dùng hiện tại để cô lập dữ liệu và phân quyền.',
         'getCompanyCurrency' => 'Lấy tiền tệ mặc định của công ty để quy đổi số tiền.',
@@ -257,6 +257,8 @@ function describe(string $name, string $visibility, string $subject, string $bod
 
 function businessActionLabel(string $name, string $subject): string
 {
+    if ($name === '__construct') return 'Khởi tạo lớp và các thành phần cần dùng';
+
     // Các nhãn này đã là câu nghiệp vụ hoàn chỉnh. Không nối thêm chủ thể,
     // nếu không sẽ sinh các câu lặp như “đăng nhập Google đăng nhập Google”.
     $completeLabels = [
@@ -361,7 +363,7 @@ function debugDetails(string $body): string
     if (preg_match('/->validate\(|Validator::make\(|validated\(/', $body)) $statuses[] = '422';
     $statuses = array_values(array_unique($statuses));
     if ($statuses) $parts[] = '**HTTP lỗi cần kiểm tra:** `' . implode('`, `', $statuses) . '`';
-    return $parts ? implode('<br>', $parts) : 'Không phát hiện input validation hoặc mã lỗi HTTP viết trực tiếp trong Function.';
+    return $parts ? implode('<br>', $parts) : 'Không thấy phần kiểm tra đầu vào hoặc mã lỗi HTTP được viết trực tiếp trong hàm.';
 }
 
 function symptomCategories(string $name, string $body): array
@@ -679,7 +681,7 @@ function pageEffect(string $name, string $subject, string $path): string
     return 'dữ liệu hoặc hành động liên quan đến ' . $subject . ' trên trang này có thể thay đổi';
 }
 
-function indirectPageImpacts(string $root, string $class, string $name): array
+function indirectPageImpactItems(string $root, string $class, string $name): array
 {
     $shortClass = substr($class, strrpos($class, '\\') + 1);
     $map = [
@@ -701,7 +703,17 @@ function indirectPageImpacts(string $root, string $class, string $name): array
     foreach ($map[$shortClass . '.' . $name] ?? [] as [$relative, $line, $effect]) {
         $path = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
         if (!is_file($path)) continue;
-        $results[] = '<br>• ' . codeLink($root, $path, $line, pageName($root, $path)) . ' (gián tiếp): ' . $effect . '.';
+        $results[] = ['path' => $path, 'line' => $line, 'effect' => $effect];
+    }
+    return $results;
+}
+
+function indirectPageImpacts(string $root, string $class, string $name): array
+{
+    $results = [];
+    foreach (indirectPageImpactItems($root, $class, $name) as $item) {
+        $results[] = '<br>• ' . codeLink($root, $item['path'], $item['line'], pageName($root, $item['path']))
+            . ' (gián tiếp): ' . $item['effect'] . '.';
     }
     return $results;
 }
@@ -720,20 +732,20 @@ function backendImpact(string $name, string $subject, string $body): string
     } elseif (preg_match('/approve|reject|submit|confirm|receive|resubmit/i', $name)) {
         $parts[] = 'Điều kiện chuyển trạng thái, người được phép thao tác và bước nghiệp vụ kế tiếp của ' . $subject . ' có thể thay đổi';
     } else {
-        $parts[] = 'Logic xử lý ' . $subject . ', dữ liệu đầu ra hoặc điều kiện nghiệp vụ của Function có thể thay đổi';
+        $parts[] = 'Cách xử lý ' . $subject . ', dữ liệu trả về hoặc điều kiện nghiệp vụ có thể thay đổi';
     }
     if (preg_match('/stock|inventory|quantity|warehouse/i', $body)) $parts[] = 'Cần đối chiếu tồn kho, lượng giữ chỗ, lượng đã nhập/xuất và biến động kho';
     if (preg_match('/amount|currency|exchange[_A-Z]?rate|debt|balance|payment/i', $body)) $parts[] = 'Cần đối chiếu số tiền, tỷ giá, số dư tài khoản và công nợ trước/sau';
     if (preg_match('/coupon|voucher|discount/i', $body)) $parts[] = 'Cần kiểm tra điều kiện áp dụng, số lần sử dụng và hoàn tác mã giảm giá';
     if (preg_match('/Notification|notify\(|notificationService/i', $body)) $parts[] = 'Cần kiểm tra người nhận, nội dung và thời điểm phát thông báo';
-    if (preg_match('/DB::transaction|DB::beginTransaction/i', $body)) $parts[] = 'Cần bảo đảm toàn bộ thay đổi trong transaction cùng thành công hoặc cùng rollback';
+    if (preg_match('/DB::transaction|DB::beginTransaction/i', $body)) $parts[] = 'Cần bảo đảm các bước ghi dữ liệu cùng thành công hoặc cùng được hoàn tác';
     return implode('. ', array_values(array_unique($parts))) . '.';
 }
 
 function impactAssessment(string $name, string $visibility, string $body, array $dependencies = [], array $pages = []): array
 {
     if ($name === '__construct') {
-        return ['Cao', 'thay đổi dependency khởi tạo có thể làm tất cả endpoint của lớp không hoạt động'];
+        return ['Cao', 'thay đổi thành phần được khởi tạo có thể làm mọi API của lớp ngừng hoạt động'];
     }
     $isWrite = preg_match('/^(store|create|update|destroy|delete|approve|reject|cancel|toggle|assign|confirm|receive|request|mark|submit|resubmit|checkout|register|login|logout)/i', $name)
         || preg_match('/->(?:create|update|delete|save|increment|decrement)\s*\(|::(?:create|updateOrCreate|firstOrCreate)\s*\(/', $body);
@@ -745,19 +757,19 @@ function impactAssessment(string $name, string $visibility, string $body, array 
     $fanOut = count($dependencies) + count($pages);
 
     if ($isWrite && (($touchesInventory && $touchesFinance) || ($hasTransaction && $fanOut >= 4))) {
-        return ['Rất cao', 'có ghi dữ liệu và tác động chéo tồn kho/tài chính hoặc transaction với nhiều nơi phụ thuộc'];
+        return ['Rất cao', 'có ghi dữ liệu và liên quan đồng thời đến tồn kho, tài chính hoặc nhiều nơi đang sử dụng'];
     }
     if ($isWrite && ($touchesInventory || $touchesFinance || $hasTransaction || $changesWorkflow)) {
         $areas = [];
         if ($touchesInventory) $areas[] = 'tồn kho';
         if ($touchesFinance) $areas[] = 'tiền tệ/công nợ/số dư';
         if ($changesWorkflow) $areas[] = 'trạng thái nghiệp vụ';
-        if ($hasTransaction) $areas[] = 'transaction dữ liệu';
+        if ($hasTransaction) $areas[] = 'giao dịch cơ sở dữ liệu';
         return ['Cao', 'có ghi dữ liệu và liên quan ' . implode(', ', array_unique($areas))];
     }
     if ($isWrite || $visibility !== 'public' || $fanOut >= 5) {
         return ['Trung bình', $isWrite
-            ? 'thay đổi dữ liệu hoặc validation nhưng chưa phát hiện tác động chéo tồn kho/tài chính'
+            ? 'có thay đổi dữ liệu hoặc kiểm tra đầu vào nhưng chưa thấy liên quan trực tiếp đến cả tồn kho và tài chính'
             : 'là hàm hỗ trợ/dùng chung hoặc có nhiều nơi phụ thuộc cần kiểm tra'];
     }
     return ['Thấp', 'chủ yếu đọc/chuẩn bị dữ liệu; rủi ro chính nằm ở cấu trúc dữ liệu trả về và giao diện hiển thị'];
@@ -771,13 +783,13 @@ function impactAssessmentText(array $assessment): string
 function quickFixPath(string $root, array $pages, array $routes, string $controllerLink, array $dependencies, array $tests): string
 {
     $steps = [];
-    $steps[] = $pages ? 'FE ' . referenceLinks($root, $pages) : 'FE: phân tích tĩnh chưa ánh xạ được trang gọi trực tiếp';
+    $steps[] = $pages ? 'Màn hình ' . referenceLinks($root, $pages) : 'Màn hình: chưa tìm thấy nơi gọi trực tiếp';
     $routeLabels = [];
     foreach ($routes as $route) $routeLabels[] = '`' . str_replace('|', '/', $route['method']) . ' /' . $route['uri'] . '`';
     $steps[] = $routeLabels ? 'API ' . implode(', ', $routeLabels) : 'API: chưa có route trực tiếp';
     $steps[] = $controllerLink;
-    $steps[] = $dependencies ? 'Service/Model ' . implode(', ', $dependencies) : 'Service/Model: chưa phát hiện lời gọi trực tiếp';
-    $steps[] = $tests ? 'Test ' . referenceLinks($root, $tests) : 'Test: chưa ánh xạ được test trực tiếp';
+    $steps[] = $dependencies ? 'Xử lý/dữ liệu ' . implode(', ', $dependencies) : 'Xử lý/dữ liệu: chưa thấy lời gọi trực tiếp';
+    $steps[] = $tests ? 'Kiểm thử ' . referenceLinks($root, $tests) : 'Kiểm thử: chưa tìm thấy trường hợp đi trực tiếp qua hàm này';
     return implode(' → ', $steps);
 }
 
@@ -790,9 +802,9 @@ function impact(string $root, string $class, string $name, string $visibility, s
     $parts = [backendImpact($name, $subject, $body)];
     if ($crossModuleImpact !== '') $parts[] = $crossModuleImpact;
     $parts = array_merge($parts, indirectPageImpacts($root, $class, $name));
-    if (!$hasRoute) $parts[] = 'Phân tích tĩnh chưa thấy route trực tiếp; kiểm tra caller nội bộ, event, job hoặc framework hook trước khi sửa.';
-    if (!$pages) $parts[] = 'Phân tích tĩnh chưa ánh xạ được trang Vue/JS trực tiếp; không đồng nghĩa Function không được sử dụng.';
-    if (!$tests) $parts[] = 'Phân tích tĩnh chưa ánh xạ được test theo route/Controller; cần tìm theo tên nghiệp vụ hoặc bổ sung test hồi quy.';
+    if (!$hasRoute) $parts[] = 'Chưa thấy API gọi thẳng hàm này; hãy kiểm tra nơi gọi nội bộ, sự kiện hoặc job trước khi sửa.';
+    if (!$pages) $parts[] = 'Chưa tìm thấy màn hình Vue/JS gọi trực tiếp; hàm vẫn có thể được gọi gián tiếp.';
+    if (!$tests) $parts[] = 'Chưa tìm thấy kiểm thử đi thẳng qua API hoặc Controller này; nên tìm theo tên nghiệp vụ hoặc bổ sung kiểm thử trước khi sửa.';
     return implode(' ', $parts);
 }
 
@@ -815,7 +827,7 @@ function pageModuleName(string $root, string $path): string
             'Warehouse' => 'Kho', default => $match[1],
         };
     }
-    return str_contains($relative, 'resources/js/components/') ? 'Component dùng chung' : 'Frontend';
+    return str_contains($relative, 'resources/js/components/') ? 'Component dùng chung' : 'Giao diện';
 }
 
 function highImpactDomains(string $class, string $name, string $body, array $models): array
@@ -876,13 +888,13 @@ function businessDomainLink(string $root, string $domain): string
 
 function crossModuleImpactText(string $root, array $directPages, array $models, array $assessment, array $highImpactDomains = []): string
 {
-    $lines = ['<br>**Ảnh hưởng xuyên module:**'];
+    $lines = ['<br>**Những nơi nên kiểm tra cùng:**'];
     if (in_array($assessment[0] ?? '', ['Cao', 'Rất cao'], true)) {
         $summary = $highImpactDomains
             ? implode(' + ', array_map(fn ($domain) => businessDomainLink($root, $domain), $highImpactDomains))
-            : 'các luồng ghi dữ liệu, trạng thái nghiệp vụ và module sử dụng kết quả của Function';
-        $lines[] = '<br>• **Phạm vi nghiệp vụ (' . $assessment[0] . '):** ' . $summary
-            . '. Cần kiểm tra đồng bộ dữ liệu và test hồi quy xuyên suốt các luồng này.';
+            : 'luồng ghi dữ liệu, trạng thái nghiệp vụ và các phần đang dùng kết quả của hàm';
+        $lines[] = '<br>• **Luồng nghiệp vụ liên quan:** ' . $summary
+            . '. Nên chạy lại luồng từ bước tạo dữ liệu đến kết quả cuối.';
     }
     if ($directPages) {
         $links = [];
@@ -891,10 +903,10 @@ function crossModuleImpactText(string $root, array $directPages, array $models, 
             $label = pageName($root, $page['path']) . ' (' . pageModuleName($root, $page['path']) . ')';
             $links[$key] = codeLink($root, $page['path'], $page['line'], $label);
         }
-        $lines[] = '<br>• **Direct Impact (Trang/FE trực tiếp — mức cao):** ' . implode(', ', $links)
-            . '. Sửa logic, dữ liệu trả về, validation hoặc trạng thái của Function sẽ tác động trực tiếp các trang này.';
+        $lines[] = '<br>• **Màn hình đang dùng hàm này:** ' . implode(', ', $links)
+            . '. Kiểm tra lại dữ liệu hiển thị, thông báo lỗi và các nút thao tác trên những màn hình này.';
     } else {
-        $lines[] = '<br>• **Direct Impact (Trang/FE trực tiếp — chưa xác định):** chưa ánh xạ được caller FE trực tiếp; cần kiểm tra caller động, event, job hoặc framework hook.';
+        $lines[] = '<br>• **Màn hình liên quan:** chưa tìm thấy nơi gọi trực tiếp; hãy kiểm tra thêm lời gọi nội bộ, sự kiện, job hoặc route động.';
     }
     if ($models) {
         $modelLinks = [];
@@ -902,12 +914,88 @@ function crossModuleImpactText(string $root, array $directPages, array $models, 
             $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR . $model . '.php';
             $modelLinks[] = is_file($path) ? codeLink($root, $path, 1, 'Model ' . $model) : '`Model ' . $model . '`';
         }
-        $lines[] = '<br>• **Indirect Impact (Dữ liệu dùng chung — có điều kiện):** ' . implode(', ', $modelLinks)
-            . '. Chỉ khi sửa schema, relation, cast, scope, trạng thái dùng chung hoặc quy tắc ghi dữ liệu mới cần rà tất cả nơi sử dụng các Model này; thay đổi logic cục bộ của Function thường chỉ tác động nhóm Direct Impact.';
+        $lines[] = '<br>• **Dữ liệu dùng chung:** ' . implode(', ', $modelLinks)
+            . '. Nếu chỉ sửa cách xử lý trong hàm, ưu tiên kiểm tra các màn hình ở trên. Nếu đổi cấu trúc, quan hệ, kiểu dữ liệu hoặc trạng thái dùng chung, cần tìm tất cả nơi sử dụng các model này.';
     } else {
-        $lines[] = '<br>• **Indirect Impact (Dữ liệu dùng chung — thấp/chưa phát hiện):** chưa phát hiện Model được Function sử dụng trực tiếp.';
+        $lines[] = '<br>• **Dữ liệu dùng chung:** chưa thấy model được hàm sử dụng trực tiếp.';
     }
     return implode('', $lines);
+}
+
+function moduleImpactSummary(string $name, string $visibility, string $subject, string $body, array $callers): string
+{
+    if ($name === '__construct') {
+        return 'Nếu thay đổi cách khởi tạo, mọi API hoặc hàm dùng lớp này có thể không chạy được.';
+    }
+    if ($visibility !== 'public') {
+        return $callers
+            ? 'Đây là hàm nội bộ; thay đổi sẽ tác động các hàm đang gọi nó trong cùng lớp.'
+            : 'Đây là hàm nội bộ; chưa tìm thấy nơi gọi trực tiếp bằng phân tích tĩnh.';
+    }
+    return backendImpact($name, $subject, $body);
+}
+
+function moduleReviewLines(string $root, array $analysis, string $class, string $name): array
+{
+    $lines = ['- **Nên kiểm tra cùng:**'];
+    $assessment = $analysis['assessment'] ?? [];
+    $domains = $analysis['impact_domains'] ?? [];
+    if (in_array($assessment[0] ?? '', ['Cao', 'Rất cao'], true)) {
+        $summary = $domains
+            ? implode(' · ', array_map(fn ($domain) => businessDomainLink($root, $domain), $domains))
+            : 'luồng ghi dữ liệu và trạng thái nghiệp vụ sử dụng kết quả của hàm';
+        $lines[] = '  - **Luồng nghiệp vụ:** ' . $summary . '. Chạy lại từ bước tạo dữ liệu đến kết quả cuối.';
+    }
+
+    $pages = $analysis['pages'] ?? [];
+    if ($pages) {
+        $pageLinks = [];
+        foreach ($pages as $page) {
+            $key = strtolower(str_replace('\\', '/', $page['path']));
+            $pageLinks[$key] = codeLink(
+                $root,
+                $page['path'],
+                $page['line'],
+                pageName($root, $page['path']) . ' — ' . pageModuleName($root, $page['path'])
+            );
+        }
+        $lines[] = '  - **Màn hình:** ' . implode(' · ', $pageLinks) . '. Kiểm tra dữ liệu hiển thị, thông báo lỗi và nút thao tác.';
+    } else {
+        $lines[] = '  - **Màn hình:** chưa tìm thấy nơi gọi trực tiếp; kiểm tra thêm lời gọi nội bộ, sự kiện, job hoặc route động.';
+    }
+
+    foreach (indirectPageImpactItems($root, $class, $name) as $item) {
+        $lines[] = '  - **Màn hình liên quan gián tiếp:** '
+            . codeLink($root, $item['path'], $item['line'], pageName($root, $item['path']))
+            . ' — ' . $item['effect'] . '.';
+    }
+
+    $models = $analysis['models'] ?? [];
+    if ($models) {
+        $modelLinks = [];
+        foreach ($models as $model) {
+            $path = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR . $model . '.php';
+            $modelLinks[] = is_file($path) ? codeLink($root, $path, 1, 'Model ' . $model) : '`Model ' . $model . '`';
+        }
+        $lines[] = '  - **Dữ liệu dùng chung:** ' . implode(' · ', $modelLinks)
+            . '. Chỉ cần rà tất cả nơi sử dụng khi đổi cấu trúc, quan hệ, kiểu dữ liệu, trạng thái hoặc quy tắc ghi.';
+    } else {
+        $lines[] = '  - **Dữ liệu dùng chung:** chưa thấy model được hàm sử dụng trực tiếp.';
+    }
+
+    $tests = $analysis['tests'] ?? [];
+    if ($tests) {
+        $testLinks = [];
+        foreach ($tests as $test) {
+            $key = str_replace('\\', '/', $test['path']) . ':' . $test['line'];
+            $testLinks[$key] = codeLink($root, $test['path'], $test['line'], basename($test['path']) . ':' . $test['line']);
+        }
+        $lines[] = '  - **Kiểm thử:** ' . implode(' · ', $testLinks) . '.';
+    } else {
+        $lines[] = '  - **Kiểm thử:** chưa tìm thấy trường hợp đi trực tiếp qua hàm này; tìm theo tên nghiệp vụ hoặc bổ sung kiểm thử trước khi sửa.';
+    }
+
+    return $lines;
 }
 
 function findReferences(string $root, array $paths, array $needles, int $limit = 4): array
@@ -1131,22 +1219,22 @@ $modelNames = array_map(
 
 $totalFunctions = array_sum(array_map(fn ($c) => count($c['functions']), $controllers));
 $out = [];
-$out[] = '# Chỉ mục function toàn dự án';
+$out[] = '# Chỉ mục hàm toàn dự án';
 $out[] = '';
 $out[] = '> Sinh tự động từ mã nguồn ngày **' . $generatedAt . '**. Nguồn đúng cuối cùng vẫn là mã triển khai và tuyến API. Chạy lại: `php docs/generate_project_function_index.php`.';
 $out[] = '';
 $out[] = '## Cách đọc';
 $out[] = '';
-$out[] = '- **Function** mở đúng dòng trong controller.';
+$out[] = '- **Hàm** mở đúng dòng trong Controller.';
 $out[] = '- **Route/API** cho biết HTTP method, URI và permission middleware.';
 $out[] = '- **Trang gọi trực tiếp** trỏ tới dòng Vue/JS có endpoint tương ứng (kết quả phân tích tĩnh).';
-$out[] = '- **Ảnh hưởng khi sửa** phân biệt thao tác đọc và thao tác có khả năng ghi dữ liệu.';
-$out[] = '- **Ảnh hưởng xuyên module** tách `Direct Impact` (caller FE bị tác động bởi logic Function) và `Indirect Impact` (Model dùng chung chỉ lan rộng khi đổi schema, relation, cast, scope, trạng thái hoặc quy tắc ghi).';
+$out[] = '- **Khi thay đổi hàm** cho biết kết quả nào có thể đổi và những nơi nên kiểm tra cùng.';
+$out[] = '- **Màn hình đang dùng hàm này** là nơi cần kiểm tra trước; **Dữ liệu dùng chung** chỉ cần rà rộng khi thay đổi cấu trúc, quan hệ, kiểu dữ liệu, trạng thái hoặc quy tắc ghi.';
 $out[] = '- **Kiểm thử liên quan** là nơi có tuyến API/bộ điều khiển tương ứng; dấu `—` là khoảng trống cần kiểm tra thủ công.';
 $out[] = '';
 $out[] = '## Tổng quan';
 $out[] = '';
-$out[] = '| Controller | Function | Có tuyến API |';
+$out[] = '| Controller | Hàm | Có API |';
 $out[] = '| ---: | ---: | ---: |';
 $routedCount = 0;
 foreach ($controllers as $controller) foreach ($controller['functions'] as $function) if (!empty($routeMap[$controller['class']][$function['name']])) $routedCount++;
@@ -1172,7 +1260,7 @@ foreach ($controllers as $controller) {
     $out[] = '';
     $out[] = 'Controller: ' . codeLink($root, $controller['path'], 1, $controller['relative']);
     $out[] = '';
-    $out[] = '| Function | Làm gì | Validation/input và lỗi | Service/model được gọi | Tuyến/API và quyền | Trang gọi trực tiếp | Ảnh hưởng khi sửa | Kiểm thử liên quan |';
+    $out[] = '| Hàm | Làm gì | Đầu vào và lỗi | Xử lý/dữ liệu được gọi | API và quyền | Màn hình gọi trực tiếp | Khi thay đổi hàm | Kiểm thử liên quan |';
     $out[] = '| --- | --- | --- | --- | --- | --- | --- | --- |';
     $source = file_get_contents($controller['path']);
     foreach ($controller['functions'] as $function) {
@@ -1345,7 +1433,7 @@ foreach ($controllers as $controller) {
     $controllerByShort[str_replace('App\\Http\\Controllers\\', '', $controller['class'])] = $controller;
 }
 
-$moduleDoc = ['# Chỉ mục theo phân hệ, nghiệp vụ và trang', '', '> Sinh tự động ngày **' . $generatedAt . '** bằng `php docs/generate_project_function_index.php`. Trang này là mục lục tra cứu nhanh; chi tiết được tách sang [Function](PROJECT_FUNCTION_INDEX.md), [tìm lỗi](PROJECT_DEBUGGING_INDEX.md), [database](PROJECT_DATABASE_INDEX.md) và [luồng nghiệp vụ](../resources/docs/BUSINESS_FLOWS.md).', '', '## Mục lục theo chức năng/nghiệp vụ', '', '> Dùng mục này khi chỉ nhớ việc cần làm, ví dụ “Tạo giao dịch”, “Duyệt đơn bán” hoặc “Tạo phiếu xuất”, nhưng không nhớ tên trang hay file.', ''];
+$moduleDoc = ['# Chỉ mục theo phân hệ, nghiệp vụ và trang', '', '> Sinh tự động ngày **' . $generatedAt . '** bằng `php docs/generate_project_function_index.php`. Trang này là mục lục tra cứu nhanh; chi tiết được tách sang [hàm](PROJECT_FUNCTION_INDEX.md), [tìm lỗi](PROJECT_DEBUGGING_INDEX.md), [cơ sở dữ liệu](PROJECT_DATABASE_INDEX.md) và [luồng nghiệp vụ](../resources/docs/BUSINESS_FLOWS.md).', '', '## Mục lục theo chức năng/nghiệp vụ', '', '> Dùng mục này khi chỉ nhớ việc cần làm, ví dụ “Tạo giao dịch”, “Duyệt đơn bán” hoặc “Tạo phiếu xuất”, nhưng không nhớ tên trang hay file.', ''];
 $diagnosticItems = [];
 $moduleIndexDetailBlocks = [];
 foreach ($modules as $moduleName => $module) {
@@ -1382,7 +1470,7 @@ foreach ($modules as $moduleName => $module) {
                 $key = $label . '|' . $route['method'] . '|' . $route['uri'] . '|' . $controller['class'] . '|' . $function['name'];
                 $businessItems[$key] = '- **' . $label . '** → `' . $method . ' /' . $route['uri'] . '` → '
                     . codeLink($root, $controller['path'], $function['line'], $shortController . '::' . $function['name'] . '()')
-                    . ($pageLinks ? ' → Trang/Component: ' . implode(', ', $pageLinks) : '');
+                    . ($pageLinks ? ' → Màn hình/Component: ' . implode(', ', $pageLinks) : '');
                 foreach (symptomCategories($function['name'], $function['body']) as $symptom) {
                     $diagnosticItems[$symptom][$key] = '- `' . $method . ' /' . $route['uri'] . '` → '
                         . codeLink($root, $controller['path'], $function['line'], $shortController . '::' . $function['name'] . '()')
@@ -1401,69 +1489,140 @@ foreach ($modules as $moduleName => $module) {
 $moduleDoc[] = '';
 $moduleDoc[] = '## Mục lục tìm lỗi theo triệu chứng';
 $moduleDoc[] = '';
-$moduleDoc[] = '> Knowledge Base theo nguyên nhân gốc. Chọn câu hỏi gần nhất với điều người dùng báo; chỉ mở chỉ mục endpoint đầy đủ nếu các bước này chưa khoanh vùng được lỗi.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao tạo/sửa đơn báo “số lượng không hợp lệ”?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** sản phẩm dùng đơn vị `allow_decimal = false` nhưng payload gửi số lượng lẻ.';
-$moduleDoc[] = '- **Cách check:** đọc field 422 → mở ' . codeLink($root, $root . '/app/Services/OrderQuantityValidationService.php', 10, 'OrderQuantityValidationService::validate()') . ' → kiểm tra `Product → Unit → allow_decimal` và `items.*.quantity`.';
-$moduleDoc[] = '- **Lưu ý:** Service này không kiểm tra tồn kho. Nếu lỗi nói không đủ tồn hoặc không thể xuất, dùng câu hỏi kế tiếp.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao còn hàng nhưng không thể tạo phiếu xuất?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** tồn khả dụng khác tồn thực tế vì phiếu xuất `pending` đang giữ chỗ, chọn sai kho hoặc đơn đã xuất một phần.';
-$moduleDoc[] = '- **Cách check:** đối chiếu `WarehouseProductStock.quantity` với lượng giữ chỗ → mở ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 245, 'availableForExport()') . ' và ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 923, 'stockOutData()') . ' → kiểm tra warehouse/product/company và lượng đã xuất.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao PO/SO đã duyệt nhưng Kho không thấy?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** trạng thái chưa đúng, đơn đã xử lý hết, loại đơn bị loại khỏi danh sách, permission kho hoặc scope công ty.';
-$moduleDoc[] = '- **Cách check:** xác nhận trạng thái `approved/partial` → tính lượng còn nhập/xuất sau các phiếu hiện có → kiểm tra endpoint danh sách chờ kho bằng tài khoản role Kho.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao phiếu đã duyệt nhưng tồn hoặc công nợ chưa đổi?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** mới hoàn thành bước kho xác nhận, chưa qua kế toán duyệt; hoặc transaction duyệt kế toán đã rollback.';
-$moduleDoc[] = '- **Cách check:** phân biệt ' . codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 818, 'approve() của kho') . ' với ' . codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 862, 'accountantApprove()') . ' → tìm `InventoryMovement` và debt theo phiếu nguồn.';
-$moduleDoc[] = '- **Ràng buộc:** ' . codeLink($root, $root . '/resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md', 1, 'ADR-001') . ' quy định chỉ kế toán duyệt mới cập nhật tồn, movement và công nợ.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao duyệt giao dịch xong nhưng công nợ không giảm?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** sai `type` (`receipt/payment`), sai category (`THU_KH/CHI_NCC`), thiếu customer/supplier hoặc không gắn đúng PO/SO.';
-$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/TransactionService.php', 191, 'TransactionService::approve()') . ' và ' . codeLink($root, $root . '/app/Services/TransactionService.php', 850, 'syncDebt()') . ' → kiểm tra type/category/đối tượng/đơn → đối chiếu debt và `AccountLedger` của cùng transaction.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao giá vốn xuất/chuyển không giống giá bình quân?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- Đây có thể không phải bug. ' . codeLink($root, $root . '/resources/docs/decisions/ADR-002-INVENTORY-COST.md', 1, 'ADR-002') . ' quy định dùng giá nhập gần nhất; giá trị nhập gồm VAT, không dùng bình quân gia quyền.';
-$moduleDoc[] = '- **Cách check:** lần từ sản phẩm đến đơn mua/phiếu nhập gần nhất và đối chiếu `cost_price`, `cost_amount` của phiếu/movement.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao thay tỷ giá làm số liệu mới khác chứng từ cũ?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- ' . codeLink($root, $root . '/resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md', 1, 'ADR-003') . ' yêu cầu VND luôn bằng 1; ngoại tệ có lịch sử và không sửa hồi tố chứng từ.';
-$moduleDoc[] = '- **Cách check:** phân biệt tỷ giá hiện hành trong `CompanyCurrencyRate` với `exchange_rate`/giá trị base snapshot trên chứng từ.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao POS hoặc Storefront tạo trùng đơn?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** double-click/retry tạo hai request, draft POS được checkout lại hoặc transaction checkout không bao phủ toàn bộ thao tác ghi.';
-$moduleDoc[] = '- **Cách check:** tìm đơn theo customer/session, thời điểm và tổng tiền → kiểm tra `PosController::store()` hoặc `StorefrontController::checkout()` → kiểm tra transaction, code generation và retry frontend.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao coupon hợp lệ nhưng không áp dụng hoặc không được hoàn lại?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** sai thời gian, channel, customer assignment, giới hạn sử dụng; hoặc nhánh hủy không hoàn tác `CouponUsage`.';
-$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/CouponService.php', 1, 'CouponService') . ' → đối chiếu điều kiện áp dụng, usage theo đơn và nguồn Sale/POS/Storefront.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao có thông báo nhưng màn hình không tự cập nhật?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** queue/Reverb chưa chạy, private channel từ chối, sai company channel hoặc listener frontend không đăng ký.';
-$moduleDoc[] = '- **Cách check:** xác nhận notification đã commit → queue/Reverb → `routes/channels.php` → `companyData.js`/`useRealtimeRefresh.js`; phân biệt lỗi lưu, broadcast và render.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao Dashboard lệch số liệu chi tiết?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** khác khoảng ngày/timezone, khác trạng thái được tính hoặc repository dùng điều kiện khác màn hình chi tiết.';
-$moduleDoc[] = '- **Cách check:** mở ' . codeLink($root, $root . '/app/Services/DashboardService.php', 14, 'DashboardService::getOverview()') . ' và ' . codeLink($root, $root . '/app/Repositories/DashboardRepository.php', 1, 'DashboardRepository') . ' → cố định `date_from/date_to`, company và trạng thái rồi đối chiếu.';
-$moduleDoc[] = '';
-$moduleDoc[] = '### Vì sao dữ liệu công ty khác xuất hiện trên màn hình?';
-$moduleDoc[] = '';
-$moduleDoc[] = '- **Nguyên nhân thường gặp:** query thiếu `company_id`, relation/eager-load không có scope hoặc ID từ request chưa được xác minh thuộc công ty hiện tại.';
-$moduleDoc[] = '- **Cách check:** lần từ controller xuống query → kiểm tra `BelongsToCompany`, điều kiện company trên relation và test cô lập công ty. Đây là lỗi bảo mật, không chỉ lỗi hiển thị.';
+$moduleDoc[] = '> Chọn tiêu đề gần nhất với điều người dùng nhìn thấy. Mỗi mục đi từ dấu hiệu bên ngoài đến dữ liệu cần kiểm tra và file nên mở đầu tiên.';
+$moduleDoc[] = '> Đây là tình huống chẩn đoán dựa trên mã nguồn, không mặc định là lỗi production đã được xác nhận.';
+
+$knowledgeBaseItems = [
+    [
+        'title' => 'Tạo hoặc sửa đơn báo “số lượng không hợp lệ”',
+        'symptom' => 'Form không lưu và API trả lỗi 422 tại trường số lượng.',
+        'cause' => 'Sản phẩm dùng đơn vị không cho phép số lẻ (`allow_decimal = false`) nhưng dữ liệu gửi lên có số lượng thập phân.',
+        'check' => 'Đọc trường lỗi trong response 422 → kiểm tra `items.*.quantity` → mở quan hệ `Product → Unit` và xem `allow_decimal`.',
+        'code' => codeLink($root, $root . '/app/Services/OrderQuantityValidationService.php', 10, 'OrderQuantityValidationService::validate()'),
+    ],
+    [
+        'title' => 'Còn hàng nhưng không thể tạo phiếu xuất',
+        'symptom' => 'Màn hình hiển thị còn tồn nhưng sản phẩm bị báo không đủ số lượng để xuất.',
+        'cause' => 'Tồn khả dụng thấp hơn tồn thực tế do phiếu `pending` đang giữ chỗ, chọn sai kho hoặc đơn đã được xuất một phần.',
+        'check' => 'So sánh `WarehouseProductStock.quantity` với lượng đang giữ chỗ → kiểm tra đúng kho, sản phẩm, công ty và lượng đã xuất của đơn.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 245, 'availableForExport()') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 923, 'stockOutData()'),
+    ],
+    [
+        'title' => 'Đơn mua hoặc đơn bán đã duyệt nhưng Kho không thấy',
+        'symptom' => 'Đơn hiện “Đã duyệt” ở Mua/Bán nhưng không xuất hiện trong danh sách chờ nhập/xuất kho.',
+        'cause' => 'Trạng thái chưa thuộc `approved/partial`, đơn đã được xử lý hết, tài khoản thiếu quyền Kho hoặc đơn thuộc công ty khác.',
+        'check' => 'Xác nhận trạng thái → tính lượng còn phải nhập/xuất sau các phiếu hiện có → gọi endpoint danh sách chờ kho bằng đúng tài khoản và công ty.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/PurchaseOrderController.php', 1, 'PurchaseOrderController') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 1, 'SalesOrderController') . ' · ' . codeLink($root, $root . '/routes/api.php', 377, 'API đơn chờ Kho'),
+    ],
+    [
+        'title' => 'Phiếu kho đã duyệt nhưng tồn hoặc công nợ chưa đổi',
+        'symptom' => 'Phiếu không còn chờ Kho nhưng số lượng tồn và công nợ vẫn giữ nguyên.',
+        'cause' => 'Mới hoàn thành bước Kho xác nhận, chưa qua Kế toán duyệt; hoặc giao dịch cơ sở dữ liệu khi duyệt đã bị hoàn tác.',
+        'check' => 'Phân biệt trạng thái sau Kho xác nhận với Kế toán duyệt → tìm biến động kho (`InventoryMovement`) và công nợ theo phiếu nguồn.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 818, 'Kho xác nhận: approve()') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/WarehouseSlipController.php', 862, 'Kế toán duyệt: accountantApprove()') . ' · ' . codeLink($root, $root . '/resources/docs/decisions/ADR-001-WAREHOUSE-ACCOUNTING-APPROVAL.md', 1, 'ADR-001'),
+    ],
+    [
+        'title' => 'Duyệt giao dịch xong nhưng công nợ không giảm',
+        'symptom' => 'Giao dịch đã được duyệt và số dư có thể đã đổi, nhưng khoản phải thu/phải trả không giảm.',
+        'cause' => 'Sai loại thu/chi, sai nhóm `THU_KH/CHI_NCC`, thiếu khách hàng/nhà cung cấp hoặc không gắn đúng đơn mua/đơn bán.',
+        'check' => 'Kiểm tra `type`, nhóm giao dịch, đối tượng và đơn liên kết → đối chiếu công nợ và `AccountLedger` theo cùng `transaction_id`.',
+        'code' => codeLink($root, $root . '/app/Services/TransactionService.php', 191, 'TransactionService::approve()') . ' · ' . codeLink($root, $root . '/app/Services/TransactionService.php', 850, 'TransactionService::syncDebt()'),
+    ],
+    [
+        'title' => 'Giá vốn xuất hoặc chuyển kho không giống giá bình quân',
+        'symptom' => 'Giá vốn trên phiếu/biến động kho khác kết quả bình quân mà người kiểm tra tự tính.',
+        'cause' => 'Đây có thể là đúng nghiệp vụ: hệ thống dùng giá nhập gần nhất và giá trị nhập gồm VAT, không dùng bình quân gia quyền.',
+        'check' => 'Tìm lần nhập gần nhất của sản phẩm trước thời điểm xuất/chuyển → đối chiếu `cost_price` và `cost_amount` trên phiếu và biến động kho.',
+        'code' => codeLink($root, $root . '/resources/docs/decisions/ADR-002-INVENTORY-COST.md', 1, 'ADR-002') . ' · ' . codeLink($root, $root . '/app/Services/InventoryMovementService.php', 1, 'InventoryMovementService'),
+    ],
+    [
+        'title' => 'Thay tỷ giá nhưng chứng từ cũ không đổi hoặc số liệu mới khác số liệu cũ',
+        'symptom' => 'Cùng một ngoại tệ nhưng chứng từ tạo ở hai thời điểm có giá trị quy đổi khác nhau.',
+        'cause' => 'Chứng từ lưu tỷ giá tại thời điểm tạo; thay tỷ giá hiện hành không sửa hồi tố chứng từ cũ. VND luôn có tỷ giá 1.',
+        'check' => 'So sánh tỷ giá hiện hành trong `CompanyCurrencyRate` với `exchange_rate` và giá trị quy đổi đã lưu trên từng chứng từ.',
+        'code' => codeLink($root, $root . '/resources/docs/decisions/ADR-003-CURRENCY-AND-ROLES.md', 1, 'ADR-003') . ' · ' . codeLink($root, $root . '/app/Services/CurrencyService.php', 1, 'CurrencyService'),
+    ],
+    [
+        'title' => 'Bán tại quầy hoặc cửa hàng trực tuyến tạo trùng đơn',
+        'symptom' => 'Hai đơn có khách hàng, thời điểm, sản phẩm và tổng tiền gần như giống nhau.',
+        'cause' => 'Người dùng bấm nhiều lần, trình duyệt gửi lại request, đơn nháp được thanh toán lại hoặc toàn bộ thao tác chưa nằm trong cùng transaction.',
+        'check' => 'Tìm các đơn cùng khách/phiên, thời điểm và tổng tiền → đối chiếu request trên Network → kiểm tra khóa chống gửi lặp và phạm vi transaction.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/PosController.php', 1, 'PosController') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/StorefrontController.php', 1, 'StorefrontController'),
+    ],
+    [
+        'title' => 'Mã giảm giá hợp lệ nhưng không áp dụng hoặc không được hoàn lại',
+        'symptom' => 'Mã còn hiệu lực nhưng checkout từ chối, hoặc hủy đơn xong vẫn bị tính là đã sử dụng.',
+        'cause' => 'Không đúng thời gian/kênh/khách được gán, vượt giới hạn sử dụng hoặc nhánh hủy chưa hoàn tác `CouponUsage`.',
+        'check' => 'Đối chiếu thời gian, kênh bán, khách hàng, giới hạn → tìm `CouponUsage` theo đơn → kiểm tra nhánh hủy của đúng nguồn Bán hàng/POS/Storefront.',
+        'code' => codeLink($root, $root . '/app/Services/CouponService.php', 1, 'CouponService'),
+    ],
+    [
+        'title' => 'Có thông báo nhưng màn hình không tự cập nhật',
+        'symptom' => 'Thông báo đã xuất hiện hoặc đã có trong cơ sở dữ liệu, nhưng danh sách liên quan chỉ đổi sau khi tải lại trang.',
+        'cause' => 'Queue/Reverb chưa chạy, kênh riêng bị từ chối, sai kênh công ty hoặc frontend chưa đăng ký listener.',
+        'check' => 'Xác nhận thông báo đã lưu → kiểm tra queue và Reverb → xác thực quyền vào channel → kiểm tra sự kiện đến trình duyệt rồi mới kiểm tra bước render.',
+        'code' => codeLink($root, $root . '/routes/channels.php', 1, 'routes/channels.php') . ' · ' . codeLink($root, $root . '/resources/js/realtime/companyData.js', 1, 'companyData.js') . ' · ' . codeLink($root, $root . '/resources/js/composables/useRealtimeRefresh.js', 1, 'useRealtimeRefresh.js'),
+    ],
+    [
+        'title' => 'Dashboard lệch số liệu so với màn hình chi tiết',
+        'symptom' => 'Thẻ tổng hợp hoặc biểu đồ không bằng tổng các dòng người dùng đang xem.',
+        'cause' => 'Hai màn hình dùng khác khoảng ngày, múi giờ, công ty, trạng thái hoặc điều kiện truy vấn.',
+        'check' => 'Cố định cùng `date_from`, `date_to`, công ty và trạng thái → lấy request của Dashboard → chạy lại điều kiện tương ứng trên danh sách chi tiết.',
+        'code' => codeLink($root, $root . '/app/Services/DashboardService.php', 14, 'DashboardService::getOverview()') . ' · ' . codeLink($root, $root . '/app/Repositories/DashboardRepository.php', 1, 'DashboardRepository'),
+    ],
+    [
+        'title' => 'Dữ liệu của công ty khác xuất hiện trên màn hình',
+        'symptom' => 'Người dùng nhìn thấy bản ghi không thuộc công ty đang làm việc.',
+        'cause' => 'Truy vấn thiếu `company_id`, quan hệ không được giới hạn theo công ty hoặc ID từ request chưa được xác minh quyền sở hữu.',
+        'check' => 'Lần từ Controller xuống truy vấn → kiểm tra trait/điều kiện công ty trên model và relation → tái hiện bằng hai công ty riêng. Xử lý như lỗi bảo mật.',
+        'code' => codeLink($root, $root . '/app/Traits/BelongsToCompany.php', 1, 'BelongsToCompany') . ' · ' . codeLink($root, $root . '/app/Http/Middleware/EnsureCompanyCreated.php', 1, 'EnsureCompanyCreated'),
+    ],
+    [
+        'title' => 'Mở được màn hình nhưng thao tác lại báo 403',
+        'symptom' => 'Trang hiển thị bình thường nhưng nút lưu, duyệt, hủy hoặc xóa trả về HTTP 403.',
+        'cause' => 'Route web cho phép mở trang nhưng API yêu cầu quyền mà vai trò hiện tại chưa có; hoặc cache quyền chưa được làm mới.',
+        'check' => 'Lấy endpoint trả 403 trong Network → đối chiếu middleware `permission:*` → kiểm tra quyền trực tiếp và quyền qua vai trò → làm mới cache rồi thử lại.',
+        'code' => codeLink($root, $root . '/routes/api.php', 44, 'nhóm API có xác thực/phân quyền') . ' · ' . codeLink($root, $root . '/app/Http/Middleware/HandleInertiaRequests.php', 1, 'HandleInertiaRequests'),
+    ],
+    [
+        'title' => 'Danh sách có dữ liệu nhưng lọc hoặc chuyển trang lại trống',
+        'symptom' => 'Danh sách ban đầu có bản ghi; sau khi lọc, tìm kiếm hoặc chuyển trang thì không còn kết quả.',
+        'cause' => 'Tên tham số giữa giao diện và Controller không khớp, URL còn bộ lọc cũ hoặc `page` vượt quá số trang sau khi lọc.',
+        'check' => 'Xem query string trong Network → so sánh với `$request` trong `index()` → đặt `page=1` → bỏ lần lượt từng bộ lọc để tìm điều kiện gây trống.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/WarehouseController.php', 1, 'WarehouseController') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/SalesOrderController.php', 1, 'SalesOrderController'),
+    ],
+    [
+        'title' => 'Số dư sai sau khi sửa hoặc duyệt lại giao dịch',
+        'symptom' => 'Số dư ban đầu đúng nhưng tăng/giảm thêm sau thao tác lặp, hoặc không bằng tổng sổ tài khoản.',
+        'cause' => 'Bút toán cũ chưa được đảo, yêu cầu duyệt được xử lý hai lần hoặc `current_balance` lệch với ledger.',
+        'check' => 'Lấy `transaction_id` → đếm bút toán liên quan → cộng ledger theo thời gian → so sánh `current_balance` → kiểm tra duyệt lặp có tạo tác động lần hai không.',
+        'code' => codeLink($root, $root . '/app/Services/TransactionService.php', 1, 'TransactionService') . ' · ' . codeLink($root, $root . '/app/Services/LedgerService.php', 1, 'LedgerService') . ' · ' . codeLink($root, $root . '/app/Services/AccountBalanceService.php', 1, 'AccountBalanceService'),
+    ],
+    [
+        'title' => 'Khách đặt hàng thành công nhưng không thấy đơn trong tài khoản',
+        'symptom' => 'Trang thành công trả mã đơn nhưng mục “Đơn hàng của tôi” không có đơn đó.',
+        'cause' => 'Đơn được tạo khi chưa đăng nhập, thiếu `customer_account_id`, tài khoản không khớp snapshot khách hàng hoặc lịch sử đơn đang lọc sai cửa hàng.',
+        'check' => 'Tìm đơn theo mã → đối chiếu `company_id`, `customer_id`, `customer_account_id`, email và số điện thoại snapshot → gọi lịch sử đơn bằng đúng phiên và storefront.',
+        'code' => codeLink($root, $root . '/app/Http/Controllers/StorefrontController.php', 1, 'StorefrontController') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/StorefrontAccountController.php', 1, 'StorefrontAccountController'),
+    ],
+    [
+        'title' => 'Thao tác thành công nhưng không có nhật ký hoạt động',
+        'symptom' => 'Dữ liệu đã thay đổi nhưng trang Nhật ký hoạt động không có bản ghi tương ứng.',
+        'cause' => 'Endpoint không qua middleware `audit`, nhánh xử lý không gọi service ghi log, transaction bị hoàn tác hoặc thiếu ngữ cảnh người dùng/công ty.',
+        'check' => 'Xác nhận dữ liệu đã commit → kiểm tra middleware route → tìm lời gọi ghi log → lọc lại theo đúng công ty, người thao tác và thời gian.',
+        'code' => codeLink($root, $root . '/routes/api.php', 44, 'middleware audit của API') . ' · ' . codeLink($root, $root . '/app/Services/ActivityLogService.php', 1, 'ActivityLogService') . ' · ' . codeLink($root, $root . '/app/Http/Controllers/AuditLogController.php', 1, 'AuditLogController'),
+    ],
+];
+
+foreach ($knowledgeBaseItems as $item) {
+    $moduleDoc[] = '';
+    $moduleDoc[] = '### ' . $item['title'];
+    $moduleDoc[] = '';
+    $moduleDoc[] = '- **Người dùng thấy:** ' . $item['symptom'];
+    $moduleDoc[] = '- **Nguyên nhân thường gặp:** ' . $item['cause'];
+    $moduleDoc[] = '- **Cách kiểm tra:** ' . $item['check'];
+    $moduleDoc[] = '- **Vị trí code:** ' . $item['code'] . '.';
+}
 
 $moduleDoc[] = '';
 $moduleDoc[] = '## Luồng trạng thái và điểm dễ phát sinh lỗi';
@@ -1477,21 +1636,21 @@ $moduleDoc[] = '- **Giao dịch:** `pending → approved` hoặc `pending → re
 $moduleDoc[] = '';
 $moduleDoc[] = '### Thứ tự debug một chức năng';
 $moduleDoc[] = '';
-$moduleDoc[] = '1. Mở dòng gọi trên **Trang/Component** và kiểm tra payload, HTTP method, URL.';
+$moduleDoc[] = '1. Mở dòng gọi trên **Màn hình/Component** và kiểm tra dữ liệu gửi lên, HTTP method, URL.';
 $moduleDoc[] = '2. Mở **Controller/Function**, kiểm tra quyền, validation và trạng thái đầu vào.';
 $moduleDoc[] = '3. Mở **Service/model được gọi**, kiểm tra transaction, thay đổi dữ liệu và quan hệ.';
 $moduleDoc[] = '4. Đối chiếu trạng thái trước/sau với luồng ở trên và kiểm tra trang bị ảnh hưởng trực tiếp/gián tiếp.';
 $moduleDoc[] = '5. Chạy **kiểm thử liên quan**; nếu tài liệu báo chưa phát hiện test thì cần bổ sung test tái hiện lỗi trước khi sửa.';
 $moduleDoc[] = '';
 $combinedLookupSections = [
-    ['heading' => '## Mục lục theo chức năng/nghiệp vụ', 'anchor' => 'tra-cuu-theo-chuc-nang-nghiep-vu', 'summary' => 'Tra cứu theo chức năng/nghiệp vụ — khi quên tên Function'],
+    ['heading' => '## Mục lục theo chức năng/nghiệp vụ', 'anchor' => 'tra-cuu-theo-chuc-nang-nghiep-vu', 'summary' => 'Tra cứu theo chức năng/nghiệp vụ — khi quên tên hàm'],
     ['heading' => '## Mục lục tìm lỗi theo triệu chứng', 'anchor' => 'tra-cuu-tim-loi-theo-trieu-chung', 'summary' => 'Knowledge Base — khoanh vùng theo nguyên nhân gốc'],
     ['heading' => '## Luồng trạng thái và điểm dễ phát sinh lỗi', 'anchor' => 'tra-cuu-luong-trang-thai', 'summary' => 'Luồng trạng thái và thứ tự debug'],
 ];
 $moduleIndexLookupLines = [
     '## Cẩm nang chẩn đoán nhanh',
     '',
-    '> Mở đúng khối theo nhu cầu. Tra cứu nghiệp vụ chỉ giữ endpoint đã ánh xạ được tới Vue/JS; danh sách Function đầy đủ nằm tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md).',
+    '> Mở đúng khối theo nhu cầu. Tra cứu nghiệp vụ chỉ giữ API đã tìm được màn hình Vue/JS sử dụng; danh sách hàm đầy đủ nằm tại [`docs/PROJECT_FUNCTION_INDEX.md`](docs/PROJECT_FUNCTION_INDEX.md).',
     '',
 ];
 foreach ($combinedLookupSections as $sectionIndex => $section) {
@@ -1593,11 +1752,11 @@ foreach ($modules as $moduleName => $module) {
     $modulePageGroups[$moduleName] = $pageGroups;
     $moduleBlock = [];
     $moduleBlock[] = '<details>';
-    $moduleBlock[] = '<summary><strong>' . $moduleName . '</strong> — ' . count($pageGroups) . ' trang FE, ' . count($module['controllers']) . ' Controller</summary>';
+    $moduleBlock[] = '<summary><strong>' . $moduleName . '</strong> — ' . count($pageGroups) . ' màn hình, ' . count($module['controllers']) . ' Controller</summary>';
     $moduleBlock[] = '';
     $moduleBlock[] = $module['purpose'];
     $moduleBlock[] = '';
-    $moduleBlock[] = '### FE — từng trang và chức năng';
+    $moduleBlock[] = '### Giao diện — từng màn hình và chức năng';
     $moduleBlock[] = '';
     if (!$pageGroups) $moduleBlock[] = '> Module không có trang Vue riêng được ánh xạ.';
     foreach ($pageGroups as $group) {
@@ -1605,7 +1764,7 @@ foreach ($modules as $moduleName => $module) {
         $moduleBlock[] = '<details>';
         $moduleBlock[] = '<summary><strong>' . pageName($root, $group['path']) . '</strong> — <code>' . str_replace('resources/js/Pages/', '', $relative) . '</code></summary>';
         $moduleBlock[] = '';
-        $moduleBlock[] = '- **File FE:** ' . codeLink($root, $group['path'], 1, $relative) . '.';
+        $moduleBlock[] = '- **Mã nguồn giao diện:** ' . codeLink($root, $group['path'], 1, $relative) . '.';
         if (!$group['calls']) {
             $moduleBlock[] = '- **Chức năng:** dựng giao diện hoặc nhận dữ liệu qua Inertia/Component/composable; chưa phát hiện API trực tiếp trong file.';
         } else {
@@ -1621,16 +1780,16 @@ foreach ($modules as $moduleName => $module) {
         $moduleBlock[] = '</details>';
         $moduleBlock[] = '';
     }
-    $moduleBlock[] = '### BE — Controller và từng Function';
+    $moduleBlock[] = '### Xử lý phía máy chủ — Controller và từng hàm';
     $moduleBlock[] = '';
     foreach ($module['controllers'] as $shortController) {
         $controller = $controllerByShort[$shortController] ?? null;
         if (!$controller) continue;
         $listedFunctions = array_values(array_filter($controller['functions'], fn ($function) => $function['name'] !== '__construct'));
         $moduleBlock[] = '<details>';
-        $moduleBlock[] = '<summary><strong>' . $shortController . '</strong> — ' . count($listedFunctions) . ' Function</summary>';
+        $moduleBlock[] = '<summary><strong>' . $shortController . '</strong> — ' . count($listedFunctions) . ' hàm</summary>';
         $moduleBlock[] = '';
-        $moduleBlock[] = '- **File BE:** ' . codeLink($root, $controller['path'], 1, $controller['relative']) . '.';
+        $moduleBlock[] = '- **Mã nguồn xử lý:** ' . codeLink($root, $controller['path'], 1, $controller['relative']) . '.';
         $subject = controllerSubject($controller['class']);
         foreach ($listedFunctions as $function) {
             $methodRoutes = $routeMap[$controller['class']][$function['name']] ?? [];
@@ -1646,7 +1805,7 @@ foreach ($modules as $moduleName => $module) {
         $moduleBlock[] = '</details>';
         $moduleBlock[] = '';
     }
-    $moduleBlock[] = '- **Đọc sâu:** [Function, validation, Service/model và ảnh hưởng](docs/PROJECT_FUNCTION_INDEX.md) · [Tìm lỗi](docs/PROJECT_DEBUGGING_INDEX.md) · [Database](docs/PROJECT_DATABASE_INDEX.md).';
+    $moduleBlock[] = '- **Đọc sâu:** [Hàm, kiểm tra đầu vào, Service/model và phạm vi cần kiểm tra](docs/PROJECT_FUNCTION_INDEX.md) · [Tìm lỗi](docs/PROJECT_DEBUGGING_INDEX.md) · [Cơ sở dữ liệu](docs/PROJECT_DATABASE_INDEX.md).';
     $moduleBlock[] = '';
     $moduleBlock[] = '</details>';
     $moduleBlock[] = '';
@@ -1988,9 +2147,9 @@ foreach ($moduleIndexGroups as $groupDefinition) {
             if ($calledMethods || !empty($subgroup['show_all_services'])) $activeServices[$serviceName] = $calledMethods;
         }
         $moduleIndexDetailBlocks[] = '<details>';
-        $moduleIndexDetailBlocks[] = '<summary><strong>' . $subgroup['number'] . ' ' . $subgroup['title'] . '</strong> — ' . count($subPages) . ' trang, ' . count($subgroup['controllers']) . ' Controller, ' . count($activeServices) . ' Service trực tiếp</summary>';
+        $moduleIndexDetailBlocks[] = '<summary><strong>' . $subgroup['number'] . ' ' . $subgroup['title'] . '</strong> — ' . count($subPages) . ' màn hình, ' . count($subgroup['controllers']) . ' Controller, ' . count($activeServices) . ' Service trực tiếp</summary>';
         $moduleIndexDetailBlocks[] = '';
-        $moduleIndexDetailBlocks[] = '### FE — từng trang Vue';
+        $moduleIndexDetailBlocks[] = '### Giao diện — từng màn hình Vue';
         $moduleIndexDetailBlocks[] = '';
         if (!$subPages) $moduleIndexDetailBlocks[] = '> Nhóm nghiệp vụ này không có trang Vue riêng hoặc giao diện nằm trong Component/Blade dùng chung.';
         foreach ($subPages as $pageGroup) {
@@ -1998,7 +2157,7 @@ foreach ($moduleIndexGroups as $groupDefinition) {
             $moduleIndexDetailBlocks[] = '<details>';
             $moduleIndexDetailBlocks[] = '<summary><strong>' . pageName($root, $pageGroup['path']) . '</strong> — <code>' . str_replace('resources/js/Pages/', '', $relative) . '</code></summary>';
             $moduleIndexDetailBlocks[] = '';
-            $moduleIndexDetailBlocks[] = '- **File:** ' . codeLink($root, $pageGroup['path'], 1, $relative) . '.';
+            $moduleIndexDetailBlocks[] = '- **Mã nguồn giao diện:** ' . codeLink($root, $pageGroup['path'], 1, $relative) . '.';
             if (!$pageGroup['calls']) {
                 $moduleIndexDetailBlocks[] = '- **Chức năng:** dựng giao diện hoặc nhận dữ liệu qua Inertia/Component/composable; chưa phát hiện API trực tiếp trong file.';
             } else {
@@ -2009,7 +2168,7 @@ foreach ($moduleIndexGroups as $groupDefinition) {
                         . str_replace('\\|', '/', $call['method']) . ' /' . $call['uri'] . '` → '
                         . codeLink($root, $call['controller']['path'], $function['line'], $call['shortController'] . '::' . $function['name'] . '()')
                         . ' — ' . describe($function['name'], $function['visibility'], $call['subject'], $function['body'], $call['controller']['class']);
-                    $moduleIndexDetailBlocks[] = '  - **Sửa Function này ảnh hưởng:** ' . pageEffect($function['name'], $call['subject'], $pageGroup['path']) . ' trên chính trang này; '
+                    $moduleIndexDetailBlocks[] = '  - **Nếu sửa hàm này:** ' . pageEffect($function['name'], $call['subject'], $pageGroup['path']) . ' trên chính trang này; '
                         . (!empty($analysis['dependencies']) ? 'đồng thời cần kiểm tra ' . implode(', ', $analysis['dependencies']) . '.' : 'chưa phát hiện Service/model được gọi trực tiếp.');
                     $moduleIndexDetailBlocks[] = '  - **Trang khác và test cần kiểm tra:** ' . referenceLinks($root, $analysis['pages'] ?? [])
                         . ' · ' . referenceLinks($root, $analysis['tests'] ?? []) . '.';
@@ -2019,14 +2178,14 @@ foreach ($moduleIndexGroups as $groupDefinition) {
             $moduleIndexDetailBlocks[] = '</details>';
             $moduleIndexDetailBlocks[] = '';
         }
-        $moduleIndexDetailBlocks[] = '### BE — Controller và Service';
+        $moduleIndexDetailBlocks[] = '### Xử lý phía máy chủ — Controller và Service';
         $moduleIndexDetailBlocks[] = '';
         foreach ($subgroup['controllers'] as $shortController) {
             $controller = $controllerByShort[$shortController] ?? null;
             if (!$controller) continue;
             $controllerAnchor = 'chi-tiet-' . anchorId($controller['class']);
             if (isset($emittedModuleControllers[$controller['class']])) {
-                $moduleIndexDetailBlocks[] = '> **Controller dùng chung:** [' . $shortController . ' — mở phần chi tiết duy nhất](#' . $controllerAnchor . '). Các API/Function mà nghiệp vụ này sử dụng đã được liên kết tại từng trang FE phía trên.';
+                $moduleIndexDetailBlocks[] = '> **Controller dùng chung:** [' . $shortController . ' — mở phần chi tiết duy nhất](#' . $controllerAnchor . '). Các API và hàm mà nghiệp vụ này sử dụng đã được liên kết tại từng màn hình phía trên.';
                 $moduleIndexDetailBlocks[] = '';
                 continue;
             }
@@ -2035,22 +2194,32 @@ foreach ($moduleIndexGroups as $groupDefinition) {
             $moduleIndexDetailBlocks[] = '<a id="' . $controllerAnchor . '"></a>';
             $moduleIndexDetailBlocks[] = '';
             $moduleIndexDetailBlocks[] = '<details>';
-            $moduleIndexDetailBlocks[] = '<summary><strong>Controller ' . $shortController . '</strong> — ' . count($listedFunctions) . ' Function</summary>';
+            $moduleIndexDetailBlocks[] = '<summary><strong>Controller ' . $shortController . '</strong> — ' . count($listedFunctions) . ' hàm</summary>';
             $moduleIndexDetailBlocks[] = '';
-            $moduleIndexDetailBlocks[] = '- **File:** ' . codeLink($root, $controller['path'], 1, $controller['relative']) . '.';
+            $moduleIndexDetailBlocks[] = '- **Mã nguồn xử lý:** ' . codeLink($root, $controller['path'], 1, $controller['relative']) . '.';
             $subject = controllerSubject($controller['class']);
             foreach ($listedFunctions as $function) {
                 $methodRoutes = $routeMap[$controller['class']][$function['name']] ?? [];
                 $analysis = $functionAnalysis[$controller['class'] . '::' . $function['name']] ?? [];
                 $apis = [];
                 foreach ($methodRoutes as $route) $apis[] = str_replace('|', '/', $route['method']) . ' /' . $route['uri'];
-                $moduleIndexDetailBlocks[] = '- `' . $function['visibility'] . '` '
-                    . codeLink($root, $controller['path'], $function['line'], $function['name'] . '()')
-                    . ($apis ? ' — API `' . implode('`, `', $apis) . '`' : ' — không có API trực tiếp')
-                    . ': ' . describe($function['name'], $function['visibility'], $subject, $function['body'], $controller['class']);
-                $moduleIndexDetailBlocks[] = '  - **Đường dẫn sửa nhanh:** ' . ($analysis['quick_path'] ?? 'chưa tạo được đường dẫn tự động; tìm caller trước khi sửa.') . '.';
-                $moduleIndexDetailBlocks[] = '  - **Mức độ ảnh hưởng:** ' . impactAssessmentText($analysis['assessment'] ?? ['Trung bình', 'chưa đủ dữ liệu để phân loại chính xác']);
-                $moduleIndexDetailBlocks[] = '  - **Ảnh hưởng khi sửa:** ' . ($analysis['impact'] ?? 'chưa đủ dữ liệu phân tích tĩnh; cần tìm nơi gọi Function trước khi sửa.');
+                $functionLabel = businessActionLabel($function['name'], $subject);
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '<details>';
+                $moduleIndexDetailBlocks[] = '<summary><code>' . $function['visibility'] . ' ' . $function['name'] . '()</code> — ' . $functionLabel . '</summary>';
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '- **Mã nguồn:** ' . codeLink($root, $controller['path'], $function['line'], $shortController . '::' . $function['name'] . '()') . '.';
+                $moduleIndexDetailBlocks[] = '- **Hàm này làm gì:** ' . describe($function['name'], $function['visibility'], $subject, $function['body'], $controller['class']);
+                $moduleIndexDetailBlocks[] = '- **API:** ' . ($apis ? '`' . implode('`, `', $apis) . '`' : 'không có API gọi trực tiếp; có thể là hàm nội bộ hoặc được gọi gián tiếp') . '.';
+                $moduleIndexDetailBlocks[] = '- **Lần theo code:** ' . ($analysis['quick_path'] ?? 'chưa tạo được đường dẫn tự động; hãy tìm nơi gọi hàm trước.') . '.';
+                $moduleIndexDetailBlocks[] = '- **Mức gợi ý tự động:** ' . impactAssessmentText($analysis['assessment'] ?? ['Trung bình', 'chưa đủ dữ liệu để phân loại chính xác']);
+                $moduleIndexDetailBlocks[] = '- **Khi thay đổi hàm này:** '
+                    . moduleImpactSummary($function['name'], $function['visibility'], $subject, $function['body'], $function['callers']);
+                foreach (moduleReviewLines($root, $analysis, $controller['class'], $function['name']) as $reviewLine) {
+                    $moduleIndexDetailBlocks[] = $reviewLine;
+                }
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '</details>';
             }
             $moduleIndexDetailBlocks[] = '';
             $moduleIndexDetailBlocks[] = '</details>';
@@ -2070,7 +2239,7 @@ foreach ($moduleIndexGroups as $groupDefinition) {
                     $calledMethodLinks[] = codeLink($root, $servicePath, classMethodLine($servicePath, $calledMethod), $serviceName . '::' . $calledMethod . '()');
                 }
                 $moduleIndexDetailBlocks[] = '> **Service dùng chung:** [' . $serviceName . ' — mở phần chi tiết duy nhất](#' . $serviceAnchor . ')'
-                    . ($calledMethodLinks ? '; Function nhóm này gọi: ' . implode(', ', $calledMethodLinks) : '; chưa phát hiện lời gọi trực tiếp trong Controller của nhóm') . '.';
+                    . ($calledMethodLinks ? '; các hàm được nhóm này sử dụng: ' . implode(', ', $calledMethodLinks) : '; chưa thấy lời gọi trực tiếp trong Controller của nhóm') . '.';
                 $moduleIndexDetailBlocks[] = '';
                 continue;
             }
@@ -2079,9 +2248,9 @@ foreach ($moduleIndexGroups as $groupDefinition) {
             $moduleIndexDetailBlocks[] = '<a id="' . $serviceAnchor . '"></a>';
             $moduleIndexDetailBlocks[] = '';
             $moduleIndexDetailBlocks[] = '<details>';
-            $moduleIndexDetailBlocks[] = '<summary><strong>Service ' . $serviceName . '</strong> — ' . count($serviceFunctions) . ' Function public/private/protected</summary>';
+            $moduleIndexDetailBlocks[] = '<summary><strong>Service ' . $serviceName . '</strong> — ' . count($serviceFunctions) . ' hàm</summary>';
             $moduleIndexDetailBlocks[] = '';
-            $moduleIndexDetailBlocks[] = '- **File:** ' . codeLink($root, $servicePath, 1, 'app/Services/' . $serviceName . '.php') . '.';
+            $moduleIndexDetailBlocks[] = '- **Mã nguồn xử lý:** ' . codeLink($root, $servicePath, 1, 'app/Services/' . $serviceName . '.php') . '.';
             $moduleIndexDetailBlocks[] = '- **Logic nghiệp vụ:** ' . ($servicePurposes[$serviceName] ?? ('Xử lý logic dùng lại cho ' . strtolower($subgroup['title']) . '.'));
             if (!$serviceFunctions) $moduleIndexDetailBlocks[] = '- **Lời gọi trực tiếp:** chưa phát hiện trong Controller của nhóm; Service có thể được gọi gián tiếp qua Service khác hoặc được liệt kê vì ảnh hưởng nghiệp vụ dùng chung.';
             foreach ($serviceFunctions as $function) {
@@ -2110,9 +2279,6 @@ foreach ($moduleIndexGroups as $groupDefinition) {
                         }
                     }
                 }
-                $moduleIndexDetailBlocks[] = '- `' . $function['visibility'] . '` '
-                    . codeLink($root, $servicePath, $function['line'], $function['name'] . '()')
-                    . ': ' . describe($function['name'], $function['visibility'], strtolower($subgroup['title']), $function['body'], 'App\\Services\\' . $serviceName);
                 $internalCallerLinks = [];
                 foreach ($function['callers'] as $callerLine) {
                     $internalCallerLinks[] = codeLink($root, $servicePath, $callerLine, 'lời gọi nội bộ dòng ' . $callerLine);
@@ -2128,20 +2294,39 @@ foreach ($moduleIndexGroups as $groupDefinition) {
                     $serviceDependencies,
                     array_values($serviceAffectedPages)
                 );
-                $moduleIndexDetailBlocks[] = '  - **Đường dẫn sửa nhanh:** Controller ' . $calledByText
+                $serviceSubject = strtolower($subgroup['title']);
+                $functionLabel = businessActionLabel($function['name'], $serviceSubject);
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '<details>';
+                $moduleIndexDetailBlocks[] = '<summary><code>' . $function['visibility'] . ' ' . $function['name'] . '()</code> — ' . $functionLabel . '</summary>';
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '- **Mã nguồn:** ' . codeLink($root, $servicePath, $function['line'], $serviceName . '::' . $function['name'] . '()') . '.';
+                $moduleIndexDetailBlocks[] = '- **Hàm này làm gì:** ' . describe($function['name'], $function['visibility'], $serviceSubject, $function['body'], 'App\\Services\\' . $serviceName);
+                $moduleIndexDetailBlocks[] = '- **Được gọi từ:** ' . $calledByText . '.';
+                $moduleIndexDetailBlocks[] = '- **Lần theo code:** Controller ' . $calledByText
                     . ' → Service ' . codeLink($root, $servicePath, $function['line'], $serviceName . '::' . $function['name'] . '()')
-                    . ($serviceDependencies ? ' → Service/Model ' . implode(', ', $serviceDependencies) : ' → Service/Model: chưa phát hiện lời gọi tiếp theo')
-                    . ($serviceAffectedPages ? ' → FE ' . implode(', ', $serviceAffectedPages) : ' → FE: chưa ánh xạ được trang trực tiếp')
-                    . ($serviceAffectedTests ? ' → Test ' . implode(', ', $serviceAffectedTests) : ' → Test: chưa ánh xạ được test trực tiếp') . '.';
-                $moduleIndexDetailBlocks[] = '  - **Mức độ ảnh hưởng:** ' . impactAssessmentText($serviceAssessment);
-                $moduleIndexDetailBlocks[] = '  - **Ảnh hưởng khi sửa:** thay đổi logic dùng chung của Service; cần kiểm tra các Function gọi phía trên'
-                    . ($serviceAffectedPages ? ' và các trang ' . implode(', ', $serviceAffectedPages) : '; chưa ánh xạ được trang gọi trực tiếp') . '.';
+                    . ($serviceDependencies ? ' → Xử lý/dữ liệu ' . implode(', ', $serviceDependencies) : ' → Xử lý/dữ liệu: chưa thấy lời gọi tiếp theo')
+                    . ($serviceAffectedPages ? ' → Màn hình ' . implode(', ', $serviceAffectedPages) : ' → Màn hình: chưa tìm thấy nơi gọi trực tiếp')
+                    . ($serviceAffectedTests ? ' → Kiểm thử ' . implode(', ', $serviceAffectedTests) : ' → Kiểm thử: chưa tìm thấy trường hợp đi trực tiếp qua hàm này') . '.';
+                $moduleIndexDetailBlocks[] = '- **Mức gợi ý tự động:** ' . impactAssessmentText($serviceAssessment);
+                $moduleIndexDetailBlocks[] = '- **Khi thay đổi hàm này:** '
+                    . moduleImpactSummary($function['name'], $function['visibility'], $serviceSubject, $function['body'], $function['callers']);
+                $moduleIndexDetailBlocks[] = '- **Nên kiểm tra cùng:**';
+                $moduleIndexDetailBlocks[] = '  - **Hàm gọi Service:** ' . $calledByText . '.';
+                $moduleIndexDetailBlocks[] = '  - **Màn hình:** '
+                    . ($serviceAffectedPages ? implode(' · ', $serviceAffectedPages) : 'chưa tìm thấy nơi gọi trực tiếp; kiểm tra thêm lời gọi gián tiếp') . '.';
+                $moduleIndexDetailBlocks[] = '  - **Xử lý/dữ liệu tiếp theo:** '
+                    . ($serviceDependencies ? implode(' · ', $serviceDependencies) : 'chưa thấy lời gọi trực tiếp') . '.';
+                $moduleIndexDetailBlocks[] = '  - **Kiểm thử:** '
+                    . ($serviceAffectedTests ? implode(' · ', $serviceAffectedTests) : 'chưa tìm thấy trường hợp đi trực tiếp qua hàm này') . '.';
+                $moduleIndexDetailBlocks[] = '';
+                $moduleIndexDetailBlocks[] = '</details>';
             }
             $moduleIndexDetailBlocks[] = '';
             $moduleIndexDetailBlocks[] = '</details>';
             $moduleIndexDetailBlocks[] = '';
         }
-        $moduleIndexDetailBlocks[] = '- **Đọc sâu:** [Function và ảnh hưởng](docs/PROJECT_FUNCTION_INDEX.md) · [Tìm lỗi](docs/PROJECT_DEBUGGING_INDEX.md) · [Database](docs/PROJECT_DATABASE_INDEX.md).';
+        $moduleIndexDetailBlocks[] = '- **Đọc sâu:** [Hàm và phạm vi cần kiểm tra](docs/PROJECT_FUNCTION_INDEX.md) · [Tìm lỗi](docs/PROJECT_DEBUGGING_INDEX.md) · [Cơ sở dữ liệu](docs/PROJECT_DATABASE_INDEX.md).';
         $moduleIndexDetailBlocks[] = '';
         $moduleIndexDetailBlocks[] = '</details>';
         $moduleIndexDetailBlocks[] = '';
@@ -2181,9 +2366,14 @@ if ($moduleIndexSource !== false) {
         $generatedModuleSection = implode(PHP_EOL, array_merge([
             '<!-- GENERATED_MODULE_GROUP_' . $marker . '_START -->',
             '',
-            '> Chi tiết FE/BE bên dưới được sinh tự động từ code; mở từng nhóm nghiệp vụ con khi cần tra cứu.',
+            '> Chi tiết kỹ thuật về màn hình, API và từng hàm được sinh tự động từ mã nguồn; chỉ mở nhóm nghiệp vụ đang cần tra cứu. “Mức gợi ý tự động” dựa trên phân tích tĩnh, không thay thế đánh giá nghiệp vụ và bảo mật.',
             '',
-        ], $sectionLines, ['<!-- GENERATED_MODULE_GROUP_' . $marker . '_END -->', '']));
+        ], $sectionLines, [
+            '[↑ Quay lại danh sách module](#chon-module)',
+            '',
+            '<!-- GENERATED_MODULE_GROUP_' . $marker . '_END -->',
+            '',
+        ]));
         $heading = '## ' . $sectionTitle;
         $headingAt = strpos($moduleIndexSource, $heading);
         if ($headingAt === false) continue;

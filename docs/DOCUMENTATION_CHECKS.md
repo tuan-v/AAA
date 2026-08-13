@@ -2,6 +2,14 @@
 
 Bộ kiểm tra giúp phát hiện tài liệu hỏng hoặc không còn đồng bộ với mã nguồn mà không tự sửa nội dung hiện có.
 
+## 5 file được đối chiếu
+
+- [`MODULE_INDEX.md`](../MODULE_INDEX.md): trang tra cứu chính theo module.
+- [`PROJECT_FUNCTION_INDEX.md`](PROJECT_FUNCTION_INDEX.md): hàm, API, nơi gọi và phạm vi cần kiểm tra.
+- [`PROJECT_DEBUGGING_INDEX.md`](PROJECT_DEBUGGING_INDEX.md): đường lần theo lỗi từ giao diện tới dữ liệu.
+- [`PROJECT_DATABASE_INDEX.md`](PROJECT_DATABASE_INDEX.md): Model, bảng và migration.
+- [`PROJECT_MODULE_DETAIL_INDEX.md`](PROJECT_MODULE_DETAIL_INDEX.md): trang chuyển hướng về chỉ mục module hợp nhất.
+
 ## Kiểm tra nhanh
 
 Chạy trước khi commit thay đổi tài liệu:
@@ -14,7 +22,8 @@ Lệnh này chỉ đọc file và kiểm tra:
 
 - file tài liệu bắt buộc có tồn tại;
 - liên kết nội bộ và số dòng được liên kết còn hợp lệ;
-- thẻ `<details>` và marker `GENERATED_*` đóng/mở cân bằng;
+- thẻ `<details>` đóng/mở đúng thứ tự và marker `GENERATED_*` khớp nhau;
+- tiêu đề H1 nằm đầu trang và điểm neo “Sửa code” nằm đúng phần tra cứu;
 - các phần viết tay quan trọng trong `MODULE_INDEX.md` còn nguyên;
 - các lỗi lặp từ đã biết như `nhân sự/nhân sự`.
 
@@ -42,4 +51,3 @@ Sau khi sinh lại, hãy đọc `git diff` để chắc chắn phần thay đổ
 - Mã thoát `0`: tài liệu hợp lệ.
 - Mã thoát `1`: có lỗi; thông báo chỉ rõ file, dòng và nguyên nhân.
 - Bộ kiểm tra không tự động thay đổi tài liệu.
-
