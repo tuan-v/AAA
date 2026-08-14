@@ -2,7 +2,7 @@
 
 Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. Cập nhật theo mã nguồn ngày **12/08/2026**.
 
-**Đi nhanh:** [Người mới](#tong-quan-cho-nguoi-moi) · [Chọn module](#chon-module) · [Tìm lỗi](#tra-cuu-tim-loi-theo-trieu-chung) · [Sửa code](#tra-cuu-nhanh-khi-sua-code)
+**Đi nhanh:** [Người mới](#tong-quan-cho-nguoi-moi) · [Ví dụ task đầu tiên](#vi-du-task-dev-moi) · [Chọn module](#chon-module) · [Tìm lỗi](#tra-cuu-tim-loi-theo-trieu-chung) · [Sửa code](#tra-cuu-nhanh-khi-sua-code)
 
 > Nếu tài liệu khác code, ưu tiên [`routes/web.php`](routes/web.php), [`routes/api.php`](routes/api.php) và phần hiện thực trong mã nguồn.
 
@@ -11,6 +11,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 | Bạn đang cần                                | Bắt đầu từ                                                                                                  |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Mới tham gia dự án                          | [Tổng quan cho người mới](#tong-quan-cho-nguoi-moi)                                                         |
+| Có task đầu tiên nhưng chưa biết lần code   | [Ví dụ cầm tay chỉ việc](#vi-du-task-dev-moi)                                                              |
 | Đang gặp lỗi nhưng chưa biết nguyên nhân    | [Knowledge Base](#tra-cuu-tim-loi-theo-trieu-chung)                                                        |
 | Đã biết phân hệ hoặc màn hình cần tìm       | [Chọn module](#chon-module)                                                                                 |
 | Chỉ nhớ chức năng, chưa biết tên hàm        | [Tra cứu theo chức năng/nghiệp vụ](#tra-cuu-theo-chuc-nang-nghiep-vu)                                     |
@@ -22,7 +23,7 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 1. Đọc [`START_HERE.md`](START_HERE.md) để chạy dự án và dùng dữ liệu demo.
 2. Đọc [Tổng quan cho người mới](#tong-quan-cho-nguoi-moi) và [bản đồ liên module](#luong-lien-module) để hiểu Mua/Bán → Kho → Kế toán.
 3. Chọn module; chỉ đọc **Vai trò**, **Điểm vào**, **Liên thông**, **Ràng buộc** và **Luồng demo nhanh** trước. Các khối chi tiết sinh tự động chỉ mở khi cần sửa hoặc tìm lỗi.
-4. Khi nhận task, lần theo `màn hình → API → Controller → Service → dữ liệu → test`.
+4. Khi nhận task, lần theo `màn hình → API → Controller → Service → dữ liệu → test`; xem ngay [ví dụ task đầu tiên](#vi-du-task-dev-moi) nếu chưa quen.
 
 <a id="tong-quan-cho-nguoi-moi"></a>
 
@@ -44,6 +45,36 @@ Tra nhanh màn hình, API, backend, dữ liệu và test của từng module. C�
 - **Test (kiểm thử tự động):** mô tả kết quả hệ thống phải giữ đúng sau khi sửa code.
 
 Khi mới tìm hiểu, dừng ở **Vai trò**, **Liên thông** và **Luồng demo nhanh** của mỗi module là đủ. Chỉ lần tiếp xuống API/Controller/Service khi đã có một màn hình hoặc lỗi cụ thể.
+
+<a id="vi-du-task-dev-moi"></a>
+
+### Ví dụ chỉnh sửa thực tế — “Thêm trường Ghi chú vào Đơn mua”
+
+> **Tình huống giả định:** bạn là dev mới và nhận task “Thêm trường `Ghi chú` vào Đơn mua”. Trường `note` đã có trong mã nguồn hiện tại để bạn mở từng liên kết và quan sát; ví dụ này chỉ hướng dẫn cách tìm code, **không yêu cầu thêm lại hoặc sửa code**.
+
+**Đường đi ngắn nhất:** `màn hình → state/payload → API route → Controller → Model/migration → đọc lại → test`.
+
+| Bước | Mở nhanh | Cần tìm hoặc xác nhận |
+| --- | --- | --- |
+| 1. Xác định màn hình | Web route [`/purchase/orders`](routes/web.php#L123) → [`Purchase/Order/Index.vue`](resources/js/Pages/Purchase/Order/Index.vue#L92) | Trang danh sách mở `PurchaseOrderForm` để tạo hoặc sửa đơn. |
+| 2. Tìm trường trên form | [`PurchaseOrderForm.vue`](resources/js/Pages/Purchase/Order/PurchaseOrderForm.vue#L108) | Tìm `form.note`: ô nhập, giá trị khởi tạo, dữ liệu nạp khi sửa và `note` trong payload. |
+| 3. Lần tới API | [`note: form.note`](resources/js/Pages/Purchase/Order/PurchaseOrderForm.vue#L749) → [route Đơn mua](routes/api.php#L223) | Tạo gọi `POST /api/purchase/orders`; sửa gọi `PUT /api/purchase/orders/{order}`. Kiểm tra luôn permission trên route. |
+| 4. Kiểm tra backend | [`store()`](app/Http/Controllers/PurchaseOrderController.php#L238) và [`update()`](app/Http/Controllers/PurchaseOrderController.php#L382) | Kiểm tra validation, dữ liệu được ghi và điều kiện cho phép sửa. Trường chỉ để lưu/hiển thị thường không cần Service riêng. |
+| 5. Kiểm tra nơi lưu | [`PurchaseOrder::$fillable`](app/Models/PurchaseOrder.php#L12) → [cột `note`](database/migrations/2026_06_10_103456_create_purchase_orders_table.php#L38) | Xác nhận tên trường và kiểu dữ liệu khớp nhau. Với trường mới thật sự, tạo migration bổ sung; không sửa migration cũ đã chạy. |
+| 6. Kiểm tra đường đọc lại | [`GET /api/purchase/orders/{order}`](routes/api.php#L226) → [`show()`](app/Http/Controllers/PurchaseOrderController.php#L179) → [`PurchaseOrderDetail.vue`](resources/js/Pages/Purchase/Order/PurchaseOrderDetail.vue#L124) | Sau khi lưu, mở lại form sửa và trang chi tiết phải nhận đúng ghi chú. |
+| 7. Tìm test gần nhất | [`PurchaseToPaymentEndToEndTest`](tests/Feature/PurchaseToPaymentEndToEndTest.php#L56) | Test đầy đủ cần chứng minh tạo được, sửa được và đọc lại đúng giá trị; thêm trường hợp validation nếu có giới hạn đầu vào. |
+
+**Từ khóa `Ctrl+F` trong tài liệu này:** `PurchaseOrderForm`, `Tạo đơn mua`, `Sửa đơn mua`, `PurchaseOrderController`.
+
+```bash
+# Xem route thật đang đăng ký
+php artisan route:list --path=purchase/orders
+
+# Chạy test gần nhất của luồng mua hàng
+php artisan test --filter=PurchaseToPaymentEndToEndTest
+```
+
+**Hoàn tất việc lần code khi:** bạn chỉ ra được nơi nhập → payload → route/quyền → nơi kiểm tra và lưu → cấu trúc dữ liệu → nơi đọc lại → test cần chạy. Dùng cùng cách này cho trường hoặc module khác.
 
 <details>
 <summary><strong>Thuật ngữ thường gặp</strong></summary>
@@ -91,7 +122,7 @@ Khi mới tìm hiểu, dừng ở **Vai trò**, **Liên thông** và **Luồng d
 
 <a id="luong-lien-module"></a>
 
-## Bản đồ luồng liên module
+## Bản đồ luồng dự án
 
 Phần này dùng khi lỗi xuất hiện ở module sau nhưng nguyên nhân có thể nằm ở chứng từ nguồn của module trước. Đây là bản đồ điều hướng nhanh; quy tắc trạng thái và số liệu đầy đủ nằm trong [`BUSINESS_FLOWS.md`](resources/docs/BUSINESS_FLOWS.md).
 
@@ -428,7 +459,7 @@ flowchart LR
 <a id="tra-cuu-tim-loi-theo-trieu-chung"></a>
 
 <details>
-<summary><strong>Knowledge Base — khoanh vùng theo nguyên nhân gốc</strong></summary>
+<summary><strong>Knowledge Base — một số lỗi thường gặp</strong></summary>
 
 
 > Chọn tiêu đề gần nhất với điều người dùng nhìn thấy. Mỗi mục đi từ dấu hiệu bên ngoài đến dữ liệu cần kiểm tra và file nên mở đầu tiên.
